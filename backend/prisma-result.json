@@ -1,0 +1,6 @@
+{
+  "ok": false,
+  "stderr": "Prisma schema loaded from prisma\\schema.prisma.\nError: Prisma schema validation - (get-config wasm)\nError code: P1012\nerror: The datasource property `url` is no longer supported in schema files. Move connection URLs for Migrate to `prisma.config.ts` and pass either `adapter` for a direct database connection or `accelerateUrl` for Accelerate to the `PrismaClient` constructor. See https://pris.ly/d/config-datasource and https://pris.ly/d/prisma7-client-config\n  -->  prisma\\schema.prisma:10\n   | \n 9 |   provider = \"postgresql\"\n10 |   url      = env(\"DATABASE_URL\")\n   | \n\nValidation Error Count: 1\n[Context: getConfig]\n\nPrisma CLI Version : 7.6.0\n",
+  "stdout": "",
+  "status": 1
+}
