@@ -1,6 +1,6 @@
 # Backend Architecture
 
-SchoolOS is a robust, security-focused backend adhering to functional partitioning for scalability.
+CampusLoom is a robust, security-focused backend adhering to functional partitioning for scalability.
 
 ## Feature-Based Modules (Vertical Slicing)
 Instead of horizontally grouping files by architectural boundaries (i.e. one giant `controllers` folder or `routes` folder), the codebase is organized vertically around application features inside `src/modules/*`.

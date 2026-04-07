@@ -12,7 +12,7 @@ async function start() {
     });
 
     app.log.info(
-      `🚀 SchoolOS API running → http://localhost:${config.PORT} [${config.NODE_ENV}]`,
+      `🚀 CampusLoom API running → http://localhost:${config.PORT} [${config.NODE_ENV}]`,
     );
   } catch (err) {
     app.log.fatal(err, '❌ Failed to start server');

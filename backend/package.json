@@ -1,7 +1,7 @@
 {
-  "name": "schoolos-backend",
+  "name": "campusloom-backend",
   "version": "1.0.0",
-  "description": "SchoolOS — Production-grade school management SaaS backend",
+  "description": "CampusLoom — Production-grade school management SaaS backend",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -10,7 +10,7 @@
     "build": "echo \"No build step needed for plain Node.js\" && exit 0"
   },
   "keywords": [
-    "schoolos",
+    "campusloom",
     "saas",
     "fastify",
     "prisma"

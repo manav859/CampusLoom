@@ -10,6 +10,6 @@ export default async function healthRoute(fastify) {
     return sendSuccess(reply, 200, {
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
-    }, 'SchoolOS API running');
+    }, 'CampusLoom API running');
   });
 }

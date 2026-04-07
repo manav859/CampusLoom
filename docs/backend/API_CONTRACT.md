@@ -1,6 +1,6 @@
 # API Contract
 
-This document acts as the single source of truth for frontend integration with the SchoolOS backend.
+This document acts as the single source of truth for frontend integration with the CampusLoom backend.
 
 ## Global Conventions
 
@@ -45,7 +45,7 @@ Every response from the backend follows one of the two formats below. Do not rel
   ```json
   {
     "success": true,
-    "message": "SchoolOS API running",
+    "message": "CampusLoom API running",
     "data": {
       "uptime": 12.435,
       "timestamp": "2026-04-07T14:30:10.123Z"

@@ -1,10 +1,11 @@
-# Antigravity Context: SchoolOS
+# Antigravity Context: CampusLoom
+
 
 > **AI INSTRUCTION**: Every time a new chat or session with this workspace begins, read this file to gain context on the repository state, goals, and architectural standards.
 > **AI INSTRUCTION**: Whenever major milestones are reached, new modules are implemented, or architecture rules are decided, YOU MUST update this file to reflect the latest state.
 
 ## Project Description
-You are working on a large production-grade SaaS project called **SchoolOS**, a school website and management platform. Treat this as a long-term scalable codebase.
+You are working on a large production-grade SaaS project called **CampusLoom**, a school website and management platform. Treat this as a long-term scalable codebase.
 
 ## Technology Stack
 - **Frontend**: React, Vite, Tailwind CSS, shadcn/ui, React Query
@@ -22,6 +23,8 @@ You are working on a large production-grade SaaS project called **SchoolOS**, a 
 ## Current State / Milestones
 - [x] Initial Phase 1 Implementation Plan created.
 - [x] Backend initialization (Fastify + Prisma 6 + Zod + Modular Architecture).
-- [ ] Backend documentation scaffolded (see `docs/backend/FRONTEND_HANDOFF.md`).
-- [ ] Frontend initialization (Vite + React setup).
+- [x] Backend documentation scaffolded (see `docs/backend/FRONTEND_HANDOFF.md`).
+- [x] Frontend initialization (Vite + React + Tailwind v4 + shadcn/ui).
+- [x] Frontend architectural foundation (Routing, Layouts, API Client, Documentation).
 - [ ] Initial Database Schema layout.
+

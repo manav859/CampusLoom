@@ -1,0 +1,18 @@
+{
+  "name": "campusloom",
+  "version": "1.0.0",
+  "description": "CampusLoom — Production-grade school management SaaS monorepo",
+  "scripts": {
+    "dev": "npm run dev --prefix frontend & npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "install:all": "npm install --prefix frontend && npm install --prefix backend",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manav859/CampusLoom.git"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}

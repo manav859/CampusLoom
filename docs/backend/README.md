@@ -1,6 +1,6 @@
-# SchoolOS Backend Documentation
+# CampusLoom Backend Documentation
 
-Welcome to the **SchoolOS Backend** documentation. SchoolOS is a production-grade multi-tenant SaaS specifically built for school management.
+Welcome to the **CampusLoom Backend** documentation. CampusLoom is a production-grade multi-tenant SaaS specifically built for school management.
 
 ## Tech Stack
 - **Runtime**: Node.js

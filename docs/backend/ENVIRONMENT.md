@@ -10,7 +10,7 @@ This document specifies the required environment variables the backend relies up
 | ------------------- | -------- | -------- | ------------------------------------------------------------- | --------------------------------------------------- |
 | `PORT`              | `No`     | Number   | Port exposed for the API (defaults to 5000)                   | `5000`                                              |
 | `NODE_ENV`          | `No`     | Enum     | Running context (`development`, `production`, `test`)         | `development`                                       |
-| `DATABASE_URL`      | **Yes**  | String   | MongoDB connection string parsed by Mongoose                  | `mongodb://localhost:27017/schoolos`                |
+| `DATABASE_URL`      | **Yes**  | String   | MongoDB connection string parsed by Mongoose                  | `mongodb://localhost:27017/campusloom`                |
 | `JWT_SECRET`        | **Yes**  | String   | Encryption seed for active Session/Auth tokens                | `dev_secret_change_me_in_production_...`            |
 | `CORS_ORIGIN`       | **Yes**  | String   | Strict definition of frontend domains communicating with API  | `http://localhost:5173`                             |
 
