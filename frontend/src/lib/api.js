@@ -16,15 +16,16 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+import { getToken, removeToken } from './auth';
 
 // ─── Request Interceptor ──────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    // TODO: Phase 2 — Attach JWT token from auth store
-    // const token = localStorage.getItem('accessToken');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Attach JWT token from auth store
+    const token = getToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -39,11 +40,11 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
 
-    // TODO: Phase 2 — Handle 401 Unauthorized (token expired / invalid)
-    // if (status === 401) {
-    //   localStorage.removeItem('accessToken');
-    //   window.location.href = '/login';
-    // }
+    // Handle 401 Unauthorized globally
+    if (status === 401) {
+      removeToken();
+      window.location.href = '/login';
+    }
 
     // Extract backend error message from envelope
     const message =

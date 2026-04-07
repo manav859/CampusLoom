@@ -1,24 +1,51 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { LogIn, AtSign, KeyRound, ArrowLeft } from 'lucide-react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { LogIn, AtSign, KeyRound, ArrowLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import Logo from '@/components/common/Logo';
+import { useAuth } from '@/features/auth/AuthContext';
+
+const loginSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
 
 /**
  * Admin Login Page - Premium Portal Access.
  * Features specialized input states, shadow-premium layout, and reveal entrance.
+ * 
+ * Supports full validation with react-hook-form & zod.
+ * Integrates with AuthContext for secured portal access.
  */
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/admin';
+  
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  });
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    // Phase 2 — Implementation of real auth
-    // For now, mock navigate to admin dashboard
-    navigate('/admin');
+  const onSubmit = async (data) => {
+    try {
+      await login(data.email, data.password);
+      navigate(from, { replace: true });
+    } catch (error) {
+      setError('root', { 
+        type: 'manual', 
+        message: error.message || 'Invalid credentials'
+      });
+    }
   };
 
   return (
@@ -47,33 +74,54 @@ export default function LoginPage() {
                <CardDescription>Enter your administrative credentials to continue.</CardDescription>
             </CardHeader>
             <CardContent className="px-8 pb-8 pt-6">
-               <form onSubmit={handleLogin} className="space-y-4">
+               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                  {errors.root && (
+                    <div className="flex items-center gap-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium">
+                      <AlertCircle className="size-4" />
+                      {errors.root.message}
+                    </div>
+                  )}
+
                   <div className="space-y-4">
-                     <div className="relative">
-                        <AtSign className="absolute top-3.5 left-4 size-5 text-muted-foreground opacity-40" />
-                        <input 
-                           type="email" 
-                           placeholder="Administrator Email" 
-                           required
-                           className="w-full h-12 rounded-xl bg-muted/40 border-none pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-muted-foreground/60"
-                           value={email}
-                           onChange={(e) => setEmail(e.target.value)}
-                        />
+                     <div>
+                       <div className="relative">
+                          <AtSign className={`absolute top-3.5 left-4 size-5 text-muted-foreground opacity-40 ${errors.email ? 'text-destructive opacity-100' : ''}`} />
+                          <input 
+                             type="email" 
+                             placeholder="Administrator Email"
+                             autoComplete="email"
+                             className={`w-full h-12 rounded-xl bg-muted/40 border-none pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-muted-foreground/60 ${errors.email ? 'ring-2 ring-destructive/50 bg-destructive/5' : ''}`}
+                             {...register('email')}
+                          />
+                       </div>
+                       {errors.email && <p className="mt-1.5 ml-1 text-xs text-destructive font-medium">{errors.email.message}</p>}
                      </div>
-                     <div className="relative">
-                        <KeyRound className="absolute top-3.5 left-4 size-5 text-muted-foreground opacity-40" />
-                        <input 
-                           type="password" 
-                           placeholder="Access Secret Key" 
-                           required
-                           className="w-full h-12 rounded-xl bg-muted/40 border-none pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-muted-foreground/60"
-                           value={password}
-                           onChange={(e) => setPassword(e.target.value)}
-                        />
+                     
+                     <div>
+                       <div className="relative">
+                          <KeyRound className={`absolute top-3.5 left-4 size-5 text-muted-foreground opacity-40 ${errors.password ? 'text-destructive opacity-100' : ''}`} />
+                          <input 
+                             type="password" 
+                             placeholder="Access Secret Key" 
+                             autoComplete="current-password"
+                             className={`w-full h-12 rounded-xl bg-muted/40 border-none pl-12 pr-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all placeholder:text-muted-foreground/60 ${errors.password ? 'ring-2 ring-destructive/50 bg-destructive/5' : ''}`}
+                             {...register('password')}
+                          />
+                       </div>
+                       {errors.password && <p className="mt-1.5 ml-1 text-xs text-destructive font-medium">{errors.password.message}</p>}
                      </div>
                   </div>
-                  <Button type="submit" size="lg" className="w-full rounded-xl h-12 font-bold shadow-lg shadow-primary/20 mt-2">
-                     Authorize Access <ChevronRight className="ml-2 size-4" />
+                  
+                  <Button type="submit" size="lg" disabled={isSubmitting} className="w-full rounded-xl h-12 font-bold shadow-lg shadow-primary/20 mt-2">
+                     {isSubmitting ? (
+                        <>
+                           Verifying <Loader2 className="ml-2 size-4 animate-spin" />
+                        </>
+                     ) : (
+                        <>
+                           Authorize Access <ChevronRight className="ml-2 size-4" />
+                        </>
+                     )}
                   </Button>
                </form>
             </CardContent>
@@ -87,5 +135,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-import { ChevronRight } from 'lucide-react';
