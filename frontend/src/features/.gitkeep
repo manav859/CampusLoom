@@ -1,0 +1,3 @@
+# Features
+Feature-specific modules will be added here as the application grows.
+Each feature folder should contain its own components, hooks, services, and constants.

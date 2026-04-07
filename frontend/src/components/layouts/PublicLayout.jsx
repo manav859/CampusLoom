@@ -1,0 +1,137 @@
+import { useState } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import Logo from '@/components/common/Logo';
+import { Button } from '@/components/ui/button';
+
+const NAV_LINKS = [
+  { label: 'Home', path: '/' },
+  { label: 'About', path: '/about' },
+  { label: 'Admissions', path: '/admissions' },
+  { label: 'Contact', path: '/contact' },
+];
+
+/**
+ * Public-facing Layout - Modern & Spacious.
+ * Sticky navigation with Glassmorphism and responsive Drawer.
+ */
+export default function PublicLayout() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const location = useLocation();
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background selection:bg-primary/20 selection:text-primary">
+      {/* ─── Sticky Glass Navbar ─── */}
+      <header className="glass sticky top-0 z-50 w-full border-b">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 sm:px-8 lg:px-12">
+          <Link to="/" className="shrink-0 transition-transform hover:scale-[1.02] active:scale-95">
+            <Logo size="md" />
+          </Link>
+
+          {/* Desktop Nav */}
+          <nav className="hidden items-center gap-1.5 md:flex">
+            {NAV_LINKS.map((link) => (
+              <NavLink
+                key={link.path}
+                to={link.path}
+                className={({ isActive }) =>
+                  cn(
+                    'rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300',
+                    isActive
+                      ? 'bg-primary/5 text-primary shadow-sm ring-1 ring-primary/20'
+                      : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                  )
+                }
+              >
+                {link.label}
+              </NavLink>
+            ))}
+            <div className="ml-4 pl-4 border-l">
+              <Button variant="default" size="default" asChild>
+                <Link to="/login">Admin Portal</Link>
+              </Button>
+            </div>
+          </nav>
+
+          {/* Mobile Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Toggle navigation menu"
+          >
+            <Menu className="size-6" />
+          </Button>
+        </div>
+
+        {/* ─── Mobile Sidebar Overlay Drawer ─── */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 flex md:hidden">
+            <div
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm animate-in fade-in"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <aside className="relative z-50 h-full w-full max-w-sm bg-card shadow-2xl animate-slide-in">
+              <div className="flex h-20 items-center justify-between px-6 border-b">
+                <Logo size="md" />
+                <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+                  <X className="size-6" />
+                </Button>
+              </div>
+              <nav className="flex flex-col gap-2 p-6">
+                {NAV_LINKS.map((link) => (
+                  <NavLink
+                    key={link.path}
+                    to={link.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        'rounded-xl px-4 py-4 text-base font-medium transition-all duration-300',
+                        isActive
+                          ? 'bg-primary/5 text-primary shadow-sm ring-1 ring-primary/20'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                      )
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+                <div className="mt-4 border-t pt-6">
+                  <Button variant="default" size="lg" className="w-full" asChild>
+                    <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                      Admin Portal
+                    </Link>
+                  </Button>
+                </div>
+              </nav>
+            </aside>
+          </div>
+        )}
+      </header>
+
+      {/* ─── Page Content Canvas ─── */}
+      <main className="flex-1 reveal">
+        <Outlet />
+      </main>
+
+      {/* ─── Modern Minimal Footer ─── */}
+      <footer className="border-t bg-muted/20 pb-16 pt-12">
+        <div className="mx-auto max-w-7xl px-8">
+          <div className="flex flex-col items-center justify-between gap-8 sm:flex-row">
+            <div className="space-y-2 text-center sm:text-left">
+                <Logo size="sm" />
+                <p className="text-xs text-muted-foreground opacity-60">
+                    Empowering education via modern infrastructure.
+                </p>
+            </div>
+            <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase opacity-40">
+              &copy; {new Date().getFullYear()} CampusLoom. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

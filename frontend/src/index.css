@@ -1,0 +1,166 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─── CampusLoom Premium Design Tokens ───────────────────────────────────── */
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+
+    /* ─── Sidebar tokens ─── */
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+
+    /* ─── Chart tokens ─── */
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+
+    /* ─── Core semantic tokens ─── */
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* ─── Radius scale (Premium Softer Curve) ─── */
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.5);
+    --radius-2xl: calc(var(--radius) * 2);
+
+    /* ─── Motion (Non-Breaking) ─── */
+    --animate-reveal: reveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    --animate-slide-in: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+    @keyframes reveal {
+        from {
+            opacity: 0;
+            transform: translateY(4px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slide-in {
+        from {
+            transform: translateX(100%);
+        }
+        to {
+            transform: translateX(0);
+        }
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT THEME — Scholarly Obsidian & Deep Sea Blue
+   Primary: Deep blue (#1e40af)  Accent: Amber (#f59e0b)
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+    --background: oklch(0.99 0.005 250);
+    --foreground: oklch(0.2 0.02 250);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.2 0.02 250);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.2 0.02 250);
+    --primary: oklch(0.45 0.18 265);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.95 0.02 250);
+    --secondary-foreground: oklch(0.3 0.04 250);
+    --muted: oklch(0.97 0.01 250);
+    --muted-foreground: oklch(0.45 0.03 250);
+    --accent: oklch(0.85 0.18 85);
+    --accent-foreground: oklch(0.25 0.08 85);
+    --destructive: oklch(0.6 0.25 25);
+    --border: oklch(0.92 0.015 250);
+    --input: oklch(0.92 0.015 250);
+    --ring: oklch(0.45 0.18 265 / 40%);
+    --radius: 0.75rem; 
+    --sidebar: oklch(0.99 0.005 250 / 80%);
+    --sidebar-foreground: oklch(0.2 0.02 250);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK THEME
+   ═══════════════════════════════════════════════════════════════ */
+.dark {
+    --background: oklch(0.18 0.015 250);
+    --foreground: oklch(0.98 0.005 250);
+    --card: oklch(0.22 0.02 250);
+    --card-foreground: oklch(0.98 0.005 250);
+    --popover: oklch(0.22 0.02 250);
+    --popover-foreground: oklch(0.98 0.005 250);
+    --primary: oklch(0.65 0.15 265);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.28 0.03 250);
+    --secondary-foreground: oklch(0.98 0.005 250);
+    --muted: oklch(0.28 0.03 250);
+    --muted-foreground: oklch(0.7 0.015 250);
+    --accent: oklch(0.8 0.15 85);
+    --accent-foreground: oklch(0.18 0.08 85);
+    --destructive: oklch(0.55 0.2 25);
+    --border: oklch(1 0 0 / 12%);
+    --input: oklch(1 0 0 / 18%);
+    --ring: oklch(0.65 0.15 265 / 40%);
+    --sidebar: oklch(0.2 0.02 250 / 80%);
+    --sidebar-foreground: oklch(0.98 0.005 250);
+}
+
+/* ─── Base resets ──────────────────────────────────────────────── */
+@layer base {
+    * {
+        @apply border-border outline-ring/50 transition-colors duration-300;
+    }
+    body {
+        @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    }
+    html {
+        @apply font-sans scroll-smooth;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        @apply font-heading tracking-tight;
+    }
+}
+
+/* ─── Utilities ────────────────────────────────────────────────── */
+@layer utilities {
+    .glass {
+        @apply bg-white/70 backdrop-blur-xl border-white/20 dark:bg-black/40 dark:border-white/10;
+    }
+    .shadow-premium {
+        box-shadow: 
+            0 1px 2px 0 rgb(0 0 0 / 0.05),
+            0 8px 24px -4px rgb(0 0 0 / 0.08),
+            0 12px 32px -8px rgb(0 0 0 / 0.05);
+    }
+    .reveal {
+        @apply opacity-0 animate-[reveal_0.4s_cubic-bezier(0.16,1,0.3,1)_forwards];
+    }
+}
