@@ -48,9 +48,9 @@ backend/
 | Module      | Status                  | Notes                           |
 | ----------- | ----------------------- | ------------------------------- |
 | Health      | **Implemented**         | Returns uptime `/health`        |
-| Auth        | Scaffolded / Planned    | Phase 2 target                  |
+| Auth        | **Implemented**         | JWT auth, RBAC, `/auth/me`      |
 | Users       | Scaffolded / Planned    | Phase 2 target                  |
-| Pages       | Scaffolded / Planned    |                                 |
+| Pages       | **Implemented**         | Admin CMS + public page fetch   |
 | Media       | Scaffolded / Planned    | Cloudinary integration planned  |
 | Notices     | Scaffolded / Planned    |                                 |
 | Events      | Scaffolded / Planned    |                                 |
@@ -58,6 +58,6 @@ backend/
 | Faculty     | Scaffolded / Planned    |                                 |
 | Gallery     | Scaffolded / Planned    |                                 |
 | Results     | Scaffolded / Planned    |                                 |
-| Dashboard   | Scaffolded / Planned    |                                 |
+| Dashboard   | **Implemented**         | Admin metrics endpoint          |
 | Audit Logs  | Scaffolded / Planned    |                                 |
 | Settings    | Scaffolded / Planned    |                                 |

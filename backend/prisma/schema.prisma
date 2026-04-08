@@ -1,0 +1,24 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+}
+
+enum PageStatus {
+  draft
+  published
+}
+
+model Page {
+  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  slug           String     @unique
+  content        Json
+  status         PageStatus @default(draft)
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}

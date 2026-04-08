@@ -12,7 +12,7 @@ import { API_PREFIX } from './common/constants.js';
 import healthRoute from './modules/health/health.route.js';
 import authRoutes from './modules/auth/auth.route.js';
 import usersRoutes from './modules/users/users.route.js';
-import pagesRoutes from './modules/pages/pages.route.js';
+import pagesRoutes from './modules/pages/pages.routes.js';
 import mediaRoutes from './modules/media/media.route.js';
 import noticesRoutes from './modules/notices/notices.route.js';
 import eventsRoutes from './modules/events/events.route.js';
@@ -63,7 +63,7 @@ export async function buildApp() {
       await v1.register(healthRoute);
       await v1.register(authRoutes, { prefix: '/auth' });
       await v1.register(usersRoutes, { prefix: '/users' });
-      await v1.register(pagesRoutes, { prefix: '/pages' });
+      await v1.register(pagesRoutes);
       await v1.register(mediaRoutes, { prefix: '/media' });
       await v1.register(noticesRoutes, { prefix: '/notices' });
       await v1.register(eventsRoutes, { prefix: '/events' });

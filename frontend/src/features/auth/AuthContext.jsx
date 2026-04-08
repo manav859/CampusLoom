@@ -1,85 +1,157 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { getToken, setToken, removeToken } from '@/lib/auth';
-import api from '@/lib/api';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { getToken, removeToken, setToken } from '@/lib/auth';
+import { registerUnauthorizedHandler } from '@/lib/api';
+import { authQueryKeys, getCurrentUser, loginUser, registerUser } from './api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
 
-  // Initialize auth state on mount
+  const clearSession = useCallback(
+    ({ clearQueryCache = false } = {}) => {
+      removeToken();
+      setUser(null);
+      setAuthError(null);
+
+      if (clearQueryCache) {
+        queryClient.clear();
+        return;
+      }
+
+      queryClient.removeQueries({ queryKey: authQueryKeys.me() });
+    },
+    [queryClient],
+  );
+
+  const syncCurrentUser = useCallback(async () => {
+    const currentUser = await queryClient.fetchQuery({
+      queryKey: authQueryKeys.me(),
+      queryFn: getCurrentUser,
+      staleTime: 0,
+    });
+
+    setUser(currentUser);
+    setAuthError(null);
+
+    return currentUser;
+  }, [queryClient]);
+
   useEffect(() => {
+    let isMounted = true;
+
     const initAuth = async () => {
       const token = getToken();
-      if (token) {
-        try {
-          // Verify token and get user info
-          const response = await api.get('/auth/me');
-          setUser(response.data.user);
-          setIsAuthenticated(true);
-        } catch (error) {
-          console.error("Auth validation failed", error);
-          removeToken();
-          setIsAuthenticated(false);
-          setUser(null);
+
+      if (!token) {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+
+        return;
+      }
+
+      try {
+        await syncCurrentUser();
+      } catch (error) {
+        if (isMounted) {
+          if (error.isUnauthorized) {
+            clearSession({ clearQueryCache: true });
+          } else {
+            setUser(null);
+            queryClient.removeQueries({ queryKey: authQueryKeys.me() });
+          }
+
+          setAuthError(error.message);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
         }
       }
-      setIsLoading(false);
     };
 
     initAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [clearSession, queryClient, syncCurrentUser]);
+
+  useEffect(() => {
+    const unregister = registerUnauthorizedHandler(() => {
+      clearSession({ clearQueryCache: true });
+      setIsLoading(false);
+    });
+
+    return unregister;
+  }, [clearSession]);
+
+  const login = useCallback(async (email, password) => {
+    setIsLoading(true);
+    setAuthError(null);
+
+    try {
+      const { token } = await loginUser({ email, password });
+      setToken(token);
+
+      return await syncCurrentUser();
+    } catch (error) {
+      clearSession();
+      setAuthError(error.message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [clearSession, syncCurrentUser]);
+
+  const register = useCallback(async (email, password) => {
+    setIsLoading(true);
+    setAuthError(null);
+
+    try {
+      return await registerUser({ email, password });
+    } catch (error) {
+      setAuthError(error.message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const login = async (email, password) => {
-    setIsLoading(true);
-    try {
-      const response = await api.post('/auth/login', { email, password });
-      const { token, user: userData } = response.data;
-      
-      setToken(token);
-      setUser(userData);
-      setIsAuthenticated(true);
-      return { success: true };
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const logout = useCallback(() => {
+    clearSession({ clearQueryCache: true });
+    setIsLoading(false);
+  }, [clearSession]);
 
-  const register = async (email, password) => {
-    setIsLoading(true);
-    try {
-      const response = await api.post('/auth/register', { email, password });
-      return response;
-    } catch (error) {
-      console.error("Registration failed:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = () => {
-    removeToken();
-    setUser(null);
-    setIsAuthenticated(false);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, register, logout }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthenticated: Boolean(user),
+      hasStoredSession: Boolean(getToken()),
+      isLoading,
+      authError,
+      login,
+      register,
+      logout,
+    }),
+    [authError, isLoading, login, logout, register, user],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
   return context;
 };

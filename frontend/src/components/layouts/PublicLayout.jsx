@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/common/Logo';
@@ -18,7 +18,6 @@ const NAV_LINKS = [
  */
 export default function PublicLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const location = useLocation();
 
   return (
     <div className="flex min-h-screen flex-col bg-background selection:bg-primary/20 selection:text-primary">

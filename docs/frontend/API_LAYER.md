@@ -1,118 +1,100 @@
 # API Layer Design
 
-CampusLoom frontend uses a centralized **Axios instance** paired with **TanStack React Query** for robust server state management.
+CampusLoom uses a centralized Axios client plus TanStack React Query for server state.
 
-## Axios Instance (`src/lib/api.js`)
+## Axios Instance
 
-### Configuration
+Location: `frontend/src/lib/api.js`
 
-| Setting         | Value                                    |
-| --------------- | ---------------------------------------- |
-| Base URL        | `VITE_API_URL` (env variable)            |
-| Timeout         | 15 seconds                               |
-| Content-Type    | `application/json`                       |
+### Responsibilities
 
-### Request Interceptor
-- **Phase 1**: No-op pass-through
-- **Phase 2**: Attaches `Authorization: Bearer <token>` header from auth store
+- Set the API base URL from `VITE_API_URL`
+- Normalize the base URL to a single `/api/v1` suffix
+- Apply a shared timeout and JSON headers
+- Attach `Authorization: Bearer <token>` when a token exists
+- Normalize backend success and error payloads into a consistent shape
+- Trigger global unauthorized handlers on `401`
+- Provide `requestWithFallback()` for safe 404 or network degradation
 
-### Response Interceptor
-- **Success**: Unwraps the backend envelope — returns `response.data` directly (the `{ success, message, data }` object)
-- **Error**: Extracts structured error from the backend envelope:
-  ```js
-  {
-    status: 401,
-    message: "Human-readable error",
-    errors: [...],  // Zod validation errors
-    raw: axiosError
-  }
-  ```
-- **Phase 2**: 401 responses will trigger automatic redirect to `/login`
-
-### Usage
+### Success Shape
 
 ```js
-import api from '@/lib/api';
-
-// GET request — response is the unwrapped envelope
-const health = await api.get('/health');
-console.log(health.data.uptime); // Direct access to data
-
-// POST request
-const result = await api.post('/auth/login', { email, password });
+{
+  data: {},
+  envelope: {
+    success: true,
+    message: "Optional human-readable message",
+    data: {}
+  },
+  meta: {
+    success: true,
+    message: "Optional human-readable message"
+  }
+}
 ```
 
-## React Query (`src/lib/queryClient.js`)
+### Error Shape
 
-### Default Configuration
+```js
+{
+  status: 401,
+  code: "ERR_BAD_REQUEST",
+  message: "Human-readable error",
+  errors: [],
+  isUnauthorized: true,
+  isNotFound: false,
+  isNetworkError: false,
+  isTimeoutError: false,
+  isRetryable: false
+}
+```
 
-| Option                 | Value     | Rationale                              |
-| ---------------------- | --------- | -------------------------------------- |
-| `staleTime`            | 5 minutes | Reduce unnecessary refetches           |
-| `gcTime`               | 10 minutes| Keep inactive cache for smooth UX      |
-| `retry`                | 1         | Single retry to avoid API hammering    |
-| `refetchOnWindowFocus` | `false`   | Dev-friendly, enable in production     |
+## Feature API Pattern
 
-### Usage Pattern
+Components do not call Axios directly.
 
-```jsx
-// In a hook file: src/features/health/hooks/useHealth.js
-import { useQuery } from '@tanstack/react-query';
-import api from '@/lib/api';
+Example:
 
-export function useHealth() {
-  return useQuery({
-    queryKey: ['health'],
-    queryFn: () => api.get('/health'),
+```js
+// src/features/dashboard/api.js
+import api, { requestWithFallback } from '@/lib/api';
+
+export async function getDashboardStats() {
+  return requestWithFallback(() => api.get('/dashboard/stats'), {
+    fallbackStatusCodes: [404],
+    fallbackOnNetworkError: true,
   });
 }
+```
 
-// In a page component
-import { useHealth } from '@/features/health/hooks/useHealth';
+## React Query Pattern
 
-function DashboardPage() {
-  const { data, isLoading, error } = useHealth();
-  // ...
+Hooks own fetching and caching rules.
+
+```js
+// src/features/dashboard/hooks/useDashboardStats.js
+import { useQuery } from '@tanstack/react-query';
+import { dashboardQueryKeys, getDashboardStats } from '../api';
+
+export function useDashboardStats() {
+  return useQuery({
+    queryKey: dashboardQueryKeys.stats(),
+    queryFn: getDashboardStats,
+    retry: false,
+  });
 }
 ```
 
-### Query Key Conventions
+## Query Key Conventions
 
-| Pattern                     | Example                              |
-| --------------------------- | ------------------------------------ |
-| Entity list                 | `['users']`                          |
-| Entity list with filters    | `['users', { role: 'teacher' }]`     |
-| Single entity               | `['users', userId]`                  |
-| Nested resource             | `['users', userId, 'attendance']`    |
+- Feature root: `['dashboard']`
+- Single resource: `['dashboard', 'stats']`
+- Auth current user: `['auth', 'me']`
 
-## Backend API Contract
+## Security Notes
 
-The frontend expects all backend responses to follow the standard envelope:
-
-### Success
-```json
-{
-  "success": true,
-  "message": "Optional message",
-  "data": { ... }
-}
-```
-
-### Error
-```json
-{
-  "success": false,
-  "message": "Error description",
-  "errors": [...]
-}
-```
-
-See `docs/backend/API_CONTRACT.md` for the full contract specification.
-
-## Security Considerations
-
-1. **No secrets in frontend code** — all sensitive configuration lives in `.env` (gitignored)
-2. **JWT tokens**: Will be stored securely (Phase 2 — HttpOnly cookies preferred, localStorage as fallback)
-3. **CORS**: Backend restricts origins to `CORS_ORIGIN` env var
-4. **No raw HTML injection**: React's JSX escapes by default; never use `dangerouslySetInnerHTML`
-5. **Input validation**: Client-side validation enhances UX but is never a substitute for backend Zod validation
+- Tokens are accessed only through `src/lib/auth.js`
+- UI never sets auth headers manually
+- `401` responses clear the session globally
+- Backend stack traces or raw error payloads are never rendered directly in the UI
+- Frontend checks improve UX, but backend authorization remains the source of truth

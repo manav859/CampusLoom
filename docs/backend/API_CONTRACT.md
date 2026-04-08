@@ -1,67 +1,106 @@
 # API Contract
 
-This document acts as the single source of truth for frontend integration with the CampusLoom backend.
+This document is the frontend integration source of truth for the CampusLoom backend.
 
 ## Global Conventions
 
-- **Base Path**: `/api/v1`
-- **Authentication**: JWT via tokens (planned; currently no auth logic is enforced).
-- **Format**: All payloads should be `application/json`.
-- **CORS**: Verified; headers ensure cross-origin requests from the frontend pass successfully.
+- Base path: `/api/v1`
+- Format: `application/json`
+- Authentication: JWT via `Authorization: Bearer <token>` for protected routes
 
 ## Standard Envelopes
 
-Every response from the backend follows one of the two formats below. Do not rely solely on HTTP status codes; parse the JSON payload for reliable feedback.
+### Success
 
-### Success Envelope
 ```json
 {
   "success": true,
   "message": "Optional human-readable message",
-  "data": { ... } // Optional payload varying by route
+  "data": {}
 }
 ```
 
-### Error Envelope
+### Error
+
 ```json
 {
   "success": false,
   "message": "Human-readable reason for failure",
-  "errors": [ ... ] // Optional details (e.g. Zod validation failure points)
+  "errors": []
 }
 ```
 
----
-
 ## Live Routes
 
-### Health Check 
+### Health Check
 
-- **Method**: `GET`
-- **Path**: `/api/v1/health`
-- **Purpose**: Verify backend uptime and connectivity.
-- **Auth Required**: `No`
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "message": "CampusLoom API running",
-    "data": {
-      "uptime": 12.435,
-      "timestamp": "2026-04-07T14:30:10.123Z"
-    }
-  }
-  ```
+- Method: `GET`
+- Path: `/api/v1/health`
+- Auth Required: `No`
 
----
+### Register
 
-## Planned API Domains
+- Method: `POST`
+- Path: `/api/v1/auth/register`
+- Auth Required: `No`
 
-*(Modules exist in code but route-handlers inside them are empty pending implementation).*
+### Login
 
-- `/api/v1/auth/*`
+- Method: `POST`
+- Path: `/api/v1/auth/login`
+- Auth Required: `No`
+
+### Current User
+
+- Method: `GET`
+- Path: `/api/v1/auth/me`
+- Auth Required: `Yes`
+
+### Dashboard Stats
+
+- Method: `GET`
+- Path: `/api/v1/dashboard/stats`
+- Auth Required: `Yes (ADMIN)`
+
+### Pages List
+
+- Method: `GET`
+- Path: `/api/v1/pages`
+- Auth Required: `Yes (ADMIN)`
+
+### Create Page
+
+- Method: `POST`
+- Path: `/api/v1/pages`
+- Auth Required: `Yes (ADMIN)`
+
+### Update Page
+
+- Method: `PUT`
+- Path: `/api/v1/pages/:id`
+- Auth Required: `Yes (ADMIN)`
+
+### Delete Page
+
+- Method: `DELETE`
+- Path: `/api/v1/pages/:id`
+- Auth Required: `Yes (ADMIN)`
+
+### Update Page Status
+
+- Method: `PATCH`
+- Path: `/api/v1/pages/:id/status`
+- Auth Required: `Yes (ADMIN)`
+
+### Public Page By Slug
+
+- Method: `GET`
+- Path: `/api/v1/public/pages/:slug`
+- Auth Required: `No`
+
+## Planned or Stubbed Domains
+
 - `/api/v1/users/*`
-- `/api/v1/pages/*`
 - `/api/v1/media/*`
 - `/api/v1/notices/*`
 - `/api/v1/events/*`
@@ -69,6 +108,5 @@ Every response from the backend follows one of the two formats below. Do not rel
 - `/api/v1/faculty/*`
 - `/api/v1/gallery/*`
 - `/api/v1/results/*`
-- `/api/v1/dashboard/*`
 - `/api/v1/audit-logs/*`
 - `/api/v1/settings/*`

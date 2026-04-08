@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils';
  * @param {object} props
  * @param {'sm' | 'md' | 'lg'} [props.size='md'] - Logo size variant
  * @param {boolean} [props.showIcon=true] - Show the graduation cap icon
+ * @param {boolean} [props.hideText=false] - Hide the text, showing only the icon
  * @param {string} [props.className] - Additional CSS classes
  */
-export default function Logo({ size = 'md', showIcon = true, className }) {
+export default function Logo({ size = 'md', showIcon = true, hideText = false, className }) {
   const sizeClasses = {
     sm: 'text-lg',
     md: 'text-xl',
@@ -26,13 +27,15 @@ export default function Logo({ size = 'md', showIcon = true, className }) {
   return (
     <div className={cn('flex items-center gap-2', className)}>
       {showIcon && (
-        <div className="flex items-center justify-center rounded-lg bg-primary p-1.5">
+        <div className="flex items-center justify-center rounded-lg bg-primary p-1.5 transition-all">
           <GraduationCap className={cn('text-primary-foreground', iconSizes[size])} />
         </div>
       )}
-      <span className={cn('font-bold tracking-tight', sizeClasses[size])}>
-        Campus<span className="text-primary">Loom</span>
-      </span>
+      {!hideText && (
+        <span className={cn('font-bold tracking-tight transition-all', sizeClasses[size])}>
+          Campus<span className="text-primary">Loom</span>
+        </span>
+      )}
     </div>
   );
 }

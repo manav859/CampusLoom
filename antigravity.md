@@ -26,5 +26,14 @@ You are working on a large production-grade SaaS project called **CampusLoom**, 
 - [x] Backend documentation scaffolded (see `docs/backend/FRONTEND_HANDOFF.md`).
 - [x] Frontend initialization (Vite + React + Tailwind v4 + shadcn/ui).
 - [x] Frontend architectural foundation (Routing, Layouts, API Client, Documentation).
+- [x] Frontend auth integration with backend (`/auth/login`, `/auth/me`, session restore, protected admin tree).
+- [x] Feature-based frontend slices for `auth` and `dashboard`.
+- [x] Live admin dashboard with React Query, Recharts, loading/error states, and authenticated data fetching.
+- [x] Backend auth + RBAC foundation (`authenticate`, `authorizeRoles`, register/login/me flows).
+- [x] Backend dashboard stats endpoint (`GET /api/v1/dashboard/stats`) with admin authorization.
+- [x] CMS Pages module with admin CRUD, SEO metadata, JSON content, and public published-page fetch by slug.
+- [x] Standard API response helpers adopted for auth and dashboard flows.
+- [x] Frontend admin stability hardening: sanitized API errors, route error boundaries, placeholder admin routes, and defensive dashboard fallbacks.
+- [ ] Formal multi-tenant `schoolId` enforcement across persisted modules.
 - [ ] Initial Database Schema layout.
 

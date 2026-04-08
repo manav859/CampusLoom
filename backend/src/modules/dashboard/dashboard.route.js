@@ -1,6 +1,12 @@
-/**
- * Dashboard module — placeholder.
- */
+import { authenticate, authorizeRoles } from '../../middleware/auth.js';
+import { getDashboardStatsHandler } from './dashboard.controller.js';
+
 export default async function dashboardRoutes(fastify) {
-  // Aggregated stats, widgets will go here.
+  fastify.get(
+    '/stats',
+    {
+      preHandler: [authenticate, authorizeRoles(['ADMIN'])],
+    },
+    getDashboardStatsHandler,
+  );
 }

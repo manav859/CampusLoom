@@ -66,7 +66,7 @@ export default function HomePage() {
              <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">Built for Modern Institutions</h2>
         </div>
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature, idx) => (
+          {FEATURES.map((feature) => (
             <Card key={feature.title} className="reveal border-none bg-muted/30 shadow-none hover:bg-card hover:shadow-premium">
               <CardContent className="space-y-4">
                 <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform group-hover/card:scale-110">

@@ -1,24 +1,28 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/features/auth/AuthContext';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import ErrorState from '@/components/common/ErrorState';
+import AuthBootScreen from '@/features/auth/components/AuthBootScreen';
+import { useAuthSession } from '@/features/auth/hooks/useAuthSession';
 
-/**
- * Route guard component for protected admin routes.
- *
- * Protects routes by checking JWT auth state.
- *
- * @param {object} props
- * @param {React.ReactNode} props.children - Protected content
- * @param {string[]} [props.allowedRoles] - Future: list of roles permitted (RBAC)
- */
 export default function ProtectedRoute({ children, allowedRoles = [] }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const navigate = useNavigate();
+  const { isAuthenticated, isLoading, user, authError, hasStoredSession } = useAuthSession();
   const location = useLocation();
 
   if (isLoading) {
-    // Basic loading skeleton for while token is being verified
+    return <AuthBootScreen />;
+  }
+
+  if (hasStoredSession && authError && !isAuthenticated) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="size-8 animate-spin rounded-full border-4 border-primary border-t-transparent shadow-md"></div>
+      <div className="flex min-h-screen items-center justify-center px-6">
+        <div className="w-full max-w-xl">
+          <ErrorState
+            title="Admin access is temporarily unavailable"
+            message={authError}
+            actionLabel="Return to login"
+            onAction={() => navigate('/login', { replace: true, state: { from: location } })}
+          />
+        </div>
       </div>
     );
   }

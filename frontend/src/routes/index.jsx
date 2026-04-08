@@ -2,47 +2,41 @@ import { createBrowserRouter } from 'react-router-dom';
 import PublicLayout from '@/components/layouts/PublicLayout';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import AuthLayout from '@/components/layouts/AuthLayout';
+import ProtectedRoute from '@/components/common/ProtectedRoute';
+import RouteErrorBoundary from '@/components/common/RouteErrorBoundary';
 import publicRoutes from './publicRoutes';
 import adminRoutes from './adminRoutes';
 import LoginPage from '@/pages/admin/LoginPage';
 import RegisterPage from '@/pages/admin/RegisterPage';
+import NotFoundPage from '@/pages/public/NotFoundPage';
+import UnauthorizedPage from '@/pages/public/UnauthorizedPage';
 
-/**
- * Application router configuration.
- *
- * Structure:
- * ├── / (PublicLayout)
- * │   ├── /          → HomePage
- * │   ├── /about     → AboutPage
- * │   ├── /admissions → AdmissionsPage
- * │   └── /contact   → ContactPage
- * ├── /login (AuthLayout)
- * │   └── /login     → LoginPage
- * ├── /register (AuthLayout)
- * │   └── /register  → RegisterPage
- * └── /admin (AdminLayout)
- *     └── /admin     → DashboardPage (ProtectedRoute)
- */
 const router = createBrowserRouter([
-  // ─── Public routes ───
   {
     element: <PublicLayout />,
-    children: publicRoutes,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      ...publicRoutes,
+      { path: 'unauthorized', element: <UnauthorizedPage /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
   },
-
-  // ─── Auth routes (minimal layout) ───
   {
     element: <AuthLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
     ],
   },
-
-  // ─── Admin routes (sidebar layout, protected) ───
   {
     path: 'admin',
-    element: <AdminLayout />,
+    element: (
+      <ProtectedRoute allowedRoles={['ADMIN']}>
+        <AdminLayout />
+      </ProtectedRoute>
+    ),
+    errorElement: <RouteErrorBoundary />,
     children: adminRoutes,
   },
 ]);
