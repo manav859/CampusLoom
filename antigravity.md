@@ -9,8 +9,8 @@ You are working on a large production-grade SaaS project called **CampusLoom**, 
 
 ## Technology Stack
 - **Frontend**: React, Vite, Tailwind CSS, shadcn/ui, React Query
-- **Backend**: Node.js, Fastify, Prisma, Zod
-- **Database**: PostgreSQL (Neon)
+- **Backend**: Node.js, Fastify, Mongoose, Zod
+- **Database**: MongoDB
 - **Infra/Storage**: Vercel (frontend), Render (backend), Cloudinary (storage).
 
 ## Core Architecture & Rules

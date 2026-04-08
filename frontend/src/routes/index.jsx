@@ -5,6 +5,7 @@ import AuthLayout from '@/components/layouts/AuthLayout';
 import publicRoutes from './publicRoutes';
 import adminRoutes from './adminRoutes';
 import LoginPage from '@/pages/admin/LoginPage';
+import RegisterPage from '@/pages/admin/RegisterPage';
 
 /**
  * Application router configuration.
@@ -17,6 +18,8 @@ import LoginPage from '@/pages/admin/LoginPage';
  * │   └── /contact   → ContactPage
  * ├── /login (AuthLayout)
  * │   └── /login     → LoginPage
+ * ├── /register (AuthLayout)
+ * │   └── /register  → RegisterPage
  * └── /admin (AdminLayout)
  *     └── /admin     → DashboardPage (ProtectedRoute)
  */
@@ -32,6 +35,7 @@ const router = createBrowserRouter([
     element: <AuthLayout />,
     children: [
       { path: 'login', element: <LoginPage /> },
+      { path: 'register', element: <RegisterPage /> },
     ],
   },
 

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getToken, setToken, removeToken } from '@/lib/auth';
+import api from '@/lib/api';
 
 const AuthContext = createContext(null);
 
@@ -14,9 +15,9 @@ export const AuthProvider = ({ children }) => {
       const token = getToken();
       if (token) {
         try {
-          // TODO: Replace with real /auth/me call to validate token and get user info
-          // For Day 2, we mock validation by just assuming a valid token exists
-          setUser({ email: 'admin@campusloom.com', role: 'admin' });
+          // Verify token and get user info
+          const response = await api.get('/auth/me');
+          setUser(response.data.user);
           setIsAuthenticated(true);
         } catch (error) {
           console.error("Auth validation failed", error);
@@ -34,21 +35,28 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setIsLoading(true);
     try {
-      // TODO: Replace with real /auth/login call
-      // Mocking API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await api.post('/auth/login', { email, password });
+      const { token, user: userData } = response.data;
       
-      if (email === 'admin@campusloom.com' && password === 'password123') {
-        const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mockToken';
-        setToken(mockToken);
-        setUser({ email, role: 'admin' });
-        setIsAuthenticated(true);
-        return { success: true };
-      } else {
-        throw new Error("Invalid credentials");
-      }
+      setToken(token);
+      setUser(userData);
+      setIsAuthenticated(true);
+      return { success: true };
     } catch (error) {
       console.error("Login failed:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const register = async (email, password) => {
+    setIsLoading(true);
+    try {
+      const response = await api.post('/auth/register', { email, password });
+      return response;
+    } catch (error) {
+      console.error("Registration failed:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -62,7 +70,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,7 +1,11 @@
-/**
- * Auth module — placeholder.
- * Route plugin will be implemented in Phase 2.
- */
+import { registerHandler, loginHandler, meHandler } from './auth.controller.js';
+import { authenticate } from '../../middleware/auth.js';
+
 export default async function authRoutes(fastify) {
-  // Registration, login, logout, token refresh will go here.
+  fastify.post('/register', registerHandler);
+  fastify.post('/login', loginHandler);
+  
+  fastify.get('/me', {
+    preHandler: authenticate,
+  }, meHandler);
 }
