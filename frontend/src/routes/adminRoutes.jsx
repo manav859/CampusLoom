@@ -1,7 +1,10 @@
-import { Bell, FileText, GraduationCap, Settings, Users } from 'lucide-react';
+import { GraduationCap, Settings, Users } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import AdminFeaturePage from '@/pages/admin/AdminFeaturePage';
 import DashboardPage from '@/pages/admin/DashboardPage';
+import NoticeCreatePage from '@/pages/admin/NoticeCreatePage';
+import NoticeEditPage from '@/pages/admin/NoticeEditPage';
+import NoticesPage from '@/pages/admin/NoticesPage';
 
 const adminRoutes = [
   {
@@ -28,25 +31,18 @@ const adminRoutes = [
       />
     ),
   },
-  {
-    path: 'pages',
-    element: (
-      <AdminFeaturePage
-        title="Pages"
-        description="Feature not available yet. CMS page management will be connected here once the admin editor flow is complete."
-        icon={FileText}
-      />
-    ),
-  },
+
   {
     path: 'notices',
-    element: (
-      <AdminFeaturePage
-        title="Notices"
-        description="Feature not available yet. Notice publishing tools will appear here after the module is fully wired to the admin API."
-        icon={Bell}
-      />
-    ),
+    element: <NoticesPage />,
+  },
+  {
+    path: 'notices/new',
+    element: <NoticeCreatePage />,
+  },
+  {
+    path: 'notices/:id',
+    element: <NoticeEditPage />,
   },
   {
     path: 'settings',

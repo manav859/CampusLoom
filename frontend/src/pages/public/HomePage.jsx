@@ -47,12 +47,13 @@ export default function HomePage() {
             blending modern technology with timeless educational values.
           </p>
           <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button size="lg" className="rounded-full px-10" asChild>
-              <Link to="/admissions">
-                Start Admission <ArrowRight className="ml-2 size-5" />
+            <Button size="lg" className="rounded-xl px-10" asChild>
+              <Link to="/admissions" className="inline-flex items-center justify-center">
+                <span>Start Admission</span> 
+                <ArrowRight className="ml-2 size-5" />
               </Link>
             </Button>
-            <Button variant="outline" size="lg" className="rounded-full px-10" asChild>
+            <Button variant="outline" size="lg" className="rounded-xl px-10" asChild>
               <Link to="/about">Explore Campus</Link>
             </Button>
           </div>

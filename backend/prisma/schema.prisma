@@ -11,6 +11,13 @@ enum PageStatus {
   published
 }
 
+enum NoticeType {
+  general
+  exam
+  holiday
+  urgent
+}
+
 model Page {
   id             String     @id @default(auto()) @map("_id") @db.ObjectId
   title          String
@@ -21,4 +28,20 @@ model Page {
   seoDescription String?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
+}
+
+model Notice {
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  type        NoticeType @default(general)
+  publishDate DateTime
+  expiryDate  DateTime?
+  isActive    Boolean    @default(true)
+  createdBy   String     @db.ObjectId
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([isActive, publishDate, expiryDate])
+  @@index([type, publishDate])
 }

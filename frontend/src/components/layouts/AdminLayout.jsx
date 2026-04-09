@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   Users,
-  FileText,
   GraduationCap,
   Bell,
   Settings,
@@ -22,7 +21,6 @@ const SIDEBAR_LINKS = [
   { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, end: true },
   { label: 'Admissions', path: '/admin/admissions', icon: GraduationCap },
   { label: 'Users', path: '/admin/users', icon: Users },
-  { label: 'Pages', path: '/admin/pages', icon: FileText },
   { label: 'Notices', path: '/admin/notices', icon: Bell },
   { label: 'Settings', path: '/admin/settings', icon: Settings },
 ];
@@ -34,7 +32,7 @@ const SidebarContent = ({ collapsed, mobile, onLogout, setMobileSidebarOpen }) =
         size="md"
         showIcon={true}
         hideText={collapsed && !mobile}
-        className={cn('transition-all duration-300', collapsed && !mobile ? 'ml-0' : 'ml-1')}
+        className={cn('transition-[margin,opacity] duration-300', collapsed && !mobile ? 'ml-0' : 'ml-1')}
       />
     </div>
 
@@ -51,7 +49,7 @@ const SidebarContent = ({ collapsed, mobile, onLogout, setMobileSidebarOpen }) =
           }}
           className={({ isActive }) =>
             cn(
-              'group relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-300',
+              'group relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-[transform,background-color,color] duration-300',
               isActive
                 ? 'scale-[1.02] bg-primary text-primary-foreground shadow-md shadow-primary/20'
                 : 'text-muted-foreground hover:translate-x-1 hover:bg-muted hover:text-foreground',
@@ -62,10 +60,10 @@ const SidebarContent = ({ collapsed, mobile, onLogout, setMobileSidebarOpen }) =
           <link.icon className="size-5 shrink-0" />
           <span
             className={cn(
-              'absolute left-12 overflow-hidden whitespace-nowrap transition-all duration-300',
+              'absolute left-12 overflow-hidden whitespace-nowrap transition-[opacity,width,transform] duration-300',
               collapsed && !mobile
-                ? 'invisible w-0 opacity-0'
-                : 'visible relative left-0 w-auto opacity-100',
+                ? 'invisible w-0 opacity-0 -translate-x-2'
+                : 'visible relative left-0 w-auto opacity-100 translate-x-0',
             )}
           >
             {link.label}
@@ -77,7 +75,7 @@ const SidebarContent = ({ collapsed, mobile, onLogout, setMobileSidebarOpen }) =
     <div className="mt-auto border-t p-3">
       <button
         className={cn(
-          'group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-muted-foreground transition-all duration-300 hover:bg-destructive/10 hover:text-destructive',
+          'group relative flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium text-muted-foreground transition-[background-color,color] duration-300 hover:bg-destructive/10 hover:text-destructive',
           collapsed && !mobile && 'justify-center px-0',
         )}
         onClick={onLogout}
@@ -85,10 +83,10 @@ const SidebarContent = ({ collapsed, mobile, onLogout, setMobileSidebarOpen }) =
         <LogOut className="size-5 shrink-0 transition-transform group-hover:rotate-180" />
         <span
           className={cn(
-            'absolute left-12 overflow-hidden whitespace-nowrap transition-all duration-300',
+            'absolute left-12 overflow-hidden whitespace-nowrap transition-[opacity,width,transform] duration-300',
             collapsed && !mobile
-              ? 'invisible w-0 opacity-0'
-              : 'visible relative left-0 w-auto opacity-100',
+              ? 'invisible w-0 opacity-0 -translate-x-2'
+              : 'visible relative left-0 w-auto opacity-100 translate-x-0',
           )}
         >
           Logout
@@ -126,7 +124,7 @@ export default function AdminLayout() {
     <div className="flex h-screen overflow-hidden bg-background">
       <aside
         className={cn(
-          'hidden shrink-0 border-r bg-card transition-all duration-300 ease-in-out lg:block',
+          'hidden shrink-0 border-r bg-card transition-[width] duration-300 ease-in-out lg:block will-change-[width]',
           sidebarOpen ? 'w-64' : 'w-20',
         )}
       >

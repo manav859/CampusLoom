@@ -65,7 +65,7 @@ export async function buildApp() {
       await v1.register(usersRoutes, { prefix: '/users' });
       await v1.register(pagesRoutes);
       await v1.register(mediaRoutes, { prefix: '/media' });
-      await v1.register(noticesRoutes, { prefix: '/notices' });
+      await v1.register(noticesRoutes);
       await v1.register(eventsRoutes, { prefix: '/events' });
       await v1.register(admissionsRoutes, { prefix: '/admissions' });
       await v1.register(facultyRoutes, { prefix: '/faculty' });

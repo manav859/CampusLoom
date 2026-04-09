@@ -27,12 +27,12 @@ export default function Logo({ size = 'md', showIcon = true, hideText = false, c
   return (
     <div className={cn('flex items-center gap-2', className)}>
       {showIcon && (
-        <div className="flex items-center justify-center rounded-lg bg-primary p-1.5 transition-all">
+        <div className="flex items-center justify-center rounded-lg bg-primary p-1.5 transition-colors">
           <GraduationCap className={cn('text-primary-foreground', iconSizes[size])} />
         </div>
       )}
       {!hideText && (
-        <span className={cn('font-bold tracking-tight transition-all', sizeClasses[size])}>
+        <span className={cn('font-bold tracking-tight', sizeClasses[size])}>
           Campus<span className="text-primary">Loom</span>
         </span>
       )}

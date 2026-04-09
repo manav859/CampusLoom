@@ -205,9 +205,27 @@ api.interceptors.response.use(
   (error) => {
     const normalizedError = normalizeApiError(error);
 
+    // Global 401 Handling -> trigger logout
     if (normalizedError.status === 401 && !error.config?.skipAuthRedirect) {
       removeToken();
       notifyUnauthorizedHandlers(normalizedError);
+    }
+
+    // Global 404 / Network Error Safe Fallback -> resolve instead of reject for GETs
+    // so the UI receives empty data instead of crashing into unhandled promise rejections.
+    if (!error.config?.strictErrorHandling && error.config?.method === 'get') {
+      if (normalizedError.status === 404 || normalizedError.isNetworkError || normalizedError.isTimeoutError) {
+        console.warn(`[Safe API Fallback] Handled ${normalizedError.status || 'Network/Timeout'} at ${error.config.url}`);
+        return Promise.resolve({
+          data: null,
+          meta: {
+            success: false,
+            isFallback: true,
+            reason: normalizedError.status === 404 ? '404_NOT_FOUND' : 'NETWORK_OR_TIMEOUT',
+            message: normalizedError.message,
+          },
+        });
+      }
     }
 
     return Promise.reject(normalizedError);

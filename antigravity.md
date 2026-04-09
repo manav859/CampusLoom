@@ -31,9 +31,9 @@ You are working on a large production-grade SaaS project called **CampusLoom**, 
 - [x] Live admin dashboard with React Query, Recharts, loading/error states, and authenticated data fetching.
 - [x] Backend auth + RBAC foundation (`authenticate`, `authorizeRoles`, register/login/me flows).
 - [x] Backend dashboard stats endpoint (`GET /api/v1/dashboard/stats`) with admin authorization.
-- [x] CMS Pages module with admin CRUD, SEO metadata, JSON content, and public published-page fetch by slug.
 - [x] Standard API response helpers adopted for auth and dashboard flows.
 - [x] Frontend admin stability hardening: sanitized API errors, route error boundaries, placeholder admin routes, and defensive dashboard fallbacks.
+- [x] Full notices / announcements module shipped with backend CRUD APIs, public visibility rules, admin management UI, and public notices page.
 - [ ] Formal multi-tenant `schoolId` enforcement across persisted modules.
 - [ ] Initial Database Schema layout.
 

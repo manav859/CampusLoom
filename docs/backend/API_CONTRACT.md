@@ -62,6 +62,48 @@ This document is the frontend integration source of truth for the CampusLoom bac
 - Path: `/api/v1/dashboard/stats`
 - Auth Required: `Yes (ADMIN)`
 
+### Notices List
+
+- Method: `GET`
+- Path: `/api/v1/notices`
+- Auth Required: `Yes (ADMIN)`
+
+### Notice By Id
+
+- Method: `GET`
+- Path: `/api/v1/notices/:id`
+- Auth Required: `Yes (ADMIN)`
+
+### Create Notice
+
+- Method: `POST`
+- Path: `/api/v1/notices`
+- Auth Required: `Yes (ADMIN)`
+
+### Update Notice
+
+- Method: `PUT`
+- Path: `/api/v1/notices/:id`
+- Auth Required: `Yes (ADMIN)`
+
+### Delete Notice
+
+- Method: `DELETE`
+- Path: `/api/v1/notices/:id`
+- Auth Required: `Yes (ADMIN)`
+
+### Update Notice Status
+
+- Method: `PATCH`
+- Path: `/api/v1/notices/:id/status`
+- Auth Required: `Yes (ADMIN)`
+
+### Public Notices
+
+- Method: `GET`
+- Path: `/api/v1/public/notices`
+- Auth Required: `No`
+
 ### Pages List
 
 - Method: `GET`
@@ -102,7 +144,6 @@ This document is the frontend integration source of truth for the CampusLoom bac
 
 - `/api/v1/users/*`
 - `/api/v1/media/*`
-- `/api/v1/notices/*`
 - `/api/v1/events/*`
 - `/api/v1/admissions/*`
 - `/api/v1/faculty/*`

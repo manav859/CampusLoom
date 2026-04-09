@@ -20,7 +20,6 @@ CampusLoom uses React Router v7 with `createBrowserRouter` for layout-based rout
 |-- /admin               -> DashboardPage
 |-- /admin/admissions    -> Stable placeholder page
 |-- /admin/users         -> Stable placeholder page
-|-- /admin/pages         -> Stable placeholder page
 |-- /admin/notices       -> Stable placeholder page
 |-- /admin/settings      -> Stable placeholder page
 `-- /admin/*             -> Redirects to /admin

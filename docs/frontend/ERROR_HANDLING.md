@@ -1,118 +1,48 @@
-# Frontend Error Handling
+# SchoolOS Frontend Error Handling & Stability
 
-This document defines the production-safe error handling strategy for the CampusLoom frontend.
+This document outlines the standard patterns for keeping the admin interface stable, even in the event of missing or failing backend services.
 
-## Goals
+## Core Philosophy
 
-- Prevent admin routes from crashing when backend modules are missing or incomplete
-- Keep API failures inside controlled UI states
-- Standardize sanitised error messages across features
-- Avoid retry storms against unstable or unavailable endpoints
+The primary objective for the admin application is **zero runtime crashes**. Given that features may be partially complete, the UI must defensively fall back to safe states rather than throw unhandled promise rejection errors or "Cannot read property of undefined".
 
-## API Error Handling Strategy
+## 1. Global API Layer Fail-Safes
 
-Shared client: `frontend/src/lib/api.js`
+A custom Axios instance (`src/lib/api.js`) handles common backend response issues seamlessly.
 
-Rules:
+- **`401 Unauthorized`**: Automatically wipes tokens and forces a redirect to the login page to maintain strict security boundaries.
+- **`404 Not Found`**: Handled via `isFallback: true` for `GET` requests instead of throwing. This allows React Query to register the query as "successful" with empty stub data, triggering standard empty UI states rather than aggressive error screens.
+- **Network timeouts/disconnects**: Gracefully handled by the fallback mechanism or rendered into proper `isError` cases for React Query.
 
-- Every request goes through the shared Axios client
-- The base URL is normalised to a single `/api/v1` suffix
-- Auth tokens are attached centrally
-- `401` responses clear the token and notify auth listeners
-- `404` and network failures can be downgraded to safe fallback data through `requestWithFallback`
-- UI only receives sanitised messages, never raw backend stack traces
+## 2. Component Rendering Safety
 
-Normalised error shape:
+Never assume the depth or shape of data fetched dynamically.
 
-```js
-{
-  status: 404,
-  code: "ERR_BAD_REQUEST",
-  message: "This feature is not available yet.",
-  errors: [],
-  isUnauthorized: false,
-  isNotFound: true,
-  isNetworkError: false,
-  isTimeoutError: false,
-  isRetryable: false,
-  envelope: null
-}
+### Optional Chaining & Nullish Coalescing
+Before mapping or checking length, always verify the array is valid:
+
+**Do NOT Use:**
+```javascript
+data.items.map(...)
 ```
 
-Normalised success shape:
-
-```js
-{
-  data: {},
-  envelope: {
-    success: true,
-    message: "Optional message",
-    data: {}
-  },
-  meta: {
-    success: true,
-    message: "Optional message"
-  }
-}
+**USE THIS INSTEAD:**
+```javascript
+// Using fallback assignments for array rendering
+const itemsList = Array.isArray(data?.items) ? data.items : [];
+{itemsList.map(...)}
 ```
 
-## React Query Patterns
+### 3. Fallback UI Ecosystem
 
-Shared client: `frontend/src/lib/queryClient.js`
+Use the standardized components located in `src/components/common/` rather than re-creating them.
 
-Rules:
+- **`<Loading />`**: For major page transitions or data fetching blocks.
+- **`<ErrorState />`**: For unrecoverable data access errors or missing permissions. Use the `onAction` prop to offer refetch functionality.
+- **`<EmptyState />`**: For lists that have 0 items, or features that rely on a 404 stub (e.g., when the backend feature is missing).
 
-- `retry: false` for all queries and mutations by default
-- Query hooks must gate on auth when required
-- Components must explicitly handle `isLoading`, `isError`, and empty data
-- 404-backed placeholder states should use fallback data instead of repeated retries
+## 4. React Query Defaults
 
-Recommended page pattern:
-
-```jsx
-if (isLoading) return <Loading />;
-if (isError) return <ErrorState message={error.message} />;
-if (!data) return <EmptyState />;
-```
-
-## Fallback UI System
-
-Reusable states live in `frontend/src/components/common/`.
-
-- `Loading.jsx`: neutral loading panel for generic async views
-- `ErrorState.jsx`: sanitised retry-friendly failure panel
-- `EmptyState.jsx`: stable empty or unavailable-state panel
-- `RouteErrorBoundary.jsx`: route-level crash containment for rendering and router errors
-
-Use cases:
-
-- Backend unavailable: show `EmptyState` or feature placeholder
-- Query failure without fallback: show `ErrorState`
-- Route/render exception: handled by `RouteErrorBoundary`
-
-## Defensive Coding Rules
-
-- Never read nested API fields without guards
-- Prefer `Array.isArray(data?.items) ? data.items : []`
-- Prefer optional chaining for nested objects
-- Never assume `generatedAt`, `charts`, or list collections exist
-- Do not surface `error.response.data` directly in the UI
-- Do not add ad hoc `try/catch` blocks inside components when a hook or shared helper can own the behavior
-
-## Admin Stability Rules
-
-- Every `/admin/*` route lives under `ProtectedRoute`
-- Sidebar links must always point to an actual route
-- Unimplemented modules must render a placeholder page, not a broken route
-- Unknown admin routes redirect to `/admin`
-- When the dashboard endpoint is missing or unavailable, the page renders fallback content instead of crashing
-
-## Remaining Backend Dependencies
-
-These admin modules still depend on backend readiness or dedicated frontend workflows:
-
-- Users management UI
-- Admissions admin workflows
-- Notices publishing UI
-- Settings management UI
-- CMS page editor and CRUD surface for the existing pages API
+To avoid retry storms against dead endpoints, React Query must abide by specific `queryClient` configurations:
+- `retry: false` - Avoid repeating 404s endlessly.
+- `throwOnError: false` - Explicitly use the returned `isError` boolean, not error boundaries.
