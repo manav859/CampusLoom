@@ -9,6 +9,7 @@ CampusLoom uses React Router v7 with `createBrowserRouter` for layout-based rout
 |-- /                    -> HomePage
 |-- /about               -> AboutPage
 |-- /admissions          -> AdmissionsPage
+|-- /account             -> ProtectedRoute(student|teacher) -> AccountPage
 |-- /contact             -> ContactPage
 |-- /unauthorized        -> UnauthorizedPage
 `-- *                    -> NotFoundPage
@@ -18,9 +19,10 @@ CampusLoom uses React Router v7 with `createBrowserRouter` for layout-based rout
 
 /admin                   -> ProtectedRoute -> AdminLayout
 |-- /admin               -> DashboardPage
-|-- /admin/admissions    -> Stable placeholder page
+|-- /admin/admissions    -> AdmissionsPage
+|-- /admin/admissions/:id -> AdmissionDetailPage
 |-- /admin/users         -> Stable placeholder page
-|-- /admin/notices       -> Stable placeholder page
+|-- /admin/notices       -> NoticesPage
 |-- /admin/settings      -> Stable placeholder page
 `-- /admin/*             -> Redirects to /admin
 ```
@@ -38,7 +40,7 @@ CampusLoom uses React Router v7 with `createBrowserRouter` for layout-based rout
 - Protected admin shell
 - Collapsible desktop sidebar
 - Mobile overlay sidebar
-- Safe container for placeholder admin modules
+- Safe container for stable admin modules and placeholder sections
 
 ### AuthLayout
 
@@ -48,6 +50,7 @@ CampusLoom uses React Router v7 with `createBrowserRouter` for layout-based rout
 ## Route Safety
 
 - Every admin route lives under a single `ProtectedRoute`
+- `/account` is protected separately from the admin tree
 - Admin route rendering is guarded by `RouteErrorBoundary`
 - Unknown admin routes redirect to `/admin`
 - Unknown public routes render `NotFoundPage`

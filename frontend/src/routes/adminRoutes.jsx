@@ -1,10 +1,14 @@
-import { GraduationCap, Settings, Users } from 'lucide-react';
+import { Settings, Users } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+import AdmissionDetailPage from '@/pages/admin/AdmissionDetailPage';
+import AdmissionsPage from '@/pages/admin/AdmissionsPage';
 import AdminFeaturePage from '@/pages/admin/AdminFeaturePage';
 import DashboardPage from '@/pages/admin/DashboardPage';
 import NoticeCreatePage from '@/pages/admin/NoticeCreatePage';
 import NoticeEditPage from '@/pages/admin/NoticeEditPage';
 import NoticesPage from '@/pages/admin/NoticesPage';
+import StudentsPage from '@/pages/admin/StudentsPage';
+import ResultsPage from '@/pages/admin/ResultsPage';
 
 const adminRoutes = [
   {
@@ -13,13 +17,19 @@ const adminRoutes = [
   },
   {
     path: 'admissions',
-    element: (
-      <AdminFeaturePage
-        title="Admissions"
-        description="Feature not available yet. Admission workflows will appear here once the backend module is ready for admin consumption."
-        icon={GraduationCap}
-      />
-    ),
+    element: <AdmissionsPage />,
+  },
+  {
+    path: 'admissions/:id',
+    element: <AdmissionDetailPage />,
+  },
+  {
+    path: 'students',
+    element: <StudentsPage />,
+  },
+  {
+    path: 'results',
+    element: <ResultsPage />,
   },
   {
     path: 'users',

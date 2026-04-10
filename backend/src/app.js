@@ -11,12 +11,14 @@ import { API_PREFIX } from './common/constants.js';
 // --- Module route imports ---
 import healthRoute from './modules/health/health.route.js';
 import authRoutes from './modules/auth/auth.route.js';
+import userRoutes from './modules/user/user.route.js';
 import usersRoutes from './modules/users/users.route.js';
 import pagesRoutes from './modules/pages/pages.routes.js';
 import mediaRoutes from './modules/media/media.route.js';
 import noticesRoutes from './modules/notices/notices.route.js';
 import eventsRoutes from './modules/events/events.route.js';
 import admissionsRoutes from './modules/admissions/admissions.route.js';
+import studentsRoutes from './modules/students/students.route.js';
 import facultyRoutes from './modules/faculty/faculty.route.js';
 import galleryRoutes from './modules/gallery/gallery.route.js';
 import resultsRoutes from './modules/results/results.route.js';
@@ -35,6 +37,7 @@ export async function buildApp() {
 
   const app = Fastify({
     logger: buildLoggerConfig(config.NODE_ENV),
+    disableRequestLogging: true,
     // Disable the default x-powered-by header
     exposeHeadRoutes: false,
   });
@@ -62,12 +65,14 @@ export async function buildApp() {
     async function v1Routes(v1) {
       await v1.register(healthRoute);
       await v1.register(authRoutes, { prefix: '/auth' });
+      await v1.register(userRoutes, { prefix: '/user' });
       await v1.register(usersRoutes, { prefix: '/users' });
       await v1.register(pagesRoutes);
       await v1.register(mediaRoutes, { prefix: '/media' });
       await v1.register(noticesRoutes);
       await v1.register(eventsRoutes, { prefix: '/events' });
       await v1.register(admissionsRoutes, { prefix: '/admissions' });
+      await v1.register(studentsRoutes, { prefix: '/students' });
       await v1.register(facultyRoutes, { prefix: '/faculty' });
       await v1.register(galleryRoutes, { prefix: '/gallery' });
       await v1.register(resultsRoutes, { prefix: '/results' });

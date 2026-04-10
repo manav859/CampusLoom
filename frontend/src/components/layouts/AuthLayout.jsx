@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import Logo from '@/components/common/Logo';
 
 /**
@@ -17,14 +17,14 @@ export default function AuthLayout() {
       </div>
 
       <div className="relative z-10 flex w-full flex-col items-center">
-        <motion.div 
+        <Motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="mb-10"
         >
           <Logo size="lg" />
-        </motion.div>
+        </Motion.div>
 
         <main className="w-full max-w-md">
           <Outlet />

@@ -1,4 +1,5 @@
 import { authenticate, authorizeRoles } from '../../middleware/auth.js';
+import { USER_ROLES } from '../auth/auth.constants.js';
 import {
   createNoticeHandler,
   deleteNoticeHandler,
@@ -13,7 +14,7 @@ export default async function noticesRoutes(fastify) {
   await fastify.register(
     async function adminNotices(admin) {
       admin.addHook('preHandler', authenticate);
-      admin.addHook('preHandler', authorizeRoles(['ADMIN']));
+      admin.addHook('preHandler', authorizeRoles([USER_ROLES.ADMIN]));
 
       admin.get('/', listNoticesHandler);
       admin.get('/:id', getNoticeByIdHandler);

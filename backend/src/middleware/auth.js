@@ -1,14 +1,20 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../modules/users/user.model.js';
 import { getConfig } from '../config/env.js';
+import { resolveUserRole, sanitizeUser } from '../modules/auth/auth.utils.js';
 
 /**
  * Middleware to verify JWT, attach user to request, and protect routes.
  */
-export async function authenticate(request, reply) {
+async function authenticateRequest(request, reply, { allowAnonymous = false } = {}) {
   try {
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (allowAnonymous) {
+        request.user = null;
+        return;
+      }
+
       return reply.unauthorized('No authorization token provided');
     }
 
@@ -29,16 +35,25 @@ export async function authenticate(request, reply) {
       return reply.unauthorized('Account is deactivated');
     }
 
-    // Attach user payload to the request
-    request.user = {
-      id: user._id.toString(),
-      email: user.email,
-      role: user.roleId?.name || null,
-    };
+    const role = resolveUserRole(user);
+
+    if (!role) {
+      return reply.unauthorized('Invalid or expired token');
+    }
+
+    request.user = sanitizeUser({ ...user, role });
   } catch (error) {
     request.log.warn({ err: error }, 'Authentication error');
     return reply.unauthorized('Invalid or expired token');
   }
+}
+
+export async function authenticate(request, reply) {
+  return authenticateRequest(request, reply);
+}
+
+export async function authenticateOptional(request, reply) {
+  return authenticateRequest(request, reply, { allowAnonymous: true });
 }
 
 /**

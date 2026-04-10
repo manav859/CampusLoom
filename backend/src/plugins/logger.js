@@ -10,7 +10,7 @@ export function buildLoggerConfig(nodeEnv) {
   const isDev = nodeEnv === 'development';
 
   return {
-    level: isDev ? 'debug' : 'info',
+    level: isDev ? 'info' : 'warn',
     ...(isDev && {
       transport: {
         target: 'pino-pretty',

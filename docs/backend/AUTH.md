@@ -1,67 +1,200 @@
-# SchoolOS Authentication & RBAC
+# CampusLoom Backend Auth
 
-This document outlines the architecture, flow, and security measures of the SchoolOS (CampusLoom) authentication system.
+CampusLoom now supports three account roles:
 
-## 1. Authentication Flow
+- `admin`
+- `student`
+- `teacher`
 
-The current implementation utilizes JSON Web Tokens (JWT) for stateless authentication.
+Public registration is limited to `student` and `teacher`. Admin accounts are not exposed through the public API.
 
-**Registration (`POST /api/v1/auth/register`)**
-- Validates input (email, password) using `zod`.
-- Checks if the email is already in use.
-- **Seeding logic:** On the first execution, if no roles exist in the database, `ADMIN` and `USER` roles are automatically generated.
-- The **first registered user** receives the `ADMIN` role. Subsequent users default to the `USER` role.
-- Before storing the password in the MongoDB database, it is irreversibly hashed.
+## Auth Endpoints
 
-**Login (`POST /api/v1/auth/login`)**
-- Validates the provided credentials against the hashed password.
-- Ensures the user account is active.
-- Generates a JWT containing the `userId` and `role`.
-- The token is returned to the client to be included in subsequent requests as an `Authorization` header (`Bearer <token>`).
+### `POST /api/v1/auth/register`
 
-**Me (`GET /api/v1/auth/me`)**
-- A protected route that verifies the JWT token.
-- Returns the currently authenticated user's details without exposing sensitive info (like passwords).
+Public account creation for student and teacher users.
 
-## 2. JWT Strategy
+Request body:
 
-- **Token Secret**: Sourced from the `JWT_SECRET` environment variable. Ensure this is a strong (32+ character) string.
-- **Expiry**: Currently hardcoded to `1h` (1 hour) to balance security and convenience.
-- **Payload Structure**: 
-  ```json
-  {
-    "userId": "60d0fe4f5311236168a109ca",
-    "role": "ADMIN",
-    "iat": 1616239022,
-    "exp": 1616242622
+```json
+{
+  "name": "Aarav Sharma",
+  "email": "aarav@example.com",
+  "password": "strong-password",
+  "role": "student"
+}
+```
+
+Rules:
+
+- `role` must be `student` or `teacher`
+- `admin` is rejected even if submitted manually
+- email is normalized to lowercase
+- passwords are hashed with `bcrypt`
+- duplicate emails return `409`
+
+Response data:
+
+```json
+{
+  "id": "user_id",
+  "name": "Aarav Sharma",
+  "email": "aarav@example.com",
+  "role": "student",
+  "isActive": true,
+  "createdAt": "2026-04-09T12:00:00.000Z",
+  "updatedAt": "2026-04-09T12:00:00.000Z"
+}
+```
+
+### `POST /api/v1/auth/login`
+
+Shared login for admin, student, and teacher accounts.
+
+Request body:
+
+```json
+{
+  "email": "aarav@example.com",
+  "password": "strong-password"
+}
+```
+
+Response data:
+
+```json
+{
+  "token": "jwt",
+  "user": {
+    "id": "user_id",
+    "name": "Aarav Sharma",
+    "email": "aarav@example.com",
+    "role": "student",
+    "isActive": true,
+    "createdAt": "2026-04-09T12:00:00.000Z",
+    "updatedAt": "2026-04-09T12:00:00.000Z"
   }
-  ```
-- **Transmission**: The frontend should store the token securely (preferably in memory or careful usage of local storage, transitioning to HttpOnly cookies eventually). It must be attached via `Authorization: Bearer <token>`.
+}
+```
 
-## 3. RBAC Design (Role-Based Access Control)
+### `GET /api/v1/auth/me`
 
-Roles dictate what a user can and cannot do in SchoolOS.
+Protected session restore endpoint. Returns the authenticated user already attached by middleware.
 
-- **Role Model**: Independent entity in the database (e.g., `name: 'ADMIN'`).
-- **Assignment**: Each `User` references precisely one `Role` (Object ID relation).
-- **Middleware**: 
-  - `authenticate`: Initially verifies the JWT, ensures the user still exists and isActive, and mounts the user object (including role text) to `request.user`.
-  - `authorizeRoles(allowedRoles)`: A higher-order function to protect specific sub-routes. For example, `authorizeRoles(['ADMIN', 'EDITOR'])`.
+## User Admissions API
 
-## 4. Security Decisions
+### `GET /api/v1/user/admissions`
 
-Strict guidelines adhered to during the Day 2 construction:
+Protected route for signed-in `student` and `teacher` accounts.
 
-1. **Password Hashing**: Done via `bcrypt` with salt rounds retrieved from `BCRYPT_SALT_ROUNDS` (fallback `10`). Passwords are never logged in plain-text.
-2. **Hidden Queries**: In Mongoose, the user model excludes `password` by default (`select: false`). The service layer explicitly opts-in to selecting it only during login comparison.
-3. **Generic Errors**: The system deliberately uses generalized authentication errors (e.g., "Invalid credentials") rather than specific ones (e.g., "Email not found" vs "Wrong password") to prevent user-enumeration attacks.
-4. **Validation-First**: Zod validation precedes any database operations to reject malformed data early, shielding against unhandled injections or ReDoS vulnerabilities.
-5. **No Secret Bleed**: Standard practice ensuring variables remain strictly bounded to `env.js`, verified systematically on startup.
+Behavior:
 
-## 5. Future Improvements
+- filters by `request.user.id`
+- never returns other users' admission records
+- sorts newest first
 
-- **Refresh Tokens**: Implement short-lived access tokens combined with long-lived, rotatable refresh tokens stored in secure, HttpOnly cookies for enterprise-grade security.
-- **Granular Permissions**: Augment the RBAC model to map specific roles to a `Permissions` list (e.g., `canEditGrades`, `canViewFinances`), replacing hardcoded string compares with robust entity rules.
-- **Rate Limiting**: Integrate `@fastify/rate-limit` for brutal force protection extensively on the `login` route.
-- **Account Lockouts**: Temporarily block user IDs after X consecutive failed login attempts.
-- **Audit Logs Middleware**: Tie an audit recording service directly into the `authenticate` pipeline logging data mutations.
+Example response data:
+
+```json
+[
+  {
+    "id": "admission_id",
+    "name": "Aarav Sharma",
+    "email": "aarav@example.com",
+    "phone": "+919876543210",
+    "class": "Grade 6",
+    "message": "Sibling already enrolled",
+    "status": "new",
+    "createdAt": "2026-04-09T12:10:00.000Z",
+    "updatedAt": "2026-04-09T12:10:00.000Z"
+  }
+]
+```
+
+## Admissions Linking
+
+Admission submissions remain public at `POST /api/v1/admissions`, but the route now supports an optional authenticated caller.
+
+Behavior:
+
+- no token: admission is created normally with `userId: null`
+- valid student/teacher token: admission is created with `userId` attached
+- invalid token: request is rejected
+- admin token: request is accepted, but the admission is not linked into the student/teacher account flow
+
+This keeps the public form usable while preserving strict ownership checks for account dashboards.
+
+## Data Model
+
+### User
+
+Runtime model fields:
+
+- `id`
+- `name`
+- `email`
+- `password`
+- `role`
+- `isActive`
+- `createdAt`
+- `updatedAt`
+
+The codebase still retains an optional legacy `roleId` relation so older admin records can continue to authenticate while the system moves to direct role storage.
+
+### Admission
+
+Relevant fields:
+
+- `id`
+- `name`
+- `phone`
+- `email`
+- `class`
+- `message`
+- `status`
+- `userId`
+- `createdAt`
+- `updatedAt`
+
+`schema.prisma` was updated to mirror the new `User` and `Admission` shapes even though the current runtime path is Mongoose-backed.
+
+## Middleware and RBAC
+
+### `authenticate`
+
+- verifies JWT
+- loads the latest user from the database
+- rejects inactive or missing users
+- resolves the normalized role
+- attaches a safe user object to `request.user`
+
+### `authenticateOptional`
+
+- ignores missing tokens
+- rejects invalid or expired tokens
+- attaches `request.user` when a valid token is present
+
+### `authorizeRoles([...])`
+
+- compares normalized lower-case roles
+- currently used to keep `/admin` APIs admin-only and `/api/v1/user/admissions` student/teacher-only
+
+## Security Decisions
+
+- Public registration cannot create admins.
+- Login returns safe user fields only; passwords are never exposed.
+- The middleware re-reads the user from storage on each protected request, so deleted or deactivated accounts lose access immediately.
+- User admissions are filtered by `userId` server-side; the frontend is not trusted for scoping.
+- Invalid credentials stay generic.
+- Zod validation runs before writes.
+- Duplicate admissions are still rate-limited by the recent-contact window in the admissions service.
+
+## Edge Cases Handled
+
+- Duplicate email on register
+- Manual role escalation attempt to `admin`
+- Inactive user login
+- Legacy admin records that still rely on `roleId`
+- Public admission submission without authentication
+- Authenticated admission submission with automatic ownership linking
+- Logged-in users trying to read another user's admissions

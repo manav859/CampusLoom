@@ -11,9 +11,11 @@ async function mongoosePlugin(fastify) {
   try {
     const isDev = fastify.config.NODE_ENV === 'development';
     
+    /* 
     if (isDev) {
       mongoose.set('debug', true);
     }
+    */
 
     await mongoose.connect(fastify.config.DATABASE_URL, {
       maxPoolSize: 10,

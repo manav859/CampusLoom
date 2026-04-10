@@ -13,8 +13,8 @@ export async function registerHandler(request, reply) {
       return sendError(reply, 400, 'Validation failed', error.issues);
     }
 
-    if (error.message === 'Email is already in use') {
-      return sendError(reply, 409, error.message);
+    if (error.statusCode) {
+      return sendError(reply, error.statusCode, error.message);
     }
 
     request.log.error(error);
@@ -34,8 +34,8 @@ export async function loginHandler(request, reply) {
       return sendError(reply, 400, 'Validation failed', error.issues);
     }
 
-    if (error.message === 'Invalid credentials' || error.message === 'User account is deactivated') {
-      return sendError(reply, 401, error.message);
+    if (error.statusCode) {
+      return sendError(reply, error.statusCode, error.message);
     }
 
     request.log.error(error);

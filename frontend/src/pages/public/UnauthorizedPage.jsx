@@ -14,8 +14,7 @@ export default function UnauthorizedPage() {
           <div className="space-y-2">
             <CardTitle className="text-3xl">Access restricted</CardTitle>
             <CardDescription>
-              Your account is authenticated but does not have permission to access the admin
-              dashboard.
+              Your account is authenticated but does not have permission to access this area.
             </CardDescription>
           </div>
         </CardHeader>

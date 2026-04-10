@@ -104,6 +104,36 @@ This document is the frontend integration source of truth for the CampusLoom bac
 - Path: `/api/v1/public/notices`
 - Auth Required: `No`
 
+### Create Admission Inquiry
+
+- Method: `POST`
+- Path: `/api/v1/admissions`
+- Auth Required: `No`
+
+### Admissions List
+
+- Method: `GET`
+- Path: `/api/v1/admissions`
+- Auth Required: `Yes (ADMIN)`
+
+### Admission By Id
+
+- Method: `GET`
+- Path: `/api/v1/admissions/:id`
+- Auth Required: `Yes (ADMIN)`
+
+### Update Admission Status
+
+- Method: `PATCH`
+- Path: `/api/v1/admissions/:id/status`
+- Auth Required: `Yes (ADMIN)`
+
+### Add Admission Note
+
+- Method: `POST`
+- Path: `/api/v1/admissions/:id/notes`
+- Auth Required: `Yes (ADMIN)`
+
 ### Pages List
 
 - Method: `GET`
@@ -145,7 +175,6 @@ This document is the frontend integration source of truth for the CampusLoom bac
 - `/api/v1/users/*`
 - `/api/v1/media/*`
 - `/api/v1/events/*`
-- `/api/v1/admissions/*`
 - `/api/v1/faculty/*`
 - `/api/v1/gallery/*`
 - `/api/v1/results/*`

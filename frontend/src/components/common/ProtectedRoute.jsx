@@ -17,9 +17,9 @@ export default function ProtectedRoute({ children, allowedRoles = [] }) {
       <div className="flex min-h-screen items-center justify-center px-6">
         <div className="w-full max-w-xl">
           <ErrorState
-            title="Admin access is temporarily unavailable"
+            title="Access is temporarily unavailable"
             message={authError}
-            actionLabel="Return to login"
+            actionLabel="Return to sign in"
             onAction={() => navigate('/login', { replace: true, state: { from: location } })}
           />
         </div>

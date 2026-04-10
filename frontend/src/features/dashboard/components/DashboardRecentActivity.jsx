@@ -3,10 +3,19 @@ import EmptyState from '@/components/common/EmptyState';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 function formatTimestamp(value) {
+  if (!value) {
+    return 'Just now';
+  }
+
+  const date = new Date(value);
+  if (isNaN(date.getTime())) {
+    return 'Just now';
+  }
+
   return new Intl.DateTimeFormat('en-IN', {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export default function DashboardRecentActivity({ activities = [], moduleStatus = [] }) {

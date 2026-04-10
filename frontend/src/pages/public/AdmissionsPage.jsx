@@ -1,79 +1,157 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, Clock3, FileSearch, ShieldCheck, UserRoundCheck } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle2, ChevronRight, FileText, Send, UserCheck, Calendar } from 'lucide-react';
+import AdmissionInquiryForm from '@/features/admissions/components/AdmissionInquiryForm';
+import { useCreateAdmissionInquiryMutation } from '@/features/admissions/hooks/useAdmissionMutations';
+import { getAdmissionInquiryDefaults } from '@/features/admissions/utils';
+import { getErrorMessage } from '@/lib/api';
+import { useAuthSession } from '@/features/auth/hooks/useAuthSession';
 
-const STEPS = [
-  { icon: FileText, title: 'Application', description: 'Submit your online application through our digital portal.' },
-  { icon: UserCheck, title: 'Interview', description: 'Schedule a discovery session with our faculty members.' },
-  { icon: CheckCircle2, title: 'Decision', description: 'Receive your formal admission results via your registered email.' },
+const workflowSteps = [
+  {
+    icon: FileSearch,
+    title: 'Inquiry received',
+    description: 'Your family details enter the admissions desk instantly, with validation that keeps the workflow clean and review-ready.',
+  },
+  {
+    icon: Clock3,
+    title: 'Review and screening',
+    description: 'Our team checks the requested class, captures internal review notes, and contacts you for the next step.',
+  },
+  {
+    icon: UserRoundCheck,
+    title: 'Decision and onboarding',
+    description: 'Qualified applicants move to approval and onboarding with a clear admissions status trail.',
+  },
 ];
 
-/**
- * Admissions Page - Digital Enrollment Process.
- * Premium timeline layout with high-performance reveal motions.
- */
+const highlights = [
+  'Structured inquiry intake for every class level',
+  'Admissions-team review with internal notes and status updates',
+  'Safe validation to block incomplete or low-quality submissions',
+];
+
 export default function AdmissionsPage() {
+  const [submissionState, setSubmissionState] = useState(null);
+  const createAdmissionMutation = useCreateAdmissionInquiryMutation();
+  const { isAuthenticated, user } = useAuthSession();
+
+  const initialValues = {
+    ...getAdmissionInquiryDefaults(),
+    name: user?.name || '',
+    email: user?.email || '',
+  };
+
+  const handleSubmitInquiry = async (payload) => {
+    const response = await createAdmissionMutation.mutateAsync(payload);
+    setSubmissionState(response);
+  };
+
   return (
-    <div className="space-y-24 pb-24">
-      {/* ─── Hero Header ─── */}
-      <section className="bg-primary py-20 px-6 text-primary-foreground">
-        <div className="mx-auto max-w-4xl text-center reveal">
-           <div className="mb-4 inline-flex rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold tracking-widest uppercase">Admissions 2026</div>
-           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-             Begin Your <span className="text-accent underline decoration-accent/30 underline-offset-8">Journey</span>.
-           </h1>
-           <p className="mt-8 text-lg text-primary-foreground/70 leading-relaxed sm:text-xl">
-             Our enrollment process is designed to be as seamless and transparent as our classroom experience. 
-             Start your digital application today.
-           </p>
+    <div className="space-y-20 pb-24">
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_28%),linear-gradient(135deg,oklch(0.28_0.1_265),oklch(0.42_0.15_255))] px-6 py-20 text-primary-foreground">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent,rgba(255,255,255,0.04),transparent)]" />
+        <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+          <div className="space-y-6">
+            <div className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em]">
+              Admissions workflow
+            </div>
+            <div className="space-y-4">
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-5xl lg:text-6xl">
+                Begin the application journey with a real admissions desk behind it.
+              </h1>
+              <p className="max-w-2xl text-lg leading-8 text-primary-foreground/75">
+                CampusLoom handles admission inquiries as an operational workflow, not a dead-end contact form. Submit your details and our team can review, track, and follow up with clarity.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              {highlights.map((item) => (
+                <div key={item} className="rounded-2xl border border-white/12 bg-white/8 px-4 py-4 text-sm leading-6 text-primary-foreground/85">
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:pl-8">
+            {submissionState ? (
+              <Card className="border-emerald-200 bg-white text-foreground shadow-premium">
+                <CardHeader className="space-y-3">
+                  <div className="flex size-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                    <CheckCircle2 className="size-7" />
+                  </div>
+                  <div className="space-y-1">
+                    <CardTitle className="text-2xl">Inquiry submitted</CardTitle>
+                    <CardDescription>
+                      The admissions desk has received your request. Keep a note of this reference while our team reviews the next step.
+                    </CardDescription>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Reference</p>
+                      <p className="mt-2 text-lg font-semibold">{submissionState.id}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border bg-muted/20 p-4">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Initial status</p>
+                      <p className="mt-2 text-lg font-semibold capitalize">{submissionState.status.replace('_', ' ')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                    <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+                    <p>
+                      We will contact you after internal review. If you need to submit another inquiry, please wait a short while to avoid duplicate spam protection.
+                    </p>
+                  </div>
+                  {isAuthenticated ? (
+                    <Button variant="outline" asChild>
+                      <Link to="/account">View in My Account</Link>
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : (
+              <AdmissionInquiryForm
+                key={user?.id ?? 'guest'}
+                initialValues={initialValues}
+                onSubmit={handleSubmitInquiry}
+                isSubmitting={createAdmissionMutation.isPending}
+                serverError={createAdmissionMutation.isError ? getErrorMessage(createAdmissionMutation.error) : ''}
+              />
+            )}
+          </div>
         </div>
       </section>
 
-      {/* ─── Timeline Steps ─── */}
-      <section className="mx-auto max-w-7xl px-8">
-        <div className="grid gap-12 lg:grid-cols-3">
-          {STEPS.map((step, idx) => (
-            <div key={step.title} className="group relative flex flex-col items-center text-center reveal">
-               <div className="z-10 flex size-20 items-center justify-center rounded-3xl bg-primary text-primary-foreground shadow-2xl shadow-primary/20 transition-transform group-hover:scale-110">
-                  <step.icon className="size-8" />
-               </div>
-               {/* Connector Line (Desktop) */}
-               {idx < STEPS.length - 1 && (
-                  <div className="absolute top-10 left-[60%] hidden h-[2px] w-full bg-primary/10 lg:block" />
-               )}
-               <div className="mt-8 space-y-3">
-                  <div className="text-xs font-bold uppercase tracking-widest text-primary/60">Step 0{idx + 1}</div>
-                  <h3 className="text-2xl font-bold tracking-tight">{step.title}</h3>
-                  <p className="text-base text-muted-foreground leading-relaxed">
-                    {step.description}
-                  </p>
-               </div>
-            </div>
+      <section className="mx-auto max-w-7xl px-6">
+        <div className="mb-10 space-y-3 text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">How it works</p>
+          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">A school workflow, not just a website form</h2>
+          <p className="mx-auto max-w-3xl text-base leading-7 text-muted-foreground">
+            Each inquiry moves through a structured review flow so the admissions team can act with context instead of sorting through loose messages.
+          </p>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-3">
+          {workflowSteps.map((step, index) => (
+            <Card key={step.title} className="border-border/80 shadow-none">
+              <CardHeader className="space-y-4">
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <step.icon className="size-6" />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-muted-foreground">Step {index + 1}</p>
+                  <CardTitle className="text-2xl">{step.title}</CardTitle>
+                  <CardDescription className="text-base">{step.description}</CardDescription>
+                </div>
+              </CardHeader>
+            </Card>
           ))}
         </div>
-      </section>
-
-      {/* ─── CTA Card ─── */}
-      <section className="mx-auto max-w-5xl px-8">
-         <Card className="reveal relative overflow-hidden border-none bg-muted/40 p-10 text-center shadow-none hover:bg-card hover:shadow-premium">
-            <div className="absolute top-0 right-0 h-40 w-40 opacity-5 bg-[radial-gradient(circle_at_100%_0%,var(--color-primary)_0%,transparent_70%)]" />
-            <CardHeader className="space-y-4">
-               <Calendar className="mx-auto size-12 text-primary opacity-40" />
-               <CardTitle className="text-3xl font-bold">Ready to take the next step?</CardTitle>
-               <CardDescription className="mx-auto max-w-lg text-base">
-                 Digital application portals are open until August 15th for the Fall Term. 
-                 Complete your profile in less than 15 minutes.
-               </CardDescription>
-            </CardHeader>
-            <CardContent className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-               <Button size="lg" className="rounded-full px-12 h-14">
-                 Apply Online <ChevronRight className="ml-2 size-5" />
-               </Button>
-               <Button variant="ghost" size="lg" className="rounded-full px-12">
-                 Download Brochure
-               </Button>
-            </CardContent>
-         </Card>
       </section>
     </div>
   );

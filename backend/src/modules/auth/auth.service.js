@@ -1,8 +1,15 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User } from '../users/user.model.js';
-import { Role } from '../roles/role.model.js';
 import { getConfig } from '../../config/env.js';
+import { isPublicRegistrationRole } from './auth.constants.js';
+import {
+  createAuthError,
+  normalizeEmail,
+  normalizeName,
+  resolveUserRole,
+  sanitizeUser,
+} from './auth.utils.js';
 
 const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10);
 
@@ -19,72 +26,62 @@ export function generateToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 }
 
-export async function registerUser({ email, password }) {
-  // Check if user already exists
-  const existingUser = await User.findOne({ email }).lean();
+export async function registerUser({ name, email, password, role }) {
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedRole = resolveUserRole({ role });
+
+  if (!isPublicRegistrationRole(normalizedRole)) {
+    throw createAuthError(400, 'Public registration is limited to student and teacher accounts');
+  }
+
+  const existingUser = await User.findOne({ email: normalizedEmail }).select('_id').lean();
   if (existingUser) {
-    throw new Error('Email is already in use');
+    throw createAuthError(409, 'Email is already in use');
   }
-
-  // Ensure 'ADMIN' and 'USER' roles exist (seed logic for first setup)
-  let adminRole = await Role.findOne({ name: 'ADMIN' });
-  let userRole = await Role.findOne({ name: 'USER' });
-
-  if (!adminRole) {
-    adminRole = await Role.create({ name: 'ADMIN', description: 'Administrator with full access' });
-  }
-  if (!userRole) {
-    userRole = await Role.create({ name: 'USER', description: 'Standard user access' });
-  }
-
-  // If this is the absolute first user in the DB, make them ADMIN
-  const userCount = await User.estimatedDocumentCount();
-  const assignedRole = userCount === 0 ? adminRole : userRole;
 
   const hashedPassword = await hashPassword(password);
 
   const user = await User.create({
-    email,
+    name: normalizeName(name),
+    email: normalizedEmail,
     password: hashedPassword,
-    roleId: assignedRole._id,
+    role: normalizedRole,
   });
 
-  return {
-    id: user._id,
-    email: user.email,
-    role: assignedRole.name,
-  };
+  return sanitizeUser(user);
 }
 
 export async function loginUser({ email, password }) {
-  // Find user and explicitly select password to verify
-  const user = await User.findOne({ email }).select('+password').populate('roleId').lean();
-  
+  const normalizedEmail = normalizeEmail(email);
+  const user = await User.findOne({ email: normalizedEmail }).select('+password').populate('roleId').lean();
+
   if (!user) {
-    throw new Error('Invalid credentials');
+    throw createAuthError(401, 'Invalid credentials');
   }
 
   if (!user.isActive) {
-    throw new Error('User account is deactivated');
+    throw createAuthError(401, 'User account is deactivated');
   }
 
   const isPasswordValid = await comparePassword(password, user.password);
-  
+
   if (!isPasswordValid) {
-    throw new Error('Invalid credentials');
+    throw createAuthError(401, 'Invalid credentials');
+  }
+
+  const role = resolveUserRole(user);
+
+  if (!role) {
+    throw createAuthError(403, 'User account role is invalid');
   }
 
   const token = generateToken({
     userId: user._id,
-    role: user.roleId?.name || null,
+    role,
   });
 
   return {
     token,
-    user: {
-      id: user._id,
-      email: user.email,
-      role: user.roleId?.name || null,
-    },
+    user: sanitizeUser({ ...user, role }),
   };
 }

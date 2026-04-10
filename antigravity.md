@@ -34,6 +34,15 @@ You are working on a large production-grade SaaS project called **CampusLoom**, 
 - [x] Standard API response helpers adopted for auth and dashboard flows.
 - [x] Frontend admin stability hardening: sanitized API errors, route error boundaries, placeholder admin routes, and defensive dashboard fallbacks.
 - [x] Full notices / announcements module shipped with backend CRUD APIs, public visibility rules, admin management UI, and public notices page.
+- [x] Full admissions module shipped with public inquiry intake, protected admin queue/detail flows, status tracking, internal notes, validation, and documentation.
+- [x] Multi-role shared authentication shipped for `admin`, `student`, and `teacher` accounts, including public student/teacher registration, shared login, role-aware routing, and account session restore.
+- [x] User account dashboard shipped with linked admissions history and conditional public navigation.
+- [x] Admission inquiries can now be attached to authenticated student/teacher accounts and queried through a protected user-scoped endpoint.
+- [x] Full student management module shipped with Mongoose model, admin CRUD APIs, automatic admission→student conversion (idempotent), and admin management UI.
+- [x] Full results module shipped with Mongoose model, admin result entry APIs, user-scoped result access, and both admin and student-facing UIs.
+- [x] Admission→Student auto-conversion on approval with idempotent safety (re-approving is a no-op).
+- [x] User account dashboard updated with "My Results" section for student/teacher roles.
+- [x] Core ERP loop completed: Inquiry → Admission → Student → Results.
 - [ ] Formal multi-tenant `schoolId` enforcement across persisted modules.
 - [ ] Initial Database Schema layout.
 

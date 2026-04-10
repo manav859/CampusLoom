@@ -97,8 +97,14 @@ export const AuthProvider = ({ children }) => {
     setAuthError(null);
 
     try {
-      const { token } = await loginUser({ email, password });
+      const { token, user: authenticatedUser } = await loginUser({ email, password });
       setToken(token);
+      setUser(authenticatedUser ?? null);
+      queryClient.setQueryData(authQueryKeys.me(), authenticatedUser ?? null);
+
+      if (authenticatedUser) {
+        return authenticatedUser;
+      }
 
       return await syncCurrentUser();
     } catch (error) {
@@ -108,14 +114,14 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [clearSession, syncCurrentUser]);
+  }, [clearSession, queryClient, syncCurrentUser]);
 
-  const register = useCallback(async (email, password) => {
+  const register = useCallback(async (payload) => {
     setIsLoading(true);
     setAuthError(null);
 
     try {
-      return await registerUser({ email, password });
+      return await registerUser(payload);
     } catch (error) {
       setAuthError(error.message);
       throw error;

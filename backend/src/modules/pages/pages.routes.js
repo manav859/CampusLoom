@@ -1,4 +1,5 @@
 import { authenticate, authorizeRoles } from '../../middleware/auth.js';
+import { USER_ROLES } from '../auth/auth.constants.js';
 import {
   createPageHandler,
   deletePageHandler,
@@ -12,7 +13,7 @@ export default async function pagesRoutes(fastify) {
   await fastify.register(
     async function adminPages(admin) {
       admin.addHook('preHandler', authenticate);
-      admin.addHook('preHandler', authorizeRoles(['ADMIN']));
+      admin.addHook('preHandler', authorizeRoles([USER_ROLES.ADMIN]));
 
       admin.get('/', listPagesHandler);
       admin.post('/', createPageHandler);

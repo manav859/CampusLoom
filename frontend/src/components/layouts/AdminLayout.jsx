@@ -11,6 +11,8 @@ import {
   X,
   ChevronRight,
   LogOut,
+  ClipboardList,
+  UserCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/common/Logo';
@@ -20,6 +22,8 @@ import { useAuthSession } from '@/features/auth/hooks/useAuthSession';
 const SIDEBAR_LINKS = [
   { label: 'Dashboard', path: '/admin', icon: LayoutDashboard, end: true },
   { label: 'Admissions', path: '/admin/admissions', icon: GraduationCap },
+  { label: 'Students', path: '/admin/students', icon: UserCheck },
+  { label: 'Results', path: '/admin/results', icon: ClipboardList },
   { label: 'Users', path: '/admin/users', icon: Users },
   { label: 'Notices', path: '/admin/notices', icon: Bell },
   { label: 'Settings', path: '/admin/settings', icon: Settings },
@@ -111,11 +115,11 @@ export default function AdminLayout() {
   const handleLogout = () => {
     logout();
     setMobileSidebarOpen(false);
-    navigate('/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
-  const displayName = user?.email || 'Administrator';
-  const displayRole = user?.role || 'ADMIN';
+  const displayName = user?.name || user?.email || 'Administrator';
+  const displayRole = user?.role ? `${user.role.charAt(0).toUpperCase()}${user.role.slice(1)}` : 'Admin';
   const avatarLabel = displayName.charAt(0).toUpperCase();
   const MotionDiv = motion.div;
   const MotionAside = motion.aside;
