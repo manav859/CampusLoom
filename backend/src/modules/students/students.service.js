@@ -1,4 +1,7 @@
+import bcrypt from 'bcrypt';
 import { Student } from './student.model.js';
+import { User } from '../users/user.model.js';
+import { USER_ROLES } from '../auth/auth.constants.js';
 
 function createHttpError(statusCode, message) {
   const error = new Error(message);
@@ -23,9 +26,7 @@ function mapStudentListItem(student) {
 
 /**
  * Create a Student record from an approved Admission.
- *
- * Idempotent — if a student already exists for the given admissionId, the
- * existing record is returned without modification.
+ * Automatically creates a User account if one doesn't exist.
  */
 export async function createStudentFromAdmission(admission) {
   const existingStudent = await Student.findOne({ admissionId: admission._id }).lean();
@@ -34,13 +35,39 @@ export async function createStudentFromAdmission(admission) {
     return mapStudentListItem(existingStudent);
   }
 
+  let finalUserId = admission.userId;
+
+  // Automate User Creation
+  if (!finalUserId) {
+    // Check if user exists by email just in case
+    let existingUser = await User.findOne({ email: admission.email }).lean();
+    
+    if (!existingUser) {
+      const defaultPassword = await bcrypt.hash('password123', 10);
+      existingUser = await User.create({
+        name: admission.name,
+        email: admission.email.toLowerCase(),
+        password: defaultPassword,
+        role: USER_ROLES.STUDENT,
+        isActive: true,
+      });
+    }
+    finalUserId = existingUser._id;
+
+    // Update the admission to link this new user
+    if (admission.userId !== finalUserId) {
+      admission.userId = finalUserId;
+      await admission.save();
+    }
+  }
+
   const student = await Student.create({
     name: admission.name,
     email: admission.email,
     phone: admission.phone,
     class: admission.class,
     admissionId: admission._id,
-    userId: admission.userId ?? null,
+    userId: finalUserId,
   });
 
   return mapStudentListItem(student);

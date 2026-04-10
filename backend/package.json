@@ -20,6 +20,7 @@
   "dependencies": {
     "@fastify/cors": "^11.2.0",
     "@fastify/env": "^6.0.0",
+    "@fastify/multipart": "^10.0.0",
     "@fastify/sensible": "^6.0.4",
     "@prisma/adapter-pg": "^7.6.0",
     "bcrypt": "^6.0.0",

@@ -1,16 +1,4 @@
-import { GraduationCap, Mail, UserRound, ArrowRight, BookOpen } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import ApiErrorState from '@/components/common/ApiErrorState';
-import EmptyState from '@/components/common/EmptyState';
-import Loading from '@/components/common/Loading';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import AdmissionStatusBadge from '@/features/admissions/components/AdmissionStatusBadge';
-import { useCurrentUserAdmissions } from '@/features/admissions/hooks/useCurrentUserAdmissions';
-import { formatAdmissionDate } from '@/features/admissions/utils';
-import { useCurrentUserResults } from '@/features/results/hooks/useCurrentUserResults';
-import ResultsTable from '@/features/results/components/ResultsTable';
-import { useAuthSession } from '@/features/auth/hooks/useAuthSession';
+import { useStudentDashboard } from '../hooks/useStudentQueries';
 
 const roleLabels = {
   student: 'Student',
@@ -18,17 +6,17 @@ const roleLabels = {
   admin: 'Admin',
 };
 
-function InfoCard({ icon, label, value }) {
+function InfoCard({ icon, label, value, color }) {
   const Icon = icon;
   return (
-    <Card className="border-border/70 shadow-none">
+    <Card className={cn("border-border/70 shadow-none", color)}>
       <CardHeader className="space-y-3 pb-2">
-        <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary font-bold">
           <Icon className="size-5" />
         </div>
         <div className="space-y-1">
-          <CardDescription>{label}</CardDescription>
-          <CardTitle className="text-xl">{value}</CardTitle>
+          <CardDescription className="text-[10px] font-bold uppercase tracking-widest">{label}</CardDescription>
+          <CardTitle className="text-2xl font-black">{value}</CardTitle>
         </div>
       </CardHeader>
     </Card>
@@ -39,6 +27,13 @@ export default function StudentDashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuthSession();
   
+  const { 
+    data: stats, 
+    isLoading: statsLoading,
+    isError: statsError,
+    refetch: refetchStats 
+  } = useStudentDashboard();
+
   const {
     data: admissions = [],
     isLoading,
@@ -55,16 +50,16 @@ export default function StudentDashboardPage() {
     refetch: refetchResults,
   } = useCurrentUserResults();
 
-  if (isLoading) {
+  if (isLoading || statsLoading) {
     return <Loading title="Loading your dashboard" description="Gathering your latest data..." />;
   }
 
-  if (isError) {
+  if (isError || statsError) {
     return (
       <ApiErrorState
         title="Unable to load dashboard"
         message={error?.message || 'We could not load your dashboard right now.'}
-        onRetry={() => refetch()}
+        onRetry={() => { refetch(); refetchStats(); }}
       />
     );
   }
@@ -80,14 +75,15 @@ export default function StudentDashboardPage() {
             <div className="space-y-2">
               <CardTitle className="text-4xl font-black tracking-tight">Student Portal</CardTitle>
               <CardDescription className="max-w-2xl text-base">
-                Explore your academic progress, track attendance, communicate with your teachers, and view all recent announcements.
+                Welcome to your academic home. You are currently enrolled in <span className="font-bold text-primary">Class {stats?.class || 'Pending'}</span>.
+                Explore your progress below.
               </CardDescription>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <Button size="lg" asChild>
-              <Link to="/account/profile">
-                View full profile
+              <Link to="/teacher/profile">
+                View profile
                 <ArrowRight className="ml-2 size-4" />
               </Link>
             </Button>
@@ -96,31 +92,31 @@ export default function StudentDashboardPage() {
 
         <div className="grid gap-4 sm:grid-cols-3">
           <InfoCard icon={UserRound} label="Name" value={user?.name || 'Not available'} />
-          <InfoCard icon={Mail} label="Email" value={user?.email || 'Not available'} />
           <InfoCard icon={GraduationCap} label="Role" value={roleLabels[user?.role] || 'User'} />
+          <InfoCard icon={BookOpen} label="Enrolled Class" value={stats?.class || 'N/A'} />
         </div>
       </section>
 
-      {/* Placeholder blocks for the new dashboard */}
+      {/* Real dashboard stats */}
       <section className="grid gap-4 sm:grid-cols-3">
-        <Card className="border-border/70 shadow-none">
-          <CardHeader>
-            <CardDescription className="font-semibold uppercase tracking-widest text-xs">Total Notices</CardDescription>
-            <CardTitle className="text-3xl font-black">---</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-border/70 shadow-none">
-          <CardHeader>
-            <CardDescription className="font-semibold uppercase tracking-widest text-xs">Upcoming Exams</CardDescription>
-            <CardTitle className="text-3xl font-black">---</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border-border/70 shadow-none">
-          <CardHeader>
-            <CardDescription className="font-semibold uppercase tracking-widest text-xs">Attendance %</CardDescription>
-            <CardTitle className="text-3xl font-black">---</CardTitle>
-          </CardHeader>
-        </Card>
+        <InfoCard 
+            icon={BookOpen} 
+            label="Total Notices" 
+            value={stats?.noticesCount || 0} 
+            color="bg-amber-500/5 border-amber-500/10"
+        />
+        <InfoCard 
+            icon={Clock} 
+            label="Upcoming Tests" 
+            value={stats?.upcomingTestsCount || 0} 
+            color="bg-primary/5 border-primary/10"
+        />
+        <InfoCard 
+            icon={GraduationCap} 
+            label="Attendance %" 
+            value={`${stats?.attendancePercentage || 0}%`} 
+            color="bg-emerald-500/5 border-emerald-500/10"
+        />
       </section>
 
       {/* My Results Section */}

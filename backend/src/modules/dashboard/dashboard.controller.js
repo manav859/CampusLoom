@@ -1,14 +1,20 @@
 import { sendError, sendSuccess } from '../../utils/response.js';
-import { getDashboardStats } from './dashboard.service.js';
+import { getStudentDashboardStats, getTeacherDashboardStats } from './dashboard.service.js';
 
-export async function getDashboardStatsHandler(request, reply) {
+export async function getStudentDashboardHandler(request, reply) {
   try {
-    const stats = await getDashboardStats();
-
-    return sendSuccess(reply, 200, stats, 'Dashboard statistics fetched successfully');
+    const stats = await getStudentDashboardStats(request.user.id);
+    return sendSuccess(reply, 200, stats, 'Student dashboard stats fetched');
   } catch (error) {
-    request.log.error(error);
+    return sendError(reply, 500, 'Failed to fetch dashboard stats');
+  }
+}
 
-    return sendError(reply, 500, 'Failed to fetch dashboard statistics');
+export async function getTeacherDashboardHandler(request, reply) {
+  try {
+    const stats = await getTeacherDashboardStats(request.user);
+    return sendSuccess(reply, 200, stats, 'Teacher dashboard stats fetched');
+  } catch (error) {
+    return sendError(reply, 500, 'Failed to fetch dashboard stats');
   }
 }

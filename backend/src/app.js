@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
+import fastifyMultipart from '@fastify/multipart';
 
 import { getConfig } from './config/env.js';
 import { buildLoggerConfig } from './plugins/logger.js';
@@ -25,6 +26,14 @@ import resultsRoutes from './modules/results/results.route.js';
 import dashboardRoutes from './modules/dashboard/dashboard.route.js';
 import auditLogsRoutes from './modules/audit-logs/audit-logs.route.js';
 import settingsRoutes from './modules/settings/settings.route.js';
+import attendanceRoutes from './modules/attendance/attendance.route.js';
+import studyMaterialRoutes from './modules/study-material/study-material.route.js';
+import lecturesRoutes from './modules/lectures/lectures.route.js';
+import chatRoutes from './modules/chat/chat.route.js';
+import timetableRoutes from './modules/timetable/timetable.route.js';
+import testsRoutes from './modules/tests/tests.route.js';
+import notificationsRoutes from './modules/notifications/notifications.route.js';
+import dashboardRoutes from './modules/dashboard/dashboard.route.js';
 
 /**
  * Build and configure the Fastify application.
@@ -50,6 +59,8 @@ export async function buildApp() {
 
   // --- Core plugins ---
   await app.register(sensible);
+
+  await app.register((await import('@fastify/multipart')).default, { limits: { fileSize: 50 * 1024 * 1024 } });
 
   await app.register(cors, {
     origin: config.CORS_ORIGIN,
@@ -79,6 +90,14 @@ export async function buildApp() {
       await v1.register(dashboardRoutes, { prefix: '/dashboard' });
       await v1.register(auditLogsRoutes, { prefix: '/audit-logs' });
       await v1.register(settingsRoutes, { prefix: '/settings' });
+      await v1.register(attendanceRoutes, { prefix: '/attendance' });
+      await v1.register(studyMaterialRoutes, { prefix: '/study-material' });
+      await v1.register(lecturesRoutes, { prefix: '/lectures' });
+      await v1.register(chatRoutes, { prefix: '/chat' });
+      await v1.register(timetableRoutes, { prefix: '/timetable' });
+      await v1.register(testsRoutes, { prefix: '/tests' });
+      await v1.register(notificationsRoutes, { prefix: '/notifications' });
+      await v1.register(dashboardRoutes, { prefix: '/dashboard' });
     },
     { prefix: API_PREFIX },
   );

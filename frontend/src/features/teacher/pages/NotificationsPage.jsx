@@ -1,5 +1,5 @@
-import PlaceholderPage from '@/components/common/PlaceholderPage';
+import NotificationsPage from '../../student/pages/NotificationsPage';
 
-export default function NotificationsPage() {
-  return <PlaceholderPage title="Notifications" />;
-}
+// For this module, the logic and view are identical for both roles
+// as they both consume the same notification service.
+export default NotificationsPage;
