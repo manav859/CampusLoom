@@ -33,6 +33,8 @@ const highlights = [
   'Safe validation to block incomplete or low-quality submissions',
 ];
 
+import { getRoleHome } from '@/features/auth/utils';
+
 export default function AdmissionsPage() {
   const [submissionState, setSubmissionState] = useState(null);
   const createAdmissionMutation = useCreateAdmissionInquiryMutation();
@@ -51,6 +53,7 @@ export default function AdmissionsPage() {
 
   return (
     <div className="space-y-20 pb-24">
+      {/* ... keep content same until button ... */}
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(245,158,11,0.18),transparent_28%),linear-gradient(135deg,oklch(0.28_0.1_265),oklch(0.42_0.15_255))] px-6 py-20 text-primary-foreground">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent,rgba(255,255,255,0.04),transparent)]" />
         <div className="relative mx-auto grid max-w-7xl gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
@@ -102,14 +105,14 @@ export default function AdmissionsPage() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                    <ShieldCheck className="mt-0.5 size-4 shrink-0" />
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
                     <p>
                       We will contact you after internal review. If you need to submit another inquiry, please wait a short while to avoid duplicate spam protection.
                     </p>
                   </div>
                   {isAuthenticated ? (
                     <Button variant="outline" asChild>
-                      <Link to="/account">View in My Account</Link>
+                      <Link to={getRoleHome(user.role)}>View in My Account</Link>
                     </Button>
                   ) : null}
                 </CardContent>

@@ -14,9 +14,10 @@ const NAV_LINKS = [
   { label: 'Contact', path: '/contact' },
 ];
 
+import { getRoleHome } from '@/features/auth/utils';
+
 /**
  * Public-facing Layout - Modern & Spacious.
- * Sticky navigation with Glassmorphism and responsive Drawer.
  */
 export default function PublicLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -29,7 +30,7 @@ export default function PublicLayout() {
       return { label: 'Sign In', path: '/register' };
     }
 
-    return { label: 'My Account', path: '/account' };
+    return { label: 'My Account', path: getRoleHome(user.role) };
   }, [isAuthenticated, user]);
 
   const handleLogout = () => {

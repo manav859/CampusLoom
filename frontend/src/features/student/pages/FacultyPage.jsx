@@ -1,4 +1,4 @@
-import PlaceholderPage from '../components/PlaceholderPage';
+import PlaceholderPage from '@/components/common/PlaceholderPage';
 
 export default function FacultyPage() {
   return <PlaceholderPage title="Faculty" />;

@@ -35,7 +35,7 @@ export default function RegisterPage() {
   });
 
   if (isAuthenticated && user) {
-    return <Navigate to={user.role === 'admin' ? '/admin' : '/account'} replace />;
+    return <Navigate to={getRoleHome(user.role)} replace />;
   }
 
   const onSubmit = async (data) => {

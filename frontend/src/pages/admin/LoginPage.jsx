@@ -14,9 +14,7 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
-function getRoleHome(role) {
-  return role === 'admin' ? '/admin' : '/account';
-}
+import { getRoleHome } from '@/features/auth/utils';
 
 function getLoginDestination(user, fromPathname) {
   const roleHome = getRoleHome(user?.role);
@@ -29,7 +27,11 @@ function getLoginDestination(user, fromPathname) {
     return fromPathname;
   }
 
-  if ((user?.role === 'student' || user?.role === 'teacher') && fromPathname.startsWith('/account')) {
+  if (user?.role === 'student' && fromPathname.startsWith('/account')) {
+    return fromPathname;
+  }
+
+  if (user?.role === 'teacher' && fromPathname.startsWith('/teacher')) {
     return fromPathname;
   }
 
