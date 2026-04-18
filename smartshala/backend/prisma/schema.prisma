@@ -1,0 +1,342 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  TEACHER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+enum FeeFrequency {
+  ANNUAL
+  QUARTERLY
+  MONTHLY
+  CUSTOM
+}
+
+enum InstallmentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  OTHER
+}
+
+enum NotificationKind {
+  ABSENCE
+  LOW_ATTENDANCE
+  FEE_REMINDER
+  OVERDUE_FEE
+  PAYMENT_RECEIPT
+  MONTHLY_REPORT
+  SCHOOL_ALERT
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model School {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  code        String   @unique
+  city        String?
+  state       String?
+  phone       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        User[]
+  classes      Class[]
+  students     Student[]
+  attendanceSessions AttendanceSession[]
+  feeStructures FeeStructure[]
+  feeAssignments StudentFeeAssignment[]
+  payments     Payment[]
+  receipts     Receipt[]
+  notifications Notification[]
+
+  @@map("schools")
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  schoolId     String     @db.Uuid
+  fullName     String
+  email        String?
+  phone        String
+  passwordHash String
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  school       School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classTeacherFor Class[] @relation("ClassTeacher")
+  attendanceSessions AttendanceSession[] @relation("MarkedBy")
+  paymentsRecorded Payment[] @relation("PaymentRecordedBy")
+  refreshTokens RefreshToken[]
+
+  @@unique([schoolId, email])
+  @@unique([schoolId, phone])
+  @@index([schoolId, role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Class {
+  id           String   @id @default(uuid()) @db.Uuid
+  schoolId     String   @db.Uuid
+  name         String
+  section      String
+  academicYear String
+  classTeacherId String? @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  classTeacher User?    @relation("ClassTeacher", fields: [classTeacherId], references: [id], onDelete: SetNull)
+  students     Student[]
+  attendanceSessions AttendanceSession[]
+  feeStructures FeeStructure[]
+
+  @@unique([schoolId, name, section, academicYear])
+  @@index([schoolId, classTeacherId])
+  @@map("classes")
+}
+
+model Student {
+  id              String   @id @default(uuid()) @db.Uuid
+  schoolId        String   @db.Uuid
+  classId         String   @db.Uuid
+  fullName        String
+  admissionNumber String
+  rollNumber      Int?
+  dateOfBirth     DateTime?
+  gender          Gender?
+  parentName      String
+  parentPhone     String
+  alternatePhone  String?
+  address         String?
+  joiningDate     DateTime @default(now())
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  school       School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class        Class  @relation(fields: [classId], references: [id], onDelete: Restrict)
+  attendanceRecords AttendanceRecord[]
+  feeAssignments StudentFeeAssignment[]
+  payments Payment[]
+  notifications Notification[]
+
+  @@unique([schoolId, admissionNumber])
+  @@index([schoolId, classId])
+  @@index([schoolId, isActive])
+  @@map("students")
+}
+
+model AttendanceSession {
+  id          String   @id @default(uuid()) @db.Uuid
+  schoolId    String   @db.Uuid
+  classId     String   @db.Uuid
+  date        DateTime
+  markedById  String   @db.Uuid
+  submittedAt DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class    Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  markedBy User   @relation("MarkedBy", fields: [markedById], references: [id], onDelete: Restrict)
+  records  AttendanceRecord[]
+
+  @@unique([schoolId, classId, date])
+  @@index([schoolId, date])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid()) @db.Uuid
+  schoolId  String           @db.Uuid
+  sessionId String           @db.Uuid
+  studentId String           @db.Uuid
+  status    AttendanceStatus
+  remarks   String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, studentId])
+  @@index([schoolId, studentId])
+  @@map("attendance_records")
+}
+
+model FeeStructure {
+  id           String       @id @default(uuid()) @db.Uuid
+  schoolId     String       @db.Uuid
+  classId      String?      @db.Uuid
+  name         String
+  academicYear String
+  frequency    FeeFrequency
+  totalAmount  Decimal      @db.Decimal(12, 2)
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  class        Class?       @relation(fields: [classId], references: [id], onDelete: SetNull)
+  installments FeeInstallment[]
+  assignments  StudentFeeAssignment[]
+
+  @@index([schoolId, academicYear])
+  @@map("fee_structures")
+}
+
+model FeeInstallment {
+  id             String            @id @default(uuid()) @db.Uuid
+  feeStructureId String            @db.Uuid
+  name           String
+  dueDate        DateTime
+  amount         Decimal           @db.Decimal(12, 2)
+  sortOrder      Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@index([feeStructureId, dueDate])
+  @@map("fee_installments")
+}
+
+model StudentFeeAssignment {
+  id             String            @id @default(uuid()) @db.Uuid
+  schoolId       String            @db.Uuid
+  studentId      String            @db.Uuid
+  feeStructureId String            @db.Uuid
+  totalAmount    Decimal           @db.Decimal(12, 2)
+  paidAmount     Decimal           @default(0) @db.Decimal(12, 2)
+  pendingAmount  Decimal           @db.Decimal(12, 2)
+  status         InstallmentStatus @default(PENDING)
+  assignedAt     DateTime          @default(now())
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeStructure FeeStructure @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@unique([studentId, feeStructureId])
+  @@index([schoolId, status])
+  @@map("student_fee_assignments")
+}
+
+model Payment {
+  id             String      @id @default(uuid()) @db.Uuid
+  schoolId       String      @db.Uuid
+  studentId      String      @db.Uuid
+  assignmentId   String      @db.Uuid
+  installmentId  String?     @db.Uuid
+  recordedById   String      @db.Uuid
+  amount         Decimal     @db.Decimal(12, 2)
+  mode           PaymentMode
+  paidAt         DateTime    @default(now())
+  notes          String?
+  createdAt      DateTime    @default(now())
+
+  school      School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignment  StudentFeeAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  installment FeeInstallment? @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+  recordedBy  User @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  receipt     Receipt?
+
+  @@index([schoolId, paidAt])
+  @@map("payments")
+}
+
+model Receipt {
+  id          String   @id @default(uuid()) @db.Uuid
+  schoolId    String   @db.Uuid
+  paymentId   String   @unique @db.Uuid
+  receiptNo   String
+  issuedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  school  School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, receiptNo])
+  @@map("receipts")
+}
+
+model Notification {
+  id                String             @id @default(uuid()) @db.Uuid
+  schoolId          String             @db.Uuid
+  studentId         String?            @db.Uuid
+  kind              NotificationKind
+  recipientPhone    String
+  message           String
+  status            NotificationStatus @default(QUEUED)
+  providerMessageId String?
+  errorMessage      String?
+  sentAt            DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  school  School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status, createdAt])
+  @@map("notifications")
+}
+
