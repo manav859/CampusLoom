@@ -3,16 +3,22 @@ import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 
 export async function listClasses(user: Express.UserContext) {
-  return prisma.class.findMany({
+  const classes = await prisma.class.findMany({
     where: {
       schoolId: user.schoolId,
-      ...(user.role === UserRole.TEACHER ? { classTeacherId: user.id } : {})
+      ...((user.role as string) === UserRole.TEACHER ? { classTeacherId: user.id } : {})
     },
     include: {
       classTeacher: { select: { id: true, fullName: true, phone: true } },
       _count: { select: { students: true } }
-    },
-    orderBy: [{ name: "asc" }, { section: "asc" }]
+    }
+  });
+
+  return classes.sort((a, b) => {
+    const numA = parseInt(a.name, 10);
+    const numB = parseInt(b.name, 10);
+    if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
+    return a.name.localeCompare(b.name) || a.section.localeCompare(b.section);
   });
 }
 

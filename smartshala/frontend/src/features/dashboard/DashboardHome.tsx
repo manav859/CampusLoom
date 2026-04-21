@@ -62,7 +62,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       <PageHeader
         eyebrow={mode === "ADMIN" ? "Principal dashboard" : "Teacher dashboard"}
         title={mode === "ADMIN" ? "Daily action board" : "Today's class work"}
-        action={<a className="rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white" href="/attendance/mark">Mark attendance</a>}
+        action={<a className="rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white" href="/attendance">Mark attendance</a>}
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

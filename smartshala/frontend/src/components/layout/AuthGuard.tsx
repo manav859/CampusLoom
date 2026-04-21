@@ -69,14 +69,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           {(isAdminRole(user.role)
             ? [
                 ["Dashboard", "/dashboard"],
-                ["Attendance", "/attendance/mark"],
+                ["Attendance", "/dashboard/attendance"],
                 ["Fees", "/fees"],
                 ["Students", "/students"],
                 ["Alerts", "/analytics"]
               ]
             : [
                 ["Dashboard", "/teacher"],
-                ["Attendance", "/attendance/mark"],
+                ["Attendance", "/attendance"],
                 ["Students", "/students"],
                 ["Reports", "/attendance/reports"]
               ]

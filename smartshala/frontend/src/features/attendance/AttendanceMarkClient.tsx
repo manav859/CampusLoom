@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 
+import { apiFetch } from "@/lib/api";
+
 type Status = "PRESENT" | "ABSENT" | "LATE";
 type Student = { id: string; rollNumber: number; fullName: string; status: Status };
 
@@ -16,7 +18,20 @@ const demoStudents: Student[] = Array.from({ length: 28 }).map((_, index) => ({
 
 export function AttendanceMarkClient() {
   const [students, setStudents] = useState(demoStudents);
-  const [className, setClassName] = useState("6-A");
+  const [classes, setClasses] = useState<{ id: string; name: string; section: string }[]>([]);
+  const [className, setClassName] = useState("");
+
+  useEffect(() => {
+    apiFetch<{ id: string; name: string; section: string }[]>("/classes")
+      .then((data) => {
+        setClasses(data || []);
+        if (data && data.length > 0 && !className) {
+          setClassName(`${data[0].name}-${data[0].section}`);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   const counts = useMemo(
     () => ({
       present: students.filter((student) => student.status === "PRESENT").length,
@@ -44,9 +59,9 @@ export function AttendanceMarkClient() {
 
       <div className="grid gap-3 sm:grid-cols-4">
         <select className="rounded-lg border border-line bg-panel px-3 py-2" value={className} onChange={(event) => setClassName(event.target.value)}>
-          <option>6-A</option>
-          <option>7-A</option>
-          <option>8-B</option>
+          {classes.map((cls) => (
+            <option key={cls.id} value={`${cls.name}-${cls.section}`}>{cls.name}-{cls.section}</option>
+          ))}
         </select>
         <input className="rounded-lg border border-line bg-panel px-3 py-2" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
         <div className="rounded-lg border border-line bg-panel px-3 py-2 text-sm">Present: {counts.present}</div>

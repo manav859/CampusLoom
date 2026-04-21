@@ -1,6 +1,18 @@
 import { AttendanceStatus } from "@prisma/client";
 import { z } from "zod";
 
+export const classTodayParamsSchema = z.object({
+  classId: z.string().uuid()
+});
+
+export const studentMonthlyParamsSchema = z.object({
+  studentId: z.string().uuid()
+});
+
+export const studentMonthlyQuerySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/)
+});
+
 export const markAttendanceSchema = z.object({
   classId: z.string().uuid(),
   date: z.coerce.date(),
@@ -19,4 +31,3 @@ export const attendanceQuerySchema = z.object({
   date: z.coerce.date().optional(),
   month: z.string().regex(/^\d{4}-\d{2}$/).optional()
 });
-

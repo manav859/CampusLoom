@@ -9,7 +9,7 @@ const adminLinks = [
   ["Students", "/students"],
   ["Teachers", "/teachers"],
   ["Classes", "/classes"],
-  ["Attendance", "/attendance/mark"],
+  ["Attendance", "/dashboard/attendance"],
   ["Reports", "/attendance/reports"],
   ["Fees", "/fees"],
   ["Defaulters", "/fees/defaulters"],
@@ -20,7 +20,7 @@ const adminLinks = [
 
 const teacherLinks = [
   ["Dashboard", "/teacher"],
-  ["Mark Attendance", "/attendance/mark"],
+  ["Mark Attendance", "/attendance"],
   ["Attendance Reports", "/attendance/reports"],
   ["Students", "/students"],
   ["Analytics", "/analytics"]

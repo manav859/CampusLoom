@@ -53,3 +53,69 @@ export const authApi = {
   me: () => apiFetch<{ user: SessionUser }>("/auth/me"),
   logout: () => apiFetch<void>("/auth/logout", { method: "POST" })
 };
+
+export type AttendanceMarkStatus = "PRESENT" | "ABSENT";
+export type AttendanceReadStatus = "PRESENT" | "ABSENT" | "LATE";
+
+export type ClassSummary = {
+  id: string;
+  name: string;
+  section: string;
+  academicYear: string;
+  _count?: { students: number };
+};
+
+export type ClassStudent = {
+  id: string;
+  fullName: string;
+  rollNumber: number | null;
+};
+
+export type ClassTodayAttendance = {
+  classId: string;
+  date: string;
+  marked: boolean;
+  attendance: {
+    studentId: string;
+    name: string;
+    rollNumber: number | null;
+    status: AttendanceReadStatus;
+  }[];
+  summary: {
+    total: number;
+    present: number;
+    absent: number;
+    late: number;
+  };
+};
+
+export type AttendanceDashboard = {
+  totalClasses: number;
+  markedClasses: number;
+  pendingClasses: number;
+  attendancePercentage: number;
+  students: {
+    present: number;
+    absent: number;
+  };
+  alerts: {
+    type: "MISSING_ATTENDANCE";
+    classId: string;
+    className: string;
+  }[];
+};
+
+export const classesApi = {
+  list: () => apiFetch<ClassSummary[]>("/classes"),
+  students: (classId: string) => apiFetch<ClassStudent[]>(`/classes/${classId}/students`)
+};
+
+export const attendanceApi = {
+  classToday: (classId: string) => apiFetch<ClassTodayAttendance>(`/attendance/class/${classId}/today`),
+  mark: (payload: { classId: string; date: string; records: { studentId: string; status: AttendanceMarkStatus }[] }) =>
+    apiFetch("/attendance/mark", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  dashboard: () => apiFetch<AttendanceDashboard>("/attendance/dashboard")
+};

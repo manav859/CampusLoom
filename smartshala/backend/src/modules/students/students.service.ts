@@ -12,8 +12,11 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
         )
       : undefined;
 
+  const { classId } = (query || {}) as { classId?: string };
+
   const where = {
     schoolId: user.schoolId,
+    ...(classId ? { classId } : {}),
     ...(teacherClassIds ? { classId: { in: teacherClassIds } } : {}),
     ...(pagination.search
       ? {

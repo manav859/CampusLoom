@@ -1,6 +1,5 @@
-import { AttendanceMarkClient } from "@/features/attendance/AttendanceMarkClient";
+import { redirect } from "next/navigation";
 
 export default function AttendanceMarkPage() {
-  return <AttendanceMarkClient />;
+  redirect("/attendance");
 }
-

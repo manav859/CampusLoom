@@ -68,6 +68,13 @@ async function teacherDashboard(user: Express.UserContext) {
     })
   ]);
   const pending = attendance.filter((item) => !item.marked);
+  
+  classes.sort((a, b) => {
+    const numA = parseInt(a.name, 10);
+    const numB = parseInt(b.name, 10);
+    if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
+    return a.name.localeCompare(b.name) || a.section.localeCompare(b.section);
+  });
 
   return {
     role: "TEACHER",
