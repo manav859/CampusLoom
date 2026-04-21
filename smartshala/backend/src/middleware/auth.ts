@@ -21,6 +21,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
 
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
+    if (!payload.sub) throw new Error("Missing subject");
     req.user = {
       id: payload.sub,
       schoolId: payload.schoolId,
@@ -33,7 +34,8 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   }
 }
 
-export function requireRole(...roles: UserRole[]) {
+export function requireRole(rolesOrFirst: readonly UserRole[] | UserRole, ...rest: UserRole[]) {
+  const roles = Array.isArray(rolesOrFirst) ? rolesOrFirst : [rolesOrFirst, ...rest];
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) throw new AppError(401, "Authentication required", "AUTH_REQUIRED");
     if (!roles.includes(req.user.role)) {
@@ -42,4 +44,3 @@ export function requireRole(...roles: UserRole[]) {
     next();
   };
 }
-

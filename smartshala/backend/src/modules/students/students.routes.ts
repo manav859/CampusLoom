@@ -6,11 +6,11 @@ import * as controller from "./students.controller.js";
 import { studentSchema } from "./students.schemas.js";
 
 export const studentsRouter = Router();
+const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 
 studentsRouter.use(requireAuth);
 studentsRouter.get("/", controller.listStudents);
 studentsRouter.get("/:id", controller.getStudent);
-studentsRouter.post("/", requireRole(UserRole.ADMIN), validate({ body: studentSchema }), controller.createStudent);
-studentsRouter.patch("/:id", requireRole(UserRole.ADMIN), validate({ body: studentSchema.partial() }), controller.updateStudent);
-studentsRouter.delete("/:id", requireRole(UserRole.ADMIN), controller.deactivateStudent);
-
+studentsRouter.post("/", requireRole(adminRoles), validate({ body: studentSchema }), controller.createStudent);
+studentsRouter.patch("/:id", requireRole(adminRoles), validate({ body: studentSchema.partial() }), controller.updateStudent);
+studentsRouter.delete("/:id", requireRole(adminRoles), controller.deactivateStudent);

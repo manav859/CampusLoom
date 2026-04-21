@@ -1,6 +1,6 @@
 # SmartShala Backend
 
-Express + Prisma REST API for SmartShala V1.
+Express + Prisma REST API for the SmartShala Day 1 foundation.
 
 ## Run Locally
 
@@ -8,16 +8,17 @@ Express + Prisma REST API for SmartShala V1.
 npm install
 cp .env.example .env
 npm run prisma:generate
-npm run prisma:migrate -- --name init
+npm run prisma:migrate -- --name day1_foundation
 npm run seed
 npm run dev
 ```
 
-API root: `http://localhost:4000/api/v1`
+API roots: `http://localhost:4000/api` and `http://localhost:4000/api/v1`
 
 Seed users:
 
-- Admin: `principal@smartshala.local` / `SmartShala@123`
+- Principal: `principal@smartshala.local` / `SmartShala@123`
+- Admin: `admin@smartshala.local` / `SmartShala@123`
 - Teacher: `anita@smartshala.local` / `SmartShala@123`
 
 ## Architecture
@@ -30,15 +31,9 @@ Seed users:
 
 ## Key Endpoints
 
-- `POST /api/v1/auth/login`
-- `GET /api/v1/dashboard`
-- `GET /api/v1/classes`
-- `GET /api/v1/students`
-- `GET /api/v1/attendance/roster?classId=...`
-- `POST /api/v1/attendance/mark`
-- `GET /api/v1/fees/dashboard`
-- `POST /api/v1/fees/payments`
-- `GET /api/v1/analytics/risk-summary`
-- `GET /api/v1/reports/daily-principal`
-- `GET /api/v1/notifications`
-
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `GET /api/dashboard`
+- `GET /api/classes`
+- `GET /api/students`

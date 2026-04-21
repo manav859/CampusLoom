@@ -1,0 +1,13 @@
+{
+  "name": "smartshala",
+  "private": true,
+  "version": "1.0.0",
+  "description": "SmartShala V1 school ERP with Next.js frontend and Express backend.",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "install:all": "npm install --prefix backend && npm install --prefix frontend"
+  }
+}
+

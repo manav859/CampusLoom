@@ -2,6 +2,7 @@ import cors from "cors";
 import type { RequestHandler } from "express";
 import express from "express";
 import helmet from "helmet";
+import morgan from "morgan";
 import pinoHttpModule from "pino-http";
 import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
@@ -21,8 +22,10 @@ export function createApp() {
     })
   );
   app.use(express.json({ limit: "1mb" }));
+  app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
   app.use(pinoHttp({ logger }));
 
+  app.use("/api", apiRouter);
   app.use("/api/v1", apiRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);

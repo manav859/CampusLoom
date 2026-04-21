@@ -33,7 +33,7 @@ async function principalDashboard(user: Express.UserContext) {
   const totalMarked = attendance.reduce((sum, item) => sum + item.present + item.absent, 0);
 
   return {
-    role: "ADMIN",
+    role: user.role,
     kpis: {
       totalStudents: studentCount,
       totalClasses: classCount,

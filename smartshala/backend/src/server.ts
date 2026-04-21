@@ -8,7 +8,7 @@ async function bootstrap() {
   const app = createApp();
 
   const server = app.listen(env.PORT, () => {
-    logger.info(`SmartShala API listening on http://localhost:${env.PORT}/api/v1`);
+    logger.info(`SmartShala API listening on http://localhost:${env.PORT}/api and /api/v1`);
   });
 
   const shutdown = async () => {
@@ -27,4 +27,3 @@ bootstrap().catch((error) => {
   logger.error({ error }, "Failed to start API");
   process.exit(1);
 });
-

@@ -15,6 +15,10 @@ function monthRange(month: string) {
   return { start, end };
 }
 
+function isAdminRole(role: UserRole) {
+  return role === UserRole.PRINCIPAL || role === UserRole.ADMIN;
+}
+
 async function assertClassAccess(user: Express.UserContext, classId: string) {
   const classRecord = await prisma.class.findFirst({
     where: {
@@ -43,7 +47,7 @@ export async function getMarkingRoster(user: Express.UserContext, classId: strin
 
   return {
     date: normalizedDate,
-    canEdit: user.role === UserRole.ADMIN || !existingSession,
+    canEdit: isAdminRole(user.role) || !existingSession,
     session: existingSession,
     students: students.map((student) => ({
       ...student,
@@ -63,7 +67,7 @@ export async function markAttendance(
     where: { schoolId_classId_date: { schoolId: user.schoolId, classId: data.classId, date: normalizedDate } }
   });
 
-  if (existingSession && user.role !== UserRole.ADMIN) {
+  if (existingSession && !isAdminRole(user.role)) {
     throw new AppError(409, "Attendance has already been submitted. Ask admin to edit it.", "ATTENDANCE_ALREADY_SUBMITTED");
   }
 
@@ -185,4 +189,3 @@ export async function monthlyStudentReport(user: Express.UserContext, studentId:
     records
   };
 }
-

@@ -6,8 +6,8 @@ import * as controller from "./notifications.controller.js";
 import { queueNotificationSchema } from "./notifications.schemas.js";
 
 export const notificationsRouter = Router();
+const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 
-notificationsRouter.use(requireAuth, requireRole(UserRole.ADMIN));
+notificationsRouter.use(requireAuth, requireRole(adminRoles));
 notificationsRouter.get("/", controller.listNotifications);
 notificationsRouter.post("/", validate({ body: queueNotificationSchema }), controller.queueNotification);
-
