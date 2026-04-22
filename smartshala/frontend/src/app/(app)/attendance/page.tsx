@@ -45,9 +45,6 @@ export default function TeacherAttendancePage() {
 
       <AttendanceSummary total={attendance.summary.total} present={attendance.summary.present} absent={attendance.summary.absent} />
 
-      {attendance.error ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">{attendance.error}</div> : null}
-      {attendance.success ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{attendance.success}</div> : null}
-
       <div className="flex items-center justify-between rounded-xl border border-line bg-panel px-4 py-3 text-sm">
         <span className="font-semibold text-ink">{classLabel}</span>
         <span className="text-neutral-600">{attendance.today}</span>
@@ -59,7 +56,22 @@ export default function TeacherAttendancePage() {
         <AttendanceList students={attendance.students} onToggle={attendance.toggleStudent} disabled={attendance.marked || attendance.submitting} />
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 p-4 shadow-[0_-12px_30px_rgba(23,33,28,0.12)] backdrop-blur md:left-64">
+      {attendance.error || attendance.success ? (
+        <div className="fixed inset-x-0 bottom-[86px] z-30 px-4 md:left-64" role="status" aria-live="polite">
+          <div
+            className={`mx-auto max-w-3xl rounded-xl border px-4 py-3 text-sm font-semibold shadow-soft ${
+              attendance.error ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+            }`}
+          >
+            {attendance.error || attendance.success}
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 px-4 pt-3 shadow-[0_-12px_30px_rgba(23,33,28,0.12)] backdrop-blur md:left-64"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
         <div className="mx-auto max-w-3xl">
           <button
             type="button"

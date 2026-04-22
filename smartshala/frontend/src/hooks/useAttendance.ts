@@ -104,12 +104,19 @@ export function useAttendance() {
     };
   }, [loadClass]);
 
-  async function selectClass(classId: string) {
-    setSelectedClassId(classId);
-    await loadClass(classId);
-  }
+  const selectClass = useCallback(
+    async (classId: string) => {
+      setSelectedClassId(classId);
+      if (classId) await loadClass(classId);
+      else {
+        setStudents([]);
+        setMarked(false);
+      }
+    },
+    [loadClass]
+  );
 
-  function toggleStudent(studentId: string) {
+  const toggleStudent = useCallback((studentId: string) => {
     if (marked || submitting) return;
     setStudents((items) =>
       items.map((student) =>
@@ -118,17 +125,17 @@ export function useAttendance() {
               ...student,
               status: student.status === "PRESENT" ? "ABSENT" : "PRESENT"
             }
-          : student
+        : student
       )
     );
-  }
+  }, [marked, submitting]);
 
-  function markAllPresent() {
+  const markAllPresent = useCallback(() => {
     if (marked || submitting) return;
     setStudents((items) => items.map((student) => ({ ...student, status: "PRESENT" })));
-  }
+  }, [marked, submitting]);
 
-  async function submitAttendance() {
+  const submitAttendance = useCallback(async () => {
     if (!selectedClassId || marked || submitting || students.length === 0) return;
     setSubmitting(true);
     setError("");
@@ -150,7 +157,7 @@ export function useAttendance() {
     } finally {
       setSubmitting(false);
     }
-  }
+  }, [marked, selectedClassId, students, submitting]);
 
   return {
     classes,

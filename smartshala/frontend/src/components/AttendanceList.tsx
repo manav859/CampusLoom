@@ -19,9 +19,11 @@ export function AttendanceList({ students, onToggle, disabled = false }: Attenda
   }
 
   return (
-    <div className="space-y-2 pb-28">
+    <div className="space-y-2 pb-32" role="list" aria-label="Students">
       {students.map((student) => (
-        <StudentRow key={student.id} student={student} onToggle={onToggle} disabled={disabled} />
+        <div key={student.id} role="listitem">
+          <StudentRow student={student} onToggle={onToggle} disabled={disabled} />
+        </div>
       ))}
     </div>
   );
