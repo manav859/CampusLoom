@@ -239,6 +239,7 @@ model FeeStructure {
   assignments  StudentFeeAssignment[]
 
   @@index([schoolId, academicYear])
+  @@index([schoolId, classId])
   @@map("fee_structures")
 }
 
@@ -279,6 +280,7 @@ model StudentFeeAssignment {
 
   @@unique([studentId, feeStructureId])
   @@index([schoolId, status])
+  @@index([schoolId, studentId, status])
   @@map("student_fee_assignments")
 }
 
@@ -303,6 +305,7 @@ model Payment {
   receipt     Receipt?
 
   @@index([schoolId, paidAt])
+  @@index([schoolId, studentId, paidAt])
   @@map("payments")
 }
 

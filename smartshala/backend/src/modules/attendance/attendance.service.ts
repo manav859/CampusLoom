@@ -1,6 +1,9 @@
-import { AttendanceStatus, Prisma, UserRole } from "@prisma/client";
+import { AttendanceStatus, NotificationKind, Prisma, UserRole } from "@prisma/client";
+import { logger } from "../../config/logger.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { buildAttendanceAbsentMessage } from "../whatsapp/templates.js";
+import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 
 type AttendanceUser = Pick<Express.UserContext, "id" | "schoolId" | "role">;
 
@@ -16,6 +19,14 @@ export type MarkAttendanceInput = {
   notes?: string;
   records: AttendanceRecordInput[];
   user: AttendanceUser;
+};
+
+type AbsentAttendanceNotificationInput = {
+  schoolId: string;
+  classId: string;
+  className: string;
+  date: Date;
+  absentStudentIds: string[];
 };
 
 export function startOfDay(d: Date) {
@@ -119,7 +130,7 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
     });
   }
 
-  await assertClassAccess(user, classId);
+  const classRecord = await assertClassAccess(user, classId);
   const normalizedDate = startOfDay(date);
   const existingSession = await prisma.attendanceSession.findUnique({
     where: {
@@ -156,7 +167,7 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
   }
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    const createdSession = await prisma.$transaction(async (tx) => {
       const session = await tx.attendanceSession.create({
         data: {
           schoolId: user.schoolId,
@@ -189,11 +200,71 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
       if (!createdSession) throw notFound("Attendance session");
       return createdSession;
     });
+
+    queueAbsentAttendanceNotifications({
+      schoolId: user.schoolId,
+      classId,
+      className: `${classRecord.name}-${classRecord.section}`,
+      date: normalizedDate,
+      absentStudentIds: records.filter((record) => record.status === AttendanceStatus.ABSENT).map((record) => record.studentId)
+    });
+
+    return createdSession;
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       throw new AppError(409, "Attendance has already been submitted for this class and date", "ATTENDANCE_ALREADY_SUBMITTED");
     }
     throw error;
+  }
+}
+
+function queueAbsentAttendanceNotifications(input: AbsentAttendanceNotificationInput) {
+  const absentStudentIds = [...new Set(input.absentStudentIds)];
+  if (absentStudentIds.length === 0) return;
+
+  setImmediate(() => {
+    void sendAbsentAttendanceNotifications({ ...input, absentStudentIds });
+  });
+}
+
+async function sendAbsentAttendanceNotifications(input: AbsentAttendanceNotificationInput) {
+  const students = await prisma.student.findMany({
+    where: {
+      schoolId: input.schoolId,
+      classId: input.classId,
+      id: { in: input.absentStudentIds }
+    },
+    select: {
+      id: true,
+      fullName: true,
+      parentPhone: true
+    }
+  });
+
+  const attendanceDate = formatDate(input.date);
+
+  for (const student of students) {
+    const phone = student.parentPhone.trim();
+    if (!phone) continue;
+
+    const message = buildAttendanceAbsentMessage(student.fullName, input.className, attendanceDate);
+
+    try {
+      await sendWhatsAppMessage(phone, message, {
+        schoolId: input.schoolId,
+        studentId: student.id,
+        kind: NotificationKind.ABSENCE
+      });
+    } catch (error) {
+      logger.warn(
+        {
+          err: error,
+          schoolId: input.schoolId,
+          studentId: student.id
+        },
+        "Failed to send attendance WhatsApp notification"
+      );
+    }
   }
 }
 

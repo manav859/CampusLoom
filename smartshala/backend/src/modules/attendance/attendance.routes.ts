@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./attendance.controller.js";
+import * as reportController from "./attendance.report.controller.js";
 import {
   attendanceQuerySchema,
   classTodayParamsSchema,
@@ -30,6 +31,7 @@ attendanceRouter.get(
   controller.getStudentMonthlyAttendance
 );
 attendanceRouter.get("/dashboard", requireRole(adminRoles), controller.getAttendanceDashboard);
+attendanceRouter.get("/report/classes-today", requireRole(adminRoles), reportController.getClassesTodayReport);
 attendanceRouter.get("/roster", validate({ query: z.object({ classId: z.string().uuid(), date: z.coerce.date().optional() }) }), controller.getRoster);
 attendanceRouter.post("/mark", validate({ body: markAttendanceSchema }), controller.markAttendance);
 attendanceRouter.get("/daily", validate({ query: attendanceQuerySchema.pick({ date: true }) }), controller.dailyReport);

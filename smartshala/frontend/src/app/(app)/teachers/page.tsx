@@ -27,36 +27,36 @@ export default function TeachersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow="Teachers" title="Teacher management" action={<button className="rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white">Add teacher</button>} />
-      <div className="overflow-hidden rounded-lg border border-line bg-panel">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-neutral-50 text-neutral-600">
+      <PageHeader eyebrow="Teachers" title="Teacher management" action={<button className="btn-primary">Add teacher</button>} />
+      <div className="overflow-hidden rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] shadow-apple">
+        <table className="w-full text-left text-[13px]">
+          <thead className="table-head">
             <tr>
               {["Name", "Email", "Phone", "Status"].map((head) => (
-                <th className="px-3 py-3 font-semibold" key={head}>{head}</th>
+                <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-line">
+          <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-3 py-6 text-center text-neutral-500">
-                  Loading teachers...
+                <td colSpan={4} className="px-5 py-12 text-center text-[#86868b]">
+                  Loading teachers…
                 </td>
               </tr>
             ) : teachers.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-3 py-6 text-center text-neutral-500">
+                <td colSpan={4} className="px-5 py-12 text-center text-[#86868b]">
                   No teachers found.
                 </td>
               </tr>
             ) : (
               teachers.map((teacher) => (
-                <tr key={teacher.id}>
-                  <td className="px-3 py-3 font-medium text-ink">{teacher.fullName}</td>
-                  <td className="px-3 py-3 text-neutral-500">{teacher.email || "-"}</td>
-                  <td className="px-3 py-3 text-neutral-500">{teacher.phone || "-"}</td>
-                  <td className="px-3 py-3">
+                <tr key={teacher.id} className="table-row">
+                  <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{teacher.fullName}</td>
+                  <td className="px-5 py-4 text-[#6e6e73]">{teacher.email || "—"}</td>
+                  <td className="px-5 py-4 text-[#6e6e73]">{teacher.phone || "—"}</td>
+                  <td className="px-5 py-4">
                     <StatusPill label={teacher.status} tone={teacher.status === "ACTIVE" ? "good" : "warn"} />
                   </td>
                 </tr>

@@ -17,25 +17,29 @@ function StudentRowComponent({ student, onToggle, disabled = false }: StudentRow
       type="button"
       disabled={disabled}
       onClick={() => onToggle(student.id)}
-      className={`min-h-[72px] w-full rounded-xl border px-4 py-3 text-left shadow-sm transition ${
+      className={`w-full rounded-2xl px-4 py-4 text-left transition-all duration-200 ease-apple border ${
         isAbsent
-          ? "border-red-300 bg-red-50 text-red-950"
-          : "border-emerald-300 bg-emerald-50 text-emerald-950"
-      } ${disabled ? "cursor-not-allowed opacity-75" : "touch-manipulation active:scale-[0.99]"}`}
+          ? "bg-[#ff3b30]/[0.04] border-[#ff3b30]/10 text-[#1d1d1f]"
+          : "bg-[#34c759]/[0.04] border-[#34c759]/10 text-[#1d1d1f]"
+      } ${disabled ? "cursor-not-allowed opacity-60" : "touch-manipulation hover:shadow-apple-sm active:scale-[0.99]"}`}
       aria-pressed={isAbsent}
       aria-label={`${student.name}, roll ${student.rollNumber ?? "-"}, ${student.status.toLowerCase()}. Tap to mark ${isAbsent ? "present" : "absent"}.`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-bold ${isAbsent ? "bg-red-100" : "bg-emerald-100"}`}>
+          <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[14px] font-semibold ${
+            isAbsent ? "bg-[#ff3b30]/10 text-[#d70015]" : "bg-[#34c759]/10 text-[#248a3d]"
+          }`}>
             {student.rollNumber ?? "-"}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-base font-semibold">{student.name}</p>
-            <p className="text-xs font-medium opacity-70">Tap to mark {isAbsent ? "present" : "absent"}</p>
+            <p className="truncate text-[15px] font-semibold">{student.name}</p>
+            <p className="text-[12px] text-[#86868b]">Tap to mark {isAbsent ? "present" : "absent"}</p>
           </div>
         </div>
-        <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${isAbsent ? "bg-red-600 text-white" : "bg-emerald-600 text-white"}`}>
+        <span className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold ${
+          isAbsent ? "bg-[#ff3b30] text-white" : "bg-[#34c759] text-white"
+        }`}>
           {student.status}
         </span>
       </div>

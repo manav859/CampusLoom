@@ -5,21 +5,11 @@ import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { attendanceApi, classesApi, type AttendanceDashboard } from "@/lib/api";
-
-type ClassAttendanceRow = {
-  classId: string;
-  className: string;
-  total: number;
-  present: number;
-  absent: number;
-  attendancePercentage: number | null;
-  marked: boolean;
-};
+import { attendanceApi, type AttendanceDashboard, type ClassesTodayReportRow } from "@/lib/api";
 
 export default function AttendanceReportsPage() {
   const [data, setData] = useState<AttendanceDashboard | null>(null);
-  const [classRows, setClassRows] = useState<ClassAttendanceRow[]>([]);
+  const [classRows, setClassRows] = useState<ClassesTodayReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -31,25 +21,7 @@ export default function AttendanceReportsPage() {
       setError("");
 
       try {
-        const [dashboard, classes] = await Promise.all([attendanceApi.dashboard(), classesApi.list()]);
-        const attendanceByClass = await Promise.all(
-          classes.map(async (classItem) => {
-            const today = await attendanceApi.classToday(classItem.id);
-            const total = today.marked ? today.summary.total : classItem._count?.students ?? 0;
-            const present = today.marked ? today.summary.present + today.summary.late : 0;
-            const absent = today.marked ? today.summary.absent : 0;
-
-            return {
-              classId: classItem.id,
-              className: `${classItem.name}-${classItem.section}`,
-              total,
-              present,
-              absent,
-              attendancePercentage: today.marked ? (total > 0 ? Math.round((present / total) * 100) : 0) : null,
-              marked: today.marked
-            };
-          })
-        );
+        const [dashboard, attendanceByClass] = await Promise.all([attendanceApi.dashboard(), attendanceApi.classesTodayReport()]);
 
         if (cancelled) return;
         setData(dashboard);
@@ -80,95 +52,101 @@ export default function AttendanceReportsPage() {
     () =>
       classRows.map((row) => ({
         label: row.className,
-        value: row.attendancePercentage ?? 0
+        value: row.percentage
       })),
     [classRows]
   );
 
-  const alerts = useMemo(() => classRows.filter((row) => !row.marked), [classRows]);
+  const alerts = useMemo(() => data?.alerts ?? [], [data]);
+  const pendingClassIds = useMemo(() => new Set(alerts.map((alert) => alert.classId)), [alerts]);
 
   if (loading) {
-    return <div className="rounded-lg border border-line bg-panel p-6 text-sm font-medium text-neutral-600">Loading attendance reports...</div>;
+    return <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] p-12 text-[13px] font-medium text-[#86868b] text-center shadow-apple-sm">Loading attendance reports…</div>;
   }
 
   if (error) {
-    return <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">{error}</div>;
+    return <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div>;
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <PageHeader eyebrow="Reports" title="Daily attendance report" />
 
-      <div className="grid gap-3 sm:grid-cols-4">
-        <div className="rounded-lg border border-line bg-panel p-4">
-          <p className="text-sm text-neutral-600">Total classes</p>
-          <p className="mt-2 text-2xl font-semibold text-ink">{data?.totalClasses ?? 0}</p>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="glass-card-interactive p-5">
+          <p className="text-[13px] font-medium text-[#86868b]">Total classes</p>
+          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.totalClasses ?? 0}</p>
         </div>
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-sm text-emerald-700">Marked</p>
-          <p className="mt-2 text-2xl font-semibold text-emerald-950">{data?.markedClasses ?? 0}</p>
+        <div className="glass-card-interactive p-5">
+          <p className="text-[13px] font-medium text-[#248a3d]">Marked</p>
+          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.markedClasses ?? 0}</p>
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm text-amber-700">Pending</p>
-          <p className="mt-2 text-2xl font-semibold text-amber-950">{data?.pendingClasses ?? 0}</p>
+        <div className="glass-card-interactive p-5">
+          <p className="text-[13px] font-medium text-[#c93400]">Pending</p>
+          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.pendingClasses ?? 0}</p>
         </div>
-        <div className="rounded-lg border border-line bg-panel p-4">
-          <p className="text-sm text-neutral-600">Attendance</p>
-          <p className="mt-2 text-2xl font-semibold text-ink">{data?.attendancePercentage ?? 0}%</p>
+        <div className="glass-card-interactive p-5">
+          <p className="text-[13px] font-medium text-[#86868b]">Attendance</p>
+          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.attendancePercentage ?? 0}%</p>
         </div>
       </div>
 
       <AttendanceSummary total={totals.total} present={totals.present} absent={totals.absent} />
 
-      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-lg border border-line bg-panel p-4">
-          {chartItems.length > 0 ? <SimpleBarChart items={chartItems} /> : <p className="text-sm text-neutral-600">No classes available.</p>}
+      <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="glass-card-interactive p-6">
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Class-wise trend</h2>
+          <div className="mt-5">
+            {chartItems.length > 0 ? <SimpleBarChart items={chartItems} /> : <p className="text-[13px] text-[#86868b]">No classes available.</p>}
+          </div>
         </div>
-        <div className="overflow-x-auto rounded-lg border border-line bg-panel">
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead className="bg-neutral-50 text-neutral-600">
-              <tr>
-                <th className="px-3 py-3">Class</th>
-                <th className="px-3 py-3">Total</th>
-                <th className="px-3 py-3">Present</th>
-                <th className="px-3 py-3">Absent</th>
-                <th className="px-3 py-3">Rate</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {classRows.length === 0 ? (
+        <div className="overflow-hidden rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] shadow-apple">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-left text-[13px]">
+              <thead className="table-head">
                 <tr>
-                  <td className="px-3 py-6 text-center text-neutral-600" colSpan={5}>
-                    No classes available.
-                  </td>
+                  <th className="px-5 py-3.5 font-semibold">Class</th>
+                  <th className="px-5 py-3.5 font-semibold">Total</th>
+                  <th className="px-5 py-3.5 font-semibold">Present</th>
+                  <th className="px-5 py-3.5 font-semibold">Absent</th>
+                  <th className="px-5 py-3.5 font-semibold">Rate</th>
                 </tr>
-              ) : (
-                classRows.map((row) => (
-                  <tr key={row.classId}>
-                    <td className="px-3 py-3 font-medium text-ink">{row.className}</td>
-                    <td className="px-3 py-3">{row.total}</td>
-                    <td className="px-3 py-3">{row.marked ? row.present : <StatusPill label="Pending" tone="warn" />}</td>
-                    <td className="px-3 py-3">{row.marked ? row.absent : "-"}</td>
-                    <td className="px-3 py-3">
-                      {row.attendancePercentage === null ? <StatusPill label="Pending" tone="warn" /> : `${row.attendancePercentage}%`}
+              </thead>
+              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+                {classRows.length === 0 ? (
+                  <tr>
+                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={5}>
+                      No classes available.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  classRows.map((row) => (
+                    <tr className="table-row" key={row.classId}>
+                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{row.className}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{row.total}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? <StatusPill label="Pending" tone="warn" /> : row.present}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "—" : row.absent}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">
+                        {pendingClassIds.has(row.classId) ? <StatusPill label="Pending" tone="warn" /> : `${row.percentage}%`}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <section className="rounded-lg border border-line bg-panel p-4">
-        <h2 className="font-semibold text-ink">Pending alerts</h2>
-        <div className="mt-3 space-y-2">
+      <section className="glass-card-interactive p-6">
+        <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Pending alerts</h2>
+        <div className="mt-4 space-y-2">
           {alerts.length === 0 ? (
-            <p className="text-sm text-neutral-600">All classes have submitted attendance.</p>
+            <p className="text-[13px] text-[#86868b]">All classes have submitted attendance.</p>
           ) : (
-            alerts.map((row) => (
-              <div key={row.classId} className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                <span className="font-medium text-amber-950">{row.className}</span>
+            alerts.map((alert) => (
+              <div key={alert.classId} className="flex items-center justify-between gap-3 rounded-xl bg-[#ff9500]/[0.05] px-4 py-3">
+                <span className="font-medium text-[#1d1d1f] text-[13px]">{alert.className}</span>
                 <StatusPill label="Missing" tone="warn" />
               </div>
             ))

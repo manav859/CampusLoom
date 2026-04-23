@@ -58,17 +58,17 @@ export default function StudentsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow="Students" title="Student directory" action={<button className="rounded-lg bg-action px-4 py-2 text-sm font-semibold text-white">Add student</button>} />
+      <PageHeader eyebrow="Students" title="Student directory" action={<button className="btn-primary">Add student</button>} />
       
       <div className="flex flex-col gap-3 sm:flex-row">
         <input 
-          className="rounded-lg border border-line bg-panel px-3 py-2 sm:w-80" 
+          className="glass-input sm:w-80" 
           placeholder="Search name, admission no, phone"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
         <select 
-          className="rounded-lg border border-line bg-panel px-3 py-2"
+          className="glass-input sm:w-48"
           value={classId}
           onChange={(e) => { setClassId(e.target.value); setPage(1); }}
         >
@@ -79,68 +79,70 @@ export default function StudentsPage() {
         </select>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-line bg-panel">
-        <table className="w-full text-left text-sm relative">
+      <div className="overflow-hidden rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] shadow-apple">
+        <div className="relative">
           {loadingList && (
-            <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] flex items-center justify-center z-10 transition-opacity" />
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center z-10 transition-opacity" />
           )}
-          <thead className="bg-neutral-50 text-neutral-600">
-            <tr>
-              {["Admission", "Name", "Class", "Status", ""].map((head) => (
-                <th className="px-3 py-3 font-semibold" key={head}>{head}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {loading && students.length === 0 ? (
+          <table className="w-full text-left text-[13px]">
+            <thead className="table-head">
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-neutral-500">
-                  Loading students...
-                </td>
+                {["Admission", "Name", "Class", "Status", ""].map((head) => (
+                  <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                ))}
               </tr>
-            ) : students.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-neutral-500">
-                  No students found.
-                </td>
-              </tr>
-            ) : (
-              students.map((student) => (
-                <tr key={student.id}>
-                  <td className="px-3 py-3 text-neutral-600">{student.admissionNumber}</td>
-                  <td className="px-3 py-3 font-medium text-ink">{student.fullName}</td>
-                  <td className="px-3 py-3">{student.class ? `${student.class.name}-${student.class.section}` : "Unassigned"}</td>
-                  <td className="px-3 py-3">
-                    <StatusPill label={student.isActive ? "Active" : "Inactive"} tone={student.isActive ? "good" : "neutral"} />
-                  </td>
-                  <td className="px-3 py-3 text-right">
-                    <Link className="font-medium text-action hover:underline" href={`/students/${student.id}`}>
-                      View
-                    </Link>
+            </thead>
+            <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+              {loading && students.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-[#86868b]">
+                    Loading students…
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : students.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-[#86868b]">
+                    No students found.
+                  </td>
+                </tr>
+              ) : (
+                students.map((student) => (
+                  <tr key={student.id} className="table-row">
+                    <td className="px-5 py-4 text-[#6e6e73]">{student.admissionNumber}</td>
+                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{student.fullName}</td>
+                    <td className="px-5 py-4 text-[#6e6e73]">{student.class ? `${student.class.name}-${student.class.section}` : "Unassigned"}</td>
+                    <td className="px-5 py-4">
+                      <StatusPill label={student.isActive ? "Active" : "Inactive"} tone={student.isActive ? "good" : "neutral"} />
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <Link className="text-[13px] font-medium text-[#0071e3] hover:text-[#0077ed] transition-colors" href={`/students/${student.id}`}>
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
         
         {total > limit && (
-          <div className="flex items-center justify-between border-t border-line px-4 py-3 sm:px-6">
-            <div className="text-sm text-neutral-600">
-              Showing <span className="font-medium">{(page - 1) * limit + 1}</span> to <span className="font-medium">{Math.min(page * limit, total)}</span> of <span className="font-medium">{total}</span> results
+          <div className="flex items-center justify-between border-t border-[rgba(0,0,0,0.06)] px-5 py-3">
+            <div className="text-[13px] text-[#86868b]">
+              Showing <span className="font-medium text-[#1d1d1f]">{(page - 1) * limit + 1}</span> to <span className="font-medium text-[#1d1d1f]">{Math.min(page * limit, total)}</span> of <span className="font-medium text-[#1d1d1f]">{total}</span>
             </div>
             <div className="flex gap-2">
               <button 
                 disabled={page === 1}
                 onClick={() => setPage(p => p - 1)}
-                className="rounded-lg border border-line bg-panel px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 disabled:opacity-50"
+                className="rounded-full border border-[rgba(0,0,0,0.06)] bg-white px-4 py-1.5 text-[13px] font-medium text-[#0071e3] hover:bg-[#f5f5f7] transition-colors disabled:opacity-40 disabled:text-[#86868b]"
               >
                 Previous
               </button>
               <button 
                 disabled={page * limit >= total}
                 onClick={() => setPage(p => p + 1)}
-                className="rounded-lg border border-line bg-panel px-3 py-1.5 text-sm font-medium hover:bg-neutral-50 disabled:opacity-50"
+                className="rounded-full border border-[rgba(0,0,0,0.06)] bg-white px-4 py-1.5 text-[13px] font-medium text-[#0071e3] hover:bg-[#f5f5f7] transition-colors disabled:opacity-40 disabled:text-[#86868b]"
               >
                 Next
               </button>

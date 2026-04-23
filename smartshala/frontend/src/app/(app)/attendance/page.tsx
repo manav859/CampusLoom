@@ -2,6 +2,7 @@
 
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useAttendance } from "@/hooks/useAttendance";
 
 export default function TeacherAttendancePage() {
@@ -10,17 +11,27 @@ export default function TeacherAttendancePage() {
   const submitDisabled = attendance.marked || attendance.submitting || attendance.loading || attendance.students.length === 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <header className="space-y-3">
-        <div>
-          <p className="text-sm font-semibold text-action">Attendance</p>
-          <h1 className="text-2xl font-bold text-ink">Tap absent students</h1>
-          <p className="mt-1 text-sm text-neutral-600">Everyone starts as present. Only tap students who are absent.</p>
-        </div>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <PageHeader
+        eyebrow="Attendance"
+        title="Tap absent students"
+        action={
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={attendance.markAllPresent}
+            disabled={attendance.marked || attendance.submitting || attendance.loading}
+          >
+            Reset all present
+          </button>
+        }
+      />
 
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+      <div className="glass-card-interactive p-5">
+        <p className="text-[13px] text-[#86868b]">Everyone starts as present. Only tap students who are absent.</p>
+        <div className="mt-4">
           <select
-            className="min-h-12 rounded-xl border border-line bg-panel px-3 text-base font-semibold text-ink"
+            className="glass-input min-h-[48px] text-[15px] font-semibold"
             value={attendance.selectedClassId}
             onChange={(event) => attendance.selectClass(event.target.value)}
             disabled={attendance.loading || attendance.submitting}
@@ -32,35 +43,27 @@ export default function TeacherAttendancePage() {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            className="min-h-12 rounded-xl border border-line bg-panel px-4 text-sm font-bold text-neutral-700 disabled:opacity-50"
-            onClick={attendance.markAllPresent}
-            disabled={attendance.marked || attendance.submitting || attendance.loading}
-          >
-            Reset all present
-          </button>
         </div>
-      </header>
+      </div>
 
       <AttendanceSummary total={attendance.summary.total} present={attendance.summary.present} absent={attendance.summary.absent} />
 
-      <div className="flex items-center justify-between rounded-xl border border-line bg-panel px-4 py-3 text-sm">
-        <span className="font-semibold text-ink">{classLabel}</span>
-        <span className="text-neutral-600">{attendance.today}</span>
+      <div className="glass-card-interactive flex flex-col gap-2 px-5 py-4 text-[13px] sm:flex-row sm:items-center sm:justify-between">
+        <span className="font-semibold text-[#1d1d1f]">{classLabel}</span>
+        <span className="text-[#86868b]">{attendance.today}</span>
       </div>
 
       {attendance.loading ? (
-        <div className="rounded-xl border border-line bg-panel px-4 py-10 text-center text-sm font-medium text-neutral-600">Loading attendance...</div>
+        <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] px-4 py-12 text-center text-[13px] font-medium text-[#86868b] shadow-apple-sm">Loading attendance…</div>
       ) : (
         <AttendanceList students={attendance.students} onToggle={attendance.toggleStudent} disabled={attendance.marked || attendance.submitting} />
       )}
 
       {attendance.error || attendance.success ? (
-        <div className="fixed inset-x-0 bottom-[86px] z-30 px-4 md:left-64" role="status" aria-live="polite">
+        <div className="fixed inset-x-0 bottom-[88px] z-30 px-4 sm:px-6" role="status" aria-live="polite">
           <div
-            className={`mx-auto max-w-3xl rounded-xl border px-4 py-3 text-sm font-semibold shadow-soft ${
-              attendance.error ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"
+            className={`mx-auto max-w-4xl rounded-2xl px-4 py-3 text-[13px] font-semibold shadow-apple ${
+              attendance.error ? "bg-[#ff3b30]/10 text-[#d70015]" : "bg-[#34c759]/10 text-[#248a3d]"
             }`}
           >
             {attendance.error || attendance.success}
@@ -69,17 +72,17 @@ export default function TeacherAttendancePage() {
       ) : null}
 
       <div
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 px-4 pt-3 shadow-[0_-12px_30px_rgba(23,33,28,0.12)] backdrop-blur md:left-64"
+        className="fixed inset-x-0 bottom-0 z-20 border-t border-[rgba(0,0,0,0.06)] bg-white/80 px-4 pt-3 backdrop-blur-apple md:sticky md:inset-auto md:bottom-4 md:border-0 md:bg-transparent md:px-0 md:pt-0 md:backdrop-blur-none"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-4xl">
           <button
             type="button"
-            className="min-h-14 w-full rounded-xl bg-action px-5 text-base font-bold text-white disabled:cursor-not-allowed disabled:bg-neutral-300"
+            className="btn-primary min-h-[52px] w-full text-[15px] disabled:cursor-not-allowed disabled:opacity-50"
             onClick={attendance.submitAttendance}
             disabled={submitDisabled}
           >
-            {attendance.submitting ? "Submitting..." : attendance.marked ? "Attendance Submitted" : "Submit Attendance"}
+            {attendance.submitting ? "Submitting…" : attendance.marked ? "Attendance Submitted ✓" : "Submit Attendance"}
           </button>
         </div>
       </div>

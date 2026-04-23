@@ -12,7 +12,7 @@ type AttendanceListProps = {
 export function AttendanceList({ students, onToggle, disabled = false }: AttendanceListProps) {
   if (students.length === 0) {
     return (
-      <div className="rounded-xl border border-line bg-panel px-4 py-10 text-center text-sm text-neutral-600">
+      <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] px-4 py-12 text-center text-[13px] text-[#86868b] shadow-apple-sm">
         No students found for this class.
       </div>
     );

@@ -9,6 +9,7 @@ import { notificationsRouter } from "../modules/notifications/notifications.rout
 import { reportsRouter } from "../modules/reports/reports.routes.js";
 import { studentsRouter } from "../modules/students/students.routes.js";
 import { usersRouter } from "../modules/users/users.routes.js";
+import { whatsappRouter } from "../modules/whatsapp/whatsapp.routes.js";
 
 export const apiRouter = Router();
 
@@ -26,4 +27,4 @@ apiRouter.use("/dashboard", dashboardRouter);
 apiRouter.use("/analytics", analyticsRouter);
 apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/notifications", notificationsRouter);
-
+apiRouter.use("/wa", whatsappRouter);
