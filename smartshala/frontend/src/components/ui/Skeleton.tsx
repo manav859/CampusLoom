@@ -6,11 +6,11 @@
  */
 
 /* ── Base shimmer block ── */
-export function Skeleton({ className = "" }: { className?: string }) {
+export function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={`relative overflow-hidden rounded-lg bg-[#f5f5f7] ${className}`}
-      style={{ isolation: "isolate" }}
+      style={{ isolation: "isolate", ...style }}
     >
       <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.8s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
     </div>
