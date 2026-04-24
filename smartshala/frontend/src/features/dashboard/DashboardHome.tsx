@@ -7,6 +7,7 @@ import { FeeOverviewChart } from "@/components/dashboard/FeeOverviewChart";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch, feesApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
 
 type DashboardResponse = {
@@ -17,32 +18,8 @@ type DashboardResponse = {
   aiSummary?: string;
 };
 
-const fallbackAdmin: DashboardResponse = {
-  role: "ADMIN",
-  kpis: {
-    totalStudents: 30,
-    totalClasses: 3,
-    todayAttendancePercentage: 86,
-    classesMarked: 2,
-    classesPending: 1,
-    absentToday: 6,
-    totalFeesPending: 540000,
-    overdueInstallments: 12
-  },
-  attendance: [
-    { className: "6-A", attendancePercentage: 91, marked: true, absent: 2 },
-    { className: "7-A", attendancePercentage: 84, marked: true, absent: 4 },
-    { className: "8-B", attendancePercentage: 0, marked: false, absent: 0 }
-  ],
-  alerts: [
-    { studentName: "Aarav Patel", severity: "HIGH", flags: ["LOW_ATTENDANCE", "FEE_PENDING"] },
-    { studentName: "Riya Patel", severity: "MEDIUM", flags: ["REPEAT_ABSENTEE"] }
-  ],
-  aiSummary: "2 students need priority follow-up for both low attendance and pending fees."
-};
-
 export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
-  const [data, setData] = useState<DashboardResponse>(fallbackAdmin);
+  const [data, setData] = useState<DashboardResponse | null>(null);
   const [fees, setFees] = useState<FeesDashboard | null>(null);
   const [defaulters, setDefaulters] = useState<FeeDefaulter[]>([]);
   const [waLogs, setWaLogs] = useState<NotificationLog[]>([]);
@@ -67,7 +44,6 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       if (dashboardResult.status === "fulfilled") {
         setData(dashboardResult.value);
       } else {
-        setData(fallbackAdmin);
         setError(dashboardResult.reason instanceof Error ? dashboardResult.reason.message : "Dashboard data unavailable");
       }
 
@@ -84,16 +60,16 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   }, [mode]);
 
   /* ── KPI row ── */
-  const adminKpis = [
+  const adminKpis = data ? [
     { label: "Students", value: data.kpis.totalStudents ?? data.kpis.assignedStudents ?? 0, tone: "teal" as const },
     { label: "Attendance", value: `${data.kpis.todayAttendancePercentage ?? 0}%`, tone: "green" as const },
     { label: "Defaulters", value: defaulters.length || data.kpis.overdueInstallments || 0, tone: "red" as const },
     { label: "Collected", value: mode === "ADMIN" ? `₹${Number((fees?.totalCollected ?? 0) / 100000).toFixed(1)}L` : "Class view", tone: "amber" as const },
     { label: "AI Alerts", value: data.alerts?.length || 0, tone: "purple" as const }
-  ];
+  ] : [];
 
   /* ── Alert items ── */
-  const actionAlerts = [
+  const actionAlerts = data ? [
     ...defaulters.slice(0, 2).map((item) => ({
       label: `${item.name} has ₹${item.balance.toLocaleString("en-IN")} pending`,
       detail: `${item.class} - ${item.daysOverdue} days overdue`,
@@ -114,7 +90,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         tone: "warn" as const,
         href: "/attendance/reports"
       }))
-  ].slice(0, 6);
+  ].slice(0, 6) : [];
 
   /* ── Fee chart segments ── */
   const totalCollected = Number(fees?.totalCollected ?? 65);
@@ -134,27 +110,47 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
 
       {error ? <div className="rounded-xl bg-[#ff9500]/10 px-4 py-3 text-[13px] font-medium text-[#c93400]">{error}</div> : null}
 
-      {/* ═══ Row 1 — KPI Summary Cards (82px height, 5 columns) ═══ */}
+      {/* ═══ Row 1 — KPI Summary Cards ═══ */}
       <div className="grid gap-4 grid-cols-2 xl:grid-cols-5">
-        {adminKpis.map((kpi) => (
-          <KpiCard key={kpi.label} {...kpi} />
-        ))}
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
+        ) : (
+          adminKpis.map((kpi) => <KpiCard key={kpi.label} {...kpi} />)
+        )}
       </div>
 
-      {/* ═══ Row 2 — Charts Row (left 60% attendance, right 40% fee donut) ═══ */}
+      {/* ═══ Row 2 — Charts Row ═══ */}
       <section className="grid gap-4 xl:grid-cols-[3fr_2fr]" style={{ minHeight: 280 }}>
-        <AttendanceChart
-          data={(data.attendance ?? []).filter((a) => a.marked).map((a) => ({ label: a.className, value: a.attendancePercentage }))}
-          title="Attendance trend"
-          classes={(data.attendance ?? []).map((a) => a.className)}
-        />
-        <FeeOverviewChart segments={feeSegments} title="Fee overview" />
+        {loading ? (
+          <>
+            <ChartSkeleton height={280} />
+            <ChartSkeleton height={280} />
+          </>
+        ) : (
+          <>
+            <AttendanceChart
+              data={(data?.attendance ?? []).filter((a) => a.marked).map((a) => ({ label: a.className, value: a.attendancePercentage }))}
+              title="Attendance trend"
+              classes={(data?.attendance ?? []).map((a) => a.className)}
+            />
+            <FeeOverviewChart segments={feeSegments} title="Fee overview" />
+          </>
+        )}
       </section>
 
-      {/* ═══ Row 3 — Bottom (left 55% alerts, right ~45% activity feed) ═══ */}
+      {/* ═══ Row 3 — Bottom ═══ */}
       <section className="grid gap-4 xl:grid-cols-[55fr_45fr]">
-        <AlertPanel alerts={actionAlerts} loading={loading} />
-        <ActivityFeed />
+        {loading ? (
+          <>
+            <AlertSkeleton rows={4} />
+            <AlertSkeleton rows={3} />
+          </>
+        ) : (
+          <>
+            <AlertPanel alerts={actionAlerts} loading={false} />
+            <ActivityFeed />
+          </>
+        )}
       </section>
     </div>
   );

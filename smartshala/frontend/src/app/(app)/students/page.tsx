@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Skeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
 
 /* ── Types ── */
@@ -221,14 +222,18 @@ export default function StudentsPage() {
               </thead>
               <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                 {loading && students.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-5 py-16 text-center text-[#86868b]">
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="h-5 w-5 rounded-full border-2 border-[#0071e3] border-t-transparent animate-spin" />
-                        <span className="text-[13px] font-medium">Loading students…</span>
-                      </div>
-                    </td>
-                  </tr>
+                  Array.from({ length: 7 }).map((_, i) => (
+                    <tr key={`skel-${i}`} className="animate-pulse">
+                      <td className="px-5 py-4"><Skeleton className="h-4 w-6 rounded-md" /></td>
+                      <td className="px-5 py-4"><Skeleton className="h-4 w-32 rounded-md" /></td>
+                      <td className="px-5 py-4"><Skeleton className="h-4 w-12 rounded-md" /></td>
+                      <td className="px-5 py-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                      <td className="px-5 py-4"><Skeleton className="h-4 w-20 rounded-md" /></td>
+                      <td className="px-5 py-4"><Skeleton className="h-4 w-24 rounded-md" /></td>
+                      <td className="px-5 py-4"><Skeleton className="h-4 w-12 rounded-md" /></td>
+                      <td className="px-5 py-4"><div className="flex gap-2"><Skeleton className="h-7 w-14 rounded-lg" /><Skeleton className="h-7 w-14 rounded-lg" /></div></td>
+                    </tr>
+                  ))
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-5 py-16 text-center text-[#86868b]">

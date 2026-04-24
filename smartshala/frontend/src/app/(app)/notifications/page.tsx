@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { StatCardSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { type NotificationLog, whatsappApi } from "@/lib/api";
 
 type TypeFilter = "all" | "attendance" | "fees" | "report";
@@ -79,14 +80,23 @@ export default function NotificationsPage() {
       <PageHeader eyebrow="WhatsApp" title="Parent notification logs" action={<button className="btn-primary">Send message</button>} />
 
       <section className="grid gap-4 sm:grid-cols-2">
-        <div className="glass-card-interactive p-6">
-          <p className="text-[13px] font-semibold text-[#248a3d]">Total sent today</p>
-          <p className="mt-3 text-[40px] font-semibold tracking-tight text-[#1d1d1f]">{sentToday}</p>
-        </div>
-        <div className="glass-card-interactive p-6">
-          <p className="text-[13px] font-semibold text-[#d70015]">Failed count</p>
-          <p className="mt-3 text-[40px] font-semibold tracking-tight text-[#1d1d1f]">{failedCount}</p>
-        </div>
+        {loading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <div className="glass-card-interactive p-6">
+              <p className="text-[13px] font-semibold text-[#248a3d]">Total sent today</p>
+              <p className="mt-3 text-[40px] font-semibold tracking-tight text-[#1d1d1f]">{sentToday}</p>
+            </div>
+            <div className="glass-card-interactive p-6">
+              <p className="text-[13px] font-semibold text-[#d70015]">Failed count</p>
+              <p className="mt-3 text-[40px] font-semibold tracking-tight text-[#1d1d1f]">{failedCount}</p>
+            </div>
+          </>
+        )}
       </section>
 
       <div className="glass-card-interactive p-5">
@@ -122,7 +132,7 @@ export default function NotificationsPage() {
             </thead>
             <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
               {loading ? (
-                <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={5}>Loading WhatsApp logs…</td></tr>
+                Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={5} />)
               ) : filteredLogs.length === 0 ? (
                 <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={5}>No notification logs found.</td></tr>
               ) : (

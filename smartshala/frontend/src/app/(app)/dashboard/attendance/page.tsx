@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
+import { KpiCardSkeleton, StatCardSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { attendanceApi, type AttendanceDashboard } from "@/lib/api";
 
 export default function PrincipalAttendanceDashboardPage() {
@@ -32,7 +33,22 @@ export default function PrincipalAttendanceDashboardPage() {
   }, []);
 
   if (loading) {
-    return <div className="rounded-lg border border-line bg-panel p-6 text-sm font-medium text-neutral-600">Loading attendance dashboard...</div>;
+    return (
+      <div className="space-y-5">
+        <header>
+          <p className="text-sm font-semibold text-action">Attendance dashboard</p>
+          <h1 className="text-2xl font-bold text-ink">Today at a glance</h1>
+        </header>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)}
+        </div>
+        <section className="grid gap-3 sm:grid-cols-2">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </section>
+        <AlertSkeleton rows={3} />
+      </div>
+    );
   }
 
   if (error) {

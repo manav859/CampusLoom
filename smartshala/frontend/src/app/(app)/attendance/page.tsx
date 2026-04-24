@@ -3,6 +3,7 @@
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { AttendanceListSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
 
 export default function TeacherAttendancePage() {
@@ -54,7 +55,7 @@ export default function TeacherAttendancePage() {
       </div>
 
       {attendance.loading ? (
-        <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] px-4 py-12 text-center text-[13px] font-medium text-[#86868b] shadow-apple-sm">Loading attendance…</div>
+        <AttendanceListSkeleton rows={8} />
       ) : (
         <AttendanceList students={attendance.students} onToggle={attendance.toggleStudent} disabled={attendance.marked || attendance.submitting} />
       )}

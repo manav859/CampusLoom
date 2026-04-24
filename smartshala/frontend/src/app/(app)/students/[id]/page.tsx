@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { KpiCardSkeleton, ProfileSkeleton, TableSkeleton, Skeleton } from "@/components/ui/Skeleton";
 import { studentsApi, type StudentDetail } from "@/lib/api";
 
 function money(value: string | number) {
@@ -75,7 +76,21 @@ export default function StudentDetailPage() {
   }, [params.id]);
 
   if (loading) {
-    return <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] p-12 text-[13px] font-medium text-[#86868b] text-center shadow-apple-sm">Loading student profile…</div>;
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-5 w-32 rounded-md" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)}
+        </div>
+        <section className="grid gap-4 lg:grid-cols-2">
+          <ProfileSkeleton />
+          <ProfileSkeleton />
+        </section>
+        <TableSkeleton rows={3} cols={4} />
+      </div>
+    );
   }
 
   if (error) {

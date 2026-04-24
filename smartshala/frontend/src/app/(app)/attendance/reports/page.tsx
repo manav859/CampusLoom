@@ -5,6 +5,7 @@ import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { KpiCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { attendanceApi, type AttendanceDashboard, type ClassesTodayReportRow } from "@/lib/api";
 
 export default function AttendanceReportsPage() {
@@ -61,7 +62,18 @@ export default function AttendanceReportsPage() {
   const pendingClassIds = useMemo(() => new Set(alerts.map((alert) => alert.classId)), [alerts]);
 
   if (loading) {
-    return <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] p-12 text-[13px] font-medium text-[#86868b] text-center shadow-apple-sm">Loading attendance reports…</div>;
+    return (
+      <div className="space-y-6">
+        <PageHeader eyebrow="Reports" title="Daily attendance report" />
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)}
+        </div>
+        <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+          <ChartSkeleton height={250} />
+          <TableSkeleton rows={4} cols={5} />
+        </div>
+      </div>
+    );
   }
 
   if (error) {

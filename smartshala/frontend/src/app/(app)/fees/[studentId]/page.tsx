@@ -7,6 +7,7 @@ import { FeeCard } from "@/components/fees/FeeCard";
 import { PaymentModal } from "@/components/fees/PaymentModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { KpiCardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, type StudentFeeLedger } from "@/lib/api";
 
 function money(value: string | number) {
@@ -72,7 +73,13 @@ export default function StudentFeeLedgerPage() {
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
 
       {loading ? (
-        <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] px-4 py-12 text-center text-[#86868b] text-[13px] shadow-apple-sm">Loading ledger…</div>
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)}
+          </div>
+          <TableSkeleton rows={3} cols={5} />
+          <TableSkeleton rows={3} cols={5} />
+        </div>
       ) : ledger ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

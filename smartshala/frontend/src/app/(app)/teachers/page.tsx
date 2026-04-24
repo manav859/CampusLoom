@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { TableRowSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
 
 type TeacherData = {
@@ -39,11 +40,7 @@ export default function TeachersPage() {
           </thead>
           <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
             {loading ? (
-              <tr>
-                <td colSpan={4} className="px-5 py-12 text-center text-[#86868b]">
-                  Loading teachers…
-                </td>
-              </tr>
+              Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={4} />)
             ) : teachers.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-5 py-12 text-center text-[#86868b]">

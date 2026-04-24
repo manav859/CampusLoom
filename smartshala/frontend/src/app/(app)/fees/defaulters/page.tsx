@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { TableRowSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, studentsApi, type FeeDefaulter, whatsappApi } from "@/lib/api";
 
 function money(value: number) {
@@ -68,7 +69,7 @@ export default function DefaultersPage() {
             </thead>
             <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
               {loading ? (
-                <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>Loading defaulters…</td></tr>
+                Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
               ) : rows.length === 0 ? (
                 <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>No defaulters found.</td></tr>
               ) : (

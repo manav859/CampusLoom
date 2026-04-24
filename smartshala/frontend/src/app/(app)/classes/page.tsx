@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { KpiCardSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
 
 type ClassData = {
@@ -31,8 +32,8 @@ export default function ClassesPage() {
       <PageHeader eyebrow="Classes" title="Classes and assignments" action={<button className="btn-primary">Create class</button>} />
       
       {loading ? (
-        <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] p-12 text-center text-[13px] text-[#86868b] shadow-apple-sm">
-          Loading classes…
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />)}
         </div>
       ) : classes.length === 0 ? (
         <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] p-12 text-center text-[13px] text-[#86868b] shadow-apple-sm">
