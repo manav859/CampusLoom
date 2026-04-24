@@ -30,8 +30,8 @@ export default function LoginPage() {
       {/* Right - Image */}
       <section className="relative hidden min-h-screen lg:block">
         <Image
-          src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1400&q=80"
-          alt="School campus"
+          src="/modern-classroom.png"
+          alt="Modern private school classroom"
           fill
           priority
           className="object-cover"

@@ -34,7 +34,10 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
       where,
       skip: pagination.skip,
       take: pagination.take,
-      include: { class: { select: { id: true, name: true, section: true, academicYear: true } } },
+      include: { 
+        class: { select: { id: true, name: true, section: true, academicYear: true } },
+        feeAssignments: { select: { id: true, pendingAmount: true, status: true } }
+      },
       orderBy: [{ class: { name: "asc" } }, { rollNumber: "asc" }, { fullName: "asc" }]
     }),
     prisma.student.count({ where })

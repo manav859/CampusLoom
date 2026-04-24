@@ -10,5 +10,5 @@ export type SessionUser = {
 export type Kpi = {
   label: string;
   value: string | number;
-  tone?: "neutral" | "good" | "warn" | "danger";
+  tone?: "neutral" | "good" | "warn" | "danger" | "teal" | "purple" | "amber" | "green" | "red";
 };

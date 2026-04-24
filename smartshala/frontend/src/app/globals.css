@@ -86,9 +86,8 @@ body {
   }
 
   .glass-card-interactive:hover {
-    background: #ffffff;
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.06);
   }
 
   /* ─── Apple Glass Input ─── */
