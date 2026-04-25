@@ -80,6 +80,19 @@ export default function StudentsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
+    if (storedUser) {
+      try {
+        const u = JSON.parse(storedUser);
+        setIsAdmin(u.role === "ADMIN" || u.role === "PRINCIPAL");
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -147,6 +160,18 @@ export default function StudentsPage() {
 
   const totalPages = Math.ceil(total / perPage);
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to deactivate this student?")) return;
+    try {
+      await apiFetch(`/students/${id}`, { method: "DELETE" });
+      setStudents((prev) => prev.filter((s) => s.id !== id));
+      setTotal((prev) => prev - 1);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to delete student");
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* ── Header ── */}
@@ -162,10 +187,12 @@ export default function StudentsPage() {
             <p className="text-[12px] text-[#86868b] font-medium">Showing {filtered.length} of {total} students · Searchable by name, class, fee status</p>
           </div>
         </div>
-        <Link href="/students/new" className="btn-primary gap-1.5 text-[13px]">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-          Add Student
-        </Link>
+        {isAdmin && (
+          <Link href="/students/new" className="btn-primary gap-1.5 text-[13px]">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            Add Student
+          </Link>
+        )}
       </div>
 
       {/* ── Filters ── */}
@@ -278,6 +305,11 @@ export default function StudentsPage() {
                               <span className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-[#f5f5f7] text-[#86868b]">
                                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                               </span>
+                            )}
+                            {isAdmin && (
+                              <button onClick={() => handleDelete(student.id)} className="inline-flex items-center rounded-lg bg-[rgba(255,59,48,0.1)] px-3 py-1.5 text-[11px] font-bold text-[#d70015] hover:bg-[#ff3b30] hover:text-white transition-colors">
+                                Delete
+                              </button>
                             )}
                           </div>
                         </td>

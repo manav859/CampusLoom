@@ -22,6 +22,16 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
+    if (response.status === 401 && typeof window !== "undefined" && !path.includes("/auth/")) {
+      window.localStorage.removeItem("smartshala.accessToken");
+      window.localStorage.removeItem("smartshala.refreshToken");
+      window.location.href = "/login";
+    }
+    if (payload?.error?.code === "VALIDATION_ERROR" && payload.error.details) {
+      const details = payload.error.details.fieldErrors;
+      const firstError = Object.entries(details).map(([field, msgs]) => `${field}: ${(msgs as any)[0]}`).join(", ");
+      throw new Error(`Validation failed: ${firstError}`);
+    }
     throw new Error(payload?.error?.message ?? "Request failed");
   }
 
