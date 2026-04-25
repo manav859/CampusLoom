@@ -2,6 +2,7 @@ import { UserRole } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { getPagination } from "../../core/pagination.js";
 import { notFound } from "../../core/errors.js";
+import { assignFee } from "../fees/fees.service.js";
 
 export async function listStudents(user: Express.UserContext, query: unknown) {
   const pagination = getPagination(query);
@@ -67,8 +68,49 @@ export async function getStudent(user: Express.UserContext, id: string) {
   return student;
 }
 
+export async function generateAdmissionNumber(schoolId: string) {
+  const currentYear = new Date().getFullYear();
+  const prefix = `ADM-${currentYear}-`;
+  
+  const lastStudent = await prisma.student.findFirst({
+    where: { schoolId, admissionNumber: { startsWith: prefix } },
+    orderBy: { admissionNumber: "desc" },
+    select: { admissionNumber: true }
+  });
+
+  let nextSequence = 1;
+  if (lastStudent) {
+    const parts = lastStudent.admissionNumber.split("-");
+    const lastSequence = parseInt(parts[parts.length - 1], 10);
+    if (!isNaN(lastSequence)) {
+      nextSequence = lastSequence + 1;
+    }
+  }
+
+  return `${prefix}${String(nextSequence).padStart(3, "0")}`;
+}
+
 export async function createStudent(schoolId: string, data: Record<string, unknown>) {
-  return prisma.student.create({ data: { ...data, schoolId } as never });
+  const { feeStructureId, ...studentData } = data as { feeStructureId?: string } & Record<string, unknown>;
+  
+  if (!studentData.admissionNumber) {
+    studentData.admissionNumber = await generateAdmissionNumber(schoolId);
+  }
+
+  const student = await prisma.student.create({ 
+    data: { 
+      ...studentData, 
+      schoolId,
+      joiningDate: studentData.joiningDate ? new Date(studentData.joiningDate as string) : new Date(),
+      dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth as string) : null,
+    } as never 
+  });
+
+  if (feeStructureId) {
+    await assignFee(schoolId, student.id, feeStructureId);
+  }
+
+  return student;
 }
 
 export async function updateStudent(schoolId: string, id: string, data: Record<string, unknown>) {

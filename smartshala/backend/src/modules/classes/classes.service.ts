@@ -36,6 +36,22 @@ export async function updateClass(schoolId: string, id: string, data: Record<str
   return prisma.class.update({ where: { id }, data });
 }
 
+export async function getClass(user: Express.UserContext, id: string) {
+  const classRecord = await prisma.class.findFirst({
+    where: {
+      id,
+      schoolId: user.schoolId,
+      ...(user.role === UserRole.TEACHER ? { classTeacherId: user.id } : {})
+    },
+    include: {
+      classTeacher: { select: { id: true, fullName: true, phone: true, email: true } },
+      _count: { select: { students: true } }
+    }
+  });
+  if (!classRecord) throw notFound("Class");
+  return classRecord;
+}
+
 export async function getClassStudents(user: Express.UserContext, classId: string) {
   const classRecord = await prisma.class.findFirst({
     where: {
@@ -51,4 +67,11 @@ export async function getClassStudents(user: Express.UserContext, classId: strin
     orderBy: [{ rollNumber: "asc" }, { fullName: "asc" }]
   });
 }
-
+export async function deleteClass(schoolId: string, id: string) {
+  const existing = await prisma.class.findFirst({ where: { id, schoolId } });
+  if (!existing) throw notFound("Class");
+  
+  // Note: If there are students in this class, deleting the class might fail due to FK constraints
+  // or it might cascade depending on the Prisma schema.
+  return prisma.class.delete({ where: { id } });
+}

@@ -4,7 +4,7 @@ import { z } from "zod";
 export const studentSchema = z.object({
   classId: z.string().uuid(),
   fullName: z.string().min(2),
-  admissionNumber: z.string().min(1),
+  admissionNumber: z.string().min(1).optional(),
   rollNumber: z.coerce.number().int().positive().optional(),
   dateOfBirth: z.coerce.date().optional(),
   gender: z.nativeEnum(Gender).optional(),

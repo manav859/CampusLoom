@@ -1,5 +1,11 @@
 # SmartShala V1 Completion Checklist
 
+## Phase 0 — Core Management
+- [x] Student creation workflow (auto-admission, fee assignment)
+- [x] Teacher creation workflow
+- [x] Class creation workflow
+- [x] Class detailed view (roster + KPIs)
+
 ## Phase 1 — WhatsApp Core
 - [x] Setup WhatsApp service (API integration or mock)
 - [x] Implement send single message API

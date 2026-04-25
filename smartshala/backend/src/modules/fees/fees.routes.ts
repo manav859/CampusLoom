@@ -6,7 +6,7 @@ import * as controller from "./fees.controller.js";
 import { assignFeeSchema, feeStructureSchema, paymentSchema } from "./fees.schemas.js";
 
 export const feesRouter = Router();
-const adminRoles = [UserRole.ADMIN] as const;
+const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 
 feesRouter.use(requireAuth);
 feesRouter.get("/dashboard", requireRole(adminRoles), controller.dashboard);

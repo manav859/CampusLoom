@@ -15,3 +15,7 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   res.json(await usersService.updateUser(req.user!.schoolId, req.params.id, req.body));
 });
 
+export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+  res.status(204).json(await usersService.deleteUser(req.user!.schoolId, req.params.id));
+});
+

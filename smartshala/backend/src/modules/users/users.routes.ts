@@ -12,3 +12,4 @@ usersRouter.use(requireAuth);
 usersRouter.get("/teachers", requireRole(adminRoles), controller.listTeachers);
 usersRouter.post("/teachers", requireRole(adminRoles), validate({ body: createTeacherSchema }), controller.createTeacher);
 usersRouter.patch("/:id", requireRole(adminRoles), validate({ body: updateUserSchema }), controller.updateUser);
+usersRouter.delete("/:id", requireRole(adminRoles), controller.deleteUser);

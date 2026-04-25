@@ -52,3 +52,12 @@ export async function updateUser(schoolId: string, id: string, data: Record<stri
   });
 }
 
+export async function deleteUser(schoolId: string, id: string) {
+  const exists = await prisma.user.findFirst({ where: { id, schoolId } });
+  if (!exists) throw notFound("User");
+  return prisma.user.update({
+    where: { id },
+    data: { status: "INACTIVE", isActive: false }
+  });
+}
+
