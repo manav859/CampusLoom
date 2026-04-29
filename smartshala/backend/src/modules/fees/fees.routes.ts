@@ -24,3 +24,4 @@ feesRouter.post("/assignments", requireRole(adminRoles), validate({ body: assign
 feesRouter.post("/payments", requireRole(adminRoles), validate({ body: paymentSchema }), controller.collectPayment);
 feesRouter.get("/students/:studentId/ledger", requireRole(adminRoles), controller.getStudentLedger);
 feesRouter.get("/defaulters", requireRole(adminRoles), controller.defaulters);
+feesRouter.get("/receipts/:receiptId/pdf", requireRole(adminRoles), controller.receiptPdf);

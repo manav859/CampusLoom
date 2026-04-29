@@ -100,6 +100,7 @@ export default function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
+  const [showInactive, setShowInactive] = useState(false);
 
   // Load classes
   useEffect(() => {
@@ -118,6 +119,7 @@ export default function StudentsPage() {
       params.set("page", page.toString());
       if (search) params.set("search", search);
       if (classId) params.set("classId", classId);
+      if (showInactive) params.set("showInactive", "true");
 
       apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`)
         .then((data) => {
@@ -151,7 +153,7 @@ export default function StudentsPage() {
         .finally(() => setLoadingList(false));
     }, 300);
     return () => clearTimeout(st);
-  }, [search, classId, page, perPage]);
+  }, [search, classId, page, perPage, showInactive]);
 
   // Client-side status filtering
   const filtered = statusFilter
@@ -168,7 +170,19 @@ export default function StudentsPage() {
       setTotal((prev) => prev - 1);
     } catch (e) {
       console.error(e);
-      alert("Failed to delete student");
+      alert("Failed to deactivate student");
+    }
+  };
+
+  const handleActivate = async (id: string) => {
+    if (!confirm("Are you sure you want to activate this student?")) return;
+    try {
+      await apiFetch(`/students/${id}/activate`, { method: "PATCH" });
+      setStudents((prev) => prev.filter((s) => s.id !== id));
+      setTotal((prev) => prev - 1);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to activate student");
     }
   };
 
@@ -227,6 +241,17 @@ export default function StudentsPage() {
             <option value="PENDING">Pending</option>
             <option value="OVERDUE">Overdue</option>
           </select>
+          <button
+            onClick={() => { setShowInactive(!showInactive); setPage(1); }}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-[13px] font-medium ${
+              showInactive 
+                ? "bg-[#0071e3] border-[#0071e3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.3)]" 
+                : "bg-white border-[rgba(0,0,0,0.08)] text-[#1d1d1f] hover:bg-[#f5f5f7]"
+            }`}
+          >
+            <div className={`h-2 w-2 rounded-full ${showInactive ? "bg-white animate-pulse" : "bg-[#86868b]"}`} />
+            {showInactive ? "Showing Inactive" : "Show Inactive Only"}
+          </button>
         </div>
       </div>
 
@@ -307,9 +332,15 @@ export default function StudentsPage() {
                               </span>
                             )}
                             {isAdmin && (
-                              <button onClick={() => handleDelete(student.id)} className="inline-flex items-center rounded-lg bg-[rgba(255,59,48,0.1)] px-3 py-1.5 text-[11px] font-bold text-[#d70015] hover:bg-[#ff3b30] hover:text-white transition-colors">
-                                Delete
-                              </button>
+                              student.isActive ? (
+                                <button onClick={() => handleDelete(student.id)} className="inline-flex items-center rounded-lg bg-[rgba(255,59,48,0.1)] px-3 py-1.5 text-[11px] font-bold text-[#d70015] hover:bg-[#ff3b30] hover:text-white transition-colors">
+                                  Deactivate
+                                </button>
+                              ) : (
+                                <button onClick={() => handleActivate(student.id)} className="inline-flex items-center rounded-lg bg-[rgba(52,199,89,0.1)] px-3 py-1.5 text-[11px] font-bold text-[#248a3d] hover:bg-[#34c759] hover:text-white transition-colors">
+                                  Activate
+                                </button>
+                              )
                             )}
                           </div>
                         </td>

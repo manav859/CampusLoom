@@ -22,3 +22,7 @@ export const deactivateStudent = asyncHandler(async (req: Request, res: Response
   res.json(await studentsService.deactivateStudent(req.user!.schoolId, req.params.id));
 });
 
+export const activateStudent = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await studentsService.activateStudent(req.user!.schoolId, req.params.id));
+});
+

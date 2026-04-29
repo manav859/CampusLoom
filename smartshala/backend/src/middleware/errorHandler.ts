@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import { logger } from "../config/logger.js";
 import { AppError } from "../core/errors.js";
+import { isRetryableError } from "../core/prisma.js";
 
 export function errorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (error instanceof ZodError) {
@@ -23,6 +24,14 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
         error: { code: "UNIQUE_CONSTRAINT", message: "Duplicate record", details: error.meta }
       });
     }
+  }
+
+  // Connection / pool errors — return 503 so frontend can auto-retry
+  if (isRetryableError(error)) {
+    logger.warn({ error }, "Database connection error — returning 503");
+    return res.status(503).json({
+      error: { code: "SERVICE_UNAVAILABLE", message: "Database temporarily unavailable, please retry" }
+    });
   }
 
   logger.error({ error }, "Unhandled request error");

@@ -19,3 +19,7 @@ export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
   res.status(204).json(await usersService.deleteUser(req.user!.schoolId, req.params.id));
 });
 
+export const activateUser = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await usersService.activateUser(req.user!.schoolId, req.params.id));
+});
+

@@ -12,5 +12,6 @@ studentsRouter.use(requireAuth);
 studentsRouter.get("/", controller.listStudents);
 studentsRouter.get("/:id", controller.getStudent);
 studentsRouter.post("/", requireRole(adminRoles), validate({ body: studentSchema }), controller.createStudent);
+studentsRouter.patch("/:id/activate", requireRole(adminRoles), controller.activateStudent);
 studentsRouter.patch("/:id", requireRole(adminRoles), validate({ body: studentSchema.partial() }), controller.updateStudent);
 studentsRouter.delete("/:id", requireRole(adminRoles), controller.deactivateStudent);

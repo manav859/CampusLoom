@@ -17,7 +17,8 @@ export async function listUsers(schoolId: string, query: unknown, role?: UserRol
             { email: { contains: pagination.search, mode: "insensitive" as const } }
           ]
         }
-      : {})
+      : {}),
+    ...((query as any).showInactive === "true" || (query as any).showInactive === true ? { isActive: false } : { isActive: true })
   };
 
   const [items, total] = await Promise.all([
@@ -58,6 +59,15 @@ export async function deleteUser(schoolId: string, id: string) {
   return prisma.user.update({
     where: { id },
     data: { status: "INACTIVE", isActive: false }
+  });
+}
+
+export async function activateUser(schoolId: string, id: string) {
+  const exists = await prisma.user.findFirst({ where: { id, schoolId } });
+  if (!exists) throw notFound("User");
+  return prisma.user.update({
+    where: { id },
+    data: { status: "ACTIVE", isActive: true }
   });
 }
 

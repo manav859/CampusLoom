@@ -8,6 +8,7 @@ import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { notFoundHandler } from "./middleware/notFound.js";
+import { dbWarmup } from "./middleware/dbWarmup.js";
 import { apiRouter } from "./routes/index.js";
 
 function buildAllowedOrigins() {
@@ -49,6 +50,7 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
   app.use(pinoHttp({ logger }));
+  app.use(dbWarmup());
 
   app.use("/api", apiRouter);
   app.use("/api/v1", apiRouter);

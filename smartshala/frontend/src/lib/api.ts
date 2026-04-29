@@ -206,7 +206,14 @@ export type StudentFeeLedger = {
     paidAt: string;
     receiptNo?: string;
     feeStructureName?: string;
+    receipt?: { id: string; receiptNo: string } | null;
   }[];
+};
+
+export type PaymentResult = {
+  payment: { id: string; amount: string | number; mode: string; paidAt: string };
+  receipt: { id: string; receiptNo: string };
+  ledger: { total: number; paid: number; balance: number; balanceAmount: number; status: string };
 };
 
 export type StudentDetail = {
@@ -263,10 +270,28 @@ export const feesApi = {
   defaulters: () => apiFetch<FeeDefaulter[]>("/fees/defaulters"),
   studentLedger: (studentId: string) => apiFetch<StudentFeeLedger>(`/fees/student/${studentId}`),
   recordPayment: (payload: { studentId: string; amount: number; mode: "CASH" | "UPI" | "CHEQUE" }) =>
-    apiFetch("/fees/payment", {
+    apiFetch<PaymentResult>("/fees/payment", {
       method: "POST",
       body: JSON.stringify(payload)
-    })
+    }),
+  downloadReceiptPdf: async (receiptId: string) => {
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.accessToken") : null;
+    const response = await fetch(`${env.apiBaseUrl}/fees/receipts/${receiptId}/pdf`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    if (!response.ok) throw new Error("Failed to download receipt");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `receipt-${receiptId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 };
 
 export const whatsappApi = {

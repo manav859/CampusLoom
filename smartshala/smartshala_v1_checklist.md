@@ -21,7 +21,7 @@
 - [x] Build payment recording API
 - [x] Update ledger after payment
 - [x] Generate receipt number
-- [ ] Generate PDF receipt
+- [x] Generate PDF receipt
 - [x] Send receipt via WhatsApp
 - [x] Implement defaulter list API
 - [x] Build basic fees UI (ledger + payment screen)
@@ -59,3 +59,6 @@
 - Fees backend now supports class-wise structures, class assignment, ledgers, transactional payments, receipt numbers, defaulters, and mock WhatsApp receipts.
 - Phase 1 and Phase 2 frontend screens now cover dashboard KPIs, WhatsApp logs, fees dashboard, defaulters, student ledger, and payment modal.
 - 2026-04-23: Upgraded the App Router frontend shell and core ERP pages to a premium glassmorphism UI system without changing backend code, API calls, or business logic.
+- 2026-04-30: Added "Show Inactive" toggle and activation functionality for students and teachers to allow restoring deactivated users.
+- 2026-04-30: Implemented full PDF receipt generation pipeline — payment → ledger update → auto-numbered receipt → PDF generation (pdfkit) → auto-download → WhatsApp with balance info in 10s. Supports partial payments (PARTIAL status) and shows remaining balance.
+- 2026-04-30: Fixed Render cold-start issue ("Something went wrong" on first request) by implementing global DB warmup middleware, automatic reconnection logic, and transaction retries for critical operations.

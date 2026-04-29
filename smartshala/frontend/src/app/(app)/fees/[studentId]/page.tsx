@@ -8,7 +8,7 @@ import { PaymentModal } from "@/components/fees/PaymentModal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
-import { feesApi, type StudentFeeLedger } from "@/lib/api";
+import { feesApi, type StudentFeeLedger, type PaymentResult } from "@/lib/api";
 
 function money(value: string | number) {
   return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
@@ -32,6 +32,7 @@ export default function StudentFeeLedgerPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   async function loadLedger() {
     setLoading(true);
@@ -49,9 +50,25 @@ export default function StudentFeeLedgerPage() {
     loadLedger();
   }, [studentId]);
 
-  function paymentSuccess() {
-    setNotice("Payment recorded and WhatsApp receipt queued.");
+  function paymentSuccess(result: PaymentResult) {
+    const statusLabel = result.ledger.status === "PAID" ? "Fully Paid" : "Partial";
+    setNotice(
+      `Payment of Rs ${Number(result.payment.amount).toLocaleString("en-IN")} recorded · Receipt ${result.receipt.receiptNo} · ${statusLabel}` +
+      (result.ledger.balance > 0 ? ` · Balance: Rs ${result.ledger.balance.toLocaleString("en-IN")}` : "") +
+      ` · WhatsApp receipt queued`
+    );
     loadLedger();
+  }
+
+  async function handleDownloadReceipt(receiptId: string) {
+    setDownloadingId(receiptId);
+    try {
+      await feesApi.downloadReceiptPdf(receiptId);
+    } catch {
+      setError("Failed to download receipt PDF");
+    } finally {
+      setDownloadingId(null);
+    }
   }
 
   return (
@@ -69,7 +86,14 @@ export default function StudentFeeLedgerPage() {
         }
       />
 
-      {notice ? <div className="rounded-xl bg-[#34c759]/10 px-4 py-3 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
+      {notice ? (
+        <div className="rounded-xl bg-[#34c759]/10 px-4 py-3 text-[13px] font-medium text-[#248a3d] flex items-center gap-2">
+          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          {notice}
+        </div>
+      ) : null}
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
 
       {loading ? (
@@ -119,23 +143,42 @@ export default function StudentFeeLedgerPage() {
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Payment history</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-[13px]">
+              <table className="w-full min-w-[800px] text-left text-[13px]">
                 <thead className="table-head">
-                  <tr>{["Amount", "Mode", "Receipt No", "Date", "Fee"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
+                  <tr>{["Amount", "Mode", "Receipt No", "Date", "Fee", "Receipt"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                   {ledger.payments.length === 0 ? (
-                    <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={5}>No payments recorded yet.</td></tr>
+                    <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>No payments recorded yet.</td></tr>
                   ) : (
-                    ledger.payments.map((payment) => (
-                      <tr key={payment.id} className="table-row">
-                        <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(payment.amount)}</td>
-                        <td className="px-5 py-4 text-[#6e6e73]">{payment.mode}</td>
-                        <td className="px-5 py-4 text-[#6e6e73]">{payment.receiptNo ?? "Pending"}</td>
-                        <td className="px-5 py-4 text-[#6e6e73]">{formatDate(payment.paidAt)}</td>
-                        <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName ?? "Fee"}</td>
-                      </tr>
-                    ))
+                    ledger.payments.map((payment) => {
+                      const receiptId = payment.receipt?.id;
+                      return (
+                        <tr key={payment.id} className="table-row">
+                          <td className="px-5 py-4 font-semibold text-[#248a3d]">{money(payment.amount)}</td>
+                          <td className="px-5 py-4 text-[#6e6e73]">{payment.mode}</td>
+                          <td className="px-5 py-4 text-[#6e6e73] font-medium">{payment.receiptNo ?? payment.receipt?.receiptNo ?? "Pending"}</td>
+                          <td className="px-5 py-4 text-[#6e6e73]">{formatDate(payment.paidAt)}</td>
+                          <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName ?? "Fee"}</td>
+                          <td className="px-5 py-4">
+                            {receiptId ? (
+                              <button
+                                onClick={() => handleDownloadReceipt(receiptId)}
+                                disabled={downloadingId === receiptId}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[11px] font-bold text-[#0071e3] hover:bg-[#0071e3] hover:text-white transition-colors disabled:opacity-50"
+                              >
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                {downloadingId === receiptId ? "…" : "PDF"}
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-[#86868b]">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

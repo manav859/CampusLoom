@@ -37,3 +37,13 @@ export const getStudentLedger = asyncHandler(async (req: Request, res: Response)
 export const defaulters = asyncHandler(async (req: Request, res: Response) => {
   res.json(await feesService.defaulters(req.user!.schoolId));
 });
+
+export const receiptPdf = asyncHandler(async (req: Request, res: Response) => {
+  const pdfBuffer = await feesService.getReceiptPdf(req.user!.schoolId, req.params.receiptId);
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="receipt-${req.params.receiptId}.pdf"`,
+    "Content-Length": pdfBuffer.length.toString()
+  });
+  res.send(pdfBuffer);
+});

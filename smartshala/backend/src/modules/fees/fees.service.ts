@@ -1,9 +1,10 @@
 import { InstallmentStatus, NotificationKind, PaymentMode, Prisma } from "@prisma/client";
 import { logger } from "../../config/logger.js";
-import { prisma } from "../../core/prisma.js";
+import { prisma, withRetry, isRetryableError } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { buildFeeReceiptMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
+import { generateReceiptPdf } from "./receipt-pdf.js";
 
 type FeeStructureInput = {
   classId?: string;
@@ -125,162 +126,172 @@ async function generateReceiptNo(tx: Prisma.TransactionClient, schoolId: string,
 }
 
 export async function dashboard(schoolId: string) {
-  const [assignmentAgg, paymentAgg, overdueCount, defaulters] = await Promise.all([
-    prisma.studentFeeAssignment.aggregate({
-      where: { schoolId },
-      _sum: { totalAmount: true, paidAmount: true, pendingAmount: true }
-    }),
-    prisma.payment.aggregate({
-      where: { schoolId },
-      _sum: { amount: true }
-    }),
-    prisma.studentFeeAssignment.count({
-      where: {
-        schoolId,
-        pendingAmount: { gt: new Prisma.Decimal(0) },
-        feeStructure: { installments: { some: { dueDate: { lt: new Date() } } } }
-      }
-    }),
-    prisma.studentFeeAssignment.findMany({
-      where: { schoolId, pendingAmount: { gt: new Prisma.Decimal(0) } },
-      include: { student: { include: { class: true } }, feeStructure: true },
-      orderBy: { pendingAmount: "desc" },
-      take: 10
-    })
-  ]);
+  return withRetry(async () => {
+    const [assignmentAgg, paymentAgg, overdueCount, defaultersList] = await Promise.all([
+      prisma.studentFeeAssignment.aggregate({
+        where: { schoolId },
+        _sum: { totalAmount: true, paidAmount: true, pendingAmount: true }
+      }),
+      prisma.payment.aggregate({
+        where: { schoolId },
+        _sum: { amount: true }
+      }),
+      prisma.studentFeeAssignment.count({
+        where: {
+          schoolId,
+          pendingAmount: { gt: new Prisma.Decimal(0) },
+          feeStructure: { installments: { some: { dueDate: { lt: new Date() } } } }
+        }
+      }),
+      prisma.studentFeeAssignment.findMany({
+        where: { schoolId, pendingAmount: { gt: new Prisma.Decimal(0) } },
+        include: { student: { include: { class: true } }, feeStructure: true },
+        orderBy: { pendingAmount: "desc" },
+        take: 10
+      })
+    ]);
 
-  return {
-    totalDue: toNumber(assignmentAgg._sum.totalAmount),
-    totalCollected: toNumber(paymentAgg._sum.amount),
-    totalPending: toNumber(assignmentAgg._sum.pendingAmount),
-    overdueInstallments: overdueCount,
-    topDefaulters: defaulters
-  };
+    return {
+      totalDue: toNumber(assignmentAgg._sum.totalAmount),
+      totalCollected: toNumber(paymentAgg._sum.amount),
+      totalPending: toNumber(assignmentAgg._sum.pendingAmount),
+      overdueInstallments: overdueCount,
+      topDefaulters: defaultersList
+    };
+  }, { label: "feesDashboard" });
 }
 
 export async function createFeeStructure(schoolId: string, data: FeeStructureInput) {
-  const normalized = normalizeFeeStructureInput(data);
+  return withRetry(async () => {
+    const normalized = normalizeFeeStructureInput(data);
 
-  if (normalized.classId) {
-    const classRecord = await prisma.class.findFirst({ where: { id: normalized.classId, schoolId } });
-    if (!classRecord) throw notFound("Class");
-  }
+    if (normalized.classId) {
+      const classRecord = await prisma.class.findFirst({ where: { id: normalized.classId, schoolId } });
+      if (!classRecord) throw notFound("Class");
+    }
 
-  return prisma.feeStructure.create({
-    data: {
-      schoolId,
-      classId: normalized.classId,
-      name: normalized.name,
-      academicYear: normalized.academicYear,
-      frequency: normalized.frequency,
-      totalAmount: normalized.totalAmount,
-      installments: {
-        create: normalized.installments.map((installment) => ({
-          name: installment.name,
-          dueDate: installment.dueDate,
-          amount: installment.amount,
-          sortOrder: installment.sortOrder
-        }))
-      }
-    },
-    include: { class: true, installments: { orderBy: { sortOrder: "asc" } } }
-  });
+    return prisma.feeStructure.create({
+      data: {
+        schoolId,
+        classId: normalized.classId,
+        name: normalized.name,
+        academicYear: normalized.academicYear,
+        frequency: normalized.frequency,
+        totalAmount: normalized.totalAmount,
+        installments: {
+          create: normalized.installments.map((installment) => ({
+            name: installment.name,
+            dueDate: installment.dueDate,
+            amount: installment.amount,
+            sortOrder: installment.sortOrder
+          }))
+        }
+      },
+      include: { class: true, installments: { orderBy: { sortOrder: "asc" } } }
+    });
+  }, { label: "createFeeStructure" });
 }
 
 export async function listFeeStructures(schoolId: string) {
-  return prisma.feeStructure.findMany({
+  return withRetry(() => prisma.feeStructure.findMany({
     where: { schoolId },
     include: { class: true, installments: { orderBy: { sortOrder: "asc" } } },
     orderBy: { createdAt: "desc" }
-  });
+  }), { label: "listFeeStructures" });
 }
 
 export async function getFeeStructure(schoolId: string, id: string) {
-  const feeStructure = await prisma.feeStructure.findFirst({
-    where: { id, schoolId },
-    include: {
-      class: true,
-      installments: { orderBy: { sortOrder: "asc" } },
-      _count: { select: { assignments: true } }
-    }
-  });
+  return withRetry(async () => {
+    const feeStructure = await prisma.feeStructure.findFirst({
+      where: { id, schoolId },
+      include: {
+        class: true,
+        installments: { orderBy: { sortOrder: "asc" } },
+        _count: { select: { assignments: true } }
+      }
+    });
 
-  if (!feeStructure) throw notFound("Fee structure");
-  return feeStructure;
+    if (!feeStructure) throw notFound("Fee structure");
+    return feeStructure;
+  }, { label: "getFeeStructure" });
 }
 
 export async function assignFee(schoolId: string, studentId: string, feeStructureId: string) {
-  const [student, feeStructure] = await Promise.all([
-    prisma.student.findFirst({ where: { id: studentId, schoolId, isActive: true } }),
-    prisma.feeStructure.findFirst({ where: { id: feeStructureId, schoolId } })
-  ]);
+  return withRetry(async () => {
+    const [student, feeStructure] = await Promise.all([
+      prisma.student.findFirst({ where: { id: studentId, schoolId, isActive: true } }),
+      prisma.feeStructure.findFirst({ where: { id: feeStructureId, schoolId } })
+    ]);
 
-  if (!student) throw notFound("Student");
-  if (!feeStructure) throw notFound("Fee structure");
+    if (!student) throw notFound("Student");
+    if (!feeStructure) throw notFound("Fee structure");
 
-  const existingAssignment = await prisma.studentFeeAssignment.findFirst({
-    where: { schoolId, studentId, feeStructureId },
-    include: { student: true, feeStructure: true }
-  });
+    const existingAssignment = await prisma.studentFeeAssignment.findFirst({
+      where: { schoolId, studentId, feeStructureId },
+      include: { student: true, feeStructure: true }
+    });
 
-  if (existingAssignment) return existingAssignment;
+    if (existingAssignment) return existingAssignment;
 
-  return prisma.studentFeeAssignment.create({
-    data: {
-      schoolId,
-      studentId,
-      feeStructureId,
-      totalAmount: feeStructure.totalAmount,
-      pendingAmount: feeStructure.totalAmount,
-      status: InstallmentStatus.PENDING
-    },
-    include: { student: true, feeStructure: true }
-  });
-}
-
-export async function assignFeeStructureToClass(schoolId: string, feeStructureId: string) {
-  const feeStructure = await prisma.feeStructure.findFirst({
-    where: { id: feeStructureId, schoolId },
-    include: { class: true }
-  });
-
-  if (!feeStructure) throw notFound("Fee structure");
-  if (!feeStructure.classId) {
-    throw new AppError(400, "Fee structure must be linked to a class before class assignment", "FEE_STRUCTURE_CLASS_REQUIRED");
-  }
-
-  const students = await prisma.student.findMany({
-    where: { schoolId, classId: feeStructure.classId, isActive: true },
-    select: { id: true }
-  });
-
-  const result = await prisma.$transaction(async (tx) => {
-    await tx.studentFeeAssignment.createMany({
-      data: students.map((student) => ({
+    return prisma.studentFeeAssignment.create({
+      data: {
         schoolId,
-        studentId: student.id,
-        feeStructureId: feeStructure.id,
+        studentId,
+        feeStructureId,
         totalAmount: feeStructure.totalAmount,
         pendingAmount: feeStructure.totalAmount,
         status: InstallmentStatus.PENDING
-      })),
-      skipDuplicates: true
+      },
+      include: { student: true, feeStructure: true }
+    });
+  }, { label: "assignFee" });
+}
+
+export async function assignFeeStructureToClass(schoolId: string, feeStructureId: string) {
+  return withRetry(async () => {
+    const feeStructure = await prisma.feeStructure.findFirst({
+      where: { id: feeStructureId, schoolId },
+      include: { class: true }
     });
 
-    return tx.studentFeeAssignment.findMany({
-      where: { schoolId, feeStructureId: feeStructure.id },
-      include: { student: true, feeStructure: true },
-      orderBy: { student: { rollNumber: "asc" } }
-    });
-  });
+    if (!feeStructure) throw notFound("Fee structure");
+    if (!feeStructure.classId) {
+      throw new AppError(400, "Fee structure must be linked to a class before class assignment", "FEE_STRUCTURE_CLASS_REQUIRED");
+    }
 
-  return {
-    feeStructure,
-    class: feeStructure.class,
-    eligibleStudents: students.length,
-    assignedStudents: result.length,
-    assignments: result
-  };
+    const students = await prisma.student.findMany({
+      where: { schoolId, classId: feeStructure.classId, isActive: true },
+      select: { id: true }
+    });
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.studentFeeAssignment.createMany({
+        data: students.map((student) => ({
+          schoolId,
+          studentId: student.id,
+          feeStructureId: feeStructure.id,
+          totalAmount: feeStructure.totalAmount,
+          pendingAmount: feeStructure.totalAmount,
+          status: InstallmentStatus.PENDING
+        })),
+        skipDuplicates: true
+      });
+
+      return tx.studentFeeAssignment.findMany({
+        where: { schoolId, feeStructureId: feeStructure.id },
+        include: { student: true, feeStructure: true },
+        orderBy: { student: { rollNumber: "asc" } }
+      });
+    });
+
+    return {
+      feeStructure,
+      class: feeStructure.class,
+      eligibleStudents: students.length,
+      assignedStudents: result.length,
+      assignments: result
+    };
+  }, { label: "assignFeeStructureToClass" });
 }
 
 async function findPayableAssignment(tx: Prisma.TransactionClient, schoolId: string, data: PaymentInput) {
@@ -366,7 +377,15 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
     return { payment, receipt, assignment: updatedAssignment };
   });
 
-  queuePaymentReceiptWhatsApp(user.schoolId, result.assignment.student, data.amount, result.receipt.receiptNo, paidAt);
+  queuePaymentReceiptWhatsApp(
+    user.schoolId,
+    result.assignment.student,
+    data.amount,
+    result.receipt.receiptNo,
+    paidAt,
+    toNumber(result.assignment.pendingAmount),
+    result.assignment.status
+  );
 
   return {
     payment: result.payment,
@@ -381,16 +400,20 @@ export async function collectPayment(user: Express.UserContext, data: PaymentInp
     throw new AppError(400, "Payment amount must be greater than zero", "INVALID_PAYMENT_AMOUNT");
   }
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      return await collectPaymentOnce(user, data);
-    } catch (error) {
-      if (attempt < 3 && isUniqueConstraintError(error)) continue;
-      throw error;
-    }
-  }
-
-  throw new AppError(500, "Unable to record payment", "PAYMENT_FAILED");
+  return withRetry(
+    async () => {
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          return await collectPaymentOnce(user, data);
+        } catch (error) {
+          if (attempt < 3 && isUniqueConstraintError(error)) continue;
+          throw error;
+        }
+      }
+      throw new AppError(500, "Unable to record payment", "PAYMENT_FAILED");
+    },
+    { label: "collectPayment" }
+  );
 }
 
 function queuePaymentReceiptWhatsApp(
@@ -398,13 +421,15 @@ function queuePaymentReceiptWhatsApp(
   student: { id: string; fullName: string; parentPhone: string },
   amount: number,
   receiptNo: string,
-  paidAt: Date
+  paidAt: Date,
+  pendingAmount: number,
+  status: string
 ) {
   const phone = student.parentPhone.trim();
   if (!phone) return;
 
-  setImmediate(() => {
-    const message = buildFeeReceiptMessage(student.fullName, amount, receiptNo, formatDate(paidAt));
+  setTimeout(() => {
+    const message = buildFeeReceiptMessage(student.fullName, amount, receiptNo, formatDate(paidAt), pendingAmount, status);
     void sendWhatsAppMessage(phone, message, {
       schoolId,
       studentId: student.id,
@@ -412,86 +437,159 @@ function queuePaymentReceiptWhatsApp(
     }).catch((error) => {
       logger.warn({ err: error, schoolId, studentId: student.id, receiptNo }, "Failed to send fee receipt WhatsApp notification");
     });
-  });
+  }, 10_000);
 }
 
 export async function getStudentLedger(schoolId: string, studentId: string) {
-  const student = await prisma.student.findFirst({
-    where: { id: studentId, schoolId },
-    include: {
-      class: true,
-      feeAssignments: {
-        include: {
-          feeStructure: { include: { installments: { orderBy: { sortOrder: "asc" } } } },
-          payments: { include: { receipt: true, installment: true }, orderBy: { paidAt: "desc" } }
-        },
-        orderBy: { assignedAt: "desc" }
+  return withRetry(async () => {
+    const student = await prisma.student.findFirst({
+      where: { id: studentId, schoolId },
+      include: {
+        class: true,
+        feeAssignments: {
+          include: {
+            feeStructure: { include: { installments: { orderBy: { sortOrder: "asc" } } } },
+            payments: { include: { receipt: true, installment: true }, orderBy: { paidAt: "desc" } }
+          },
+          orderBy: { assignedAt: "desc" }
+        }
       }
-    }
-  });
+    });
 
-  if (!student) throw notFound("Student");
+    if (!student) throw notFound("Student");
 
-  const total = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.totalAmount), 0);
-  const paid = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.paidAmount), 0);
-  const balance = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0);
-  const status = balance === 0 ? InstallmentStatus.PAID : paid > 0 ? InstallmentStatus.PARTIAL : InstallmentStatus.PENDING;
-  const payments = student.feeAssignments.flatMap((assignment) =>
-    assignment.payments.map((payment) => ({
-      ...payment,
-      assignmentId: assignment.id,
-      feeStructureId: assignment.feeStructureId,
-      feeStructureName: assignment.feeStructure.name,
-      receiptNo: payment.receipt?.receiptNo
-    }))
-  ).sort((left, right) => right.paidAt.getTime() - left.paidAt.getTime());
+    const total = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.totalAmount), 0);
+    const paid = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.paidAmount), 0);
+    const balance = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0);
+    const status = balance === 0 ? InstallmentStatus.PAID : paid > 0 ? InstallmentStatus.PARTIAL : InstallmentStatus.PENDING;
+    const payments = student.feeAssignments.flatMap((assignment) =>
+      assignment.payments.map((payment) => ({
+        ...payment,
+        assignmentId: assignment.id,
+        feeStructureId: assignment.feeStructureId,
+        feeStructureName: assignment.feeStructure.name,
+        receiptNo: payment.receipt?.receiptNo,
+        receipt: payment.receipt ? { id: payment.receipt.id, receiptNo: payment.receipt.receiptNo } : null
+      }))
+    ).sort((left, right) => right.paidAt.getTime() - left.paidAt.getTime());
 
-  return {
-    student: {
-      id: student.id,
-      fullName: student.fullName,
-      admissionNumber: student.admissionNumber,
-      class: student.class
-    },
-    total,
-    paid,
-    balance,
-    status,
-    assignments: student.feeAssignments.map((assignment) => ({
-      ...assignment,
-      ...mapAssignmentSummary(assignment)
-    })),
-    payments
-  };
+    return {
+      student: {
+        id: student.id,
+        fullName: student.fullName,
+        admissionNumber: student.admissionNumber,
+        class: student.class
+      },
+      total,
+      paid,
+      balance,
+      status,
+      assignments: student.feeAssignments.map((assignment) => ({
+        ...assignment,
+        ...mapAssignmentSummary(assignment)
+      })),
+      payments
+    };
+  }, { label: "getStudentLedger" });
 }
 
 export async function defaulters(schoolId: string) {
-  const today = new Date();
-  const assignments = await prisma.studentFeeAssignment.findMany({
-    where: { schoolId, pendingAmount: { gt: new Prisma.Decimal(0) } },
-    include: {
-      student: { include: { class: true } },
-      feeStructure: { include: { installments: { orderBy: { dueDate: "asc" } } } }
-    }
-  });
+  return withRetry(async () => {
+    const today = new Date();
+    const assignmentsList = await prisma.studentFeeAssignment.findMany({
+      where: { schoolId, pendingAmount: { gt: new Prisma.Decimal(0) } },
+      include: {
+        student: { include: { class: true } },
+        feeStructure: { include: { installments: { orderBy: { dueDate: "asc" } } } }
+      }
+    });
 
-  return assignments
-    .map((assignment) => {
-      const dueDate = assignment.feeStructure.installments[0]?.dueDate;
-      const daysOverdue = dueDate ? Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / 86_400_000)) : 0;
+    return assignmentsList
+      .map((assignment) => {
+        const dueDate = assignment.feeStructure.installments[0]?.dueDate;
+        const daysOverdue = dueDate ? Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / 86_400_000)) : 0;
 
-      return {
-        studentId: assignment.studentId,
-        name: assignment.student.fullName,
-        class: className(assignment.student.class),
-        feeStructureId: assignment.feeStructureId,
-        feeStructure: assignment.feeStructure.name,
-        balance: toNumber(assignment.pendingAmount),
-        balanceAmount: toNumber(assignment.pendingAmount),
-        dueDate,
-        daysOverdue,
+        return {
+          studentId: assignment.studentId,
+          name: assignment.student.fullName,
+          class: className(assignment.student.class),
+          feeStructureId: assignment.feeStructureId,
+          feeStructure: assignment.feeStructure.name,
+          balance: toNumber(assignment.pendingAmount),
+          balanceAmount: toNumber(assignment.pendingAmount),
+          dueDate,
+          daysOverdue,
+          status: assignment.status
+        };
+      })
+      .sort((left, right) => right.daysOverdue - left.daysOverdue || right.balance - left.balance);
+  }, { label: "defaulters" });
+}
+
+export async function getReceiptPdf(schoolId: string, receiptId: string) {
+  return withRetry(async () => {
+    const receipt = await prisma.receipt.findFirst({
+      where: { id: receiptId, schoolId },
+      include: {
+        payment: {
+          include: {
+            student: { include: { class: true } },
+            assignment: {
+              include: {
+                feeStructure: true
+              }
+            }
+          }
+        },
+        school: true
+      }
+    });
+
+    if (!receipt) throw notFound("Receipt");
+
+    const payment = receipt.payment;
+    const student = payment.student;
+    const assignment = payment.assignment;
+    const feeStructure = assignment.feeStructure;
+
+    return generateReceiptPdf({
+      receiptNo: receipt.receiptNo,
+      issuedAt: receipt.issuedAt,
+      schoolName: receipt.school.name,
+      student: {
+        fullName: student.fullName,
+        admissionNumber: student.admissionNumber,
+        class: `${student.class.name}-${student.class.section}`,
+        parentName: student.parentName,
+        parentPhone: student.parentPhone
+      },
+      payment: {
+        amount: toNumber(payment.amount),
+        mode: payment.mode,
+        paidAt: payment.paidAt,
+        notes: payment.notes
+      },
+      feeStructure: {
+        name: feeStructure.name,
+        academicYear: feeStructure.academicYear,
+        totalAmount: toNumber(feeStructure.totalAmount)
+      },
+      ledger: {
+        totalAmount: toNumber(assignment.totalAmount),
+        paidAmount: toNumber(assignment.paidAmount),
+        pendingAmount: toNumber(assignment.pendingAmount),
         status: assignment.status
-      };
-    })
-    .sort((left, right) => right.daysOverdue - left.daysOverdue || right.balance - left.balance);
+      }
+    });
+  }, { label: "getReceiptPdf" });
+}
+
+export async function getReceiptByPaymentId(schoolId: string, paymentId: string) {
+  return withRetry(() => prisma.receipt.findFirst({
+    where: { paymentId, schoolId },
+    select: { id: true, receiptNo: true }
+  }), { label: "getReceiptByPaymentId" }).then((receipt) => {
+    if (!receipt) throw notFound("Receipt");
+    return receipt;
+  });
 }

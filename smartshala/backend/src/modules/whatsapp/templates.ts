@@ -12,8 +12,23 @@ export function buildAttendanceAbsentMessage(studentName: string, className: str
   return `Dear Parent, your child ${studentName} (${className}) was absent on ${formatMessageDate(date)}.`;
 }
 
-export function buildFeeReceiptMessage(studentName: string, amount: number, receiptNo: string, date: Date | string) {
-  return `Dear Parent, fee payment of Rs. ${amount.toFixed(2)} for ${studentName} was received on ${formatMessageDate(date)}. Receipt No: ${receiptNo}.`;
+export function buildFeeReceiptMessage(
+  studentName: string,
+  amount: number,
+  receiptNo: string,
+  date: Date | string,
+  pendingAmount?: number,
+  status?: string
+) {
+  let message = `Dear Parent, fee payment of Rs. ${amount.toFixed(2)} for ${studentName} was received on ${formatMessageDate(date)}. Receipt No: ${receiptNo}.`;
+
+  if (pendingAmount !== undefined && pendingAmount > 0) {
+    message += ` Remaining balance: Rs. ${pendingAmount.toFixed(2)}.`;
+  } else if (status === "PAID") {
+    message += ` All fees are now fully paid. Thank you!`;
+  }
+
+  return message;
 }
 
 export function buildFeeReminderMessage(studentName: string, balance: number, dueDate: Date | string) {
