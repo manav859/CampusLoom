@@ -1,4 +1,4 @@
-import { Gender } from "@prisma/client";
+import { BehaviourSeverity, BehaviourType, Gender, StudentDocumentType } from "@prisma/client";
 import { z } from "zod";
 
 export const studentSchema = z.object({
@@ -16,3 +16,17 @@ export const studentSchema = z.object({
   isActive: z.boolean().optional()
 });
 
+export const behaviourRecordSchema = z.object({
+  type: z.nativeEnum(BehaviourType),
+  title: z.string().min(2).max(160),
+  summary: z.string().min(2).max(2000),
+  severity: z.nativeEnum(BehaviourSeverity).optional(),
+  occurredAt: z.coerce.date().optional(),
+  isRestricted: z.boolean().optional(),
+  actionTaken: z.string().max(1000).optional()
+});
+
+export const studentDocumentSchema = z.object({
+  type: z.nativeEnum(StudentDocumentType),
+  name: z.string().min(2).max(160).optional()
+});

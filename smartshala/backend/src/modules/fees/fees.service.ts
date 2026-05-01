@@ -111,6 +111,58 @@ function mapAssignmentSummary(assignment: {
   };
 }
 
+type LedgerAssignment = {
+  id: string;
+  feeStructureId: string;
+  totalAmount: unknown;
+  feeStructure: { name: string };
+  payments: {
+    id: string;
+    amount: unknown;
+    mode: PaymentMode;
+    paidAt: Date;
+    createdAt?: Date;
+    receipt?: { id: string; receiptNo: string } | null;
+  }[];
+};
+
+export function buildTransactionLedger(assignments: LedgerAssignment[]) {
+  const total = assignments.reduce((sum, assignment) => sum + toNumber(assignment.totalAmount), 0);
+  const chronologicalPayments = assignments
+    .flatMap((assignment) =>
+      assignment.payments.map((payment) => ({
+        id: payment.id,
+        date: payment.paidAt,
+        paidAt: payment.paidAt,
+        createdAt: payment.createdAt,
+        amount: toNumber(payment.amount),
+        mode: payment.mode,
+        receiptId: payment.receipt?.id ?? null,
+        receiptNo: payment.receipt?.receiptNo ?? null,
+        receipt: payment.receipt ? { id: payment.receipt.id, receiptNo: payment.receipt.receiptNo } : null,
+        assignmentId: assignment.id,
+        feeStructureId: assignment.feeStructureId,
+        feeStructureName: assignment.feeStructure.name
+      }))
+    )
+    .sort(
+      (left, right) =>
+        left.paidAt.getTime() - right.paidAt.getTime() ||
+        (left.createdAt?.getTime() ?? 0) - (right.createdAt?.getTime() ?? 0) ||
+        left.id.localeCompare(right.id)
+    );
+
+  let runningBalance = total;
+  return chronologicalPayments.map((payment) => {
+    runningBalance = toMoney(Math.max(0, runningBalance - payment.amount));
+    const { createdAt, ...entry } = payment;
+    return {
+      ...entry,
+      balanceAfter: runningBalance
+    };
+  });
+}
+
 async function generateReceiptNo(tx: Prisma.TransactionClient, schoolId: string, paidAt: Date) {
   const year = paidAt.getFullYear();
   const start = new Date(year, 0, 1);
@@ -462,16 +514,8 @@ export async function getStudentLedger(schoolId: string, studentId: string) {
     const paid = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.paidAmount), 0);
     const balance = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0);
     const status = balance === 0 ? InstallmentStatus.PAID : paid > 0 ? InstallmentStatus.PARTIAL : InstallmentStatus.PENDING;
-    const payments = student.feeAssignments.flatMap((assignment) =>
-      assignment.payments.map((payment) => ({
-        ...payment,
-        assignmentId: assignment.id,
-        feeStructureId: assignment.feeStructureId,
-        feeStructureName: assignment.feeStructure.name,
-        receiptNo: payment.receipt?.receiptNo,
-        receipt: payment.receipt ? { id: payment.receipt.id, receiptNo: payment.receipt.receiptNo } : null
-      }))
-    ).sort((left, right) => right.paidAt.getTime() - left.paidAt.getTime());
+    const transactionLedger = buildTransactionLedger(student.feeAssignments);
+    const payments = [...transactionLedger].sort((left, right) => right.paidAt.getTime() - left.paidAt.getTime() || right.id.localeCompare(left.id));
 
     return {
       student: {
@@ -488,6 +532,7 @@ export async function getStudentLedger(schoolId: string, studentId: string) {
         ...assignment,
         ...mapAssignmentSummary(assignment)
       })),
+      transactionLedger,
       payments
     };
   }, { label: "getStudentLedger" });

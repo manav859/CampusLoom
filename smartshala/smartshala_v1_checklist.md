@@ -40,7 +40,7 @@
 - [ ] Build fee reports (collection vs target)
 - [ ] Build defaulter report export
 - [ ] Complete dashboard KPI cards
-- [ ] Combine attendance + fees insights
+- [ ] Combine attendance + fees insights3   
 
 ## Phase 5 — Basic AI (Rule-Based)
 - [ ] Implement at-risk student scoring
@@ -62,3 +62,13 @@
 - 2026-04-30: Added "Show Inactive" toggle and activation functionality for students and teachers to allow restoring deactivated users.
 - 2026-04-30: Implemented full PDF receipt generation pipeline — payment → ledger update → auto-numbered receipt → PDF generation (pdfkit) → auto-download → WhatsApp with balance info in 10s. Supports partial payments (PARTIAL status) and shows remaining balance.
 - 2026-04-30: Fixed Render cold-start issue ("Something went wrong" on first request) by implementing global DB warmup middleware, automatic reconnection logic, and transaction retries for critical operations.
+- 2026-05-01: Modularized the student detail page into a dashboard shell with a sticky header, KPI section, lazy-loaded tabs, Academic profile/insight content, and Fees assignments content while preserving existing client-side data fetching.
+- 2026-05-01: Upgraded the student profile header to the SmartShala snapshot standard with performance rate, status pills, quick stats, parent contact actions, and backend-provided rank/attendance/fee/absence metrics.
+- 2026-05-01: Implemented the unified performance metric using exam average, homework completion, and attendance percentage with performance-based classification and legacy risk fallback where academic inputs are not yet available.
+- 2026-05-01: Built the Academic tab analytics layer with Exam and Subject models, exam rows with class average/rank, Recharts trend and radar charts, and homework completion by subject.
+- 2026-05-01: Implemented homework tracking with assignment/submission models, on-time completion intelligence, status counts, subject breakdown, streaks, and a full Homework tab assignment log.
+- 2026-05-01: Upgraded attendance into a visual pattern-based system with monthly calendar status mapping, CBSE warning below 80%, 75% cushion metrics, attendance records, and repeated weekday absence detection.
+- 2026-05-02: Upgraded fees into an accountant-grade ledger with backend running balances, per-payment transaction rows, receipt IDs, balance-after values, and payment timeline views while preserving fee assignments and partial payment support.
+- 2026-05-02: Implemented the communication audit trail with WhatsApp notification logs, manual notes/call log storage, latest-first unified communication history, and a dedicated Communication tab.
+- 2026-05-02: Implemented balanced behaviour tracking with incidents, positive achievements, restricted counsellor notes, role-filtered student detail analytics, a write API, and a dedicated Behaviour tab.
+- 2026-05-02: Implemented audit-ready document storage with multipart uploads, student document metadata, uploader/date tracking, authenticated downloads, and a dedicated Documents tab for certificates, medical files, parent IDs, and agreements.

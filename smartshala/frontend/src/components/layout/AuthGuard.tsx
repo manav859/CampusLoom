@@ -86,7 +86,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         <div className="min-w-0 flex-1 flex flex-col">
           <Topbar onMenuClick={() => setSidebarOpen(true)} user={user} />
           <main className="flex-1 px-4 pb-8 pt-3 sm:px-5 lg:px-6">
-            <div className="mx-auto max-w-[1100px]">{children}</div>
+            {children}
           </main>
         </div>
       </div>

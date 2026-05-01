@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import multer from "multer";
 import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import { logger } from "../config/logger.js";
@@ -15,6 +16,12 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
   if (error instanceof AppError) {
     return res.status(error.statusCode).json({
       error: { code: error.code, message: error.message, details: error.details }
+    });
+  }
+
+  if (error instanceof multer.MulterError) {
+    return res.status(400).json({
+      error: { code: "UPLOAD_ERROR", message: error.message }
     });
   }
 
@@ -39,4 +46,3 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
     error: { code: "INTERNAL_SERVER_ERROR", message: "Something went wrong" }
   });
 }
-
