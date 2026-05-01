@@ -23,11 +23,11 @@ function statusLabel(status: StudentDetail["attendanceAnalytics"]["calendar"][nu
 }
 
 function statusClasses(status: StudentDetail["attendanceAnalytics"]["calendar"][number]["status"]) {
-  if (status === "PRESENT") return "border-[#34c759]/25 bg-[#34c759]/15 text-[#248a3d]";
-  if (status === "ABSENT") return "border-[#ff3b30]/25 bg-[#ff3b30]/15 text-[#c90011]";
-  if (status === "LATE") return "border-[#ff9500]/25 bg-[#ff9500]/15 text-[#cc7700]";
-  if (status === "HOLIDAY") return "border-[#8e8e93]/20 bg-[#f5f5f7] text-[#6e6e73]";
-  return "border-[rgba(0,0,0,0.04)] bg-white text-[#aeaeb2]";
+  if (status === "PRESENT") return "bg-[#34c759] text-white/60";
+  if (status === "ABSENT") return "bg-[#ff3b30] text-white/60";
+  if (status === "LATE") return "bg-[#ff9500] text-white/70";
+  if (status === "HOLIDAY") return "bg-[#f5f5f7] text-[#1d1d1f]/30";
+  return "bg-[rgba(0,0,0,0.02)] text-[#1d1d1f]/20";
 }
 
 function metricTone(value: number) {
@@ -109,7 +109,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
   return (
     <section className="space-y-4">
       {analytics.cbseWarning ? (
-        <div className="rounded-2xl border border-[#ff3b30]/20 bg-[#ff3b30]/[0.08] p-5 shadow-apple-sm">
+        <div className="rounded-[18px] border border-[#ff3b30]/20 bg-[#ff3b30]/[0.08] p-5 shadow-apple-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#c90011]">CBSE attendance warning</p>
@@ -122,103 +122,119 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
         </div>
       ) : null}
 
-      {/* ── Metric cards ── */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Attendance % */}
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-4 shadow-apple-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Attendance %</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{metrics.attendancePercentage}%</p>
-          <StatusPill label={metrics.attendancePercentage >= 80 ? "Healthy" : "Watch"} tone={metricTone(metrics.attendancePercentage)} />
+      {/* ── Main Bento Grid ── */}
+      <div className="grid gap-4 lg:grid-cols-12">
+        
+        {/* Left Side: 2x2 Metrics Grid (5 columns) */}
+        <div className="grid grid-cols-2 gap-3 lg:col-span-5">
+          {/* Attendance % */}
+          <div className="flex flex-col justify-between rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-white p-4 sm:p-5 shadow-apple-sm transition-all hover:shadow-apple">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#86868b] sm:text-[11px]">Attendance %</p>
+              <p className="mt-1.5 text-[26px] font-bold tracking-tight text-[#1d1d1f] sm:text-[32px]">{metrics.attendancePercentage}%</p>
+            </div>
+            <div className="mt-3">
+              <StatusPill label={metrics.attendancePercentage >= 80 ? "Healthy" : "Watch"} tone={metricTone(metrics.attendancePercentage)} />
+            </div>
+          </div>
+
+          {/* Total days — present/total format */}
+          <div className="flex flex-col justify-between rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-white p-4 sm:p-5 shadow-apple-sm transition-all hover:shadow-apple">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#86868b] sm:text-[11px]">Total days</p>
+              <p className="mt-1.5 text-[26px] font-bold tracking-tight text-[#1d1d1f] sm:text-[32px]">
+                <span className="text-[#248a3d]">{presentDays}</span>
+                <span className="mx-0.5 font-medium text-[#aeaeb2]">/</span>
+                <span>{metrics.totalDays}</span>
+              </p>
+            </div>
+            <p className="mt-3 text-[11px] font-medium text-[#86868b] sm:text-[12px]">{metrics.late} late marks</p>
+          </div>
+
+          {/* Absences */}
+          <div className="flex flex-col justify-between rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-white p-4 sm:p-5 shadow-apple-sm transition-all hover:shadow-apple">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#86868b] sm:text-[11px]">Absences</p>
+              <p className="mt-1.5 text-[26px] font-bold tracking-tight text-[#c90011] sm:text-[32px]">{metrics.absences}</p>
+            </div>
+          </div>
+
+          {/* Remaining before 75% */}
+          <div className={`flex flex-col justify-between rounded-[20px] border p-4 sm:p-5 shadow-apple-sm transition-all hover:shadow-apple ${remainingCardClasses(metrics.attendancePercentage)}`}>
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#86868b] sm:text-[11px]">Buffer to 75%</p>
+              <p className={`mt-1.5 text-[26px] font-bold tracking-tight sm:text-[32px] ${remainingValueColor(metrics.attendancePercentage)}`}>
+                {metrics.remainingBefore75}
+              </p>
+            </div>
+            <p className="mt-3 text-[11px] font-medium text-[#86868b] sm:text-[12px]">additional absences</p>
+          </div>
         </div>
 
-        {/* Total days — present/total format */}
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-4 shadow-apple-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Total days</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">
-            <span className="text-[#248a3d]">{presentDays}</span>
-            <span className="text-[#aeaeb2]">/</span>
-            <span>{metrics.totalDays}</span>
-          </p>
-          <p className="mt-1 text-[12px] text-[#86868b]">{metrics.late} late marks</p>
-        </div>
+        {/* Right Side: Calendar Card (7 columns) */}
+        <section className="flex flex-col rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-gradient-to-b from-[#fbfbfd] to-white p-5 sm:p-6 shadow-apple lg:col-span-7">
+          <div className="flex flex-col gap-4 border-b border-[rgba(0,0,0,0.06)] pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Calendar</h2>
+              <select
+                className="cursor-pointer rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#1d1d1f] shadow-sm outline-none transition-all hover:border-[#0071e3] focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20"
+                value={selectedMonthKey}
+                onChange={(e) => setSelectedMonthKey(e.target.value)}
+              >
+                <option value="all">All months</option>
+                {availableMonths.map((m) => (
+                  <option key={m.key} value={m.key}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-[#6e6e73]">
+              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#34c759] shadow-sm" /> Present</div>
+              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#ff3b30] shadow-sm" /> Absent</div>
+              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#ff9500] shadow-sm" /> Late</div>
+              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-black/10 bg-[#f5f5f7]" /> Holiday</div>
+            </div>
+          </div>
 
-        {/* Absences */}
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-4 shadow-apple-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Absences</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#c90011]">{metrics.absences}</p>
-        </div>
+          <div className="flex flex-1 items-center justify-center overflow-x-auto pt-6 pb-2">
+            <div className="inline-grid grid-cols-7 gap-1.5 sm:gap-2">
+              {weekdays.map((day) => (
+                <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#86868b]" key={day}>{day}</div>
+              ))}
+              {calendarSlots.map((slot) => {
+                if (slot.type === "blank") return <div key={slot.id} className="h-8 w-8 rounded-[8px] bg-transparent sm:h-10 sm:w-10" />;
+                const date = new Date(slot.date);
+                return (
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-[8px] shadow-sm ring-1 ring-inset ring-black/[0.04] transition-all duration-200 hover:scale-110 hover:shadow-md sm:h-10 sm:w-10 ${statusClasses(slot.status)}`}
+                    key={slot.date}
+                    title={`${dateLabel(slot.date)} - ${statusLabel(slot.status)}`}
+                  >
+                    <span className="text-[13px] font-bold sm:text-[15px]">{date.getDate()}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
-        {/* Remaining before 75% — colored based on attendance */}
-        <div className={`rounded-2xl border p-4 shadow-apple-sm ${remainingCardClasses(metrics.attendancePercentage)}`}>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Remaining before 75%</p>
-          <p className={`mt-1.5 text-[28px] font-semibold tracking-tight ${remainingValueColor(metrics.attendancePercentage)}`}>
-            {metrics.remainingBefore75}
-          </p>
-          <p className="mt-1 text-[12px] text-[#86868b]">additional absences</p>
-        </div>
       </div>
 
-      {/* ── Attendance calendar with monthly filter ── */}
-      <section className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Attendance calendar</h2>
-            {/* Monthly filter dropdown */}
-            <select
-              className="rounded-lg border border-[rgba(0,0,0,0.08)] bg-[#f5f5f7] px-3 py-1.5 text-[12px] font-semibold text-[#1d1d1f] outline-none transition-colors focus:border-[#0071e3] focus:bg-white"
-              value={selectedMonthKey}
-              onChange={(e) => setSelectedMonthKey(e.target.value)}
-            >
-              <option value="all">All months</option>
-              {availableMonths.map((m) => (
-                <option key={m.key} value={m.key}>{m.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-[#6e6e73]">
-            {["Present", "Absent", "Late", "Holiday"].map((label) => (
-              <span className="rounded-md bg-[rgba(0,0,0,0.04)] px-2 py-0.5" key={label}>{label}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-7 gap-1.5">
-          {weekdays.map((day) => (
-            <div className="text-center text-[10px] font-semibold uppercase tracking-wide text-[#86868b]" key={day}>{day}</div>
-          ))}
-          {calendarSlots.map((slot) => {
-            if (slot.type === "blank") return <div key={slot.id} />;
-            const date = new Date(slot.date);
-            return (
-              <div
-                className={`min-h-[56px] rounded-xl border p-1.5 transition-transform duration-200 hover:-translate-y-0.5 ${statusClasses(slot.status)}`}
-                key={slot.date}
-                title={`${dateLabel(slot.date)} - ${statusLabel(slot.status)}`}
-              >
-                <p className="text-[11px] font-bold">{date.getDate()}</p>
-                <p className="mt-1.5 text-[10px] font-semibold">{statusLabel(slot.status)}</p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ── Pattern detection — no attendance records table ── */}
-      <section className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
-        <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Pattern detection</h2>
-        <div className="mt-4 space-y-3">
+      {/* ── Pattern detection ── */}
+      <section className="rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-white p-5 sm:p-6 shadow-apple">
+        <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Pattern detection</h2>
+        <div className="mt-5 space-y-3">
           {analytics.repeatedWeekdayAbsences.length === 0 ? (
-            <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4 text-[13px] font-medium text-[#86868b]">
-              No repeated weekday absence pattern detected.
+            <div className="flex items-center justify-center rounded-[16px] border border-dashed border-[rgba(0,0,0,0.1)] bg-[rgba(0,0,0,0.01)] py-8 text-[13px] font-medium text-[#86868b]">
+              No repeated weekday absence pattern detected. All good!
             </div>
           ) : (
             analytics.repeatedWeekdayAbsences.map((pattern) => (
-              <div className="rounded-xl bg-[#ff9500]/[0.08] p-4" key={pattern.weekday}>
+              <div className="rounded-[16px] bg-[#ff9500]/[0.08] p-4 ring-1 ring-inset ring-[#ff9500]/20" key={pattern.weekday}>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[13px] font-semibold text-[#1d1d1f]">{pattern.weekday}</p>
+                  <p className="text-[13px] font-semibold text-[#1d1d1f]">{pattern.weekday}s</p>
                   <StatusPill label={`${pattern.count} absences`} tone="warn" />
                 </div>
-                <p className="mt-2 text-[12px] text-[#86868b]">{pattern.dates.map(dateLabel).join(", ")}</p>
+                <p className="mt-2.5 text-[12px] font-medium text-[#86868b]">{pattern.dates.map(dateLabel).join("  •  ")}</p>
               </div>
             ))
           )}
