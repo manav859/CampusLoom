@@ -6,8 +6,8 @@ import { authApi } from "@/lib/api";
 
 export function LoginForm() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState("principal@smartshala.local");
-  const [password, setPassword] = useState("SmartShala@123");
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 

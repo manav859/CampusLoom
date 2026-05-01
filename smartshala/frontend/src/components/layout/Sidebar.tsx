@@ -18,7 +18,6 @@ const adminLinks: NavLink[] = [
   { label: "Attendance", href: "/attendance", icon: "attendance" },
   { label: "Reports", href: "/reports", icon: "reports" },
   { label: "Fees", href: "/fees", icon: "fees" },
-  { label: "Defaulters", href: "/fees/defaulters", icon: "fees" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
   { label: "WhatsApp Logs", href: "/notifications", icon: "notifications" },
   { label: "Settings", href: "/settings", icon: "settings" }
