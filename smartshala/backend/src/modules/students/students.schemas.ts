@@ -13,7 +13,8 @@ export const studentSchema = z.object({
   alternatePhone: z.string().min(10).optional(),
   address: z.string().optional(),
   joiningDate: z.coerce.date().optional(),
-  isActive: z.boolean().optional()
+  isActive: z.boolean().optional(),
+  feeStructureId: z.string().uuid().optional()
 });
 
 export const behaviourRecordSchema = z.object({

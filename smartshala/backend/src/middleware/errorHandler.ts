@@ -31,6 +31,20 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
         error: { code: "UNIQUE_CONSTRAINT", message: "Duplicate record", details: error.meta }
       });
     }
+    if (error.code === "P2003") {
+      return res.status(409).json({
+        error: { code: "FOREIGN_KEY_CONSTRAINT", message: "Cannot delete this record because it is referenced by other records (e.g., students in this class).", details: error.meta }
+      });
+    }
+  }
+
+  // Handle PostgreSQL RESTRICT violation which Prisma throws as UnknownRequestError
+  if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+    if (error.message.includes("violates RESTRICT setting")) {
+      return res.status(409).json({
+        error: { code: "FOREIGN_KEY_CONSTRAINT", message: "Cannot delete this record because it still contains active dependencies (e.g., students in this class). Please reassign or delete the dependencies first." }
+      });
+    }
   }
 
   // Connection / pool errors — return 503 so frontend can auto-retry

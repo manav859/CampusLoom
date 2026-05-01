@@ -13,6 +13,7 @@ export default function NewStudentPage() {
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -54,20 +55,26 @@ export default function NewStudentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg("");
     try {
-      const payload = {
-        ...formData,
-        rollNumber: formData.rollNumber ? parseInt(formData.rollNumber) : undefined,
-      };
+      const payload: any = { ...formData };
+      if (!payload.rollNumber) delete payload.rollNumber;
+      else payload.rollNumber = parseInt(payload.rollNumber);
+      
+      if (!payload.dateOfBirth) delete payload.dateOfBirth;
+      if (!payload.gender) delete payload.gender;
+      if (!payload.alternatePhone) delete payload.alternatePhone;
+      if (!payload.address) delete payload.address;
+      if (!payload.feeStructureId) delete payload.feeStructureId;
+      
       await apiFetch("/students", {
         method: "POST",
         body: JSON.stringify(payload),
       });
       router.push("/students");
       router.refresh();
-    } catch (error) {
-      console.error(error);
-      alert("Failed to register student");
+    } catch (error: any) {
+      setErrorMsg(error?.message || "Failed to register student. Please ensure all required fields are filled correctly.");
     } finally {
       setLoading(false);
     }
@@ -77,6 +84,15 @@ export default function NewStudentPage() {
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
       <PageHeader eyebrow="Students" title="Register new student" />
       
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-[rgba(255,59,48,0.1)] border border-[rgba(255,59,48,0.2)] text-[#d70015] text-[13px] font-medium flex items-center gap-3">
+          <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          {errorMsg}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="glass-card p-8 space-y-8">
         {/* Personal Details */}
         <section className="space-y-5">

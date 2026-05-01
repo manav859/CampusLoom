@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
@@ -81,6 +82,7 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; action: 'activate' | 'deactivate'; studentId: string | null; error?: string }>({ isOpen: false, action: 'deactivate', studentId: null });
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
@@ -162,27 +164,29 @@ export default function StudentsPage() {
 
   const totalPages = Math.ceil(total / perPage);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to deactivate this student?")) return;
-    try {
-      await apiFetch(`/students/${id}`, { method: "DELETE" });
-      setStudents((prev) => prev.filter((s) => s.id !== id));
-      setTotal((prev) => prev - 1);
-    } catch (e) {
-      console.error(e);
-      alert("Failed to deactivate student");
-    }
+  const handleDelete = (id: string) => {
+    setConfirmDialog({ isOpen: true, action: 'deactivate', studentId: id });
   };
 
-  const handleActivate = async (id: string) => {
-    if (!confirm("Are you sure you want to activate this student?")) return;
+  const handleActivate = (id: string) => {
+    setConfirmDialog({ isOpen: true, action: 'activate', studentId: id });
+  };
+
+  const handleConfirmAction = async () => {
+    const { studentId, action } = confirmDialog;
+    if (!studentId) return;
+
     try {
-      await apiFetch(`/students/${id}/activate`, { method: "PATCH" });
-      setStudents((prev) => prev.filter((s) => s.id !== id));
+      if (action === 'deactivate') {
+        await apiFetch(`/students/${studentId}`, { method: "DELETE" });
+      } else {
+        await apiFetch(`/students/${studentId}/activate`, { method: "PATCH" });
+      }
+      setStudents((prev) => prev.filter((s) => s.id !== studentId));
       setTotal((prev) => prev - 1);
-    } catch (e) {
-      console.error(e);
-      alert("Failed to activate student");
+      setConfirmDialog({ isOpen: false, action: 'deactivate', studentId: null });
+    } catch (e: any) {
+      setConfirmDialog((prev) => ({ ...prev, error: e?.message || `Failed to ${action} student` }));
     }
   };
 
@@ -197,8 +201,7 @@ export default function StudentsPage() {
             </svg>
           </div>
           <div>
-            <h1 className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">Students — Fee Status Overview</h1>
-            <p className="text-[12px] text-[#86868b] font-medium">Showing {filtered.length} of {total} students · Searchable by name, class, fee status</p>
+            <h1 className="text-[22px] font-semibold tracking-tight text-[#1d1d1f]">Students</h1>
           </div>
         </div>
         {isAdmin && (
@@ -337,8 +340,14 @@ export default function StudentsPage() {
                                   Deactivate
                                 </button>
                               ) : (
-                                <button onClick={() => handleActivate(student.id)} className="inline-flex items-center rounded-lg bg-[rgba(52,199,89,0.1)] px-3 py-1.5 text-[11px] font-bold text-[#248a3d] hover:bg-[#34c759] hover:text-white transition-colors">
-                                  Activate
+                                <button 
+                                  onClick={() => handleActivate(student.id)} 
+                                  title="Activate Student"
+                                  className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-[rgba(52,199,89,0.1)] text-[#248a3d] hover:bg-[#34c759] hover:text-white transition-colors"
+                                >
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                  </svg>
                                 </button>
                               )
                             )}
@@ -409,6 +418,52 @@ export default function StudentsPage() {
           </div>
         </div>
       </div>
+      {/* ── Custom Confirm Modal ── */}
+      {confirmDialog.isOpen && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" style={{ zIndex: 9999 }}>
+          <div className="w-full max-w-sm rounded-2xl bg-white/90 backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${confirmDialog.action === 'deactivate' ? 'bg-[#ff3b30]/10 text-[#ff3b30]' : 'bg-[#34c759]/10 text-[#34c759]'} mb-4`}>
+                {confirmDialog.action === 'deactivate' ? (
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                ) : (
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                )}
+              </div>
+              <h3 className="text-lg font-semibold text-[#1d1d1f]">
+                {confirmDialog.action === 'deactivate' ? 'Deactivate Student' : 'Activate Student'}
+              </h3>
+              <p className="mt-2 text-[13px] text-[#86868b]">
+                Are you sure you want to {confirmDialog.action} this student? You can reverse this action later.
+              </p>
+
+              {confirmDialog.error && (
+                <div className="mt-4 p-3 rounded-lg bg-[rgba(255,59,48,0.1)] border border-[rgba(255,59,48,0.2)] text-[#d70015] text-[12px] font-medium text-left flex items-start gap-2">
+                  <svg className="h-4 w-4 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  {confirmDialog.error}
+                </div>
+              )}
+            </div>
+            <div className="flex border-t border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/50">
+              <button 
+                onClick={() => setConfirmDialog({ isOpen: false, action: 'deactivate', studentId: null })} 
+                className="flex-1 py-3 text-[14px] font-medium text-[#1d1d1f] hover:bg-[#e5e5ea] transition-colors border-r border-[rgba(0,0,0,0.06)]"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleConfirmAction} 
+                className={`flex-1 py-3 text-[14px] font-semibold transition-colors ${confirmDialog.action === 'deactivate' ? 'text-[#ff3b30] hover:bg-[#ff3b30]/10' : 'text-[#34c759] hover:bg-[#34c759]/10'}`}
+              >
+                {confirmDialog.action === 'deactivate' ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

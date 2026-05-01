@@ -61,12 +61,21 @@ export default function TeacherAttendancePage() {
       )}
 
       {attendance.error || attendance.success ? (
-        <div className="fixed inset-x-0 bottom-[88px] z-30 px-4 sm:px-6" role="status" aria-live="polite">
+        <div className="fixed inset-x-0 bottom-[88px] z-50 flex justify-center px-4 pointer-events-none" role="status" aria-live="polite">
           <div
-            className={`mx-auto max-w-4xl rounded-2xl px-4 py-3 text-[13px] font-semibold shadow-apple ${
-              attendance.error ? "bg-[#ff3b30]/10 text-[#d70015]" : "bg-[#34c759]/10 text-[#248a3d]"
+            className={`rounded-full px-5 py-2.5 text-[14px] font-semibold shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-2 ${
+              attendance.error ? "bg-white/95 text-[#d70015] border border-[#ff3b30]/20" : "bg-[#34c759] text-white border border-[#34c759]/20"
             }`}
           >
+            {attendance.error ? (
+              <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            )}
             {attendance.error || attendance.success}
           </div>
         </div>

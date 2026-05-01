@@ -56,7 +56,13 @@ export function isRetryableError(error: unknown): boolean {
 
   // Prisma unhandled request errors (connection-level failures during a query)
   if (error instanceof Prisma.PrismaClientUnknownRequestError) {
-    return true;
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes("connection") ||
+      msg.includes("timed out") ||
+      msg.includes("econnreset") ||
+      msg.includes("epipe")
+    );
   }
 
   // Generic Node.js network errors (ECONNRESET, EPIPE, ETIMEDOUT, etc.)
