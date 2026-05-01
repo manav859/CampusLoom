@@ -42,7 +42,7 @@ export default function NewClassPage() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
-    const payload = { ...formData };
+    const payload: Record<string, any> = { ...formData };
     if (!payload.classTeacherId) delete payload.classTeacherId;
     try {
       await apiFetch("/classes", {
