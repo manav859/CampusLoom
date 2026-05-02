@@ -22,6 +22,14 @@ type StudentMonthlyParams = {
   studentId: string;
 };
 
+type ClassMonthlyParams = {
+  classId: string;
+};
+
+type ClassMonthlyQuery = {
+  month: string;
+};
+
 type StudentMonthlyQuery = {
   month: string;
 };
@@ -36,6 +44,10 @@ export const getClassTodayAttendance = asyncHandler<Request<ClassTodayParams>>(a
 
 export const getStudentMonthlyAttendance = asyncHandler<Request<StudentMonthlyParams, unknown, unknown, StudentMonthlyQuery>>(async (req, res) => {
   res.json(await attendanceService.getStudentMonthlyAttendance(req.user!, req.params.studentId, req.query.month));
+});
+
+export const getClassMonthlyAttendance = asyncHandler<Request<ClassMonthlyParams, unknown, unknown, ClassMonthlyQuery>>(async (req, res) => {
+  res.json(await attendanceService.getClassMonthlyAttendance(req.user!, req.params.classId, req.query.month));
 });
 
 export const getAttendanceDashboard = asyncHandler(async (req: Request, res: Response) => {

@@ -11,6 +11,8 @@ enum UserRole {
   PRINCIPAL
   ADMIN
   TEACHER
+  ACCOUNTANT
+  PARENT
 }
 
 enum UserStatus {
@@ -73,6 +75,7 @@ enum HomeworkSubmissionStatus {
   ON_TIME
   LATE
   MISSING
+  NOT_SUBMITTED
 }
 
 enum CommunicationType {
@@ -95,6 +98,12 @@ enum CommunicationStatus {
   COMPLETED
   MISSED
   NOTE
+}
+
+enum CommunicationMessageType {
+  ATTENDANCE_ALERT
+  HOMEWORK_REMINDER
+  CUSTOM
 }
 
 enum BehaviourType {
@@ -257,6 +266,7 @@ model CommunicationLog {
   schoolId  String               @db.Uuid
   studentId String               @db.Uuid
   type      CommunicationType
+  messageType CommunicationMessageType?
   channel   CommunicationChannel
   summary   String
   status    CommunicationStatus
@@ -332,6 +342,7 @@ model Subject {
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   class  Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
   examResults ExamResult[]
+  exams Exam[] @relation("ExamSubject")
   homeworkRecords HomeworkRecord[]
   homeworkAssignments HomeworkAssignment[]
 
@@ -344,16 +355,20 @@ model Exam {
   id        String   @id @default(uuid()) @db.Uuid
   schoolId  String   @db.Uuid
   classId   String?  @db.Uuid
+  subjectId String?  @db.Uuid
   name      String
+  maxMarks  Decimal? @db.Decimal(6, 2)
   examDate  DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   class  Class? @relation(fields: [classId], references: [id], onDelete: SetNull)
+  subjectRef Subject? @relation("ExamSubject", fields: [subjectId], references: [id], onDelete: SetNull)
   results ExamResult[]
 
   @@index([schoolId, classId, examDate])
+  @@index([schoolId, subjectId])
   @@map("exams")
 }
 
@@ -367,6 +382,8 @@ model ExamResult {
   assessmentName String
   marksObtained Decimal  @db.Decimal(6, 2)
   maxMarks      Decimal  @db.Decimal(6, 2)
+  percentage    Decimal? @db.Decimal(5, 2)
+  grade         String?
   examDate      DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -378,6 +395,7 @@ model ExamResult {
 
   @@index([schoolId, studentId, examDate])
   @@index([schoolId, examId, subjectId])
+  @@unique([studentId, examId])
   @@map("exam_results")
 }
 
@@ -410,6 +428,7 @@ model HomeworkAssignment {
   subjectId    String?  @db.Uuid
   subject      String?
   title        String
+  description  String?
   assignedDate DateTime @default(now())
   dueDate      DateTime
   maxMarks     Decimal? @db.Decimal(6, 2)

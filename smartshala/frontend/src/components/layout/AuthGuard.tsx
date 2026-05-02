@@ -1,14 +1,46 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { SessionUser } from "@/types";
+import type { Role, SessionUser } from "@/types";
 import { authApi } from "@/lib/api";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
+const teacherAllowedPrefixes = ["/teacher", "/attendance", "/students"];
+const accountantAllowedPrefixes = ["/fees", "/students"];
+const parentAllowedPrefixes = ["/students"];
+
+function isAdminRole(role: Role) {
+  return role === "PRINCIPAL" || role === "ADMIN";
+}
+
+function roleHome(role: Role) {
+  if (role === "TEACHER") return "/teacher";
+  if (role === "ACCOUNTANT") return "/fees";
+  if (role === "PARENT") return "/students";
+  return "/dashboard";
+}
+
+function matchesPrefix(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+function isPathAllowedForRole(pathname: string, role: Role) {
+  if (isAdminRole(role)) return true;
+  if (matchesPrefix(pathname, "/students/new")) return false;
+  if (role === "TEACHER") {
+    if (matchesPrefix(pathname, "/attendance/reports")) return false;
+    return teacherAllowedPrefixes.some((prefix) => matchesPrefix(pathname, prefix));
+  }
+  if (role === "ACCOUNTANT") return accountantAllowedPrefixes.some((prefix) => matchesPrefix(pathname, prefix));
+  if (role === "PARENT") return parentAllowedPrefixes.some((prefix) => matchesPrefix(pathname, prefix));
+  return false;
+}
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,6 +84,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (!ready || !user) return;
+    if (isPathAllowedForRole(pathname, user.role)) return;
+    router.replace(roleHome(user.role));
+  }, [pathname, ready, router, user]);
+
   if (!ready || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4 bg-white">
@@ -67,6 +105,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           <div className="mx-auto mt-8 h-1 w-12 overflow-hidden rounded-full bg-[#f5f5f7]">
             <div className="h-full w-full animate-progress bg-[#0071e3]" />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isPathAllowedForRole(pathname, user.role)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 bg-white">
+        <div className="glass-card w-full max-w-sm p-8 text-center">
+          <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#86868b]">Access control</p>
+          <p className="mt-3 text-[18px] font-semibold text-[#1d1d1f]">Redirecting to your workspace...</p>
         </div>
       </div>
     );

@@ -120,6 +120,10 @@ export function StudentProfilePage() {
   }
 
   const attendance = currentMonthAttendance(student.attendanceRecords);
+  const allowedTabs = new Set(student.access?.allowedTabs ?? ["academic", "homework", "attendance", "fees", "communication", "behaviour", "documents"]);
+  const canViewAcademic = allowedTabs.has("academic");
+  const canViewAttendance = allowedTabs.has("attendance");
+  const canViewFees = allowedTabs.has("fees");
   const pendingFees = student.feeAssignments.reduce((sum, assignment) => sum + Number(assignment.pendingAmount ?? 0), 0);
   const paidFees = student.feeAssignments.reduce((sum, assignment) => sum + Number(assignment.paidAmount ?? 0), 0);
   const attendancePercentage = student.attendancePercentage ?? attendance.percentage;
@@ -145,6 +149,9 @@ export function StudentProfilePage() {
         performanceRate={performance}
         performanceClassification={classification}
         isPerformanceFallback={isPerformanceFallback}
+        canViewAcademic={canViewAcademic}
+        canViewAttendance={canViewAttendance}
+        canViewFees={canViewFees}
       />
       <StudentProfileTabs student={student} attendance={attendanceWithSnapshot} pendingFees={feeBalance} paidFees={paidFees} />
     </div>

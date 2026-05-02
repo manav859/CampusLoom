@@ -108,7 +108,7 @@ export async function getMarkingRoster(user: Express.UserContext, classId: strin
 
   return {
     date: normalizedDate,
-    canEdit: isAdminRole(user.role) || !existingSession,
+    canEdit: true,
     session: existingSession,
     students: students.map((student) => ({
       ...student,
@@ -132,20 +132,6 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
 
   const classRecord = await assertClassAccess(user, classId);
   const normalizedDate = startOfDay(date);
-  const existingSession = await prisma.attendanceSession.findUnique({
-    where: {
-      schoolId_classId_date: {
-        schoolId: user.schoolId,
-        classId,
-        date: normalizedDate
-      }
-    }
-  });
-
-  if (existingSession) {
-    throw new AppError(409, "Attendance has already been submitted for this class and date", "ATTENDANCE_ALREADY_SUBMITTED");
-  }
-
   const submittedStudentIds = records.map((record) => record.studentId);
   const validStudents = await prisma.student.findMany({
     where: {
@@ -166,56 +152,68 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
     });
   }
 
-  try {
-    const createdSession = await prisma.$transaction(async (tx) => {
-      const session = await tx.attendanceSession.create({
-        data: {
+  const createdSession = await prisma.$transaction(async (tx) => {
+    const session = await tx.attendanceSession.upsert({
+      where: {
+        schoolId_classId_date: {
           schoolId: user.schoolId,
           classId,
-          date: normalizedDate,
-          markedById: user.id,
-          notes
+          date: normalizedDate
         }
-      });
+      },
+      update: {
+        markedById: user.id,
+        notes,
+        submittedAt: new Date()
+      },
+      create: {
+        schoolId: user.schoolId,
+        classId,
+        date: normalizedDate,
+        markedById: user.id,
+        notes
+      }
+    });
 
-      await tx.attendanceRecord.createMany({
-        data: records.map((record) => ({
+    for (const record of records) {
+      await tx.attendanceRecord.upsert({
+        where: { sessionId_studentId: { sessionId: session.id, studentId: record.studentId } },
+        update: {
+          status: record.status,
+          remarks: record.remarks
+        },
+        create: {
           schoolId: user.schoolId,
           sessionId: session.id,
           studentId: record.studentId,
           status: record.status,
           remarks: record.remarks
-        }))
-      });
-
-      const createdSession = await tx.attendanceSession.findFirst({
-        where: { id: session.id, schoolId: user.schoolId },
-        include: {
-          records: true,
-          class: true,
-          markedBy: { select: { id: true, fullName: true } }
         }
       });
-
-      if (!createdSession) throw notFound("Attendance session");
-      return createdSession;
-    });
-
-    queueAbsentAttendanceNotifications({
-      schoolId: user.schoolId,
-      classId,
-      className: `${classRecord.name}-${classRecord.section}`,
-      date: normalizedDate,
-      absentStudentIds: records.filter((record) => record.status === AttendanceStatus.ABSENT).map((record) => record.studentId)
-    });
-
-    return createdSession;
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      throw new AppError(409, "Attendance has already been submitted for this class and date", "ATTENDANCE_ALREADY_SUBMITTED");
     }
-    throw error;
-  }
+
+    const createdSession = await tx.attendanceSession.findFirst({
+      where: { id: session.id, schoolId: user.schoolId },
+      include: {
+        records: true,
+        class: true,
+        markedBy: { select: { id: true, fullName: true } }
+      }
+    });
+
+    if (!createdSession) throw notFound("Attendance session");
+    return createdSession;
+  });
+
+  queueAbsentAttendanceNotifications({
+    schoolId: user.schoolId,
+    classId,
+    className: `${classRecord.name}-${classRecord.section}`,
+    date: normalizedDate,
+    absentStudentIds: records.filter((record) => record.status === AttendanceStatus.ABSENT).map((record) => record.studentId)
+  });
+
+  return createdSession;
 }
 
 function queueAbsentAttendanceNotifications(input: AbsentAttendanceNotificationInput) {
@@ -394,6 +392,47 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
       date: formatDate(record.session.date),
       status: record.status
     }))
+  };
+}
+
+export async function getClassMonthlyAttendance(user: AttendanceUser, classId: string, month: string) {
+  const classRecord = await assertClassAccess(user, classId);
+  const { start, end } = monthRange(month);
+  const [students, sessions] = await Promise.all([
+    prisma.student.count({ where: { schoolId: user.schoolId, classId, isActive: true } }),
+    prisma.attendanceSession.findMany({
+      where: {
+        schoolId: user.schoolId,
+        classId,
+        date: { gte: start, lte: end }
+      },
+      include: { records: { select: { status: true } } },
+      orderBy: { date: "asc" }
+    })
+  ]);
+
+  const days = sessions.map((session) => {
+    const present = session.records.filter((record) => record.status === AttendanceStatus.PRESENT).length;
+    const late = session.records.filter((record) => record.status === AttendanceStatus.LATE).length;
+    const absent = session.records.filter((record) => record.status === AttendanceStatus.ABSENT).length;
+    const total = session.records.length || students;
+    return {
+      date: formatDate(session.date),
+      marked: true,
+      total,
+      present,
+      late,
+      absent,
+      percentage: percentage(present + late, total)
+    };
+  });
+
+  return {
+    classId,
+    className: `${classRecord.name}-${classRecord.section}`,
+    month,
+    totalStudents: students,
+    days
   };
 }
 

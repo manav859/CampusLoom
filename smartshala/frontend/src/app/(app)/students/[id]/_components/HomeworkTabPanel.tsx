@@ -13,14 +13,14 @@ function dateLabel(value: string | null) {
 function statusLabel(status: StudentDetail["homeworkAnalytics"]["assignments"][number]["status"]) {
   if (status === "ON_TIME") return "On time";
   if (status === "LATE") return "Late";
-  if (status === "MISSING") return "Missing";
+  if (status === "MISSING" || status === "NOT_SUBMITTED") return "Not submitted";
   return "Pending";
 }
 
 function statusTone(status: StudentDetail["homeworkAnalytics"]["assignments"][number]["status"]) {
   if (status === "ON_TIME") return "good";
   if (status === "LATE") return "warn";
-  if (status === "MISSING") return "danger";
+  if (status === "MISSING" || status === "NOT_SUBMITTED") return "danger";
   return "neutral";
 }
 

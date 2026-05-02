@@ -7,6 +7,7 @@ declare global {
       schoolId: string;
       role: UserRole;
       fullName: string;
+      phone?: string;
     }
 
     interface Request {
@@ -16,4 +17,3 @@ declare global {
 }
 
 export {};
-

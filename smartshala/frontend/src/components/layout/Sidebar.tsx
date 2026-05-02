@@ -16,6 +16,9 @@ const adminLinks: NavLink[] = [
   { label: "Teachers", href: "/teachers", icon: "teachers" },
   { label: "Classes", href: "/classes", icon: "classes" },
   { label: "Attendance", href: "/attendance", icon: "attendance" },
+  { label: "Homework", href: "/teacher/homework", icon: "reports" },
+  { label: "Marks", href: "/teacher/marks", icon: "analytics" },
+  { label: "Communication", href: "/teacher/communication", icon: "notifications" },
   { label: "Reports", href: "/reports", icon: "reports" },
   { label: "Fees", href: "/fees", icon: "fees" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
@@ -25,14 +28,31 @@ const adminLinks: NavLink[] = [
 
 const teacherLinks: NavLink[] = [
   { label: "Dashboard", href: "/teacher", icon: "dashboard" },
+  { label: "Homework", href: "/teacher/homework", icon: "reports" },
+  { label: "Marks", href: "/teacher/marks", icon: "analytics" },
+  { label: "Communication", href: "/teacher/communication", icon: "notifications" },
   { label: "Mark Attendance", href: "/attendance", icon: "attendance" },
-  { label: "Attendance Reports", href: "/attendance/reports", icon: "reports" },
-  { label: "Students", href: "/students", icon: "students" },
-  { label: "Analytics", href: "/analytics", icon: "analytics" }
+  { label: "Students", href: "/students", icon: "students" }
+];
+
+const accountantLinks: NavLink[] = [
+  { label: "Fees", href: "/fees", icon: "fees" },
+  { label: "Students", href: "/students", icon: "students" }
+];
+
+const parentLinks: NavLink[] = [
+  { label: "Students", href: "/students", icon: "students" }
 ];
 
 function isAdminRole(role: Role) {
   return role === "PRINCIPAL" || role === "ADMIN";
+}
+
+function linksForRole(role: Role) {
+  if (isAdminRole(role)) return adminLinks;
+  if (role === "ACCOUNTANT") return accountantLinks;
+  if (role === "PARENT") return parentLinks;
+  return teacherLinks;
 }
 
 function NavIcon({ icon, active }: { icon: NavLink["icon"]; active: boolean }) {
@@ -114,7 +134,7 @@ function NavIcon({ icon, active }: { icon: NavLink["icon"]; active: boolean }) {
 
 export function Sidebar({ role, open = false, onClose }: { role: Role; open?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
-  const links = isAdminRole(role) ? adminLinks : teacherLinks;
+  const links = linksForRole(role);
 
   return (
     <>

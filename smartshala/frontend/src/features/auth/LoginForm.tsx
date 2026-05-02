@@ -20,7 +20,15 @@ export function LoginForm() {
       window.localStorage.setItem("smartshala.accessToken", result.accessToken);
       window.localStorage.setItem("smartshala.refreshToken", result.refreshToken);
       window.localStorage.setItem("smartshala.user", JSON.stringify(result.user));
-      router.replace(result.user.role === "TEACHER" ? "/teacher" : "/dashboard");
+      const target =
+        result.user.role === "TEACHER"
+          ? "/teacher"
+          : result.user.role === "ACCOUNTANT"
+            ? "/fees"
+            : result.user.role === "PARENT"
+              ? "/students"
+              : "/dashboard";
+      router.replace(target);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

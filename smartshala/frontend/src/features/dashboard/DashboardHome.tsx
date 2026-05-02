@@ -11,7 +11,7 @@ import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/S
 import { apiFetch, feesApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
 
 type DashboardResponse = {
-  role: "PRINCIPAL" | "ADMIN" | "TEACHER";
+  role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
   kpis: Record<string, number>;
   attendance?: { className: string; attendancePercentage: number; marked: boolean; absent: number }[];
   alerts?: { studentName?: string; message?: string; severity?: string; flags?: string[] }[];

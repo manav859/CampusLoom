@@ -11,6 +11,9 @@ type StickyHeaderProps = {
   performanceRate: number | null;
   performanceClassification: PerformanceClassification;
   isPerformanceFallback: boolean;
+  canViewAcademic: boolean;
+  canViewAttendance: boolean;
+  canViewFees: boolean;
 };
 
 type PillTone = "good" | "warn" | "danger" | "neutral";
@@ -121,7 +124,10 @@ export function StickyHeader({
   daysSinceLastAbsent,
   performanceRate,
   performanceClassification,
-  isPerformanceFallback
+  isPerformanceFallback,
+  canViewAcademic,
+  canViewAttendance,
+  canViewFees
 }: StickyHeaderProps) {
   const academic = academicStatus(performanceClassification);
   const attendance = attendanceStatus(attendancePercentage);
@@ -131,6 +137,7 @@ export function StickyHeader({
   const attendanceTone: KpiTone = attendancePercentage >= 85 ? "good" : attendancePercentage >= 75 ? "warn" : "danger";
   const feeTone: KpiTone = feeBalance <= 0 ? "good" : "warn";
   const absentTone: KpiTone = daysSinceLastAbsent === null ? "good" : daysSinceLastAbsent <= 2 ? "danger" : "neutral";
+  const canContactParent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN" || student.access?.role === "TEACHER";
 
   return (
     <div className="py-1.5">
@@ -154,38 +161,44 @@ export function StickyHeader({
                 </span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                <StatusTag label={academic.label} tone={academic.tone} />
-                <StatusTag label={attendance.label} tone={attendance.tone} />
-                <StatusTag label={fees.label} tone={fees.tone} />
+                {canViewAcademic ? <StatusTag label={academic.label} tone={academic.tone} /> : null}
+                {canViewAttendance ? <StatusTag label={attendance.label} tone={attendance.tone} /> : null}
+                {canViewFees ? <StatusTag label={fees.label} tone={fees.tone} /> : null}
               </div>
             </div>
           </div>
 
           {/* Right: Action buttons */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <a
-              className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
-              href={`tel:${student.parentPhone}`}
-            >
-              <PhoneIcon />
-              Call parent
-            </a>
-            <a
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#25d366] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#20bd5a]"
-              href={whatsappLink(student.parentPhone)}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <WhatsAppIcon />
-              WhatsApp
-            </a>
-            <Link
-              className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
-              href={`/fees/${student.id}`}
-            >
-              <LedgerIcon />
-              Fee ledger
-            </Link>
+            {canContactParent ? (
+              <>
+                <a
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
+                  href={`tel:${student.parentPhone}`}
+                >
+                  <PhoneIcon />
+                  Call parent
+                </a>
+                <a
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#25d366] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#20bd5a]"
+                  href={whatsappLink(student.parentPhone)}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <WhatsAppIcon />
+                  WhatsApp
+                </a>
+              </>
+            ) : null}
+            {canViewFees ? (
+              <Link
+                className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
+                href={`/fees/${student.id}`}
+              >
+                <LedgerIcon />
+                Fee ledger
+              </Link>
+            ) : null}
           </div>
         </div>
 
@@ -194,10 +207,10 @@ export function StickyHeader({
 
         {/* ── Bottom row: KPI mini-cards ── */}
         <div className="grid grid-cols-2 gap-2.5 px-5 py-3 lg:grid-cols-4">
-          <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} />
-          <MiniKpiCard label="Current rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" />
-          <MiniKpiCard label="Fee balance" value={money(feeBalance)} tone={feeTone} />
-          <MiniKpiCard label="Days since absent" value={formatDaysSinceLastAbsent(daysSinceLastAbsent)} tone={absentTone} />
+          {canViewAttendance ? <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} /> : null}
+          {canViewAcademic ? <MiniKpiCard label="Current rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" /> : null}
+          {canViewFees ? <MiniKpiCard label="Fee balance" value={money(feeBalance)} tone={feeTone} /> : null}
+          {canViewAttendance ? <MiniKpiCard label="Days since absent" value={formatDaysSinceLastAbsent(daysSinceLastAbsent)} tone={absentTone} /> : null}
         </div>
       </section>
     </div>

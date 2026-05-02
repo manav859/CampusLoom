@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/Skeleton";
 import type { StudentDetail } from "@/lib/api";
@@ -91,15 +91,25 @@ function TabPanelSkeleton() {
 }
 
 export function StudentProfileTabs({ student, attendance, pendingFees, paidFees }: StudentProfileTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("academic");
-  const activeConfig = tabs.find((tab) => tab.key === activeTab) ?? tabs[0];
+  const availableTabs = useMemo(() => {
+    const allowed = new Set<TabKey>((student.access?.allowedTabs as TabKey[] | undefined) ?? tabs.map((tab) => tab.key));
+    return tabs.filter((tab) => allowed.has(tab.key));
+  }, [student.access?.allowedTabs]);
+  const [activeTab, setActiveTab] = useState<TabKey>(availableTabs[0]?.key ?? "academic");
+  const activeConfig = availableTabs.find((tab) => tab.key === activeTab) ?? availableTabs[0] ?? tabs[0];
   const panelId = `student-tab-panel-${activeConfig.key}`;
+
+  useEffect(() => {
+    if (!availableTabs.some((tab) => tab.key === activeTab)) {
+      setActiveTab(availableTabs[0]?.key ?? "academic");
+    }
+  }, [activeTab, availableTabs]);
 
   return (
     <section className="space-y-4">
       <div className="overflow-x-auto rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-1.5 shadow-apple-sm">
         <div className="flex gap-1" role="tablist" aria-label="Student profile sections">
-          {tabs.map((tab) => {
+          {availableTabs.map((tab) => {
             const selected = activeTab === tab.key;
             return (
               <button
@@ -124,7 +134,9 @@ export function StudentProfileTabs({ student, attendance, pendingFees, paidFees 
       </div>
 
       <div aria-labelledby={`student-tab-${activeConfig.key}`} id={panelId} role="tabpanel">
-        {activeTab === "academic" ? (
+        {availableTabs.length === 0 ? (
+          <EmptyPanel title="Restricted" message="No student sections are available for this role." />
+        ) : activeTab === "academic" ? (
           <AcademicPanel student={student} attendance={attendance} pendingFees={pendingFees} paidFees={paidFees} />
         ) : activeTab === "homework" ? (
           <HomeworkPanel student={student} />

@@ -44,7 +44,8 @@ export default function AttendanceReportsPage() {
     () => ({
       total: data ? data.students.present + data.students.absent : 0,
       present: data?.students.present ?? 0,
-      absent: data?.students.absent ?? 0
+      absent: data?.students.absent ?? 0,
+      late: 0
     }),
     [data]
   );
@@ -103,7 +104,7 @@ export default function AttendanceReportsPage() {
         </div>
       </div>
 
-      <AttendanceSummary total={totals.total} present={totals.present} absent={totals.absent} />
+      <AttendanceSummary total={totals.total} present={totals.present} absent={totals.absent} late={totals.late} />
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="glass-card-interactive p-6">

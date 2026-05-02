@@ -11,8 +11,44 @@ function startOfToday() {
 }
 
 export async function getDashboard(user: Express.UserContext) {
+  if (user.role === UserRole.PRINCIPAL || user.role === UserRole.ADMIN) return principalDashboard(user);
   if (user.role === UserRole.TEACHER) return teacherDashboard(user);
-  return principalDashboard(user);
+  if (user.role === UserRole.ACCOUNTANT) return accountantDashboard(user);
+  return parentDashboard(user);
+}
+
+async function accountantDashboard(user: Express.UserContext) {
+  const feeSummary = await feesDashboard(user.schoolId);
+  return {
+    role: user.role,
+    kpis: {
+      totalFeesPending: feeSummary.totalPending,
+      totalFeesCollected: feeSummary.totalCollected,
+      overdueInstallments: feeSummary.overdueInstallments
+    },
+    feeSummary,
+    alerts: []
+  };
+}
+
+async function parentDashboard(user: Express.UserContext) {
+  const students = await prisma.student.findMany({
+    where: {
+      schoolId: user.schoolId,
+      isActive: true,
+      OR: [{ parentPhone: user.phone ?? "" }, { alternatePhone: user.phone ?? "" }]
+    },
+    select: { id: true, fullName: true }
+  });
+
+  return {
+    role: user.role,
+    kpis: {
+      linkedStudents: students.length
+    },
+    students,
+    alerts: []
+  };
 }
 
 async function principalDashboard(user: Express.UserContext) {

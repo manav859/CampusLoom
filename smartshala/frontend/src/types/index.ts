@@ -1,4 +1,4 @@
-export type Role = "PRINCIPAL" | "ADMIN" | "TEACHER";
+export type Role = "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
 
 export type SessionUser = {
   id: string;

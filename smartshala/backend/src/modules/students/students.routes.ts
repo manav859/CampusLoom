@@ -8,8 +8,8 @@ import { behaviourRecordSchema, studentDocumentSchema, studentSchema } from "./s
 
 export const studentsRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
-const behaviourRoles = [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.TEACHER] as const;
-const documentRoles = [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.TEACHER] as const;
+const behaviourRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
+const documentRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 1 }

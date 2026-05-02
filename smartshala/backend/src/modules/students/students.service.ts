@@ -6,6 +6,7 @@ import {
   BehaviourSeverity,
   BehaviourType,
   HomeworkSubmissionStatus,
+  NotificationKind,
   StudentDocumentType,
   UserRole
 } from "@prisma/client";
@@ -28,6 +29,8 @@ type HomeworkForPerformance = {
   completionPercentage: unknown;
 };
 
+type StudentProfileTab = "academic" | "homework" | "attendance" | "fees" | "communication" | "behaviour" | "documents";
+
 const allowedDocumentMimeTypes = new Set([
   "application/pdf",
   "image/jpeg",
@@ -36,6 +39,80 @@ const allowedDocumentMimeTypes = new Set([
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 ]);
+
+const fullAccessTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "fees", "communication", "behaviour", "documents"];
+const teacherTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "communication"];
+const accountantTabs: StudentProfileTab[] = ["fees"];
+const parentTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "fees"];
+const queryCache = new Map<string, { expiresAt: number; value: unknown }>();
+
+function isPrincipalRole(role: UserRole) {
+  return role === UserRole.PRINCIPAL || role === UserRole.ADMIN;
+}
+
+function allowedTabsForRole(role: UserRole): StudentProfileTab[] {
+  if (isPrincipalRole(role)) return fullAccessTabs;
+  if (role === UserRole.TEACHER) return teacherTabs;
+  if (role === UserRole.ACCOUNTANT) return accountantTabs;
+  if (role === UserRole.PARENT) return parentTabs;
+  return [];
+}
+
+function hasTab(tabs: StudentProfileTab[], tab: StudentProfileTab) {
+  return tabs.includes(tab);
+}
+
+async function cached<T>(key: string, ttlMs: number, loader: () => Promise<T>) {
+  const current = queryCache.get(key);
+  if (current && current.expiresAt > Date.now()) return current.value as T;
+  const value = await loader();
+  queryCache.set(key, { expiresAt: Date.now() + ttlMs, value });
+  return value;
+}
+
+async function phoneForUser(user: Express.UserContext) {
+  if (user.phone) return user.phone;
+  const currentUser = await prisma.user.findUnique({ where: { id: user.id }, select: { phone: true } });
+  return currentUser?.phone ?? "";
+}
+
+async function studentAccessFilter(user: Express.UserContext) {
+  if (user.role === UserRole.TEACHER) return { class: { classTeacherId: user.id } };
+  if (user.role === UserRole.PARENT) {
+    const phone = await phoneForUser(user);
+    if (!phone) return { parentPhone: "__NO_PARENT_PHONE__" };
+    return { OR: [{ parentPhone: phone }, { alternatePhone: phone }] };
+  }
+  return {};
+}
+
+function emptyHomeworkAnalytics() {
+  return {
+    completionPercentage: null,
+    counts: { total: 0, onTime: 0, late: 0, missing: 0 },
+    currentStreak: 0,
+    subjects: [],
+    assignments: []
+  };
+}
+
+function emptyAttendanceAnalytics() {
+  return {
+    records: [],
+    calendar: [],
+    metrics: { attendancePercentage: 0, totalDays: 0, absences: 0, late: 0, remainingBefore75: 0 },
+    cbseWarning: false,
+    repeatedWeekdayAbsences: []
+  };
+}
+
+function emptyBehaviourAnalytics(role: UserRole) {
+  return {
+    canViewCounsellorNotes: canViewCounsellorNotes(role),
+    counts: { incidents: 0, achievements: 0, counsellorNotes: 0, total: 0 },
+    records: []
+  };
+}
 
 function toNumber(value: unknown) {
   return Number(value ?? 0);
@@ -285,7 +362,11 @@ function homeworkAssignmentSubjectName(assignment: HomeworkAssignmentForAnalytic
 function normalizeHomeworkStatus(assignment: HomeworkAssignmentForAnalytics) {
   const submission = assignment.submissions[0];
   if (submission) return submission.status;
-  return assignment.dueDate.getTime() < Date.now() ? HomeworkSubmissionStatus.MISSING : null;
+  return assignment.dueDate.getTime() < Date.now() ? HomeworkSubmissionStatus.NOT_SUBMITTED : null;
+}
+
+function isHomeworkNotSubmitted(status: HomeworkSubmissionStatus | "PENDING" | string) {
+  return status === HomeworkSubmissionStatus.MISSING || status === HomeworkSubmissionStatus.NOT_SUBMITTED;
 }
 
 function homeworkAnalyticsFromAssignments(assignments: HomeworkAssignmentForAnalytics[]) {
@@ -312,7 +393,7 @@ function homeworkAnalyticsFromAssignments(assignments: HomeworkAssignmentForAnal
 
   const onTime = log.filter((item) => item.status === HomeworkSubmissionStatus.ON_TIME).length;
   const late = log.filter((item) => item.status === HomeworkSubmissionStatus.LATE).length;
-  const missing = log.filter((item) => item.status === HomeworkSubmissionStatus.MISSING).length;
+  const missing = log.filter((item) => isHomeworkNotSubmitted(item.status)).length;
   const completionPercentage = total ? Math.round((onTime / total) * 100) : null;
 
   const currentStreak = [...log]
@@ -330,7 +411,7 @@ function homeworkAnalyticsFromAssignments(assignments: HomeworkAssignmentForAnal
     current.total += 1;
     if (item.status === HomeworkSubmissionStatus.ON_TIME) current.onTime += 1;
     if (item.status === HomeworkSubmissionStatus.LATE) current.late += 1;
-    if (item.status === HomeworkSubmissionStatus.MISSING) current.missing += 1;
+    if (isHomeworkNotSubmitted(item.status)) current.missing += 1;
     subjectMap.set(item.subject, current);
   });
 
@@ -366,10 +447,21 @@ async function homeworkAnalytics(schoolId: string, classId: string, studentId: s
   return homeworkAnalyticsFromAssignments(assignments as HomeworkAssignmentForAnalytics[]);
 }
 
-async function communicationAudit(schoolId: string, studentId: string) {
+async function communicationAudit(user: Express.UserContext, studentId: string) {
+  const notificationWhere = {
+    schoolId: user.schoolId,
+    studentId,
+    ...(user.role === UserRole.TEACHER
+      ? {
+          kind: {
+            notIn: [NotificationKind.FEE_REMINDER, NotificationKind.OVERDUE_FEE, NotificationKind.PAYMENT_RECEIPT]
+          }
+        }
+      : {})
+  };
   const [notifications, communicationLogs] = await Promise.all([
     prisma.notification.findMany({
-      where: { schoolId, studentId },
+      where: notificationWhere,
       select: {
         id: true,
         kind: true,
@@ -380,10 +472,11 @@ async function communicationAudit(schoolId: string, studentId: string) {
       }
     }),
     prisma.communicationLog.findMany({
-      where: { schoolId, studentId },
+      where: { schoolId: user.schoolId, studentId },
       select: {
         id: true,
         type: true,
+        messageType: true,
         channel: true,
         summary: true,
         status: true,
@@ -411,13 +504,13 @@ async function communicationAudit(schoolId: string, studentId: string) {
       status: log.status,
       timestamp: log.timestamp,
       source: "communication_log",
-      reference: null
+      reference: log.messageType
     }))
   ].sort((left, right) => right.timestamp.getTime() - left.timestamp.getTime() || right.id.localeCompare(left.id));
 }
 
 function canViewCounsellorNotes(role: UserRole) {
-  return role === UserRole.PRINCIPAL || role === UserRole.ADMIN;
+  return isPrincipalRole(role);
 }
 
 async function behaviourAnalytics(user: Express.UserContext, studentId: string) {
@@ -668,19 +761,15 @@ async function currentRankForStudent(schoolId: string, classId: string, studentI
 export async function listStudents(user: Express.UserContext, query: unknown) {
   return withRetry(async () => {
     const pagination = getPagination(query);
-    const teacherClassIds =
-      user.role === UserRole.TEACHER
-        ? (await prisma.class.findMany({ where: { schoolId: user.schoolId, classTeacherId: user.id }, select: { id: true } })).map(
-            (item) => item.id
-          )
-        : undefined;
+    const accessFilter = await studentAccessFilter(user);
+    const canViewFees = hasTab(allowedTabsForRole(user.role), "fees");
 
     const { classId } = (query || {}) as { classId?: string };
 
     const where = {
       schoolId: user.schoolId,
       ...(classId ? { classId } : {}),
-      ...(teacherClassIds ? { classId: { in: teacherClassIds } } : {}),
+      ...accessFilter,
       ...(pagination.search
         ? {
             OR: [
@@ -698,9 +787,9 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
         where,
         skip: pagination.skip,
         take: pagination.take,
-        include: { 
+        include: {
           class: { select: { id: true, name: true, section: true, academicYear: true } },
-          feeAssignments: { select: { id: true, pendingAmount: true, status: true } }
+          ...(canViewFees ? { feeAssignments: { select: { id: true, pendingAmount: true, status: true } } } : {})
         },
         orderBy: [{ class: { name: "asc" } }, { rollNumber: "asc" }, { fullName: "asc" }]
       }),
@@ -713,40 +802,84 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
 
 export async function getStudent(user: Express.UserContext, id: string) {
   return withRetry(async () => {
+    const allowedTabs = allowedTabsForRole(user.role);
+    const canViewAcademic = hasTab(allowedTabs, "academic");
+    const canViewHomework = hasTab(allowedTabs, "homework");
+    const canViewAttendance = hasTab(allowedTabs, "attendance");
+    const canViewFees = hasTab(allowedTabs, "fees");
+    const canViewCommunication = hasTab(allowedTabs, "communication");
+    const canViewBehaviour = hasTab(allowedTabs, "behaviour");
+    const canViewDocuments = hasTab(allowedTabs, "documents");
+    const accessFilter = await studentAccessFilter(user);
+
     const student = await prisma.student.findFirst({
       where: {
         id,
         schoolId: user.schoolId,
-        ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
+        ...accessFilter
       },
       include: {
         class: true,
-        examResults: { select: { marksObtained: true, maxMarks: true } },
-        homeworkRecords: { select: { completionPercentage: true } },
-        feeAssignments: { include: { feeStructure: true, payments: { include: { receipt: true } } } },
-        attendanceRecords: {
-          take: 60,
-          orderBy: { createdAt: "desc" },
-          include: { session: { select: { date: true, classId: true } } }
-        }
+        ...(canViewAcademic ? { examResults: { select: { marksObtained: true, maxMarks: true } } } : {}),
+        ...(canViewHomework ? { homeworkRecords: { select: { completionPercentage: true } } } : {}),
+        ...(canViewFees ? { feeAssignments: { include: { feeStructure: true, payments: { include: { receipt: true } } } } } : {}),
+        ...(canViewAttendance || canViewAcademic
+          ? {
+              attendanceRecords: {
+                take: 60,
+                orderBy: { createdAt: "desc" },
+                include: { session: { select: { date: true, classId: true } } }
+              }
+            }
+          : {})
       }
     });
     if (!student) throw notFound("Student");
 
-    const { attendancePercentage, lastAbsentDate } = attendanceSnapshot(student.attendanceRecords);
-    const attendance = attendanceAnalytics(student.attendanceRecords);
-    const homework = await homeworkAnalytics(user.schoolId, student.classId, student.id);
-    const performance = performanceSnapshot(student.examResults, student.homeworkRecords, attendancePercentage, homework.completionPercentage);
-    const analytics = await academicAnalytics(user.schoolId, student.classId, student.id);
-    const communication = await communicationAudit(user.schoolId, student.id);
-    const behaviour = await behaviourAnalytics(user, student.id);
-    const documents = await documentAudit(user.schoolId, student.id);
-    const feeBalance = student.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0);
-    const currentRank = await currentRankForStudent(user.schoolId, student.classId, student.id);
-    const { examResults, homeworkRecords, ...studentPayload } = student;
+    const studentRecord = student as typeof student & {
+      attendanceRecords?: AttendanceForSnapshot[];
+      examResults?: ExamForPerformance[];
+      homeworkRecords?: HomeworkForPerformance[];
+      feeAssignments?: { pendingAmount: unknown }[];
+    };
+    const attendanceRecords = studentRecord.attendanceRecords ?? [];
+    const examResults = studentRecord.examResults ?? [];
+    const homeworkRecords = studentRecord.homeworkRecords ?? [];
+    const feeAssignments = studentRecord.feeAssignments ?? [];
+    const { attendancePercentage, lastAbsentDate } =
+      canViewAttendance || canViewAcademic ? attendanceSnapshot(attendanceRecords) : { attendancePercentage: 0, lastAbsentDate: null };
+    const attendance = canViewAttendance ? attendanceAnalytics(attendanceRecords) : emptyAttendanceAnalytics();
+    const homework = canViewHomework
+      ? await cached(`homework:${user.schoolId}:${student.classId}:${student.id}`, 30_000, () => homeworkAnalytics(user.schoolId, student.classId, student.id))
+      : emptyHomeworkAnalytics();
+    const performance = canViewAcademic
+      ? performanceSnapshot(examResults, homeworkRecords, attendancePercentage, homework.completionPercentage)
+      : {
+          examAverage: null,
+          homeworkCompletion: null,
+          attendancePercentage,
+          performanceRate: null,
+          performanceClassification: null
+        };
+    const analytics = canViewAcademic
+      ? await cached(`academic:${user.schoolId}:${student.classId}:${student.id}`, 30_000, () => academicAnalytics(user.schoolId, student.classId, student.id))
+      : { exams: [], trend: [], subjects: [] };
+    const communication = canViewCommunication ? await communicationAudit(user, student.id) : [];
+    const behaviour = canViewBehaviour ? await behaviourAnalytics(user, student.id) : emptyBehaviourAnalytics(user.role);
+    const documents = canViewDocuments ? await documentAudit(user.schoolId, student.id) : [];
+    const feeBalance = canViewFees ? feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0) : 0;
+    const currentRank = canViewAcademic
+      ? await cached(`rank:${user.schoolId}:${student.classId}:${student.id}`, 30_000, () => currentRankForStudent(user.schoolId, student.classId, student.id))
+      : null;
+    const { examResults: _examResults, homeworkRecords: _homeworkRecords, feeAssignments: _feeAssignments, attendanceRecords: _attendanceRecords, ...studentPayload } =
+      studentRecord as any;
 
     return {
       ...studentPayload,
+      access: {
+        role: user.role,
+        allowedTabs
+      },
       lastAbsentDate,
       currentRank,
       ...performance,
@@ -756,6 +889,8 @@ export async function getStudent(user: Express.UserContext, id: string) {
       communicationAudit: communication,
       behaviourAnalytics: behaviour,
       documents,
+      feeAssignments: canViewFees ? feeAssignments : [],
+      attendanceRecords: canViewAttendance ? attendanceRecords : [],
       feeBalance
     };
   }, { label: "getStudent" });
@@ -768,6 +903,9 @@ export async function uploadStudentDocument(
   file?: Express.Multer.File
 ) {
   return withRetry(async () => {
+    if (!isPrincipalRole(user.role)) {
+      throw new AppError(403, "Only Principal/Admin users can manage student documents", "FORBIDDEN");
+    }
     if (!file) {
       throw new AppError(400, "Document file is required", "DOCUMENT_FILE_REQUIRED");
     }
@@ -779,8 +917,7 @@ export async function uploadStudentDocument(
     const student = await prisma.student.findFirst({
       where: {
         id: studentId,
-        schoolId: user.schoolId,
-        ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
+        schoolId: user.schoolId
       },
       select: { id: true }
     });
@@ -814,12 +951,15 @@ export async function uploadStudentDocument(
 }
 
 export async function getStudentDocumentFile(user: Express.UserContext, studentId: string, documentId: string) {
+  if (!isPrincipalRole(user.role)) {
+    throw new AppError(403, "Only Principal/Admin users can download student documents", "FORBIDDEN");
+  }
+
   const document = await prisma.studentDocument.findFirst({
     where: {
       id: documentId,
       studentId,
-      schoolId: user.schoolId,
-      ...(user.role === UserRole.TEACHER ? { student: { class: { classTeacherId: user.id } } } : {})
+      schoolId: user.schoolId
     },
     select: {
       originalName: true,
@@ -853,15 +993,18 @@ export async function createBehaviourRecord(user: Express.UserContext, studentId
       actionTaken?: string;
     };
 
+    if (!isPrincipalRole(user.role)) {
+      throw new AppError(403, "Only Principal/Admin users can manage behaviour records", "FORBIDDEN");
+    }
+
     if (payload.type === BehaviourType.COUNSELLOR_NOTE && !canViewCounsellorNotes(user.role)) {
-      throw new AppError(403, "Counsellor notes are restricted to Principal and Admin roles", "FORBIDDEN");
+      throw new AppError(403, "Counsellor notes are restricted to Principal/Admin roles", "FORBIDDEN");
     }
 
     const student = await prisma.student.findFirst({
       where: {
         id: studentId,
-        schoolId: user.schoolId,
-        ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
+        schoolId: user.schoolId
       },
       select: { id: true }
     });

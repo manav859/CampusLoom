@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { attendanceApi, classesApi, type AttendanceMarkStatus, type ClassSummary } from "@/lib/api";
+import { attendanceApi, classesApi, type AttendanceMarkStatus, type ClassMonthlyAttendance, type ClassSummary } from "@/lib/api";
 
 export type AttendanceStudent = {
   id: string;
@@ -18,15 +18,25 @@ function todayAsDateInput() {
   return `${year}-${month}-${day}`;
 }
 
+function monthInputFromDate(date: string) {
+  return date.slice(0, 7);
+}
+
 function toMarkStatus(status: string): AttendanceMarkStatus {
-  return status === "ABSENT" ? "ABSENT" : "PRESENT";
+  if (status === "ABSENT") return "ABSENT";
+  if (status === "LATE") return "LATE";
+  return "PRESENT";
 }
 
 export function useAttendance() {
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [selectedClassId, setSelectedClassId] = useState("");
+  const [selectedDate, setSelectedDate] = useState(todayAsDateInput());
+  const [selectedMonth, setSelectedMonth] = useState(monthInputFromDate(todayAsDateInput()));
   const [students, setStudents] = useState<AttendanceStudent[]>([]);
+  const [monthly, setMonthly] = useState<ClassMonthlyAttendance | null>(null);
   const [marked, setMarked] = useState(false);
+  const [canEdit, setCanEdit] = useState(true);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -38,34 +48,45 @@ export function useAttendance() {
     () => ({
       total: students.length,
       present: students.filter((student) => student.status === "PRESENT").length,
-      absent: students.filter((student) => student.status === "ABSENT").length
+      absent: students.filter((student) => student.status === "ABSENT").length,
+      late: students.filter((student) => student.status === "LATE").length
     }),
     [students]
   );
 
-  const loadClass = useCallback(async (classId: string) => {
+  const loadMonth = useCallback(async (classId: string, month: string) => {
+    if (!classId) {
+      setMonthly(null);
+      return;
+    }
+    const result = await attendanceApi.classMonth(classId, month);
+    setMonthly(result);
+  }, []);
+
+  const loadClass = useCallback(async (classId: string, date: string) => {
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      const [classStudents, todayAttendance] = await Promise.all([classesApi.students(classId), attendanceApi.classToday(classId)]);
-      const attendanceByStudent = new Map(todayAttendance.attendance.map((item) => [item.studentId, item.status]));
+      const roster = await attendanceApi.roster(classId, date);
 
       setStudents(
-        classStudents.map((student) => ({
+        roster.students.map((student) => ({
           id: student.id,
           name: student.fullName,
           rollNumber: student.rollNumber,
-          status: toMarkStatus(attendanceByStudent.get(student.id) ?? "PRESENT")
+          status: toMarkStatus(student.savedStatus ?? student.defaultStatus ?? "PRESENT")
         }))
       );
-      setMarked(todayAttendance.marked);
-      if (todayAttendance.marked) setSuccess("Attendance already submitted for today.");
+      setMarked(Boolean(roster.session));
+      setCanEdit(roster.canEdit);
+      if (roster.session) setSuccess("Attendance loaded. You can edit and save changes.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load attendance");
       setStudents([]);
       setMarked(false);
+      setCanEdit(false);
     } finally {
       setLoading(false);
     }
@@ -85,7 +106,9 @@ export function useAttendance() {
 
         const firstClassId = classList[0]?.id ?? "";
         setSelectedClassId(firstClassId);
-        if (firstClassId) await loadClass(firstClassId);
+        if (firstClassId) {
+          await Promise.all([loadClass(firstClassId, selectedDate), loadMonth(firstClassId, selectedMonth)]);
+        }
         else {
           setStudents([]);
           setMarked(false);
@@ -102,41 +125,63 @@ export function useAttendance() {
     return () => {
       cancelled = true;
     };
-  }, [loadClass]);
+  }, [loadClass, loadMonth]);
 
   const selectClass = useCallback(
     async (classId: string) => {
       setSelectedClassId(classId);
-      if (classId) await loadClass(classId);
+      if (classId) await Promise.all([loadClass(classId, selectedDate), loadMonth(classId, selectedMonth)]);
       else {
         setStudents([]);
         setMarked(false);
       }
     },
-    [loadClass]
+    [loadClass, loadMonth, selectedDate, selectedMonth]
   );
 
-  const toggleStudent = useCallback((studentId: string) => {
-    if (marked || submitting) return;
+  const selectDate = useCallback(async (date: string) => {
+    setSelectedDate(date);
+    setSelectedMonth(monthInputFromDate(date));
+    if (selectedClassId) await Promise.all([loadClass(selectedClassId, date), loadMonth(selectedClassId, monthInputFromDate(date))]);
+  }, [loadClass, loadMonth, selectedClassId]);
+
+  const selectMonth = useCallback(async (month: string) => {
+    setSelectedMonth(month);
+    if (selectedClassId) await loadMonth(selectedClassId, month);
+  }, [loadMonth, selectedClassId]);
+
+  const setStudentStatus = useCallback((studentId: string, status: AttendanceMarkStatus) => {
+    if (!canEdit || submitting) return;
     setStudents((items) =>
       items.map((student) =>
         student.id === studentId
           ? {
               ...student,
-              status: student.status === "PRESENT" ? "ABSENT" : "PRESENT"
+              status
             }
         : student
       )
     );
-  }, [marked, submitting]);
+  }, [canEdit, submitting]);
+
+  const toggleStudent = useCallback((studentId: string) => {
+    if (!canEdit || submitting) return;
+    setStudents((items) =>
+      items.map((student) => {
+        if (student.id !== studentId) return student;
+        const next = student.status === "PRESENT" ? "LATE" : student.status === "LATE" ? "ABSENT" : "PRESENT";
+        return { ...student, status: next };
+      })
+    );
+  }, [canEdit, submitting]);
 
   const markAllPresent = useCallback(() => {
-    if (marked || submitting) return;
+    if (!canEdit || submitting) return;
     setStudents((items) => items.map((student) => ({ ...student, status: "PRESENT" })));
-  }, [marked, submitting]);
+  }, [canEdit, submitting]);
 
   const submitAttendance = useCallback(async () => {
-    if (!selectedClassId || marked || submitting || students.length === 0) return;
+    if (!selectedClassId || !canEdit || submitting || students.length === 0) return;
     setSubmitting(true);
     setError("");
     setSuccess("");
@@ -144,27 +189,32 @@ export function useAttendance() {
     try {
       await attendanceApi.mark({
         classId: selectedClassId,
-        date: new Date().toISOString(),
+        date: selectedDate,
         records: students.map((student) => ({
           studentId: student.id,
           status: student.status
         }))
       });
       setMarked(true);
-      setSuccess("Attendance submitted.");
+      setSuccess(marked ? "Attendance updated." : "Attendance submitted.");
+      await loadMonth(selectedClassId, selectedMonth);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Attendance submission failed");
     } finally {
       setSubmitting(false);
     }
-  }, [marked, selectedClassId, students, submitting]);
+  }, [canEdit, loadMonth, marked, selectedClassId, selectedDate, selectedMonth, students, submitting]);
 
   return {
     classes,
     selectedClass,
     selectedClassId,
+    selectedDate,
+    selectedMonth,
     students,
+    monthly,
     marked,
+    canEdit,
     loading,
     submitting,
     error,
@@ -172,7 +222,10 @@ export function useAttendance() {
     summary,
     today: todayAsDateInput(),
     selectClass,
+    selectDate,
+    selectMonth,
     toggleStudent,
+    setStudentStatus,
     markAllPresent,
     submitAttendance
   };

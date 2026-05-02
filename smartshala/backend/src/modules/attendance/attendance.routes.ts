@@ -7,6 +7,8 @@ import * as controller from "./attendance.controller.js";
 import * as reportController from "./attendance.report.controller.js";
 import {
   attendanceQuerySchema,
+  classMonthlyParamsSchema,
+  classMonthlyQuerySchema,
   classTodayParamsSchema,
   markAttendanceSchema,
   studentMonthlyParamsSchema,
@@ -25,6 +27,12 @@ attendanceRouter.get(
   controller.getClassTodayAttendance
 );
 attendanceRouter.get(
+  "/class/:classId/month",
+  requireRole(attendanceRoles),
+  validate({ params: classMonthlyParamsSchema, query: classMonthlyQuerySchema }),
+  controller.getClassMonthlyAttendance
+);
+attendanceRouter.get(
   "/student/:studentId/month",
   requireRole(attendanceRoles),
   validate({ params: studentMonthlyParamsSchema, query: studentMonthlyQuerySchema }),
@@ -32,7 +40,12 @@ attendanceRouter.get(
 );
 attendanceRouter.get("/dashboard", requireRole(adminRoles), controller.getAttendanceDashboard);
 attendanceRouter.get("/report/classes-today", requireRole(adminRoles), reportController.getClassesTodayReport);
-attendanceRouter.get("/roster", validate({ query: z.object({ classId: z.string().uuid(), date: z.coerce.date().optional() }) }), controller.getRoster);
-attendanceRouter.post("/mark", validate({ body: markAttendanceSchema }), controller.markAttendance);
-attendanceRouter.get("/daily", validate({ query: attendanceQuerySchema.pick({ date: true }) }), controller.dailyReport);
-attendanceRouter.get("/students/:studentId/monthly", validate({ query: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }) }), controller.monthlyStudentReport);
+attendanceRouter.get("/roster", requireRole(attendanceRoles), validate({ query: z.object({ classId: z.string().uuid(), date: z.coerce.date().optional() }) }), controller.getRoster);
+attendanceRouter.post("/mark", requireRole(attendanceRoles), validate({ body: markAttendanceSchema }), controller.markAttendance);
+attendanceRouter.get("/daily", requireRole(attendanceRoles), validate({ query: attendanceQuerySchema.pick({ date: true }) }), controller.dailyReport);
+attendanceRouter.get(
+  "/students/:studentId/monthly",
+  requireRole(attendanceRoles),
+  validate({ query: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }) }),
+  controller.monthlyStudentReport
+);

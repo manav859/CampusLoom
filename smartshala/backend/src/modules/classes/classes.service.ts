@@ -3,10 +3,25 @@ import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 
 export async function listClasses(user: Express.UserContext) {
+  const parentClassIds =
+    user.role === UserRole.PARENT
+      ? (
+          await prisma.student.findMany({
+            where: {
+              schoolId: user.schoolId,
+              isActive: true,
+              OR: [{ parentPhone: user.phone ?? "" }, { alternatePhone: user.phone ?? "" }]
+            },
+            select: { classId: true }
+          })
+        ).map((student) => student.classId)
+      : undefined;
+
   const classes = await prisma.class.findMany({
     where: {
       schoolId: user.schoolId,
-      ...((user.role as string) === UserRole.TEACHER ? { classTeacherId: user.id } : {})
+      ...((user.role as string) === UserRole.TEACHER ? { classTeacherId: user.id } : {}),
+      ...(parentClassIds ? { id: { in: parentClassIds } } : {})
     },
     include: {
       classTeacher: { select: { id: true, fullName: true, phone: true } },

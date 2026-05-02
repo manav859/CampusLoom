@@ -99,7 +99,7 @@ export const authApi = {
   logout: () => apiFetch<void>("/auth/logout", { method: "POST" })
 };
 
-export type AttendanceMarkStatus = "PRESENT" | "ABSENT";
+export type AttendanceMarkStatus = "PRESENT" | "ABSENT" | "LATE";
 export type AttendanceReadStatus = "PRESENT" | "ABSENT" | "LATE";
 
 export type ClassSummary = {
@@ -132,6 +132,35 @@ export type ClassTodayAttendance = {
     absent: number;
     late: number;
   };
+};
+
+export type AttendanceRoster = {
+  date: string;
+  canEdit: boolean;
+  session: { id: string; date: string } | null;
+  students: {
+    id: string;
+    fullName: string;
+    rollNumber: number | null;
+    defaultStatus: AttendanceReadStatus;
+    savedStatus?: AttendanceReadStatus;
+  }[];
+};
+
+export type ClassMonthlyAttendance = {
+  classId: string;
+  className: string;
+  month: string;
+  totalStudents: number;
+  days: {
+    date: string;
+    marked: boolean;
+    total: number;
+    present: number;
+    late: number;
+    absent: number;
+    percentage: number;
+  }[];
 };
 
 export type AttendanceDashboard = {
@@ -333,7 +362,7 @@ export type StudentDetail = {
       subject: string;
       assignedDate: string;
       dueDate: string;
-      status: "ON_TIME" | "LATE" | "MISSING" | "PENDING";
+      status: "ON_TIME" | "LATE" | "MISSING" | "NOT_SUBMITTED" | "PENDING";
       marks: number | null;
       maxMarks: number | null;
       teacherNote: string | null;
@@ -393,7 +422,7 @@ export type StudentDetail = {
       createdBy: {
         id: string;
         fullName: string;
-        role: "PRINCIPAL" | "ADMIN" | "TEACHER";
+        role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
       } | null;
     }[];
   };
@@ -408,9 +437,13 @@ export type StudentDetail = {
     uploadedBy: {
       id: string;
       fullName: string;
-      role: "PRINCIPAL" | "ADMIN" | "TEACHER";
+      role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
     };
   }[];
+  access: {
+    role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
+    allowedTabs: Array<"academic" | "homework" | "attendance" | "fees" | "communication" | "behaviour" | "documents">;
+  };
   class: { name: string; section: string };
   feeAssignments: {
     id: string;
@@ -450,13 +483,177 @@ export type StudentDocumentUploadPayload = {
   file: File;
 };
 
+export type HomeworkContext = {
+  classes: {
+    id: string;
+    name: string;
+    section: string;
+    studentCount: number;
+    subjects: { id: string; name: string }[];
+  }[];
+};
+
+export type HomeworkAssignment = {
+  id: string;
+  classId: string;
+  className: string;
+  subjectId: string | null;
+  subject: string;
+  title: string;
+  description: string | null;
+  assignedDate: string;
+  dueDate: string;
+  status: "OPEN" | "OVERDUE" | "COMPLETED";
+  submittedCount: number;
+  lateCount: number;
+  notSubmittedCount: number;
+  totalStudents: number;
+};
+
+export type CreateHomeworkAssignmentPayload = {
+  classId: string;
+  subjectId?: string;
+  subject?: string;
+  title: string;
+  description?: string;
+  assignedDate?: string;
+  dueDate: string;
+};
+
+export type MarksContext = {
+  classes: {
+    id: string;
+    name: string;
+    section: string;
+    subjects: { id: string; name: string }[];
+    students: { id: string; fullName: string; rollNumber: number | null }[];
+  }[];
+};
+
+export type MarksExam = {
+  id: string;
+  classId: string | null;
+  className: string;
+  subjectId: string | null;
+  subject: string;
+  name: string;
+  maxMarks: number;
+  date: string;
+  status: "SCHEDULED" | "MARKS_ENTERED";
+  enteredCount: number;
+  pendingCount: number;
+  classAverage: number;
+};
+
+export type CreateMarksExamPayload = {
+  classId: string;
+  subjectId: string;
+  name: string;
+  maxMarks: number;
+  date: string;
+  results: { studentId: string; marks: number }[];
+};
+
+export type CommunicationMessageType = "ATTENDANCE_ALERT" | "HOMEWORK_REMINDER" | "CUSTOM";
+
+export type CommunicationContext = {
+  classes: {
+    id: string;
+    name: string;
+    section: string;
+    students: {
+      id: string;
+      fullName: string;
+      admissionNumber: string;
+      rollNumber: number | null;
+      parentName: string;
+      parentPhone: string;
+    }[];
+  }[];
+};
+
+export type TeacherCommunicationLog = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  rollNumber: number | null;
+  classId: string;
+  className: string;
+  message: string;
+  type: CommunicationMessageType;
+  status: "QUEUED" | "SENT" | "FAILED" | "COMPLETED" | "MISSED" | "NOTE";
+  timestamp: string;
+};
+
+export type SendTeacherMessagePayload = {
+  targetType: "STUDENT" | "CLASS";
+  studentId?: string;
+  classId?: string;
+  type: CommunicationMessageType;
+  message: string;
+};
+
+export type SendTeacherMessageResult = {
+  targetType: "STUDENT" | "CLASS";
+  count: number;
+  logs: TeacherCommunicationLog[];
+};
+
 export const classesApi = {
   list: () => apiFetch<ClassSummary[]>("/classes"),
   students: (classId: string) => apiFetch<ClassStudent[]>(`/classes/${classId}/students`)
 };
 
+export const marksApi = {
+  context: () => apiFetch<MarksContext>("/marks/context"),
+  exams: (classId?: string) => {
+    const params = new URLSearchParams();
+    if (classId) params.set("classId", classId);
+    const query = params.toString();
+    return apiFetch<MarksExam[]>(`/marks/exams${query ? `?${query}` : ""}`);
+  },
+  createExam: (payload: CreateMarksExamPayload) =>
+    apiFetch<MarksExam>("/marks/exams", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+};
+
+export const homeworkApi = {
+  context: () => apiFetch<HomeworkContext>("/homework/context"),
+  assignments: (classId?: string) => {
+    const params = new URLSearchParams();
+    if (classId) params.set("classId", classId);
+    const query = params.toString();
+    return apiFetch<HomeworkAssignment[]>(`/homework/assignments${query ? `?${query}` : ""}`);
+  },
+  createAssignment: (payload: CreateHomeworkAssignmentPayload) =>
+    apiFetch<HomeworkAssignment>("/homework/assignments", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+};
+
+export const communicationApi = {
+  context: () => apiFetch<CommunicationContext>("/communication/context"),
+  messages: (classId?: string) => {
+    const params = new URLSearchParams();
+    if (classId) params.set("classId", classId);
+    const query = params.toString();
+    return apiFetch<TeacherCommunicationLog[]>(`/communication/messages${query ? `?${query}` : ""}`);
+  },
+  sendMessage: (payload: SendTeacherMessagePayload) =>
+    apiFetch<SendTeacherMessageResult>("/communication/messages", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+};
+
 export const attendanceApi = {
   classToday: (classId: string) => apiFetch<ClassTodayAttendance>(`/attendance/class/${classId}/today`),
+  roster: (classId: string, date: string) => apiFetch<AttendanceRoster>(`/attendance/roster?classId=${classId}&date=${date}`),
+  classMonth: (classId: string, month: string) => apiFetch<ClassMonthlyAttendance>(`/attendance/class/${classId}/month?month=${month}`),
   mark: (payload: { classId: string; date: string; records: { studentId: string; status: AttendanceMarkStatus }[] }) =>
     apiFetch("/attendance/mark", {
       method: "POST",

@@ -10,6 +10,7 @@ type TokenUser = {
   schoolId: string;
   role: UserRole;
   fullName: string;
+  phone: string;
 };
 
 type RegisterInput = {
@@ -27,7 +28,7 @@ type RegisterInput = {
 function signAccessToken(user: TokenUser) {
   const options: jwt.SignOptions = { subject: user.id, expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"] };
   return jwt.sign(
-    { schoolId: user.schoolId, role: user.role, fullName: user.fullName },
+    { schoolId: user.schoolId, role: user.role, fullName: user.fullName, phone: user.phone },
     env.JWT_ACCESS_SECRET,
     options
   );
@@ -86,7 +87,10 @@ export async function register(data: RegisterInput) {
 
   if (!school) throw new AppError(400, "School code does not exist", "INVALID_SCHOOL");
 
-  const role = data.schoolCode ? requestedRole : requestedRole === UserRole.TEACHER ? UserRole.PRINCIPAL : requestedRole;
+  const role =
+    data.schoolCode || requestedRole === UserRole.PRINCIPAL || requestedRole === UserRole.ADMIN
+      ? requestedRole
+      : UserRole.PRINCIPAL;
 
   const user = await prisma.user.create({
     data: {
@@ -106,7 +110,8 @@ export async function register(data: RegisterInput) {
     id: user.id,
     schoolId: user.schoolId,
     role: user.role,
-    fullName: user.fullName
+    fullName: user.fullName,
+    phone: user.phone
   };
 
   const accessToken = signAccessToken(tokenUser);
@@ -146,7 +151,8 @@ export async function login(identifier: string, password: string) {
     id: user.id,
     schoolId: user.schoolId,
     role: user.role,
-    fullName: user.fullName
+    fullName: user.fullName,
+    phone: user.phone
   };
   const accessToken = signAccessToken(tokenUser);
   const refreshToken = signRefreshToken(tokenUser);
@@ -206,7 +212,8 @@ export async function refresh(refreshToken: string) {
       id: user.id,
       schoolId: user.schoolId,
       role: user.role,
-      fullName: user.fullName
+      fullName: user.fullName,
+      phone: user.phone
     })
   };
 }
