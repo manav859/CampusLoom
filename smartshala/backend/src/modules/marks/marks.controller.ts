@@ -13,3 +13,11 @@ export const listExams = asyncHandler(async (req: Request, res: Response) => {
 export const createExamWithMarks = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(await marksService.createExamWithMarks(req.user!, req.body));
 });
+
+export const getExam = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await marksService.getExam(req.user!, req.params.examId));
+});
+
+export const updateExamResult = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await marksService.updateExamResult(req.user!, req.params.examId, req.body));
+});

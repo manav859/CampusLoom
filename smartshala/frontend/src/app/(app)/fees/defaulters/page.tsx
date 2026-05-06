@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { TableRowSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, studentsApi, type FeeDefaulter, whatsappApi } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 function money(value: number) {
   return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
@@ -20,7 +21,7 @@ export default function DefaultersPage() {
 
   useEffect(() => {
     let active = true;
-    feesApi.defaulters()
+    cachedFetch("fees:defaulters", () => feesApi.defaulters())
       .then((data) => {
         if (active) setRows(data);
       })

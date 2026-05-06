@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
+import { clearCache } from "@/lib/prefetchCache";
 
 export function LoginForm() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export function LoginForm() {
     setLoading(true);
     setError("");
     try {
+      clearCache();
       const result = await authApi.login(identifier, password);
       window.localStorage.setItem("smartshala.accessToken", result.accessToken);
       window.localStorage.setItem("smartshala.refreshToken", result.refreshToken);

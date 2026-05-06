@@ -27,6 +27,10 @@ export const behaviourRecordSchema = z.object({
   actionTaken: z.string().max(1000).optional()
 });
 
+export const behaviourActionSchema = z.object({
+  actionTaken: z.string().trim().min(2).max(1000)
+});
+
 export const studentDocumentSchema = z.object({
   type: z.nativeEnum(StudentDocumentType),
   name: z.string().min(2).max(160).optional()

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { marksApi, type MarksContext, type MarksExam } from "@/lib/api";
+import { marksApi, type MarksContext, type MarksExam, type MarksExamDetail } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
@@ -28,12 +29,16 @@ export default function TeacherMarksPage() {
   const [marks, setMarks] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [selectedExam, setSelectedExam] = useState<MarksExamDetail | null>(null);
+  const [loadingExamId, setLoadingExamId] = useState("");
+  const [savingStudentId, setSavingStudentId] = useState("");
+  const [examDrafts, setExamDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
-  const subjects = selectedClass?.subjects ?? [];
-  const students = selectedClass?.students ?? [];
+  const subjects = useMemo(() => selectedClass?.subjects ?? [], [selectedClass]);
+  const students = useMemo(() => selectedClass?.students ?? [], [selectedClass]);
 
   useEffect(() => {
     let active = true;
@@ -42,7 +47,10 @@ export default function TeacherMarksPage() {
       setLoading(true);
       setError("");
       try {
-        const [marksContext, rows] = await Promise.all([marksApi.context(), marksApi.exams()]);
+        const [marksContext, rows] = await Promise.all([
+          cachedFetch("marks:context", () => marksApi.context()),
+          cachedFetch("marks:exams", () => marksApi.exams())
+        ]);
         if (!active) return;
         setContext(marksContext);
         setExams(rows);
@@ -63,13 +71,35 @@ export default function TeacherMarksPage() {
   }, []);
 
   useEffect(() => {
-    setSubjectId(subjects[0]?.id ?? "");
-    setMarks(Object.fromEntries(students.map((student) => [student.id, ""])));
-  }, [classId, subjects, students]);
+    const nextClass = context.classes.find((classRecord) => classRecord.id === classId);
+    setSubjectId(nextClass?.subjects[0]?.id ?? "");
+    setMarks(Object.fromEntries((nextClass?.students ?? []).map((student) => [student.id, ""])));
+  }, [classId, context.classes]);
 
   async function refreshExams(nextClassId = classId) {
     const rows = await marksApi.exams(nextClassId || undefined);
     setExams(rows);
+  }
+
+  async function openExam(examId: string) {
+    setLoadingExamId(examId);
+    setError("");
+    try {
+      const detail = await marksApi.exam(examId);
+      setSelectedExam(detail);
+      setExamDrafts(
+        Object.fromEntries(
+          detail.students.map((student) => [
+            student.studentId,
+            student.result ? String(student.result.marks) : ""
+          ])
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load exam students");
+    } finally {
+      setLoadingExamId("");
+    }
   }
 
   async function handleClassChange(nextClassId: string) {
@@ -120,12 +150,42 @@ export default function TeacherMarksPage() {
         results
       });
       setExams((current) => [created, ...current.filter((exam) => exam.id !== created.id)]);
+      await openExam(created.id);
       setMarks(Object.fromEntries(students.map((student) => [student.id, ""])));
       setNotice("Exam marks saved for the full class.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save marks");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function updateStudentMark(studentId: string) {
+    if (!selectedExam) return;
+
+    const nextMarks = Number(examDrafts[studentId] ?? "");
+    if (Number.isNaN(nextMarks) || nextMarks < 0 || nextMarks > selectedExam.maxMarks) {
+      setError(`Marks must be between 0 and ${selectedExam.maxMarks}.`);
+      return;
+    }
+
+    setSavingStudentId(studentId);
+    setError("");
+    setNotice("");
+    try {
+      const updated = await marksApi.updateExamResult(selectedExam.id, { studentId, marks: nextMarks });
+      const detail = await marksApi.exam(selectedExam.id);
+      setSelectedExam(detail);
+      setExams((current) => current.map((exam) => (exam.id === detail.id ? detail : exam)));
+      setExamDrafts((current) => ({
+        ...current,
+        [studentId]: updated.result ? String(updated.result.marks) : ""
+      }));
+      setNotice(`${updated.fullName} marks updated.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update marks");
+    } finally {
+      setSavingStudentId("");
     }
   }
 
@@ -273,7 +333,7 @@ export default function TeacherMarksPage() {
             <table className="w-full min-w-[820px] text-left text-[13px]">
               <thead className="table-head">
                 <tr>
-                  {["Exam", "Subject", "Max", "Date", "Status", "Entered", "Pending", "Class Avg"].map((head) => (
+                  {["Exam", "Subject", "Max", "Date", "Status", "Entered", "Pending", "Class Avg", "Students"].map((head) => (
                     <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
                   ))}
                 </tr>
@@ -282,14 +342,14 @@ export default function TeacherMarksPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, index) => (
                     <tr key={index}>
-                      {Array.from({ length: 8 }).map((__, cell) => (
+                      {Array.from({ length: 9 }).map((__, cell) => (
                         <td className="px-5 py-4" key={cell}><Skeleton className="h-4 w-20 rounded-md" /></td>
                       ))}
                     </tr>
                   ))
                 ) : exams.length === 0 ? (
                   <tr>
-                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={8}>No exams saved yet.</td>
+                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={9}>No exams saved yet.</td>
                   </tr>
                 ) : (
                   exams.map((exam) => (
@@ -305,6 +365,16 @@ export default function TeacherMarksPage() {
                       <td className="px-5 py-4 font-semibold text-[#248a3d]">{exam.enteredCount}</td>
                       <td className="px-5 py-4 font-semibold text-[#d70015]">{exam.pendingCount}</td>
                       <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
+                      <td className="px-5 py-4">
+                        <button
+                          className="rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[12px] font-semibold text-[#0071e3] transition hover:bg-[#0071e3] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={loadingExamId === exam.id}
+                          onClick={() => openExam(exam.id)}
+                          type="button"
+                        >
+                          {loadingExamId === exam.id ? "Loading..." : "View students"}
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -313,6 +383,76 @@ export default function TeacherMarksPage() {
           </div>
         </div>
       </section>
+
+      {selectedExam ? (
+        <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
+          <div className="flex flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Student marks</h2>
+              <p className="mt-0.5 text-[13px] text-[#86868b]">
+                {selectedExam.name} | {selectedExam.className} | {selectedExam.subject} | Max {selectedExam.maxMarks}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <StatusPill label={`${selectedExam.enteredCount} entered`} tone="good" />
+              <StatusPill label={`${selectedExam.pendingCount} pending`} tone={selectedExam.pendingCount ? "danger" : "neutral"} />
+              <StatusPill label={`${selectedExam.classAverage}% avg`} tone="neutral" />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] text-left text-[13px]">
+              <thead className="table-head">
+                <tr>
+                  {["Student", "Admission", "Roll", "Marks", "Percentage", "Grade", "Action"].map((head) => (
+                    <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+                {selectedExam.students.map((student) => {
+                  const draft = examDrafts[student.studentId] ?? "";
+                  const savingRow = savingStudentId === student.studentId;
+
+                  return (
+                    <tr className="table-row" key={student.studentId}>
+                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{student.fullName}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{student.admissionNumber}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{student.rollNumber ?? "-"}</td>
+                      <td className="px-5 py-4">
+                        <input
+                          className="w-24 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#0071e3]"
+                          max={selectedExam.maxMarks}
+                          min={0}
+                          onChange={(event) => setExamDrafts((current) => ({ ...current, [student.studentId]: event.target.value }))}
+                          type="number"
+                          value={draft}
+                        />
+                      </td>
+                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">
+                        {student.result ? `${student.result.percentage}%` : "-"}
+                      </td>
+                      <td className="px-5 py-4">
+                        {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
+                      </td>
+                      <td className="px-5 py-4">
+                        <button
+                          className="rounded-lg bg-[#1d1d1f] px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={savingRow}
+                          onClick={() => updateStudentMark(student.studentId)}
+                          type="button"
+                        >
+                          {savingRow ? "Saving..." : "Save"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

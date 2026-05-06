@@ -19,3 +19,19 @@ export const updateUserSchema = z.object({
   status: z.nativeEnum(UserStatus).optional()
 });
 
+export const teacherAssignmentParamsSchema = z.object({
+  id: z.string().uuid()
+});
+
+export const teacherPeriodAssignmentsSchema = z.object({
+  periods: z.array(
+    z.object({
+      periodNumber: z.coerce.number().int().min(1).max(8),
+      classId: z.string().uuid().nullable().optional(),
+      subjectId: z.string().uuid().nullable().optional()
+    })
+  ).length(8)
+}).refine((data) => new Set(data.periods.map((period) => period.periodNumber)).size === 8, {
+  message: "Each period number from 1 to 8 must be unique",
+  path: ["periods"]
+});

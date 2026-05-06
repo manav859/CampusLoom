@@ -7,6 +7,7 @@ import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { attendanceApi, type AttendanceDashboard, type ClassesTodayReportRow } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 export default function AttendanceReportsPage() {
   const [data, setData] = useState<AttendanceDashboard | null>(null);
@@ -22,7 +23,10 @@ export default function AttendanceReportsPage() {
       setError("");
 
       try {
-        const [dashboard, attendanceByClass] = await Promise.all([attendanceApi.dashboard(), attendanceApi.classesTodayReport()]);
+        const [dashboard, attendanceByClass] = await Promise.all([
+          cachedFetch("attendance:dashboard", () => attendanceApi.dashboard()),
+          cachedFetch("attendance:classesToday", () => attendanceApi.classesTodayReport())
+        ]);
 
         if (cancelled) return;
         setData(dashboard);

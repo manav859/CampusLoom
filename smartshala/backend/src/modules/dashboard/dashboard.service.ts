@@ -1,4 +1,4 @@
-import { AttendanceStatus, Prisma, UserRole } from "@prisma/client";
+import { AttendanceStatus, BehaviourSeverity, BehaviourType, Prisma, UserRole } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { dailyReport } from "../attendance/attendance.service.js";
 import { dashboard as feesDashboard } from "../fees/fees.service.js";
@@ -53,7 +53,7 @@ async function parentDashboard(user: Express.UserContext) {
 
 async function principalDashboard(user: Express.UserContext) {
   const today = startOfToday();
-  const [studentCount, classCount, attendance, feeSummary, risks, absentToday] = await Promise.all([
+  const [studentCount, classCount, attendance, feeSummary, risks, absentToday, behaviourActions] = await Promise.all([
     prisma.student.count({ where: { schoolId: user.schoolId, isActive: true } }),
     prisma.class.count({ where: { schoolId: user.schoolId } }),
     dailyReport(user, today),
@@ -61,12 +61,38 @@ async function principalDashboard(user: Express.UserContext) {
     riskSummary(user),
     prisma.attendanceRecord.count({
       where: { schoolId: user.schoolId, status: AttendanceStatus.ABSENT, session: { date: today } }
+    }),
+    prisma.behaviourRecord.findMany({
+      where: {
+        schoolId: user.schoolId,
+        type: BehaviourType.INCIDENT,
+        severity: { in: [BehaviourSeverity.MEDIUM, BehaviourSeverity.HIGH] }
+      },
+      include: {
+        student: { select: { id: true, fullName: true, class: { select: { name: true, section: true } } } },
+        createdBy: { select: { fullName: true } }
+      },
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+      take: 5
     })
   ]);
 
   const markedClasses = attendance.filter((item) => item.marked).length;
   const totalPresent = attendance.reduce((sum, item) => sum + item.present, 0);
   const totalMarked = attendance.reduce((sum, item) => sum + item.present + item.absent, 0);
+
+  const behaviourAlerts = behaviourActions.map((record) => ({
+    type: "BEHAVIOUR_INCIDENT",
+    studentId: record.student.id,
+    studentName: record.student.fullName,
+    message: record.title,
+    severity: record.severity,
+    flags: [
+      `${record.student.class.name}-${record.student.class.section}`,
+      record.actionTaken ? `Action: ${record.actionTaken}` : record.summary,
+      record.createdBy?.fullName ? `Logged by ${record.createdBy.fullName}` : "Logged behaviour"
+    ]
+  }));
 
   return {
     role: user.role,
@@ -82,7 +108,7 @@ async function principalDashboard(user: Express.UserContext) {
     },
     attendance,
     feeSummary,
-    alerts: risks.studentRisks.slice(0, 8),
+    alerts: [...behaviourAlerts, ...risks.studentRisks].slice(0, 8),
     aiSummary: risks.principalSummary
   };
 }

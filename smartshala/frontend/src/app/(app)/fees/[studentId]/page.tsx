@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, type PaymentResult, type StudentFeeLedger } from "@/lib/api";
+import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 
 function money(value: string | number) {
   return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
@@ -42,7 +43,9 @@ export default function StudentFeeLedgerPage() {
     setLoading(true);
     setError("");
     try {
-      setLedger(await feesApi.studentLedger(studentId));
+      // Invalidate stale cache before reload (e.g. after payment)
+      invalidateCache(`fees:ledger:${studentId}`);
+      setLedger(await cachedFetch(`fees:ledger:${studentId}`, () => feesApi.studentLedger(studentId)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load fee ledger");
     } finally {

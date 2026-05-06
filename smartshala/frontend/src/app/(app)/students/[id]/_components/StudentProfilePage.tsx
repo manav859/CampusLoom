@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { studentsApi, type StudentDetail } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 import { StickyHeader } from "./StickyHeader";
 import { StudentProfileTabs } from "./StudentProfileTabs";
 import {
@@ -91,7 +92,7 @@ export function StudentProfilePage() {
     setLoading(true);
     setError("");
 
-    studentsApi.get(params.id)
+    cachedFetch(`student:${params.id}`, () => studentsApi.get(params.id))
       .then((data) => {
         if (active) setStudent(data);
       })

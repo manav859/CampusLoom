@@ -14,6 +14,10 @@ export const createBehaviourRecord = asyncHandler(async (req: Request, res: Resp
   res.status(201).json(await studentsService.createBehaviourRecord(req.user!, req.params.id, req.body));
 });
 
+export const updateBehaviourAction = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await studentsService.updateBehaviourAction(req.user!, req.params.id, req.params.recordId, req.body));
+});
+
 export const uploadStudentDocument = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(await studentsService.uploadStudentDocument(req.user!, req.params.id, req.body, req.file));
 });

@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton, TableRowSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 type ClassDetail = {
   id: string;
@@ -34,14 +35,13 @@ export default function ClassDetailPage() {
 
   useEffect(() => {
     Promise.all([
-      apiFetch<ClassDetail>(`/classes/${id}`),
-      apiFetch<Student[]>(`/classes/${id}/students`)
+      cachedFetch(`class:${id}`, () => apiFetch<ClassDetail>(`/classes/${id}`)),
+      cachedFetch(`class:${id}:students`, () => apiFetch<Student[]>(`/classes/${id}/students`))
     ]).then(([cls, stds]) => {
       setClassData(cls);
       setStudents(stds || []);
     }).catch((err) => {
       console.error(err);
-      // router.push("/classes");
     }).finally(() => setLoading(false));
   }, [id]);
 

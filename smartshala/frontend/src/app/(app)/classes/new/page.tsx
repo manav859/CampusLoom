@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { apiFetch } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 type Teacher = { id: string; fullName: string };
 
@@ -33,7 +34,7 @@ export default function NewClassPage() {
       }
     }
 
-    apiFetch<{ items: Teacher[] }>("/users/teachers?limit=100")
+    cachedFetch("teachers:list", () => apiFetch<{ items: Teacher[] }>("/users/teachers?limit=100"))
       .then((data) => setTeachers(data?.items || []))
       .catch(console.error);
   }, [router]);

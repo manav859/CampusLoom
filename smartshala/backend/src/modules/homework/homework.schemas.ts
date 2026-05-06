@@ -1,3 +1,4 @@
+import { HomeworkSubmissionStatus } from "@prisma/client";
 import { z } from "zod";
 
 export const homeworkAssignmentQuerySchema = z.object({
@@ -15,4 +16,16 @@ export const createHomeworkAssignmentSchema = z.object({
 }).refine((data) => !data.assignedDate || data.dueDate >= data.assignedDate, {
   message: "Due date must be on or after assigned date",
   path: ["dueDate"]
+});
+
+export const homeworkAssignmentParamsSchema = z.object({
+  assignmentId: z.string().uuid()
+});
+
+export const updateHomeworkSubmissionSchema = z.object({
+  studentId: z.string().uuid(),
+  status: z.nativeEnum(HomeworkSubmissionStatus),
+  marks: z.coerce.number().min(0).max(20).optional().nullable(),
+  teacherNote: z.string().trim().max(1000).optional().nullable(),
+  submittedAt: z.coerce.date().optional().nullable()
 });

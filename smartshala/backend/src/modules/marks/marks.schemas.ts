@@ -4,6 +4,10 @@ export const marksExamQuerySchema = z.object({
   classId: z.string().uuid().optional()
 });
 
+export const marksExamParamsSchema = z.object({
+  examId: z.string().uuid()
+});
+
 export const createExamWithMarksSchema = z.object({
   classId: z.string().uuid(),
   subjectId: z.string().uuid(),
@@ -28,4 +32,9 @@ export const createExamWithMarksSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Marks cannot exceed max marks", path: ["results", index, "marks"] });
     }
   });
+});
+
+export const updateExamResultSchema = z.object({
+  studentId: z.string().uuid(),
+  marks: z.coerce.number().min(0)
 });

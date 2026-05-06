@@ -28,6 +28,7 @@ const adminLinks: NavLink[] = [
 
 const teacherLinks: NavLink[] = [
   { label: "Dashboard", href: "/teacher", icon: "dashboard" },
+  { label: "Classes", href: "/teacher/classes", icon: "classes" },
   { label: "Homework", href: "/teacher/homework", icon: "reports" },
   { label: "Marks", href: "/teacher/marks", icon: "analytics" },
   { label: "Communication", href: "/teacher/communication", icon: "notifications" },
@@ -53,6 +54,12 @@ function linksForRole(role: Role) {
   if (role === "ACCOUNTANT") return accountantLinks;
   if (role === "PARENT") return parentLinks;
   return teacherLinks;
+}
+
+function isActiveLink(pathname: string, href: string) {
+  if (href === "/teacher" || href === "/dashboard") return pathname === href;
+  if (href === "/reports") return pathname === href || pathname.startsWith("/reports/") || pathname.startsWith("/attendance/reports");
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 function NavIcon({ icon, active }: { icon: NavLink["icon"]; active: boolean }) {
@@ -172,7 +179,7 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
         {/* Navigation */}
         <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3">
           {links.map(({ label, href, icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`) || (href === "/reports" && pathname.startsWith("/attendance/reports"));
+            const active = isActiveLink(pathname, href);
 
             return (
               <Link

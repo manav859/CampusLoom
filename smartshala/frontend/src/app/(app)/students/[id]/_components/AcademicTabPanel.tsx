@@ -2,15 +2,10 @@
 
 import type { ReactNode } from "react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Legend,
-  Line,
-  LineChart,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -32,6 +27,11 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
   const hasExams = analytics.exams.length > 0;
   const hasTrend = analytics.trend.length > 0;
   const hasSubjects = analytics.subjects.length > 0;
+  const trendRows = analytics.trend.map((item, index) => ({
+    ...item,
+    label: `${item.examName}${analytics.trend.filter((row) => row.examName === item.examName).length > 1 ? ` ${index + 1}` : ""}`
+  }));
+  const subjectRows = [...analytics.subjects].sort((a, b) => b.studentAverage - a.studentAverage || a.subject.localeCompare(b.subject));
   const profileRows: { label: string; value: ReactNode }[] = [
     { label: "Admission no", value: student.admissionNumber },
     { label: "Roll no", value: student.rollNumber ?? "Not set" },
@@ -125,19 +125,24 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Last 5 exams trend</h2>
-          <div className="mt-4 h-[300px]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam score comparison</h2>
+              <p className="mt-1 text-[12px] font-medium text-[#86868b]">Student score against class average for the latest exams.</p>
+            </div>
+          </div>
+          <div className="mt-4 h-[320px]">
             {hasTrend ? (
               <ResponsiveContainer height="100%" width="100%">
-                <LineChart data={analytics.trend} margin={{ left: -24, right: 12, top: 10, bottom: 0 }}>
+                <BarChart data={trendRows} margin={{ bottom: 8, left: -22, right: 8, top: 12 }}>
                   <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
-                  <XAxis dataKey="examName" tick={{ fontSize: 11, fill: "#86868b" }} tickLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#86868b" }} tickLine={false} />
+                  <XAxis dataKey="label" interval={0} tick={{ fontSize: 11, fill: "#86868b" }} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#86868b" }} tickLine={false} unit="%" />
                   <Tooltip formatter={(value) => `${value}%`} />
-                  <Legend />
-                  <Line dataKey="student" name="Student" stroke="#0071e3" strokeWidth={3} type="monotone" />
-                  <Line dataKey="classAverage" name="Class avg" stroke="#34c759" strokeWidth={3} type="monotone" />
-                </LineChart>
+                  <Legend iconType="circle" />
+                  <Bar dataKey="student" fill="#0071e3" name="Student" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="classAverage" fill="#34c759" name="Class avg" radius={[6, 6, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex h-full items-center justify-center text-[13px] font-medium text-[#86868b]">Trend appears after exam marks are recorded.</div>
@@ -146,22 +151,48 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
         </div>
 
         <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Subject analysis</h2>
-          <div className="mt-4 h-[300px]">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Subject analysis</h2>
+              <p className="mt-1 text-[12px] font-medium text-[#86868b]">Clear side-by-side averages by subject.</p>
+            </div>
+          </div>
+          <div className="mt-5">
             {hasSubjects ? (
-              <ResponsiveContainer height="100%" width="100%">
-                <RadarChart data={analytics.subjects}>
-                  <PolarGrid stroke="rgba(0,0,0,0.08)" />
-                  <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: "#6e6e73" }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 10, fill: "#86868b" }} />
-                  <Radar dataKey="studentAverage" fill="#0071e3" fillOpacity={0.18} name="Student" stroke="#0071e3" strokeWidth={2} />
-                  <Radar dataKey="classAverage" fill="#34c759" fillOpacity={0.12} name="Class avg" stroke="#34c759" strokeWidth={2} />
-                  <Legend />
-                  <Tooltip formatter={(value) => `${value}%`} />
-                </RadarChart>
-              </ResponsiveContainer>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 text-[12px] font-semibold text-[#6e6e73]">
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#0071e3]" /> Student</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#34c759]" /> Class avg</span>
+                </div>
+                {subjectRows.map((subject) => (
+                  <div key={subject.subject} className="rounded-xl border border-[rgba(0,0,0,0.05)] bg-[#fbfbfd] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[13px] font-semibold text-[#1d1d1f]">{subject.subject}</p>
+                      <p className="text-[12px] font-semibold text-[#6e6e73]">
+                        Gap {Math.abs(subject.studentAverage - subject.classAverage)}%
+                      </p>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      <div className="grid grid-cols-[74px_1fr_42px] items-center gap-2">
+                        <span className="text-[12px] font-medium text-[#0071e3]">Student</span>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-[#e5e5ea]">
+                          <div className="h-full rounded-full bg-[#0071e3]" style={{ width: `${Math.max(0, Math.min(100, subject.studentAverage))}%` }} />
+                        </div>
+                        <span className="text-right text-[12px] font-semibold text-[#1d1d1f]">{subject.studentAverage}%</span>
+                      </div>
+                      <div className="grid grid-cols-[74px_1fr_42px] items-center gap-2">
+                        <span className="text-[12px] font-medium text-[#248a3d]">Class</span>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-[#e5e5ea]">
+                          <div className="h-full rounded-full bg-[#34c759]" style={{ width: `${Math.max(0, Math.min(100, subject.classAverage))}%` }} />
+                        </div>
+                        <span className="text-right text-[12px] font-semibold text-[#1d1d1f]">{subject.classAverage}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div className="flex h-full items-center justify-center text-[13px] font-medium text-[#86868b]">Subject comparison appears after marks are recorded.</div>
+              <div className="flex min-h-[260px] items-center justify-center text-[13px] font-medium text-[#86868b]">Subject comparison appears after marks are recorded.</div>
             )}
           </div>
         </div>

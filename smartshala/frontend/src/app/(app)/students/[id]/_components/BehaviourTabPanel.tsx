@@ -1,5 +1,7 @@
+import { useEffect, useState, type FormEvent } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
-import type { StudentDetail } from "@/lib/api";
+import { studentsApi, type BehaviourRecordPayload, type StudentDetail } from "@/lib/api";
+import { invalidateCache } from "@/lib/prefetchCache";
 
 export type BehaviourTabPanelProps = {
   student: StudentDetail;
@@ -38,14 +40,208 @@ function emptyMessage(canViewCounsellorNotes: boolean) {
     : "No visible incidents or achievements have been recorded yet.";
 }
 
+function defaultSeverity(type: BehaviourRecordPayload["type"]): BehaviourRecordPayload["severity"] {
+  if (type === "ACHIEVEMENT") return "POSITIVE";
+  return "LOW";
+}
+
+function countBehaviour(records: BehaviourRecord[]) {
+  return {
+    incidents: records.filter((record) => record.type === "INCIDENT").length,
+    achievements: records.filter((record) => record.type === "ACHIEVEMENT").length,
+    counsellorNotes: records.filter((record) => record.type === "COUNSELLOR_NOTE").length,
+    total: records.length
+  };
+}
+
 export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
-  const behaviour = student.behaviourAnalytics;
+  const [behaviour, setBehaviour] = useState(student.behaviourAnalytics);
+  const [form, setForm] = useState<BehaviourRecordPayload>({
+    type: "INCIDENT",
+    severity: "LOW",
+    title: "",
+    summary: ""
+  });
+  const [saving, setSaving] = useState(false);
+  const [formMessage, setFormMessage] = useState("");
+  const [formError, setFormError] = useState("");
+  const [selectedIncident, setSelectedIncident] = useState<BehaviourRecord | null>(null);
+  const [actionText, setActionText] = useState("");
+  const [actionSaving, setActionSaving] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const role = student.access?.role;
+  const canWriteBehaviour = role === "TEACHER";
+  const canTakeAction = role === "PRINCIPAL" || role === "ADMIN";
   const records = behaviour.records;
   const recentIncidents = records.filter((record) => record.type === "INCIDENT").slice(0, 3);
   const recentAchievements = records.filter((record) => record.type === "ACHIEVEMENT").slice(0, 3);
 
+  useEffect(() => {
+    setBehaviour(student.behaviourAnalytics);
+  }, [student.behaviourAnalytics]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormError("");
+    setFormMessage("");
+
+    const title = form.title.trim();
+    const summary = form.summary.trim();
+    if (!title || !summary) {
+      setFormError("Title and details are required.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const created = await studentsApi.createBehaviourRecord(student.id, {
+        ...form,
+        title,
+        summary,
+        severity: form.severity ?? defaultSeverity(form.type),
+        actionTaken: undefined,
+        isRestricted: false
+      });
+      setBehaviour((current) => {
+        const nextRecords = [created, ...current.records];
+        return {
+          ...current,
+          counts: countBehaviour(nextRecords),
+          records: nextRecords
+        };
+      });
+      invalidateCache(`student:${student.id}`);
+      invalidateCache("dashboard");
+      setForm({
+        type: "INCIDENT",
+        severity: "LOW",
+        title: "",
+        summary: ""
+      });
+      setFormMessage("Behaviour record saved.");
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Unable to save behaviour record");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function openActionModal(record: BehaviourRecord) {
+    setSelectedIncident(record);
+    setActionText(record.actionTaken ?? "");
+    setActionError("");
+  }
+
+  async function handleActionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedIncident) return;
+
+    const actionTaken = actionText.trim();
+    if (!actionTaken) {
+      setActionError("Action taken is required.");
+      return;
+    }
+
+    setActionSaving(true);
+    setActionError("");
+    try {
+      const updated = await studentsApi.updateBehaviourAction(student.id, selectedIncident.id, { actionTaken });
+      setBehaviour((current) => ({
+        ...current,
+        records: current.records.map((record) => (record.id === updated.id ? updated : record))
+      }));
+      invalidateCache(`student:${student.id}`);
+      invalidateCache("dashboard");
+      setSelectedIncident(null);
+      setActionText("");
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to save action");
+    } finally {
+      setActionSaving(false);
+    }
+  }
+
   return (
     <section className="space-y-4">
+      {canWriteBehaviour ? (
+        <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-5 shadow-apple-sm backdrop-blur-xl" onSubmit={handleSubmit}>
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Add behaviour record</h2>
+              <p className="mt-0.5 text-[13px] text-[#86868b]">Teacher entries appear in the principal behaviour view.</p>
+            </div>
+            {formMessage ? <span className="text-[12px] font-semibold text-[#248a3d]">{formMessage}</span> : null}
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[150px_150px_1fr]">
+            <label className="space-y-1.5">
+              <span className="text-[12px] font-semibold text-[#6e6e73]">Type</span>
+              <select
+                className="glass-input min-h-[44px] text-[14px]"
+                value={form.type}
+                onChange={(event) => {
+                  const type = event.target.value as BehaviourRecordPayload["type"];
+                  setForm((current) => ({ ...current, type, severity: defaultSeverity(type), isRestricted: false }));
+                }}
+              >
+                <option value="INCIDENT">Incident</option>
+                <option value="ACHIEVEMENT">Achievement</option>
+              </select>
+            </label>
+
+            <label className="space-y-1.5">
+              <span className="text-[12px] font-semibold text-[#6e6e73]">Rating</span>
+              <select
+                className="glass-input min-h-[44px] text-[14px]"
+                value={form.severity ?? defaultSeverity(form.type)}
+                onChange={(event) => setForm((current) => ({ ...current, severity: event.target.value as BehaviourRecordPayload["severity"] }))}
+              >
+                {form.type === "ACHIEVEMENT" ? <option value="POSITIVE">Positive</option> : null}
+                {form.type === "INCIDENT" ? (
+                  <>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                  </>
+                ) : null}
+              </select>
+            </label>
+
+            <label className="space-y-1.5">
+              <span className="text-[12px] font-semibold text-[#6e6e73]">Title</span>
+              <input
+                className="glass-input min-h-[44px] text-[14px]"
+                maxLength={160}
+                placeholder="Short behaviour title"
+                value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+              />
+            </label>
+          </div>
+
+          <div className="mt-3">
+            <label className="space-y-1.5">
+              <span className="text-[12px] font-semibold text-[#6e6e73]">Details</span>
+              <textarea
+                className="glass-input min-h-[96px] resize-none text-[14px] leading-6"
+                maxLength={2000}
+                placeholder="What happened?"
+                value={form.summary}
+                onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
+              />
+            </label>
+          </div>
+
+          {formError ? <p className="mt-3 rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{formError}</p> : null}
+
+          <div className="mt-4 flex justify-end">
+            <button className="btn-primary min-h-[44px] px-5 text-[14px]" disabled={saving} type="submit">
+              {saving ? "Saving..." : "Save behaviour record"}
+            </button>
+          </div>
+        </form>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-4 shadow-apple-sm backdrop-blur-xl">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Incidents</p>
@@ -92,7 +288,14 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                   </div>
                   <p className="mt-1 text-[12px] font-medium text-[#86868b]">{formatDate(record.occurredAt)}</p>
                   <p className="mt-2 text-[13px] leading-5 text-[#6e6e73]">{record.summary}</p>
-                  {record.actionTaken ? <p className="mt-2 text-[12px] font-semibold text-[#1d1d1f]">Action: {record.actionTaken}</p> : null}
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    {record.actionTaken ? <p className="text-[12px] font-semibold text-[#1d1d1f]">Action: {record.actionTaken}</p> : <p className="text-[12px] font-semibold text-[#c93400]">Action pending</p>}
+                    {canTakeAction ? (
+                      <button className="btn-secondary min-h-[34px] px-3 text-[12px]" onClick={() => openActionModal(record)} type="button">
+                        {record.actionTaken ? "Update action" : "Take action"}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               ))
             )}
@@ -160,7 +363,16 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                       </div>
                       <p className="mt-1 text-[12px] leading-5 text-[#6e6e73]">{record.summary}</p>
                     </td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{record.actionTaken ?? "Not recorded"}</td>
+                    <td className="px-5 py-4 text-[#6e6e73]">
+                      <div className="flex max-w-[220px] flex-col gap-2">
+                        <span>{record.actionTaken ?? "Not recorded"}</span>
+                        {canTakeAction && record.type === "INCIDENT" ? (
+                          <button className="btn-secondary min-h-[34px] px-3 text-[12px]" onClick={() => openActionModal(record)} type="button">
+                            {record.actionTaken ? "Update action" : "Take action"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
                     <td className="px-5 py-4 text-[#6e6e73]">{record.createdBy?.fullName ?? "System"}</td>
                   </tr>
                 ))
@@ -169,6 +381,61 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
           </table>
         </div>
       </div>
+
+      {selectedIncident ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
+          <form className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl" onSubmit={handleActionSubmit}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Behaviour action</p>
+                <h2 className="mt-1 text-[20px] font-semibold text-[#1d1d1f]">{selectedIncident.title}</h2>
+                <p className="mt-1 text-[13px] font-medium text-[#86868b]">{formatDate(selectedIncident.occurredAt)}</p>
+              </div>
+              <StatusPill label={selectedIncident.severity} tone={severityTone(selectedIncident)} />
+            </div>
+
+            <div className="mt-5 grid gap-3 rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/70 p-4 text-[13px] text-[#6e6e73]">
+              <div>
+                <p className="font-semibold text-[#1d1d1f]">Incident details</p>
+                <p className="mt-1 leading-6">{selectedIncident.summary}</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="font-semibold text-[#1d1d1f]">Logged by</p>
+                  <p className="mt-1">{selectedIncident.createdBy?.fullName ?? "System"}</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-[#1d1d1f]">Current action</p>
+                  <p className="mt-1">{selectedIncident.actionTaken ?? "Not recorded"}</p>
+                </div>
+              </div>
+            </div>
+
+            <label className="mt-4 block space-y-1.5">
+              <span className="text-[12px] font-semibold text-[#6e6e73]">Action being taken</span>
+              <textarea
+                autoFocus
+                className="glass-input min-h-[120px] resize-none text-[14px] leading-6"
+                maxLength={1000}
+                placeholder="Write the action taken by principal"
+                value={actionText}
+                onChange={(event) => setActionText(event.target.value)}
+              />
+            </label>
+
+            {actionError ? <p className="mt-3 rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{actionError}</p> : null}
+
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button className="btn-secondary min-h-[44px] px-5 text-[14px]" onClick={() => setSelectedIncident(null)} type="button">
+                Cancel
+              </button>
+              <button className="btn-primary min-h-[44px] px-5 text-[14px]" disabled={actionSaving} type="submit">
+                {actionSaving ? "Saving..." : "Save action"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }

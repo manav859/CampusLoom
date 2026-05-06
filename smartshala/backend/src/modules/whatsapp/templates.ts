@@ -34,3 +34,16 @@ export function buildFeeReceiptMessage(
 export function buildFeeReminderMessage(studentName: string, balance: number, dueDate: Date | string) {
   return `Dear Parent, fee balance of Rs. ${balance.toFixed(2)} for ${studentName} is due on ${formatMessageDate(dueDate)}.`;
 }
+
+export function buildLowMarksMessage(
+  studentName: string,
+  examName: string,
+  subject: string,
+  marks: number,
+  maxMarks: number,
+  percentage: number,
+  date: Date | string
+) {
+  const formattedPercentage = Number.isInteger(percentage) ? String(percentage) : percentage.toFixed(2);
+  return `Dear Parent, ${studentName} scored ${marks}/${maxMarks} (${formattedPercentage}%) in ${subject} - ${examName} on ${formatMessageDate(date)}. This is below 40%. Please connect with the teacher for support.`;
+}

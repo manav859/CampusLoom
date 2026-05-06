@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { StatCardSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { type NotificationLog, whatsappApi } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 type TypeFilter = "all" | "attendance" | "fees" | "report";
 type StatusFilter = "all" | NotificationLog["status"];
@@ -50,7 +51,7 @@ export default function NotificationsPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    whatsappApi.logs()
+    cachedFetch("notifications:logs", () => whatsappApi.logs())
       .then((data) => {
         if (active) setLogs(data);
       })

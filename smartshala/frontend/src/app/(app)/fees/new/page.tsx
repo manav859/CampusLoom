@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { apiFetch } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 type ClassData = { id: string; name: string; section: string };
 
@@ -36,7 +37,7 @@ export default function NewFeeStructurePage() {
       }
     }
 
-    apiFetch<ClassData[]>("/classes")
+    cachedFetch("classes:list", () => apiFetch<ClassData[]>("/classes"))
       .then((clsData) => setClasses(clsData || []))
       .catch(console.error);
   }, [router]);

@@ -9,12 +9,13 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch, feesApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 type DashboardResponse = {
   role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
   kpis: Record<string, number>;
   attendance?: { className: string; attendancePercentage: number; marked: boolean; absent: number }[];
-  alerts?: { studentName?: string; message?: string; severity?: string; flags?: string[] }[];
+  alerts?: { type?: string; studentId?: string; studentName?: string; message?: string; severity?: string; flags?: string[] }[];
   aiSummary?: string;
 };
 
@@ -33,10 +34,10 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       setLoading(true);
       setError("");
       const [dashboardResult, feesResult, defaultersResult, logsResult] = await Promise.allSettled([
-        apiFetch<DashboardResponse>("/dashboard"),
-        mode === "ADMIN" ? feesApi.dashboard() : Promise.resolve(null),
-        mode === "ADMIN" ? feesApi.defaulters() : Promise.resolve([]),
-        mode === "ADMIN" ? whatsappApi.logs() : Promise.resolve([])
+        cachedFetch(mode === "ADMIN" ? "dashboard" : "dashboard:teacher", () => apiFetch<DashboardResponse>("/dashboard")),
+        mode === "ADMIN" ? cachedFetch("fees:dashboard", () => feesApi.dashboard()) : Promise.resolve(null),
+        mode === "ADMIN" ? cachedFetch("fees:defaulters", () => feesApi.defaulters()) : Promise.resolve([]),
+        mode === "ADMIN" ? cachedFetch("wa:logs", () => whatsappApi.logs()) : Promise.resolve([])
       ]);
 
       if (!active) return;
@@ -77,9 +78,13 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       href: `/fees/${item.studentId}`
     })),
     ...(data.alerts ?? []).slice(0, 3).map((alert) => ({
-      label: alert.studentName ?? alert.message ?? "Attendance action needed",
+      label:
+        alert.type === "BEHAVIOUR_INCIDENT" && alert.studentName && alert.message
+          ? `${alert.studentName}: ${alert.message}`
+          : alert.studentName ?? alert.message ?? "Attendance action needed",
       detail: alert.flags?.join(", ") ?? alert.severity ?? undefined,
-      tone: alert.severity === "HIGH" ? "danger" as const : "warn" as const
+      tone: alert.severity === "HIGH" ? "danger" as const : "warn" as const,
+      href: alert.studentId ? `/students/${alert.studentId}` : undefined
     })),
     ...(data.attendance ?? [])
       .filter((item) => item.marked && item.attendancePercentage < 75)

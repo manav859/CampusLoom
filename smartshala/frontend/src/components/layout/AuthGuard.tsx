@@ -4,10 +4,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Role, SessionUser } from "@/types";
 import { authApi } from "@/lib/api";
+import { prefetchForRole, clearCache } from "@/lib/prefetchCache";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
-const teacherAllowedPrefixes = ["/teacher", "/attendance", "/students"];
+const teacherAllowedPrefixes = ["/teacher", "/classes", "/attendance", "/students"];
 const accountantAllowedPrefixes = ["/fees", "/students"];
 const parentAllowedPrefixes = ["/students"];
 
@@ -29,6 +30,7 @@ function matchesPrefix(pathname: string, prefix: string) {
 function isPathAllowedForRole(pathname: string, role: Role) {
   if (isAdminRole(role)) return true;
   if (matchesPrefix(pathname, "/students/new")) return false;
+  if (matchesPrefix(pathname, "/classes/new")) return false;
   if (role === "TEACHER") {
     if (matchesPrefix(pathname, "/attendance/reports")) return false;
     return teacherAllowedPrefixes.some((prefix) => matchesPrefix(pathname, prefix));
@@ -58,7 +60,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       const storedUser = window.localStorage.getItem("smartshala.user");
       if (storedUser) {
         try {
-          setUser(JSON.parse(storedUser) as SessionUser);
+          const parsed = JSON.parse(storedUser) as SessionUser;
+          setUser(parsed);
+          // Start prefetching data immediately from cached user
+          prefetchForRole(parsed.role);
         } catch {
           window.localStorage.removeItem("smartshala.user");
         }
@@ -69,8 +74,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setUser(result.user);
         window.localStorage.setItem("smartshala.user", JSON.stringify(result.user));
+        // Prefetch again with fresh role (in case role changed)
+        prefetchForRole(result.user.role);
         setReady(true);
       } catch {
+        clearCache();
         window.localStorage.removeItem("smartshala.accessToken");
         window.localStorage.removeItem("smartshala.refreshToken");
         window.localStorage.removeItem("smartshala.user");

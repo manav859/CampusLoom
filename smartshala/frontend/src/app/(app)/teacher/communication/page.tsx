@@ -9,6 +9,7 @@ import {
   type CommunicationMessageType,
   type TeacherCommunicationLog
 } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 const messageTemplates: Record<CommunicationMessageType, string> = {
   ATTENDANCE_ALERT: "Dear parent, please note that your child's attendance needs attention. Kindly connect with the class teacher.",
@@ -58,7 +59,10 @@ export default function TeacherCommunicationPage() {
       setLoading(true);
       setError("");
       try {
-        const [communicationContext, messageLogs] = await Promise.all([communicationApi.context(), communicationApi.messages()]);
+        const [communicationContext, messageLogs] = await Promise.all([
+          cachedFetch("communication:context", () => communicationApi.context()),
+          cachedFetch("communication:messages", () => communicationApi.messages())
+        ]);
         if (!active) return;
         setContext(communicationContext);
         setLogs(messageLogs);

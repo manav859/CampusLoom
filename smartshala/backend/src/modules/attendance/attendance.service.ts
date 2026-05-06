@@ -80,12 +80,23 @@ function isUniqueConstraintError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
+function teacherClassAccessWhere(user: AttendanceUser) {
+  return user.role === UserRole.TEACHER
+    ? {
+        OR: [
+          { classTeacherId: user.id },
+          { teacherPeriodAssignments: { some: { teacherId: user.id } } }
+        ]
+      }
+    : {};
+}
+
 async function assertClassAccess(user: AttendanceUser, classId: string) {
   const classRecord = await prisma.class.findFirst({
     where: {
       id: classId,
       schoolId: user.schoolId,
-      ...(user.role === UserRole.TEACHER ? { classTeacherId: user.id } : {})
+      ...teacherClassAccessWhere(user)
     }
   });
   if (!classRecord) throw notFound("Class");
@@ -175,22 +186,23 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
       }
     });
 
-    for (const record of records) {
-      await tx.attendanceRecord.upsert({
-        where: { sessionId_studentId: { sessionId: session.id, studentId: record.studentId } },
-        update: {
-          status: record.status,
-          remarks: record.remarks
-        },
-        create: {
-          schoolId: user.schoolId,
-          sessionId: session.id,
-          studentId: record.studentId,
-          status: record.status,
-          remarks: record.remarks
-        }
-      });
-    }
+    await tx.attendanceRecord.deleteMany({
+      where: {
+        schoolId: user.schoolId,
+        sessionId: session.id,
+        studentId: { in: submittedStudentIds }
+      }
+    });
+
+    await tx.attendanceRecord.createMany({
+      data: records.map((record) => ({
+        schoolId: user.schoolId,
+        sessionId: session.id,
+        studentId: record.studentId,
+        status: record.status,
+        remarks: record.remarks
+      }))
+    });
 
     const createdSession = await tx.attendanceSession.findFirst({
       where: { id: session.id, schoolId: user.schoolId },
@@ -203,7 +215,7 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
 
     if (!createdSession) throw notFound("Attendance session");
     return createdSession;
-  });
+  }, { timeout: 15000 });
 
   queueAbsentAttendanceNotifications({
     schoolId: user.schoolId,
@@ -345,7 +357,7 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
     where: {
       id: studentId,
       schoolId: user.schoolId,
-      ...(user.role === UserRole.TEACHER ? { class: { schoolId: user.schoolId, classTeacherId: user.id } } : {})
+      ...(user.role === UserRole.TEACHER ? { class: { schoolId: user.schoolId, ...teacherClassAccessWhere(user) } } : {})
     },
     select: { id: true }
   });

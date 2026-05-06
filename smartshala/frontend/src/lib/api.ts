@@ -5,6 +5,42 @@ type ApiOptions = RequestInit & {
   auth?: boolean;
 };
 
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
+function retryDelay(attempt: number, response?: Response) {
+  const retryAfter = response?.headers.get("retry-after");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return Math.min(seconds * 1000, 2000);
+
+    const date = Date.parse(retryAfter);
+    if (!Number.isNaN(date)) return Math.min(Math.max(date - Date.now(), 0), 2000);
+  }
+
+  return Math.min(250 * 2 ** attempt, 1500);
+}
+
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2): Promise<Response> {
+  let attempt = 0;
+  const method = (options.method ?? "GET").toUpperCase();
+  const canRetry = method === "GET" || method === "HEAD";
+
+  while (true) {
+    try {
+      const response = await fetch(url, options);
+      if (!canRetry || !RETRYABLE_STATUSES.has(response.status) || attempt >= maxRetries) {
+        return response;
+      }
+      await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt, response)));
+    } catch (error) {
+      if (!canRetry || attempt >= maxRetries) throw error;
+      await new Promise((resolve) => setTimeout(resolve, retryDelay(attempt)));
+    }
+    attempt++;
+  }
+}
+
+
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
@@ -14,7 +50,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${env.apiBaseUrl}${path}`, {
+  const response = await fetchWithRetry(`${env.apiBaseUrl}${path}`, {
     ...options,
     headers,
     cache: "no-store"
@@ -47,7 +83,7 @@ export async function apiFormFetch<T>(path: string, body: FormData, options: Api
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${env.apiBaseUrl}${path}`, {
+  const response = await fetchWithRetry(`${env.apiBaseUrl}${path}`, {
     ...options,
     method: options.method ?? "POST",
     headers,
@@ -510,6 +546,22 @@ export type HomeworkAssignment = {
   totalStudents: number;
 };
 
+export type HomeworkSubmissionStatus = "ON_TIME" | "LATE" | "MISSING" | "NOT_SUBMITTED";
+
+export type HomeworkAssignmentDetail = HomeworkAssignment & {
+  submissions: {
+    id: string;
+    studentId: string;
+    studentName: string;
+    admissionNumber: string;
+    rollNumber: number | null;
+    status: HomeworkSubmissionStatus;
+    marks: number | null;
+    teacherNote: string | null;
+    submittedAt: string | null;
+  }[];
+};
+
 export type CreateHomeworkAssignmentPayload = {
   classId: string;
   subjectId?: string;
@@ -543,6 +595,21 @@ export type MarksExam = {
   enteredCount: number;
   pendingCount: number;
   classAverage: number;
+};
+
+export type MarksExamDetail = MarksExam & {
+  students: {
+    studentId: string;
+    fullName: string;
+    admissionNumber: string;
+    rollNumber: number | null;
+    result: {
+      resultId: string;
+      marks: number;
+      percentage: number;
+      grade: string;
+    } | null;
+  }[];
 };
 
 export type CreateMarksExamPayload = {
@@ -613,9 +680,15 @@ export const marksApi = {
     const query = params.toString();
     return apiFetch<MarksExam[]>(`/marks/exams${query ? `?${query}` : ""}`);
   },
+  exam: (examId: string) => apiFetch<MarksExamDetail>(`/marks/exams/${examId}`),
   createExam: (payload: CreateMarksExamPayload) =>
     apiFetch<MarksExam>("/marks/exams", {
       method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateExamResult: (examId: string, payload: { studentId: string; marks: number }) =>
+    apiFetch<MarksExamDetail["students"][number]>(`/marks/exams/${examId}/results`, {
+      method: "PATCH",
       body: JSON.stringify(payload)
     })
 };
@@ -631,6 +704,15 @@ export const homeworkApi = {
   createAssignment: (payload: CreateHomeworkAssignmentPayload) =>
     apiFetch<HomeworkAssignment>("/homework/assignments", {
       method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  assignment: (assignmentId: string) => apiFetch<HomeworkAssignmentDetail>(`/homework/assignments/${assignmentId}`),
+  updateSubmission: (
+    assignmentId: string,
+    payload: { studentId: string; status: HomeworkSubmissionStatus; marks?: number | null; teacherNote?: string | null; submittedAt?: string | null }
+  ) =>
+    apiFetch<HomeworkAssignmentDetail["submissions"][number]>(`/homework/assignments/${assignmentId}/submissions`, {
+      method: "PATCH",
       body: JSON.stringify(payload)
     })
 };
@@ -729,6 +811,11 @@ export const studentsApi = {
   createBehaviourRecord: (studentId: string, payload: BehaviourRecordPayload) =>
     apiFetch<StudentDetail["behaviourAnalytics"]["records"][number]>(`/students/${studentId}/behaviour`, {
       method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateBehaviourAction: (studentId: string, recordId: string, payload: { actionTaken: string }) =>
+    apiFetch<StudentDetail["behaviourAnalytics"]["records"][number]>(`/students/${studentId}/behaviour/${recordId}/action`, {
+      method: "PATCH",
       body: JSON.stringify(payload)
     })
 };

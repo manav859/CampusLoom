@@ -4,11 +4,11 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./students.controller.js";
-import { behaviourRecordSchema, studentDocumentSchema, studentSchema } from "./students.schemas.js";
+import { behaviourActionSchema, behaviourRecordSchema, studentDocumentSchema, studentSchema } from "./students.schemas.js";
 
 export const studentsRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
-const behaviourRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
+const behaviourRoles = [UserRole.TEACHER] as const;
 const documentRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -27,6 +27,12 @@ studentsRouter.post(
   controller.uploadStudentDocument
 );
 studentsRouter.post("/:id/behaviour", requireRole(behaviourRoles), validate({ body: behaviourRecordSchema }), controller.createBehaviourRecord);
+studentsRouter.patch(
+  "/:id/behaviour/:recordId/action",
+  requireRole(adminRoles),
+  validate({ body: behaviourActionSchema }),
+  controller.updateBehaviourAction
+);
 studentsRouter.post("/", requireRole(adminRoles), validate({ body: studentSchema }), controller.createStudent);
 studentsRouter.patch("/:id/activate", requireRole(adminRoles), controller.activateStudent);
 studentsRouter.patch("/:id", requireRole(adminRoles), validate({ body: studentSchema.partial() }), controller.updateStudent);

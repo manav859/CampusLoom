@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { KpiCardSkeleton, TableSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, apiFetch, type FeesDashboard } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 function money(value: number) {
   return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
@@ -36,8 +37,8 @@ export default function FeesDashboardPage() {
     let active = true;
     setLoading(true);
     Promise.all([
-      feesApi.dashboard(),
-      apiFetch<any[]>("/fees/structures")
+      cachedFetch("fees:dashboard", () => feesApi.dashboard()),
+      cachedFetch("fees:structures", () => apiFetch<any[]>("/fees/structures"))
     ])
       .then(([result, structs]) => {
         if (active) {

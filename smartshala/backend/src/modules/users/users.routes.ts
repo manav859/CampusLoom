@@ -3,7 +3,7 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./users.controller.js";
-import { createTeacherSchema, updateUserSchema } from "./users.schemas.js";
+import { createTeacherSchema, teacherAssignmentParamsSchema, teacherPeriodAssignmentsSchema, updateUserSchema } from "./users.schemas.js";
 
 export const usersRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
@@ -11,6 +11,13 @@ const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 usersRouter.use(requireAuth);
 usersRouter.get("/teachers", requireRole(adminRoles), controller.listTeachers);
 usersRouter.post("/teachers", requireRole(adminRoles), validate({ body: createTeacherSchema }), controller.createTeacher);
+usersRouter.get("/teachers/:id/assignments", requireRole(adminRoles), validate({ params: teacherAssignmentParamsSchema }), controller.getTeacherAssignments);
+usersRouter.put(
+  "/teachers/:id/assignments",
+  requireRole(adminRoles),
+  validate({ params: teacherAssignmentParamsSchema, body: teacherPeriodAssignmentsSchema }),
+  controller.updateTeacherAssignments
+);
 usersRouter.patch("/:id/activate", requireRole(adminRoles), controller.activateUser);
 usersRouter.patch("/:id", requireRole(adminRoles), validate({ body: updateUserSchema }), controller.updateUser);
 usersRouter.delete("/:id", requireRole(adminRoles), controller.deleteUser);

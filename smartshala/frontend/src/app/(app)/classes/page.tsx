@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 type ClassData = {
   id: string;
@@ -35,12 +36,11 @@ export default function ClassesPage() {
   }, []);
 
   useEffect(() => {
-    // API endpoint /classes implicitly exists as shown by your backend routes
-    apiFetch<ClassData[]>("/classes")
+    cachedFetch(`classes:list:${isAdmin ? "ADMIN" : "SCOPED"}`, () => apiFetch<ClassData[]>("/classes"))
       .then((data) => setClasses(data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAdmin]);
 
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; id: string | null; error?: string }>({ isOpen: false, id: null });
 

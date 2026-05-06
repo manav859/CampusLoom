@@ -6,6 +6,20 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
 
+function calendarDayClasses(input: { selected: boolean; marked: boolean; isHoliday: boolean }) {
+  if (input.selected) {
+    return input.marked
+      ? "border-[#007aff] bg-[#34c759]/15 ring-2 ring-[#007aff]/25"
+      : input.isHoliday
+        ? "border-[#8e8e93]/30 bg-[#f5f5f7] ring-2 ring-[#007aff]/20"
+        : "border-[#007aff] bg-[#007aff]/10";
+  }
+
+  if (input.marked) return "border-[#34c759]/25 bg-[rgba(52,199,89,0.12)]";
+  if (input.isHoliday) return "border-[#d1d1d6] bg-[#f5f5f7]";
+  return "border-[rgba(0,0,0,0.06)] bg-white/50";
+}
+
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
   const classLabel = attendance.selectedClass ? `${attendance.selectedClass.name}-${attendance.selectedClass.section}` : "Class";
@@ -93,7 +107,9 @@ export default function TeacherAttendancePage() {
             const dateKey = `${attendance.selectedMonth}-${String(cell.day).padStart(2, "0")}`;
             const day = monthlyByDate.get(dateKey);
             const selected = attendance.selectedDate === dateKey;
-            const hasWarning = Boolean(day && (day.absent > 0 || day.late > 0));
+            const date = new Date(monthYear, monthNumber - 1, cell.day);
+            const isSunday = date.getDay() === 0;
+            const isHoliday = isSunday || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
 
             return (
               <button
@@ -102,13 +118,7 @@ export default function TeacherAttendancePage() {
                 onClick={() => attendance.selectDate(dateKey)}
                 disabled={attendance.loading || attendance.submitting}
                 className={`min-h-[76px] rounded-2xl border p-2 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${
-                  selected
-                    ? "border-[#007aff] bg-[#007aff]/10"
-                    : day
-                      ? hasWarning
-                        ? "border-[#ff9500]/20 bg-[#ff9500]/[0.06]"
-                        : "border-[#34c759]/15 bg-[#34c759]/[0.05]"
-                      : "border-[rgba(0,0,0,0.06)] bg-white/50"
+                  calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
                 }`}
               >
                 <span className="block text-[13px] font-semibold text-[#1d1d1f]">{cell.day}</span>
@@ -118,6 +128,8 @@ export default function TeacherAttendancePage() {
                     <span className="block">{day.absent} absent</span>
                     <span className="block">{day.late} late</span>
                   </span>
+                ) : isHoliday ? (
+                  <span className="mt-3 block text-[11px] font-medium text-[#86868b]">{isSunday ? "Sunday" : "Holiday"}</span>
                 ) : (
                   <span className="mt-3 block text-[11px] text-[#86868b]">Unmarked</span>
                 )}

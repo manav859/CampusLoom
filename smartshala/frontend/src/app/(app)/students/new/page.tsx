@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { apiFetch } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 type ClassData = { id: string; name: string; section: string };
 type FeeStructure = { id: string; name: string; totalAmount: number; academicYear: string };
@@ -44,8 +45,8 @@ export default function NewStudentPage() {
 
     // Load classes and fee structures
     Promise.all([
-      apiFetch<ClassData[]>("/classes"),
-      apiFetch<FeeStructure[]>("/fees/structures")
+      cachedFetch("classes:list", () => apiFetch<ClassData[]>("/classes")),
+      cachedFetch("fees:structures", () => apiFetch<FeeStructure[]>("/fees/structures"))
     ]).then(([clsData, feeData]) => {
       setClasses(clsData || []);
       setFeeStructures(feeData || []);

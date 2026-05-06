@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { KpiCardSkeleton, StatCardSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { attendanceApi, type AttendanceDashboard } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 export default function PrincipalAttendanceDashboardPage() {
   const [data, setData] = useState<AttendanceDashboard | null>(null);
@@ -17,7 +18,7 @@ export default function PrincipalAttendanceDashboardPage() {
       setLoading(true);
       setError("");
       try {
-        const result = await attendanceApi.dashboard();
+        const result = await cachedFetch("attendance:dashboard", () => attendanceApi.dashboard());
         if (!cancelled) setData(result);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load attendance dashboard");

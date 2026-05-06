@@ -59,8 +59,13 @@ export function useAttendance() {
       setMonthly(null);
       return;
     }
-    const result = await attendanceApi.classMonth(classId, month);
-    setMonthly(result);
+    try {
+      const result = await attendanceApi.classMonth(classId, month);
+      setMonthly(result);
+    } catch (err) {
+      setMonthly(null);
+      setError(err instanceof Error ? err.message : "Unable to load monthly attendance");
+    }
   }, []);
 
   const loadClass = useCallback(async (classId: string, date: string) => {

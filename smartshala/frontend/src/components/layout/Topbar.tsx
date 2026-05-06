@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { SessionUser } from "@/types";
+import { clearCache } from "@/lib/prefetchCache";
 import { NotificationPanel } from "./NotificationPanel";
 
 /* ── Live Clock ── */
@@ -87,6 +88,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
   }, [menuOpen]);
 
   const logout = useCallback(() => {
+    clearCache();
     window.localStorage.removeItem("smartshala.accessToken");
     window.localStorage.removeItem("smartshala.refreshToken");
     window.localStorage.removeItem("smartshala.user");

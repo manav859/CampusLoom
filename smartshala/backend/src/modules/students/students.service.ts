@@ -41,7 +41,7 @@ const allowedDocumentMimeTypes = new Set([
 ]);
 
 const fullAccessTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "fees", "communication", "behaviour", "documents"];
-const teacherTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "communication"];
+const teacherTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "communication", "behaviour"];
 const accountantTabs: StudentProfileTab[] = ["fees"];
 const parentTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "fees"];
 const queryCache = new Map<string, { expiresAt: number; value: unknown }>();
@@ -77,7 +77,16 @@ async function phoneForUser(user: Express.UserContext) {
 }
 
 async function studentAccessFilter(user: Express.UserContext) {
-  if (user.role === UserRole.TEACHER) return { class: { classTeacherId: user.id } };
+  if (user.role === UserRole.TEACHER) {
+    return {
+      class: {
+        OR: [
+          { classTeacherId: user.id },
+          { teacherPeriodAssignments: { some: { teacherId: user.id } } }
+        ]
+      }
+    };
+  }
   if (user.role === UserRole.PARENT) {
     const phone = await phoneForUser(user);
     if (!phone) return { parentPhone: "__NO_PARENT_PHONE__" };
@@ -993,18 +1002,32 @@ export async function createBehaviourRecord(user: Express.UserContext, studentId
       actionTaken?: string;
     };
 
-    if (!isPrincipalRole(user.role)) {
-      throw new AppError(403, "Only Principal/Admin users can manage behaviour records", "FORBIDDEN");
+    if (user.role !== UserRole.TEACHER) {
+      throw new AppError(403, "Only teachers can create behaviour records", "FORBIDDEN");
     }
 
-    if (payload.type === BehaviourType.COUNSELLOR_NOTE && !canViewCounsellorNotes(user.role)) {
-      throw new AppError(403, "Counsellor notes are restricted to Principal/Admin roles", "FORBIDDEN");
+    if (payload.type === BehaviourType.COUNSELLOR_NOTE) {
+      throw new AppError(403, "Teachers cannot create counsellor notes", "FORBIDDEN");
+    }
+
+    if (payload.isRestricted) {
+      throw new AppError(403, "Restricted behaviour notes are limited to Principal/Admin roles", "FORBIDDEN");
+    }
+
+    if (payload.actionTaken?.trim()) {
+      throw new AppError(403, "Action taken must be recorded by Principal/Admin users", "FORBIDDEN");
     }
 
     const student = await prisma.student.findFirst({
       where: {
         id: studentId,
-        schoolId: user.schoolId
+        schoolId: user.schoolId,
+        class: {
+          OR: [
+            { classTeacherId: user.id },
+            { teacherPeriodAssignments: { some: { teacherId: user.id } } }
+          ]
+        }
       },
       select: { id: true }
     });
@@ -1020,14 +1043,42 @@ export async function createBehaviourRecord(user: Express.UserContext, studentId
         summary: payload.summary,
         severity: payload.severity,
         occurredAt: payload.occurredAt ?? new Date(),
-        isRestricted: payload.type === BehaviourType.COUNSELLOR_NOTE ? true : Boolean(payload.isRestricted),
-        actionTaken: payload.actionTaken
+        isRestricted: false,
+        actionTaken: null
       },
       include: {
         createdBy: { select: { id: true, fullName: true, role: true } }
       }
     });
   }, { label: "createBehaviourRecord" });
+}
+
+export async function updateBehaviourAction(user: Express.UserContext, studentId: string, recordId: string, data: Record<string, unknown>) {
+  return withRetry(async () => {
+    if (!isPrincipalRole(user.role)) {
+      throw new AppError(403, "Only Principal/Admin users can record behaviour actions", "FORBIDDEN");
+    }
+
+    const payload = data as { actionTaken: string };
+    const record = await prisma.behaviourRecord.findFirst({
+      where: {
+        id: recordId,
+        studentId,
+        schoolId: user.schoolId,
+        type: BehaviourType.INCIDENT
+      },
+      select: { id: true }
+    });
+    if (!record) throw notFound("Behaviour record");
+
+    return prisma.behaviourRecord.update({
+      where: { id: record.id },
+      data: { actionTaken: payload.actionTaken.trim() },
+      include: {
+        createdBy: { select: { id: true, fullName: true, role: true } }
+      }
+    });
+  }, { label: "updateBehaviourAction" });
 }
 
 export async function generateAdmissionNumber(schoolId: string) {

@@ -13,3 +13,11 @@ export const listAssignments = asyncHandler(async (req: Request, res: Response) 
 export const createAssignment = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(await homeworkService.createAssignment(req.user!, req.body));
 });
+
+export const getAssignment = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await homeworkService.getAssignment(req.user!, req.params.assignmentId));
+});
+
+export const updateSubmission = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await homeworkService.updateSubmission(req.user!, req.params.assignmentId, req.body));
+});

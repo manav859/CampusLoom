@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Skeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 /* ── Types ── */
 type StudentRow = {
@@ -15,10 +16,10 @@ type StudentRow = {
   class: { name: string; section: string };
   isActive: boolean;
   /* enriched fields — filled from API or fallback */
-  feeStatus: "PAID" | "PENDING" | "OVERDUE";
-  pendingAmount: number;
+  feeStatus: "PAID" | "PENDING" | "OVERDUE" | null;
+  pendingAmount: number | null;
   lastPayment: string | null;
-  attendancePercentage: number;
+  attendancePercentage: number | null;
 };
 
 type ApiStudentItem = {
@@ -74,6 +75,10 @@ const feeStatusStyles: Record<string, { bg: string; text: string; label: string 
   OVERDUE: { bg: "bg-[#ff3b30]", text: "text-white", label: "OVERDUE" },
 };
 
+function roleCanViewFees(role?: string) {
+  return role === "ADMIN" || role === "PRINCIPAL" || role === "ACCOUNTANT";
+}
+
 /* ── Component ── */
 export default function StudentsPage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -82,6 +87,7 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canViewFees, setCanViewFees] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; action: 'activate' | 'deactivate'; studentId: string | null; error?: string }>({ isOpen: false, action: 'deactivate', studentId: null });
 
   useEffect(() => {
@@ -90,6 +96,7 @@ export default function StudentsPage() {
       try {
         const u = JSON.parse(storedUser);
         setIsAdmin(u.role === "ADMIN" || u.role === "PRINCIPAL");
+        setCanViewFees(roleCanViewFees(u.role));
       } catch (e) {
         console.error(e);
       }
@@ -106,7 +113,7 @@ export default function StudentsPage() {
 
   // Load classes
   useEffect(() => {
-    apiFetch<{ id: string; name: string; section: string }[]>("/classes")
+    cachedFetch("classes:list", () => apiFetch<{ id: string; name: string; section: string }[]>("/classes"))
       .then((data) => setClasses(data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -114,55 +121,59 @@ export default function StudentsPage() {
 
   // Fetch students
   useEffect(() => {
-    const st = setTimeout(() => {
-      setLoadingList(true);
-      const params = new URLSearchParams();
-      params.set("limit", perPage.toString());
-      params.set("page", page.toString());
-      if (search) params.set("search", search);
-      if (classId) params.set("classId", classId);
-      if (showInactive) params.set("showInactive", "true");
+    setLoadingList(true);
+    const params = new URLSearchParams();
+    params.set("limit", perPage.toString());
+    params.set("page", page.toString());
+    if (search) params.set("search", search);
+    if (classId) params.set("classId", classId);
+    if (showInactive) params.set("showInactive", "true");
 
-      apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`)
-        .then((data) => {
-          const items = data?.items || [];
-          if (items.length > 0) {
-            setStudents(items.map((s) => {
-              const assignments = s.feeAssignments || [];
-              const pending = assignments.reduce((acc, a) => acc + Number(a.pendingAmount || 0), 0);
-              const status = assignments.some(a => a.status === "OVERDUE") 
-                ? "OVERDUE" 
-                : pending > 0 ? "PENDING" : "PAID";
+    const cacheKey = `students:list:${params.toString()}`;
+    cachedFetch(cacheKey, () => apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`))
+      .then((data) => {
+        const items = data?.items || [];
+        if (items.length > 0) {
+          setStudents(items.map((s) => {
+            const hasFeeData = Array.isArray(s.feeAssignments);
+            const assignments = s.feeAssignments ?? [];
+            const pending = hasFeeData ? assignments.reduce((acc, a) => acc + Number(a.pendingAmount || 0), 0) : null;
+            const status = !hasFeeData
+              ? null
+              : assignments.some(a => a.status === "OVERDUE")
+                ? "OVERDUE"
+                : (pending ?? 0) > 0 ? "PENDING" : "PAID";
 
-              return {
-                ...s,
-                feeStatus: status,
-                pendingAmount: pending,
-                lastPayment: s.lastPayment ?? null,
-                attendancePercentage: s.attendancePercentage ?? Math.floor(Math.random() * 35 + 65),
-              };
-            }));
-            setTotal(data?.total || 0);
-          } else {
-            setStudents(fallbackStudents);
-            setTotal(fallbackStudents.length);
-          }
-        })
-        .catch(() => {
+            return {
+              ...s,
+              feeStatus: status,
+              pendingAmount: pending,
+              lastPayment: s.lastPayment ?? null,
+              attendancePercentage: s.attendancePercentage ?? null,
+            };
+          }));
+          setTotal(data?.total || 0);
+        } else {
           setStudents(fallbackStudents);
           setTotal(fallbackStudents.length);
-        })
-        .finally(() => setLoadingList(false));
-    }, 300);
-    return () => clearTimeout(st);
+        }
+      })
+      .catch(() => {
+        setStudents(fallbackStudents);
+        setTotal(fallbackStudents.length);
+      })
+      .finally(() => setLoadingList(false));
   }, [search, classId, page, perPage, showInactive]);
 
   // Client-side status filtering
-  const filtered = statusFilter
+  const filtered = statusFilter && canViewFees
     ? students.filter((s) => s.feeStatus === statusFilter)
     : students;
 
   const totalPages = Math.ceil(total / perPage);
+  const tableHeaders = canViewFees
+    ? ["#", "Student Name", "Class", "Fees Status", "Pending Amt", "Last Payment", "Attendance", "Actions"]
+    : ["#", "Student Name", "Class", "Attendance", "Actions"];
 
   const handleDelete = (id: string) => {
     setConfirmDialog({ isOpen: true, action: 'deactivate', studentId: id });
@@ -234,16 +245,18 @@ export default function StudentsPage() {
               <option key={cls.id} value={cls.id}>{cls.name}-{cls.section}</option>
             ))}
           </select>
-          <select
-            className="glass-input sm:w-36 text-[13px]"
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          >
-            <option value="">All Status</option>
-            <option value="PAID">Paid</option>
-            <option value="PENDING">Pending</option>
-            <option value="OVERDUE">Overdue</option>
-          </select>
+          {canViewFees ? (
+            <select
+              className="glass-input sm:w-36 text-[13px]"
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+            >
+              <option value="">All Status</option>
+              <option value="PAID">Paid</option>
+              <option value="PENDING">Pending</option>
+              <option value="OVERDUE">Overdue</option>
+            </select>
+          ) : null}
           <button
             onClick={() => { setShowInactive(!showInactive); setPage(1); }}
             className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-[13px] font-medium ${
@@ -267,10 +280,10 @@ export default function StudentsPage() {
             </div>
           )}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-[13px]">
+            <table className={`w-full text-left text-[13px] ${canViewFees ? "min-w-[900px]" : "min-w-[640px]"}`}>
               <thead>
                 <tr className="bg-gradient-to-r from-[#1a3c4d] to-[#2a7a94]">
-                  {["#", "Student Name", "Class", "Fees Status", "Pending Amt", "Last Payment", "Attendance", "Actions"].map((head) => (
+                  {tableHeaders.map((head) => (
                     <th key={head} className="px-5 py-3.5 text-[12px] font-semibold text-white/90 tracking-wide whitespace-nowrap">{head}</th>
                   ))}
                 </tr>
@@ -282,22 +295,26 @@ export default function StudentsPage() {
                       <td className="px-5 py-4"><Skeleton className="h-4 w-6 rounded-md" /></td>
                       <td className="px-5 py-4"><Skeleton className="h-4 w-32 rounded-md" /></td>
                       <td className="px-5 py-4"><Skeleton className="h-4 w-12 rounded-md" /></td>
-                      <td className="px-5 py-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
-                      <td className="px-5 py-4"><Skeleton className="h-4 w-20 rounded-md" /></td>
-                      <td className="px-5 py-4"><Skeleton className="h-4 w-24 rounded-md" /></td>
+                      {canViewFees ? (
+                        <>
+                          <td className="px-5 py-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                          <td className="px-5 py-4"><Skeleton className="h-4 w-20 rounded-md" /></td>
+                          <td className="px-5 py-4"><Skeleton className="h-4 w-24 rounded-md" /></td>
+                        </>
+                      ) : null}
                       <td className="px-5 py-4"><Skeleton className="h-4 w-12 rounded-md" /></td>
                       <td className="px-5 py-4"><div className="flex gap-2"><Skeleton className="h-7 w-14 rounded-lg" /><Skeleton className="h-7 w-14 rounded-lg" /></div></td>
                     </tr>
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-16 text-center text-[#86868b]">
+                    <td colSpan={tableHeaders.length} className="px-5 py-16 text-center text-[#86868b]">
                       <span className="text-[13px] font-medium">No students found.</span>
                     </td>
                   </tr>
                 ) : (
                   filtered.map((student, idx) => {
-                    const fs = feeStatusStyles[student.feeStatus] ?? feeStatusStyles.PAID;
+                    const fs = student.feeStatus ? feeStatusStyles[student.feeStatus] : null;
                     const rowNum = (page - 1) * perPage + idx + 1;
 
                     return (
@@ -305,17 +322,29 @@ export default function StudentsPage() {
                         <td className="px-5 py-4 text-[#86868b] font-medium">{rowNum}</td>
                         <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{student.fullName}</td>
                         <td className="px-5 py-4 text-[#6e6e73] font-medium">{student.class.name}{student.class.section}</td>
+                        {canViewFees ? (
+                          <>
+                            <td className="px-5 py-4">
+                              {fs ? (
+                                <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${fs.bg} ${fs.text}`}>
+                                  {fs.label}
+                                </span>
+                              ) : (
+                                <span className="text-[#86868b]">Not available</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{student.pendingAmount === null ? "—" : money(student.pendingAmount)}</td>
+                            <td className="px-5 py-4 text-[#6e6e73]">{timeAgo(student.lastPayment)}</td>
+                          </>
+                        ) : null}
                         <td className="px-5 py-4">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-[10px] font-bold tracking-wider ${fs.bg} ${fs.text}`}>
-                            {fs.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(student.pendingAmount)}</td>
-                        <td className="px-5 py-4 text-[#6e6e73]">{timeAgo(student.lastPayment)}</td>
-                        <td className="px-5 py-4">
-                          <span className={`font-bold ${attendanceColor(student.attendancePercentage)}`}>
-                            {student.attendancePercentage}%
-                          </span>
+                          {student.attendancePercentage === null ? (
+                            <span className="text-[#86868b]">—</span>
+                          ) : (
+                            <span className={`font-bold ${attendanceColor(student.attendancePercentage)}`}>
+                              {student.attendancePercentage}%
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2">
@@ -325,15 +354,15 @@ export default function StudentsPage() {
                             >
                               View
                             </Link>
-                            {student.feeStatus !== "PAID" ? (
+                            {canViewFees && student.feeStatus && student.feeStatus !== "PAID" ? (
                               <button className="inline-flex items-center rounded-lg bg-[#ff9500] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#e68600] transition-colors">
                                 Remind
                               </button>
-                            ) : (
+                            ) : canViewFees ? (
                               <span className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-[#f5f5f7] text-[#86868b]">
                                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth="3" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                               </span>
-                            )}
+                            ) : null}
                             {isAdmin && (
                               student.isActive ? (
                                 <button onClick={() => handleDelete(student.id)} className="inline-flex items-center rounded-lg bg-[rgba(255,59,48,0.1)] px-3 py-1.5 text-[11px] font-bold text-[#d70015] hover:bg-[#ff3b30] hover:text-white transition-colors">

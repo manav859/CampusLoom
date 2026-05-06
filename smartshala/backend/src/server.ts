@@ -4,12 +4,14 @@ import { logger } from "./config/logger.js";
 import { connectDatabase, disconnectDatabase } from "./core/prisma.js";
 
 async function bootstrap() {
-  await connectDatabase();
   const app = createApp();
 
   const server = app.listen(env.PORT, () => {
     logger.info(`SmartShala API listening on http://localhost:${env.PORT}/api and /api/v1`);
   });
+
+  // Initial connection is now handled entirely by the dbWarmup middleware
+  // to avoid concurrent connection attempts that can deadlock Prisma.
 
   const shutdown = async () => {
     logger.info("Shutting down SmartShala API");
@@ -24,6 +26,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => {
-  logger.error({ error }, "Failed to start API");
+  logger.error({ error }, "Fatal error during bootstrap");
   process.exit(1);
 });

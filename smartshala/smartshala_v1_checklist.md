@@ -78,3 +78,9 @@
 - 2026-05-03: Upgraded teacher attendance with editable past entries, late marking, class monthly calendar summaries, and backend upsert semantics for one record per student per date feeding attendance analytics/performance.
 - 2026-05-03: Created the teacher Communication module with individual/class WhatsApp-style parent messaging, attendance/homework/custom message types, delivery logs, and student profile communication audit integration.
 - 2026-05-03: Hardened role-based controls so teachers can access attendance/homework/marks/communication for assigned classes, fees and restricted behaviour notes stay blocked, admin/principal retain full access, and frontend routes mirror backend permissions.
+- 2026-05-04: Added per-student homework submission tracking for teachers with on-time/late/not-submitted status updates, marks/notes, assignment detail APIs, and fixed role-sensitive class caching that could break teacher attendance submission after switching roles.
+- 2026-05-04: Added a teacher My Classes page and teacher-owned class subjects, including subject-teacher schema support, automatic default subject creation for assigned classes, and backfill of existing class subjects to class teachers.
+- 2026-05-04: Added admin-managed teacher period timetables with 8 period slots per teacher, rotated default class-subject assignments plus free periods, class-teacher-only attendance control, and fixed sidebar active-state highlighting for teacher subpages.
+- 2026-05-04: Fixed principal marks saving by replacing slow per-student exam-result upserts with a bulk insert transaction to avoid Prisma transaction timeout on remote Postgres.
+- 2026-05-05: Fixed attendance submission timeout by replacing per-student attendance upserts with bulk delete/create writes inside the class-date attendance transaction.
+- 2026-05-05: Updated the teacher attendance monthly calendar so saved attendance days render green and Sundays/holiday placeholders render gray.
