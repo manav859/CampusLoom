@@ -154,22 +154,6 @@ export default function AttendanceReportsPage() {
           </div>
         </div>
       </div>
-
-      <section className="glass-card-interactive p-6">
-        <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Pending alerts</h2>
-        <div className="mt-4 space-y-2">
-          {alerts.length === 0 ? (
-            <p className="text-[13px] text-[#86868b]">All classes have submitted attendance.</p>
-          ) : (
-            alerts.map((alert) => (
-              <div key={alert.classId} className="flex items-center justify-between gap-3 rounded-xl bg-[#ff9500]/[0.05] px-4 py-3">
-                <span className="font-medium text-[#1d1d1f] text-[13px]">{alert.className}</span>
-                <StatusPill label="Missing" tone="warn" />
-              </div>
-            ))
-          )}
-        </div>
-      </section>
     </div>
   );
 }
