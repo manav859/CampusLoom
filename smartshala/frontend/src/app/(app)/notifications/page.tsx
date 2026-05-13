@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { StatCardSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { type NotificationLog, whatsappApi } from "@/lib/api";
+import { formatDateTimeShort, humanizeConstant, maskPhoneNumber, truncateText } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
 type TypeFilter = "all" | "attendance" | "fees" | "report";
@@ -31,7 +32,7 @@ function statusLabel(status: NotificationLog["status"]) {
 
 function formatTime(value: string | null) {
   if (!value) return "Not sent";
-  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return formatDateTimeShort(value);
 }
 
 function isToday(value: string | null) {
@@ -139,12 +140,12 @@ export default function NotificationsPage() {
               ) : (
                 filteredLogs.map((log) => (
                   <tr key={log.id} className="table-row">
-                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{log.kind.replaceAll("_", " ")}</td>
+                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{humanizeConstant(log.kind)}</td>
                     <td className="px-5 py-4">
-                      <p className="font-medium text-[#1d1d1f]">{log.recipientPhone}</p>
+                      <p className="font-medium text-[#1d1d1f]">{maskPhoneNumber(log.recipientPhone)}</p>
                       {log.student ? <p className="text-[11px] text-[#86868b]">{log.student.fullName}</p> : null}
                     </td>
-                    <td className="max-w-sm truncate px-5 py-4 text-[#6e6e73]">{log.message}</td>
+                    <td className="max-w-sm px-5 py-4 text-[#6e6e73]" title={log.message}>{truncateText(log.message, 80)}</td>
                     <td className="px-5 py-4"><StatusPill label={statusLabel(log.status)} tone={statusTone(log.status)} /></td>
                     <td className="px-5 py-4 text-[#6e6e73]">{formatTime(log.sentAt ?? log.createdAt)}</td>
                   </tr>

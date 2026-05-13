@@ -9,6 +9,7 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch, feesApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
+import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
 type DashboardResponse = {
@@ -61,18 +62,35 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   }, [mode]);
 
   /* ── KPI row ── */
+  const totalClasses = data?.kpis.totalClasses ?? data?.kpis.assignedClasses ?? 0;
+  const markedClasses = data?.kpis.classesMarked ?? 0;
+  const pendingClasses = data?.kpis.classesPending ?? data?.kpis.pendingAttendance ?? 0;
+  const markedTodayPercentage = totalClasses ? Math.round((markedClasses / totalClasses) * 100) : 0;
+
   const adminKpis = data ? [
-    { label: "Students", value: data.kpis.totalStudents ?? data.kpis.assignedStudents ?? 0, tone: "teal" as const },
-    { label: "Attendance", value: `${data.kpis.todayAttendancePercentage ?? 0}%`, tone: "green" as const },
+    { label: mode === "ADMIN" ? "Students" : "Your students", value: data.kpis.totalStudents ?? data.kpis.assignedStudents ?? 0, tone: "teal" as const },
+    mode === "ADMIN"
+      ? {
+          label: "Marked today",
+          value: `${markedTodayPercentage}%`,
+          helper: `${markedClasses} of ${totalClasses} classes marked`,
+          tone: pendingClasses > 0 ? "amber" as const : "green" as const
+        }
+      : {
+          label: "Pending attendance",
+          value: pendingClasses,
+          helper: "Your classes today",
+          tone: pendingClasses > 0 ? "amber" as const : "green" as const
+        },
     { label: "Defaulters", value: defaulters.length || data.kpis.overdueInstallments || 0, tone: "red" as const },
-    { label: "Collected", value: mode === "ADMIN" ? `₹${Number((fees?.totalCollected ?? 0) / 100000).toFixed(1)}L` : "Class view", tone: "amber" as const },
+    { label: "Collected", value: mode === "ADMIN" ? formatINR(fees?.totalCollected ?? 0) : "Class view", tone: "amber" as const },
     { label: "AI Alerts", value: data.alerts?.length || 0, tone: "purple" as const }
   ] : [];
 
   /* ── Alert items ── */
   const actionAlerts = data ? [
     ...defaulters.slice(0, 2).map((item) => ({
-      label: `${item.name} has ₹${item.balance.toLocaleString("en-IN")} pending`,
+      label: `${item.name} has ${formatINR(item.balance, { compact: false })} pending`,
       detail: `${item.class} - ${item.daysOverdue} days overdue`,
       tone: item.daysOverdue > 0 ? "danger" as const : "warn" as const,
       href: `/fees/${item.studentId}`
@@ -135,7 +153,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           <>
             <AttendanceChart
               data={(data?.attendance ?? []).filter((a) => a.marked).map((a) => ({ label: a.className, value: a.attendancePercentage }))}
-              title="Attendance trend"
+              title={mode === "ADMIN" ? "Attendance in marked classes" : "Your class attendance"}
               classes={(data?.attendance ?? []).map((a) => a.className)}
             />
             <FeeOverviewChart segments={feeSegments} title="Fee overview" />

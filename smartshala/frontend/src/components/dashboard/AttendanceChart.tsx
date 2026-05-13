@@ -42,7 +42,7 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
     );
   }
 
-  const W = 100, H = 48, pt = 4, pb = 2, bw = 6;
+  const W = 100, H = 48, pt = 4, pb = 2, bw = 4;
   const mx = Math.max(...d.map((v) => v.value), 100);
   const ph = H - pt - pb;
   const gap = (W - bw * d.length) / (d.length + 1);
@@ -90,7 +90,7 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
           {/* Custom red line for 75% bar */}
           <line x1="0" x2={W} y1={gy(75)} y2={gy(75)} stroke="#ff3b30" strokeWidth="0.5" strokeDasharray="1.5 1" />
           
-          {d.map((v, i) => <rect key={v.label} x={gx(i) - bw / 2} y={on ? gy(v.value) : H - pb} width={bw} height={on ? (v.value / mx) * ph : 0} rx="1.5" fill={mode === "bar" ? "#0071e3" : "url(#bGrad)"} style={{ transition: `all 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.06}s` }} />)}
+          {d.map((v, i) => <rect key={v.label} x={gx(i) - bw / 2} y={on ? gy(v.value) : H - pb} width={bw} height={on ? (v.value / mx) * ph : 0} rx="1.5" fill="#0071e3" style={{ transition: `all 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.06}s` }} />)}
           <path d={ap} fill="url(#aGrad)" opacity={on && mode === "line" ? 1 : 0} style={{ transition: "opacity 0.8s ease" }} />
           <path d={lp} fill="none" stroke="#0071e3" strokeWidth="0.8" strokeLinecap="round" opacity={on && mode === "line" ? 1 : 0} style={{ transition: "opacity 0.6s ease" }} />
           {pts.map((p, i) => <circle key={d[i].label} cx={p.x} cy={p.y} r={on && mode === "line" && tooltip?.label === d[i].label ? 1.5 : (on && mode === "line" ? 0.9 : 0)} fill="#fff" stroke="#0071e3" strokeWidth="0.5" style={{ transition: `all 0.3s cubic-bezier(0.25,0.1,0.25,1)` }} />)}

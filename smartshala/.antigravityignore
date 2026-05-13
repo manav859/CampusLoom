@@ -1,0 +1,17 @@
+node_modules
+build
+dist
+coverage
+.next
+.gradle
+.idea
+.vscode
+*.lock
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.zip
+*.apk
+*.aab

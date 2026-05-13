@@ -11,6 +11,8 @@ type TokenUser = {
   role: UserRole;
   fullName: string;
   phone: string;
+  email: string | null;
+  schoolName: string;
 };
 
 type RegisterInput = {
@@ -28,7 +30,14 @@ type RegisterInput = {
 function signAccessToken(user: TokenUser) {
   const options: jwt.SignOptions = { subject: user.id, expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"] };
   return jwt.sign(
-    { schoolId: user.schoolId, role: user.role, fullName: user.fullName, phone: user.phone },
+    {
+      schoolId: user.schoolId,
+      role: user.role,
+      fullName: user.fullName,
+      phone: user.phone,
+      email: user.email,
+      schoolName: user.schoolName
+    },
     env.JWT_ACCESS_SECRET,
     options
   );
@@ -57,6 +66,21 @@ function publicUser(user: {
     role: user.role,
     schoolId: user.schoolId,
     schoolName: user.school.name
+  };
+}
+
+export function publicUserFromToken(user: Express.UserContext) {
+  if (!user.schoolName) return null;
+
+  return {
+    id: user.id,
+    name: user.fullName,
+    fullName: user.fullName,
+    email: user.email ?? null,
+    phone: user.phone ?? "",
+    role: user.role,
+    schoolId: user.schoolId,
+    schoolName: user.schoolName
   };
 }
 
@@ -111,7 +135,9 @@ export async function register(data: RegisterInput) {
     schoolId: user.schoolId,
     role: user.role,
     fullName: user.fullName,
-    phone: user.phone
+    phone: user.phone,
+    email: user.email,
+    schoolName: user.school.name
   };
 
   const accessToken = signAccessToken(tokenUser);
@@ -152,7 +178,9 @@ export async function login(identifier: string, password: string) {
     schoolId: user.schoolId,
     role: user.role,
     fullName: user.fullName,
-    phone: user.phone
+    phone: user.phone,
+    email: user.email,
+    schoolName: user.school.name
   };
   const accessToken = signAccessToken(tokenUser);
   const refreshToken = signRefreshToken(tokenUser);
@@ -195,7 +223,7 @@ export async function refresh(refreshToken: string) {
   const userId = decoded.sub;
   if (!userId) throw new AppError(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN");
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, include: { refreshTokens: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { refreshTokens: true, school: true } });
   if (!user || user.status !== UserStatus.ACTIVE || !user.isActive) {
     throw new AppError(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN");
   }
@@ -213,7 +241,9 @@ export async function refresh(refreshToken: string) {
       schoolId: user.schoolId,
       role: user.role,
       fullName: user.fullName,
-      phone: user.phone
+      phone: user.phone,
+      email: user.email,
+      schoolName: user.school.name
     })
   };
 }

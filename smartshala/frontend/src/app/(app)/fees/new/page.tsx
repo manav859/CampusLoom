@@ -122,7 +122,7 @@ export default function NewFeeStructurePage() {
 
         <div className="grid gap-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Total Amount (₹)</label>
+            <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Total amount (INR)</label>
             <input
               required
               type="number"

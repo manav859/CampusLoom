@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { StudentDetail } from "@/lib/api";
 import { money, type AttendanceSummary } from "./studentProfileUtils";
@@ -103,7 +104,9 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
             <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
               {!hasExams ? (
                 <tr>
-                  <td className="px-5 py-12 text-center text-[#86868b]" colSpan={7}>No exam marks recorded yet.</td>
+                  <td className="px-5 py-8" colSpan={7}>
+                    <EmptyState headline="No exam marks" description="No exam marks have been recorded for this student yet." />
+                  </td>
                 </tr>
               ) : (
                 analytics.exams.map((exam) => (

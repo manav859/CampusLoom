@@ -10,6 +10,8 @@ type AccessTokenPayload = {
   role: UserRole;
   fullName: string;
   phone?: string;
+  email?: string | null;
+  schoolName?: string;
 };
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
@@ -28,7 +30,9 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
       schoolId: payload.schoolId,
       role: payload.role,
       fullName: payload.fullName,
-      phone: payload.phone
+      phone: payload.phone,
+      email: payload.email,
+      schoolName: payload.schoolName
     };
     next();
   } catch {

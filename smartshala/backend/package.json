@@ -11,7 +11,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:grading": "tsx tests/grading.test.ts",
+    "test:attendance": "tsx tests/studentAttendance.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

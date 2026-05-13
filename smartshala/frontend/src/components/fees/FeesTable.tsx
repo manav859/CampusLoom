@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { FeeAssignmentSummary } from "@/lib/api";
-
-function money(value: string | number) {
-  return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
-}
+import { formatINR } from "@/lib/formatters";
 
 function classLabel(classRecord?: { name: string; section: string }) {
   if (!classRecord) return "Unassigned";
@@ -50,9 +47,14 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
                     <p className="text-[11px] text-[#86868b] mt-0.5">{row.feeStructure.name}</p>
                   </td>
                   <td className="px-6 py-4 text-[#6e6e73]">{classLabel(row.student.class)}</td>
-                  <td className="px-6 py-4 text-[#6e6e73]">{money(row.paidAmount)}</td>
-                  <td className="px-6 py-4 font-semibold text-[#1d1d1f]">{money(row.pendingAmount)}</td>
-                  <td className="px-6 py-4"><StatusPill label={row.status} tone={toneForStatus(row.status)} /></td>
+                  <td className="px-6 py-4 text-[#6e6e73]">{formatINR(row.paidAmount)}</td>
+                  <td className="px-6 py-4 font-semibold text-[#1d1d1f]">{formatINR(row.pendingAmount)}</td>
+                  <td className="px-6 py-4">
+                    <StatusPill label={row.status} tone={toneForStatus(row.status)} />
+                    {row.status === "PARTIAL" ? (
+                      <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {formatINR(row.paidAmount, { compact: false })} of {formatINR(row.totalAmount, { compact: false })} — {formatINR(row.pendingAmount, { compact: false })} pending</p>
+                    ) : null}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <Link className="text-[13px] font-medium text-[#0071e3] hover:text-[#0077ed] transition-colors" href={`/fees/${row.studentId}`}>
                       Ledger →

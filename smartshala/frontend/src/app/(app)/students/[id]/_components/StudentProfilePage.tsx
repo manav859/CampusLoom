@@ -8,7 +8,7 @@ import { cachedFetch } from "@/lib/prefetchCache";
 import { StickyHeader } from "./StickyHeader";
 import { StudentProfileTabs } from "./StudentProfileTabs";
 import {
-  currentMonthAttendance,
+  attendanceSummary,
   daysSinceLastAbsent,
   fallbackPerformanceClassification,
   latestAbsentDate,
@@ -120,14 +120,17 @@ export function StudentProfilePage() {
     return <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-12 text-center text-[13px] text-[#86868b] shadow-apple-sm">Student not found.</div>;
   }
 
-  const attendance = currentMonthAttendance(student.attendanceRecords);
+  const attendance = attendanceSummary(student.attendanceRecords);
   const allowedTabs = new Set(student.access?.allowedTabs ?? ["academic", "homework", "attendance", "fees", "communication", "behaviour", "documents"]);
   const canViewAcademic = allowedTabs.has("academic");
   const canViewAttendance = allowedTabs.has("attendance");
   const canViewFees = allowedTabs.has("fees");
+  const attendanceMetrics = student.attendanceAnalytics.metrics;
   const pendingFees = student.feeAssignments.reduce((sum, assignment) => sum + Number(assignment.pendingAmount ?? 0), 0);
   const paidFees = student.feeAssignments.reduce((sum, assignment) => sum + Number(assignment.paidAmount ?? 0), 0);
-  const attendancePercentage = student.attendancePercentage ?? attendance.percentage;
+  const attendancePercentage = attendanceMetrics.totalDays
+    ? attendanceMetrics.attendancePercentage
+    : student.attendancePercentage ?? attendance.percentage;
   const feeBalance = student.feeBalance ?? pendingFees;
   const lastAbsentDate = student.lastAbsentDate ?? latestAbsentDate(student.attendanceRecords);
   const daysAbsent = daysSinceLastAbsent(lastAbsentDate);
@@ -137,7 +140,11 @@ export function StudentProfilePage() {
     performanceClassification(performance) ??
     fallbackPerformanceClassification(attendancePercentage, feeBalance);
   const isPerformanceFallback = performance === null;
-  const attendanceWithSnapshot = { ...attendance, percentage: attendancePercentage };
+  const attendanceWithSnapshot = {
+    total: attendanceMetrics.totalDays || attendance.total,
+    absent: attendanceMetrics.totalDays ? attendanceMetrics.absences : attendance.absent,
+    percentage: attendancePercentage
+  };
 
   return (
     <div className="space-y-4">

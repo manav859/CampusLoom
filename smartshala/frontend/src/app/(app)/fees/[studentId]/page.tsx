@@ -9,15 +9,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, type PaymentResult, type StudentFeeLedger } from "@/lib/api";
+import { formatDateShort, formatINR, humanizeConstant } from "@/lib/formatters";
 import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
-
-function money(value: string | number) {
-  return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value));
-}
 
 function statusTone(status: StudentFeeLedger["status"]) {
   if (status === "PAID") return "good";
@@ -60,8 +53,8 @@ export default function StudentFeeLedgerPage() {
   function paymentSuccess(result: PaymentResult) {
     const statusLabel = result.ledger.status === "PAID" ? "Fully Paid" : "Partial";
     setNotice(
-      `Payment of Rs ${Number(result.payment.amount).toLocaleString("en-IN")} recorded - Receipt ${result.receipt.receiptNo} - ${statusLabel}` +
-      (result.ledger.balance > 0 ? ` - Balance: Rs ${result.ledger.balance.toLocaleString("en-IN")}` : "") +
+      `Payment of ${formatINR(result.payment.amount, { compact: false })} recorded - Receipt ${result.receipt.receiptNo} - ${statusLabel}` +
+      (result.ledger.balance > 0 ? ` - Balance: ${formatINR(result.ledger.balance, { compact: false })}` : "") +
       " - WhatsApp receipt queued"
     );
     loadLedger();
@@ -114,10 +107,10 @@ export default function StudentFeeLedgerPage() {
       ) : ledger ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <FeeCard label="Total fees" value={money(ledger.total)} />
-            <FeeCard label="Paid" value={money(ledger.paid)} tone="good" />
-            <FeeCard label="Balance" value={money(ledger.balance)} tone={ledger.balance > 0 ? "warn" : "good"} />
-            <FeeCard label="Status" value={ledger.status} tone={statusTone(ledger.status)} />
+            <FeeCard label="Total fees" value={formatINR(ledger.total)} />
+            <FeeCard label="Paid" value={formatINR(ledger.paid)} tone="good" />
+            <FeeCard label="Balance" value={formatINR(ledger.balance)} tone={ledger.balance > 0 ? "warn" : "good"} />
+            <FeeCard label="Status" value={humanizeConstant(ledger.status)} tone={statusTone(ledger.status)} />
           </div>
 
           <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
@@ -134,10 +127,15 @@ export default function StudentFeeLedgerPage() {
                   {ledger.assignments.map((assignment) => (
                     <tr key={assignment.id} className="table-row">
                       <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{assignment.feeStructure.name}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{money(assignment.total)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{money(assignment.paid)}</td>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(assignment.balance)}</td>
-                      <td className="px-5 py-4"><StatusPill label={assignment.status} tone={statusTone(assignment.status)} /></td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.total)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.paid)}</td>
+                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(assignment.balance)}</td>
+                      <td className="px-5 py-4">
+                        <StatusPill label={assignment.status} tone={statusTone(assignment.status)} />
+                        {assignment.status === "PARTIAL" ? (
+                          <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {formatINR(assignment.paid, { compact: false })} of {formatINR(assignment.total, { compact: false })} — {formatINR(assignment.balance, { compact: false })} pending</p>
+                        ) : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -164,11 +162,11 @@ export default function StudentFeeLedgerPage() {
                         const receiptId = payment.receiptId ?? payment.receipt?.id ?? null;
                         return (
                           <tr key={payment.id} className="table-row">
-                            <td className="px-5 py-4 text-[#6e6e73]">{formatDate(payment.date ?? payment.paidAt)}</td>
-                            <td className="px-5 py-4 font-semibold text-[#248a3d]">{money(payment.amount)}</td>
-                            <td className="px-5 py-4 text-[#6e6e73]">{payment.mode}</td>
+                            <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(payment.date ?? payment.paidAt)}</td>
+                            <td className="px-5 py-4 font-semibold text-[#248a3d]">{formatINR(payment.amount)}</td>
+                            <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
                             <td className="px-5 py-4 font-medium text-[#6e6e73]">{receiptLabel(payment)}</td>
-                            <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(payment.balanceAfter)}</td>
+                            <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(payment.balanceAfter)}</td>
                             <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName ?? "Fee"}</td>
                             <td className="px-5 py-4">
                               {receiptId ? (
@@ -205,9 +203,9 @@ export default function StudentFeeLedgerPage() {
                     <div className="relative pl-7" key={payment.id}>
                       <span className="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-[#34c759] ring-4 ring-[#34c759]/15" />
                       {index < ledger.transactionLedger.length - 1 ? <span className="absolute bottom-[-22px] left-[5px] top-5 w-px bg-[rgba(0,0,0,0.08)]" /> : null}
-                      <p className="text-[13px] font-semibold text-[#1d1d1f]">{money(payment.amount)} posted</p>
-                      <p className="mt-1 text-[12px] text-[#86868b]">{formatDate(payment.date)} - {payment.mode} - {payment.feeStructureName}</p>
-                      <p className="mt-1 text-[12px] font-semibold text-[#6e6e73]">Balance after: {money(payment.balanceAfter)}</p>
+                      <p className="text-[13px] font-semibold text-[#1d1d1f]">{formatINR(payment.amount)} posted</p>
+                      <p className="mt-1 text-[12px] text-[#86868b]">{formatDateShort(payment.date)} - {humanizeConstant(payment.mode)} - {payment.feeStructureName}</p>
+                      <p className="mt-1 text-[12px] font-semibold text-[#6e6e73]">Balance after: {formatINR(payment.balanceAfter)}</p>
                     </div>
                   ))
                 )}

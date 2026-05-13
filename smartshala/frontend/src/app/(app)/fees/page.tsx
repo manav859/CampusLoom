@@ -8,11 +8,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { KpiCardSkeleton, TableSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, apiFetch, type FeesDashboard } from "@/lib/api";
+import { formatINR, humanizeConstant } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
-
-function money(value: number) {
-  return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
-}
 
 export default function FeesDashboardPage() {
   const [data, setData] = useState<FeesDashboard | null>(null);
@@ -78,9 +75,9 @@ export default function FeesDashboardPage() {
           Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
-            <FeeCard label="Total collection" value={money(data?.totalCollected ?? 0)} tone="good" />
-            <FeeCard label="Outstanding" value={money(data?.totalPending ?? 0)} tone="warn" />
-            <FeeCard label="Total assigned" value={money(data?.totalDue ?? 0)} />
+            <FeeCard label="Total collection" value={formatINR(data?.totalCollected ?? 0)} tone="good" />
+            <FeeCard label="Outstanding" value={formatINR(data?.totalPending ?? 0)} tone="warn" />
+            <FeeCard label="Total assigned" value={formatINR(data?.totalDue ?? 0)} />
             <FeeCard label="Defaulters" value={data?.topDefaulters?.length ?? 0} tone="danger" helper="Top pending accounts" />
           </>
         )}
@@ -156,8 +153,8 @@ export default function FeesDashboardPage() {
                     <tr key={fs.id} className="group transition-colors duration-200 hover:bg-[#f5f5f7]/60">
                       <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{fs.name}</td>
                       <td className="px-5 py-4 text-[#6e6e73] font-medium">{fs.academicYear}</td>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(fs.totalAmount)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{fs.frequency}</td>
+                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(fs.totalAmount)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(fs.frequency)}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{fs.class ? `${fs.class.name}-${fs.class.section}` : "All Classes"}</td>
                     </tr>
                   ))

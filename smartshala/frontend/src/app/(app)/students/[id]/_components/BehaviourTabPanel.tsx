@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { studentsApi, type BehaviourRecordPayload, type StudentDetail } from "@/lib/api";
+import { formatDateShort } from "@/lib/formatters";
 import { invalidateCache } from "@/lib/prefetchCache";
 
 export type BehaviourTabPanelProps = {
@@ -8,12 +10,6 @@ export type BehaviourTabPanelProps = {
 };
 
 type BehaviourRecord = StudentDetail["behaviourAnalytics"]["records"][number];
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium"
-  }).format(new Date(value));
-}
 
 function typeLabel(type: BehaviourRecord["type"]) {
   if (type === "ACHIEVEMENT") return "Achievement";
@@ -278,7 +274,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
           </div>
           <div className="mt-5 space-y-3">
             {recentIncidents.length === 0 ? (
-              <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4 text-[13px] font-medium text-[#86868b]">No recent incidents.</div>
+              <div className="py-2"><EmptyState headline="No incidents" description="No recent incidents recorded." /></div>
             ) : (
               recentIncidents.map((record) => (
                 <div className="rounded-xl border border-[rgba(0,0,0,0.05)] p-4" key={`incident-${record.id}`}>
@@ -286,7 +282,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                     <p className="text-[14px] font-semibold text-[#1d1d1f]">{record.title}</p>
                     <StatusPill label={record.severity} tone={severityTone(record)} />
                   </div>
-                  <p className="mt-1 text-[12px] font-medium text-[#86868b]">{formatDate(record.occurredAt)}</p>
+                  <p className="mt-1 text-[12px] font-medium text-[#86868b]">{formatDateShort(record.occurredAt)}</p>
                   <p className="mt-2 text-[13px] leading-5 text-[#6e6e73]">{record.summary}</p>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                     {record.actionTaken ? <p className="text-[12px] font-semibold text-[#1d1d1f]">Action: {record.actionTaken}</p> : <p className="text-[12px] font-semibold text-[#c93400]">Action pending</p>}
@@ -312,7 +308,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
           </div>
           <div className="mt-5 space-y-3">
             {recentAchievements.length === 0 ? (
-              <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4 text-[13px] font-medium text-[#86868b]">No positive achievements yet.</div>
+              <div className="py-2"><EmptyState headline="No achievements" description="No positive achievements yet." /></div>
             ) : (
               recentAchievements.map((record) => (
                 <div className="rounded-xl border border-[#34c759]/15 bg-[#34c759]/[0.04] p-4" key={`achievement-${record.id}`}>
@@ -320,7 +316,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                     <p className="text-[14px] font-semibold text-[#1d1d1f]">{record.title}</p>
                     <StatusPill label={record.severity} tone="good" />
                   </div>
-                  <p className="mt-1 text-[12px] font-medium text-[#86868b]">{formatDate(record.occurredAt)}</p>
+                  <p className="mt-1 text-[12px] font-medium text-[#86868b]">{formatDateShort(record.occurredAt)}</p>
                   <p className="mt-2 text-[13px] leading-5 text-[#6e6e73]">{record.summary}</p>
                 </div>
               ))
@@ -346,12 +342,12 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
             <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
               {records.length === 0 ? (
                 <tr>
-                  <td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>{emptyMessage(behaviour.canViewCounsellorNotes)}</td>
+                  <td className="px-5 py-8" colSpan={6}><EmptyState headline="No records" description={emptyMessage(behaviour.canViewCounsellorNotes)} /></td>
                 </tr>
               ) : (
                 records.map((record) => (
                   <tr className="table-row" key={record.id}>
-                    <td className="px-5 py-4 text-[#6e6e73]">{formatDate(record.occurredAt)}</td>
+                    <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(record.occurredAt)}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClasses(record.type)}`}>{typeLabel(record.type)}</span>
                     </td>
@@ -389,7 +385,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               <div>
                 <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Behaviour action</p>
                 <h2 className="mt-1 text-[20px] font-semibold text-[#1d1d1f]">{selectedIncident.title}</h2>
-                <p className="mt-1 text-[13px] font-medium text-[#86868b]">{formatDate(selectedIncident.occurredAt)}</p>
+                <p className="mt-1 text-[13px] font-medium text-[#86868b]">{formatDateShort(selectedIncident.occurredAt)}</p>
               </div>
               <StatusPill label={selectedIncident.severity} tone={severityTone(selectedIncident)} />
             </div>

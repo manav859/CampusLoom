@@ -13,6 +13,8 @@ import {
 import { prisma, withRetry } from "../../core/prisma.js";
 import { getPagination } from "../../core/pagination.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { gradeForPercentage } from "../../core/grading.js";
+import { calculateStudentAttendanceSummary } from "../../core/studentAttendance.js";
 import { assignFee } from "../fees/fees.service.js";
 
 type AttendanceForSnapshot = {
@@ -182,22 +184,11 @@ function averageNumber(values: number[]) {
 }
 
 function attendanceSnapshot(records: AttendanceForSnapshot[]) {
-  const now = new Date();
-  const currentMonthRecords = records.filter((record) => {
-    const date = record.session.date;
-    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-  });
-
-  const scopedRecords = currentMonthRecords.length > 0 ? currentMonthRecords : records;
-  const total = scopedRecords.length;
-  const attended = scopedRecords.filter((record) => record.status !== AttendanceStatus.ABSENT).length;
-  const lastAbsentRecord = records
-    .filter((record) => record.status === AttendanceStatus.ABSENT)
-    .sort((a, b) => b.session.date.getTime() - a.session.date.getTime())[0];
+  const summary = calculateStudentAttendanceSummary(records);
 
   return {
-    attendancePercentage: total ? Math.round((attended / total) * 100) : 0,
-    lastAbsentDate: lastAbsentRecord?.session.date ?? null
+    attendancePercentage: summary.attendancePercentage,
+    lastAbsentDate: summary.lastAbsentDate
   };
 }
 
@@ -218,12 +209,7 @@ function attendanceAnalytics(records: AttendanceForSnapshot[]) {
     status: record.status
   }));
 
-  const totalDays = attendanceRows.length;
-  const absences = attendanceRows.filter((record) => record.status === AttendanceStatus.ABSENT).length;
-  const late = attendanceRows.filter((record) => record.status === AttendanceStatus.LATE).length;
-  const attended = attendanceRows.filter((record) => record.status !== AttendanceStatus.ABSENT).length;
-  const attendancePercentage = totalDays ? Math.round((attended / totalDays) * 100) : 0;
-  const remainingBefore75 = totalDays ? Math.max(0, Math.floor((attended / 0.75) - totalDays)) : 0;
+  const summary = calculateStudentAttendanceSummary(sortedRecords);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -262,13 +248,13 @@ function attendanceAnalytics(records: AttendanceForSnapshot[]) {
     records: attendanceRows,
     calendar,
     metrics: {
-      attendancePercentage,
-      totalDays,
-      absences,
-      late,
-      remainingBefore75
+      attendancePercentage: summary.attendancePercentage,
+      totalDays: summary.totalDays,
+      absences: summary.absences,
+      late: summary.late,
+      remainingBefore75: summary.remainingBefore75
     },
-    cbseWarning: attendancePercentage > 0 && attendancePercentage < 80,
+    cbseWarning: summary.attendancePercentage > 0 && summary.attendancePercentage < 80,
     repeatedWeekdayAbsences
   };
 }
@@ -277,15 +263,6 @@ function percentage(marksObtained: unknown, maxMarks: unknown) {
   const max = toNumber(maxMarks);
   if (max <= 0) return 0;
   return Math.round(clampPercentage((toNumber(marksObtained) / max) * 100));
-}
-
-function gradeForPercentage(value: number) {
-  if (value >= 90) return "A+";
-  if (value >= 80) return "A";
-  if (value >= 70) return "B+";
-  if (value >= 60) return "B";
-  if (value >= 50) return "C";
-  return "D";
 }
 
 function classifyPerformance(performanceRate: number | null) {
@@ -745,17 +722,16 @@ async function currentRankForStudent(schoolId: string, classId: string, studentI
   });
 
   const ranked = classmates
-    .map((classmate) => ({
-      id: classmate.id,
-      fullName: classmate.fullName,
-      attendancePercentage: attendanceSnapshot(classmate.attendanceRecords).attendancePercentage,
-      performanceRate: performanceSnapshot(
-        classmate.examResults,
-        classmate.homeworkRecords,
-        attendanceSnapshot(classmate.attendanceRecords).attendancePercentage
-      ).performanceRate,
-      feeBalance: classmate.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0)
-    }))
+    .map((classmate) => {
+      const attendancePercentage = attendanceSnapshot(classmate.attendanceRecords).attendancePercentage;
+      return {
+        id: classmate.id,
+        fullName: classmate.fullName,
+        attendancePercentage,
+        performanceRate: performanceSnapshot(classmate.examResults, classmate.homeworkRecords, attendancePercentage).performanceRate,
+        feeBalance: classmate.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0)
+      };
+    })
     .sort(
       (a, b) =>
         (b.performanceRate ?? b.attendancePercentage) - (a.performanceRate ?? a.attendancePercentage) ||

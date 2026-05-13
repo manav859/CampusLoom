@@ -6,11 +6,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { TableRowSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, studentsApi, type FeeDefaulter, whatsappApi } from "@/lib/api";
+import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
-
-function money(value: number) {
-  return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
-}
 
 export default function DefaultersPage() {
   const [rows, setRows] = useState<FeeDefaulter[]>([]);
@@ -45,7 +42,7 @@ export default function DefaultersPage() {
       const student = await studentsApi.get(row.studentId);
       await whatsappApi.send({
         phone: student.parentPhone,
-        message: `Dear Parent, fee balance of Rs ${row.balance.toLocaleString("en-IN")} for ${row.name} is pending. Please clear it at the earliest.`
+        message: `Dear Parent, fee balance of ${formatINR(row.balance, { compact: false })} for ${row.name} is pending. Please clear it at the earliest.`
       });
       setNotice(`WhatsApp reminder sent to ${row.name}.`);
     } catch (err) {
@@ -80,7 +77,7 @@ export default function DefaultersPage() {
                       <Link className="font-semibold text-[#1d1d1f] transition-colors duration-200 hover:text-[#0071e3]" href={`/fees/${row.studentId}`}>{row.name}</Link>
                     </td>
                     <td className="px-5 py-4 text-[#6e6e73]">{row.class}</td>
-                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(row.balance)}</td>
+                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(row.balance)}</td>
                     <td className="px-5 py-4">
                       <StatusPill label={`${row.daysOverdue} days`} tone={row.daysOverdue > 0 ? "danger" : "warn"} />
                     </td>

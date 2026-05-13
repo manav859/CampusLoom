@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusPill } from "@/components/ui/StatusPill";
 import {
@@ -9,6 +10,7 @@ import {
   type CommunicationMessageType,
   type TeacherCommunicationLog
 } from "@/lib/api";
+import { formatDateTimeShort } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
 const messageTemplates: Record<CommunicationMessageType, string> = {
@@ -16,10 +18,6 @@ const messageTemplates: Record<CommunicationMessageType, string> = {
   HOMEWORK_REMINDER: "Dear parent, this is a reminder to help your child complete the assigned homework by the due date.",
   CUSTOM: ""
 };
-
-function dateLabel(value: string) {
-  return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
-}
 
 function typeLabel(type: CommunicationMessageType) {
   if (type === "ATTENDANCE_ALERT") return "Attendance alert";
@@ -280,7 +278,9 @@ export default function TeacherCommunicationPage() {
                   ))
                 ) : logs.length === 0 ? (
                   <tr>
-                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={5}>No parent messages sent yet.</td>
+                    <td className="px-5 py-8" colSpan={5}>
+                      <EmptyState headline="No messages" description="No parent messages sent yet." />
+                    </td>
                   </tr>
                 ) : (
                   logs.map((log) => (
@@ -291,10 +291,10 @@ export default function TeacherCommunicationPage() {
                       </td>
                       <td className="px-5 py-4 text-[#6e6e73]">{typeLabel(log.type)}</td>
                       <td className="px-5 py-4">
-                        <p className="line-clamp-2 max-w-[360px] text-[#6e6e73]">{log.message}</p>
+                        <p className="line-clamp-1 max-w-[360px] text-[#6e6e73]">{log.message}</p>
                       </td>
                       <td className="px-5 py-4"><StatusPill label={log.status} tone={statusTone(log.status)} /></td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{dateLabel(log.timestamp)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateTimeShort(log.timestamp)}</td>
                     </tr>
                   ))
                 )}

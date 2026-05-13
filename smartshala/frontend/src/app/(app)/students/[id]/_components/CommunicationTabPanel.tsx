@@ -1,18 +1,12 @@
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { StudentDetail } from "@/lib/api";
+import { formatDateTimeShort } from "@/lib/formatters";
 
 export type CommunicationTabPanelProps = {
   student: StudentDetail;
 };
 
 type CommunicationEntry = StudentDetail["communicationAudit"][number];
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-}
 
 function typeLabel(type: CommunicationEntry["type"]) {
   if (type === "WHATSAPP") return "WhatsApp";
@@ -83,7 +77,7 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
                 ) : (
                   logs.map((log) => (
                     <tr className="table-row" key={`${log.source}-${log.id}`}>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateTime(log.timestamp)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateTimeShort(log.timestamp)}</td>
                       <td className="px-5 py-4">
                         <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClasses(log.type)}`}>{typeLabel(log.type)}</span>
                       </td>
@@ -109,7 +103,7 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
                   <span className="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-[#0071e3] ring-4 ring-[#0071e3]/15" />
                   {index < Math.min(logs.length, 12) - 1 ? <span className="absolute bottom-[-22px] left-[5px] top-5 w-px bg-[rgba(0,0,0,0.08)]" /> : null}
                   <p className="text-[13px] font-semibold text-[#1d1d1f]">{typeLabel(log.type)} - {channelLabel(log.channel)}</p>
-                  <p className="mt-1 text-[12px] text-[#86868b]">{formatDateTime(log.timestamp)}</p>
+                  <p className="mt-1 text-[12px] text-[#86868b]">{formatDateTimeShort(log.timestamp)}</p>
                   <p className="mt-1 text-[12px] font-medium leading-5 text-[#6e6e73]">{log.summary}</p>
                 </div>
               ))

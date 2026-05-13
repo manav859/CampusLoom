@@ -2,8 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { feesApi, type PaymentResult } from "@/lib/api";
+import { formatINR, humanizeConstant } from "@/lib/formatters";
 
-type PaymentMode = "CASH" | "UPI" | "CHEQUE";
+type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "OTHER";
 
 type PaymentModalProps = {
   open: boolean;
@@ -44,7 +45,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
     }
 
     if (numericAmount > maxAmount) {
-      setError(`Amount cannot exceed Rs ${maxAmount.toLocaleString("en-IN")}.`);
+      setError(`Amount cannot exceed ${formatINR(maxAmount, { compact: false })}.`);
       return;
     }
 
@@ -84,10 +85,6 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
     }
   }
 
-  function money(v: number) {
-    return `Rs ${v.toLocaleString("en-IN")}`;
-  }
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-end bg-black/30 backdrop-blur-sm sm:items-center sm:justify-center"
@@ -125,16 +122,16 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
               </div>
               <div className="flex justify-between text-[13px]">
                 <span className="text-[#86868b]">Amount Paid</span>
-                <span className="font-bold text-[#248a3d]">{money(Number(success.payment.amount))}</span>
+                <span className="font-bold text-[#248a3d]">{formatINR(success.payment.amount, { compact: false })}</span>
               </div>
               <div className="flex justify-between text-[13px]">
                 <span className="text-[#86868b]">Total Paid</span>
-                <span className="font-semibold text-[#1d1d1f]">{money(success.ledger.paid)}</span>
+                <span className="font-semibold text-[#1d1d1f]">{formatINR(success.ledger.paid, { compact: false })}</span>
               </div>
               <div className="flex justify-between text-[13px]">
                 <span className="text-[#86868b]">Remaining Balance</span>
                 <span className={`font-bold ${success.ledger.balance > 0 ? "text-[#d70015]" : "text-[#248a3d]"}`}>
-                  {money(success.ledger.balance)}
+                  {formatINR(success.ledger.balance, { compact: false })}
                 </span>
               </div>
               <div className="flex justify-between text-[13px]">
@@ -144,7 +141,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                     ? "bg-[#34c759] text-white"
                     : "bg-[#ff9500] text-white"
                 }`}>
-                  {success.ledger.status}
+                  {humanizeConstant(success.ledger.status)}
                 </span>
               </div>
             </div>
@@ -181,7 +178,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Record payment</p>
                 <h2 className="mt-1.5 text-[22px] font-semibold tracking-tight text-[#1d1d1f]">{studentName}</h2>
-                <p className="mt-0.5 text-[13px] text-[#86868b]">Balance: Rs {maxAmount.toLocaleString("en-IN")}</p>
+                <p className="mt-0.5 text-[13px] text-[#86868b]">Balance: {formatINR(maxAmount, { compact: false })}</p>
               </div>
               <button className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e8e8ed] hover:bg-[#d2d2d7] transition-colors" onClick={onClose} type="button">
                 <svg className="h-3.5 w-3.5 text-[#6e6e73]" fill="none" viewBox="0 0 24 24">
@@ -209,7 +206,9 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                 <select className="glass-input mt-2 min-h-[48px]" onChange={(event) => setMode(event.target.value as PaymentMode)} value={mode}>
                   <option value="CASH">Cash</option>
                   <option value="UPI">UPI</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
                   <option value="CHEQUE">Cheque</option>
+                  <option value="OTHER">Other</option>
                 </select>
               </label>
               {error ? <p className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</p> : null}
