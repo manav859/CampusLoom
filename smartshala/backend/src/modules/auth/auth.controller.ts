@@ -18,6 +18,12 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
+  const tokenUser = authService.publicUserFromToken(req.user!);
+  if (tokenUser) {
+    res.json({ user: tokenUser });
+    return;
+  }
+
   const user = await authService.getCurrentUser(req.user!.id);
   res.json({ user });
 });

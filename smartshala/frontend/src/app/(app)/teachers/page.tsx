@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { TableRowSkeleton } from "@/components/ui/Skeleton";
@@ -44,11 +45,24 @@ function classLabel(classRecord: TeacherAssignmentContext["classes"][number]) {
   return `${classRecord.name}-${classRecord.section}`;
 }
 
+function classTeacherLabel(teacher: TeacherData) {
+  const classes = teacher.classTeacherFor ?? [];
+  return classes.length ? classes.map((item) => `${item.name}-${item.section}`).join(", ") : "None";
+}
+
+function assignedPeriodCount(teacher: TeacherData) {
+  return (teacher.periodAssignments ?? []).filter((period) => period.classId).length;
+}
+
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState<TeacherData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [classTeacherFilter, setClassTeacherFilter] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const [assignmentContext, setAssignmentContext] = useState<TeacherAssignmentContext | null>(null);
   const [assignmentDraft, setAssignmentDraft] = useState<Record<number, { classId: string; subjectId: string }>>({});
   const [assignmentLoading, setAssignmentLoading] = useState(false);
@@ -150,11 +164,53 @@ export default function TeachersPage() {
     }
   };
 
+  const classTeacherOptions = Array.from(
+    new Set(
+      teachers.flatMap((teacher) => (teacher.classTeacherFor ?? []).map((item) => `${item.name}-${item.section}`))
+    )
+  ).sort((left, right) => left.localeCompare(right));
+
+  const subjectOptions = Array.from(
+    new Set(
+      teachers.flatMap((teacher) =>
+        (teacher.periodAssignments ?? [])
+          .filter((period) => period.subjectId && period.subjectName)
+          .map((period) => period.subjectName)
+      )
+    )
+  ).sort((left, right) => left.localeCompare(right));
+
+  const filteredTeachers = teachers.filter((teacher) => {
+    const statusMatches = !statusFilter || teacher.status === statusFilter;
+    const classTeacherMatches = !classTeacherFilter || (teacher.classTeacherFor ?? []).some((item) => `${item.name}-${item.section}` === classTeacherFilter);
+    const subjectMatches = !subjectFilter || (teacher.periodAssignments ?? []).some((period) => period.subjectName === subjectFilter);
+    return statusMatches && classTeacherMatches && subjectMatches;
+  });
+
   return (
     <div className="space-y-5">
       <PageHeader eyebrow="Teachers" title="Teacher management" action={isAdmin ? <Link href="/teachers/new" className="btn-primary">Add teacher</Link> : null} />
 
-      <div className="flex justify-end">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <select className="glass-input text-[13px]" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+          </select>
+          <select className="glass-input text-[13px]" value={classTeacherFilter} onChange={(event) => setClassTeacherFilter(event.target.value)}>
+            <option value="">All class teachers</option>
+            {classTeacherOptions.map((item) => (
+              <option key={item} value={item}>Class {item}</option>
+            ))}
+          </select>
+          <select className="glass-input text-[13px]" value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}>
+            <option value="">All subjects</option>
+            {subjectOptions.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={() => setShowInactive(!showInactive)}
           className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-[13px] font-medium ${
@@ -178,21 +234,32 @@ export default function TeachersPage() {
           <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={7} />)
-            ) : teachers.length === 0 ? (
+            ) : filteredTeachers.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-[#86868b]">No teachers found.</td>
               </tr>
             ) : (
-              teachers.map((teacher) => (
+              filteredTeachers.map((teacher) => {
+                const menuOpen = openActionMenu === teacher.id;
+
+                return (
                 <tr key={teacher.id} className="table-row">
-                  <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{teacher.fullName}</td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-3">
+                      <InitialsAvatar name={teacher.fullName} size="sm" />
+                      <div>
+                        <p className="font-semibold text-[#1d1d1f]">{teacher.fullName}</p>
+                        <p className="mt-0.5 text-[11px] font-medium text-[#86868b]">{assignedPeriodCount(teacher)}/8 periods assigned</p>
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-5 py-4 text-[#6e6e73]">{teacher.email || "-"}</td>
                   <td className="px-5 py-4 text-[#6e6e73]">{teacher.phone || "-"}</td>
                   <td className="px-5 py-4 text-[#6e6e73]">
-                    {(teacher.classTeacherFor ?? []).length ? teacher.classTeacherFor?.map((item) => `${item.name}-${item.section}`).join(", ") : "None"}
+                    {classTeacherLabel(teacher)}
                   </td>
                   <td className="px-5 py-4 text-[#6e6e73]">
-                    {(teacher.periodAssignments ?? []).filter((period) => period.classId).length}/8 assigned
+                    {assignedPeriodCount(teacher)}/8 assigned
                   </td>
                   <td className="px-5 py-4"><StatusPill label={teacher.status} tone={teacher.status === "ACTIVE" ? "good" : "warn"} /></td>
                   <td className="px-5 py-4 text-right">
@@ -201,20 +268,50 @@ export default function TeachersPage() {
                         <button onClick={() => openAssignments(teacher.id)} className="inline-flex items-center rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[11px] font-bold text-[#0071e3] hover:bg-[#0071e3] hover:text-white transition-colors">
                           Manage
                         </button>
-                        {teacher.status === "ACTIVE" ? (
-                          <button onClick={() => handleDelete(teacher.id)} className="inline-flex items-center rounded-lg bg-[rgba(255,59,48,0.1)] px-3 py-1.5 text-[11px] font-bold text-[#d70015] hover:bg-[#ff3b30] hover:text-white transition-colors">
-                            Deactivate
+                        <div className="relative">
+                          <button
+                            aria-expanded={menuOpen}
+                            aria-label={`More actions for ${teacher.fullName}`}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#DCE1E8] bg-white text-[#5A6573] transition-colors hover:bg-[#F7F8FB]"
+                            onClick={() => setOpenActionMenu(menuOpen ? null : teacher.id)}
+                            type="button"
+                          >
+                            <span className="text-[16px] leading-none">...</span>
                           </button>
-                        ) : (
-                          <button onClick={() => handleActivate(teacher.id)} className="inline-flex items-center rounded-lg bg-[rgba(52,199,89,0.1)] px-3 py-1.5 text-[11px] font-bold text-[#248a3d] hover:bg-[#34c759] hover:text-white transition-colors">
-                            Activate
-                          </button>
-                        )}
+                          {menuOpen ? (
+                            <div className="absolute right-0 top-8 z-20 min-w-[140px] overflow-hidden rounded-xl border border-[#DCE1E8] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(15,20,25,0.35)]">
+                              {teacher.status === "ACTIVE" ? (
+                                <button
+                                  className="block w-full px-3 py-2 text-left text-[12px] font-semibold text-[#C8242C] hover:bg-[#FCE3E5]"
+                                  onClick={() => {
+                                    setOpenActionMenu(null);
+                                    handleDelete(teacher.id);
+                                  }}
+                                  type="button"
+                                >
+                                  Deactivate
+                                </button>
+                              ) : (
+                                <button
+                                  className="block w-full px-3 py-2 text-left text-[12px] font-semibold text-[#0F8A4A] hover:bg-[#E1F5EA]"
+                                  onClick={() => {
+                                    setOpenActionMenu(null);
+                                    handleActivate(teacher.id);
+                                  }}
+                                  type="button"
+                                >
+                                  Activate
+                                </button>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

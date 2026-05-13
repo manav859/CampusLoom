@@ -25,6 +25,31 @@ function isFresh(entry: CacheEntry<any>): boolean {
   return Date.now() - entry.timestamp < TTL_MS;
 }
 
+function normalizeKeys(key: string | string[]) {
+  return Array.isArray(key) ? key : [key];
+}
+
+function scheduleBackground(callback: () => void) {
+  const browserWindow =
+    typeof globalThis.window === "undefined"
+      ? undefined
+      : (globalThis.window as Window & {
+          requestIdleCallback?: (handler: () => void, options?: { timeout: number }) => number;
+        });
+
+  if (!browserWindow) {
+    globalThis.setTimeout(callback, 100);
+    return;
+  }
+
+  if (browserWindow.requestIdleCallback) {
+    browserWindow.requestIdleCallback(callback, { timeout: 800 });
+    return;
+  }
+
+  globalThis.setTimeout(callback, 100);
+}
+
 function runNextPrefetch() {
   if (activePrefetches >= MAX_BACKGROUND_PREFETCHES) return;
 
@@ -35,58 +60,70 @@ function runNextPrefetch() {
   next();
 }
 
-function enqueuePrefetch(key: string, fetcher: () => Promise<unknown>) {
-  if (queuedPrefetches.has(key)) return;
+function enqueuePrefetch(key: string | string[], fetcher: () => Promise<unknown>) {
+  const keys = normalizeKeys(key);
+  if (keys.some((item) => queuedPrefetches.has(item))) return;
 
-  const existing = cache.get(key);
-  if (existing && isFresh(existing)) return;
+  const existing = keys.map((item) => cache.get(item)).find((entry): entry is CacheEntry<any> => Boolean(entry && isFresh(entry)));
+  if (existing) {
+    keys.forEach((item) => cache.set(item, existing));
+    return;
+  }
 
-  queuedPrefetches.add(key);
+  keys.forEach((item) => queuedPrefetches.add(item));
   prefetchQueue.push(() => {
-    setTimeout(() => {
-      cachedFetch(key, fetcher)
+    scheduleBackground(() => {
+      cachedFetchMany(keys, fetcher)
         .catch(() => undefined)
         .finally(() => {
-          queuedPrefetches.delete(key);
+          keys.forEach((item) => queuedPrefetches.delete(item));
           activePrefetches--;
           runNextPrefetch();
         });
-    }, 50);
+    });
   });
   runNextPrefetch();
 }
 
 export function cachedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-  const existing = cache.get(key);
-  if (existing && isFresh(existing)) {
+  return cachedFetchMany([key], fetcher);
+}
+
+export function cachedFetchMany<T>(keys: string[], fetcher: () => Promise<T>): Promise<T> {
+  const existing = keys.map((key) => cache.get(key)).find((entry): entry is CacheEntry<T> => Boolean(entry && isFresh(entry)));
+  if (existing) {
+    keys.forEach((key) => cache.set(key, existing));
     return existing.promise;
   }
 
   const promise = fetcher().then(
     (data) => {
-      const entry = cache.get(key);
+      const entry = cache.get(keys[0]);
       if (entry && entry.promise === promise) {
         entry.resolved = true;
         entry.data = data;
+        entry.timestamp = Date.now();
+        keys.forEach((key) => cache.set(key, entry));
       }
       return data;
     },
     (err) => {
-      const entry = cache.get(key);
-      if (entry && entry.promise === promise) {
-        cache.delete(key);
-      }
+      keys.forEach((key) => {
+        const entry = cache.get(key);
+        if (entry && entry.promise === promise) cache.delete(key);
+      });
       throw err;
     }
   );
 
-  cache.set(key, {
+  const entry: CacheEntry<T> = {
     promise,
     resolved: false,
     data: null,
     error: null,
     timestamp: Date.now(),
-  });
+  };
+  keys.forEach((key) => cache.set(key, entry));
 
   return promise;
 }
@@ -108,24 +145,21 @@ export function clearCache() {
 }
 
 export function prefetchForRole(role: string) {
-  enqueuePrefetch("classes:list", () => classesApi.list());
-
   if (role === "PRINCIPAL" || role === "ADMIN") {
-    enqueuePrefetch("classes:list:ADMIN", () => classesApi.list());
+    enqueuePrefetch(["classes:list", "classes:list:ADMIN"], () => classesApi.list());
     enqueuePrefetch("dashboard", () => apiFetch("/dashboard"));
     enqueuePrefetch("fees:dashboard", () => feesApi.dashboard());
     enqueuePrefetch("fees:defaulters", () => feesApi.defaulters());
     enqueuePrefetch("fees:structures", () => apiFetch<any[]>("/fees/structures"));
-    enqueuePrefetch("wa:logs", () => whatsappApi.logs());
+    enqueuePrefetch(["wa:logs", "notifications:logs"], () => whatsappApi.logs());
     enqueuePrefetch("attendance:dashboard", () => attendanceApi.dashboard());
     enqueuePrefetch("attendance:classesToday", () => attendanceApi.classesTodayReport());
     enqueuePrefetch("students:list:limit=10&page=1", () => apiFetch<any>("/students?limit=10&page=1"));
     enqueuePrefetch("teachers:list", () => apiFetch<any>("/users/teachers?limit=100"));
-    enqueuePrefetch("notifications:logs", () => whatsappApi.logs());
   }
 
   if (role === "TEACHER") {
-    enqueuePrefetch("classes:list:SCOPED", () => classesApi.list());
+    enqueuePrefetch(["classes:list", "classes:list:SCOPED"], () => classesApi.list());
     enqueuePrefetch("dashboard:teacher", () => apiFetch("/dashboard"));
     enqueuePrefetch("marks:context", () => marksApi.context());
     enqueuePrefetch("marks:exams", () => marksApi.exams());
@@ -136,7 +170,7 @@ export function prefetchForRole(role: string) {
   }
 
   if (role === "ACCOUNTANT") {
-    enqueuePrefetch("classes:list:SCOPED", () => classesApi.list());
+    enqueuePrefetch(["classes:list", "classes:list:SCOPED"], () => classesApi.list());
     enqueuePrefetch("fees:dashboard", () => feesApi.dashboard());
     enqueuePrefetch("fees:defaulters", () => feesApi.defaulters());
     enqueuePrefetch("fees:structures", () => apiFetch<any[]>("/fees/structures"));

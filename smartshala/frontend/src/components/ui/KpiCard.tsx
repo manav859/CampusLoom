@@ -12,7 +12,7 @@ const toneMap: Record<NonNullable<Kpi["tone"]>, { bg: string; border: string; va
   purple: { bg: "bg-gradient-to-br from-[#7e53db]/20 to-[#7e53db]/5", border: "border-[#7e53db]/20", value: "text-[#6341ac]", bar: "bg-gradient-to-b from-[#7e53db] to-[#6341ac]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(126,83,219,0.2)]" }
 };
 
-export function KpiCard({ label, value, tone = "neutral" }: Kpi) {
+export function KpiCard({ label, value, helper, tone = "neutral" }: Kpi) {
   const styles = toneMap[tone];
   return (
     <div className={`relative overflow-hidden rounded-[16px] h-[86px] pl-[22px] pr-5 py-3.5 flex flex-col justify-between backdrop-blur-2xl border transition-transform duration-300 hover:-translate-y-[3px] hover:shadow-xl ${styles.border} ${styles.bg} ${styles.shadow}`}>
@@ -23,7 +23,10 @@ export function KpiCard({ label, value, tone = "neutral" }: Kpi) {
       <p className={`text-[28px] font-bold leading-none tracking-tight ${styles.value}`}>{value}</p>
       
       {/* Label */}
-      <p className="text-[13px] font-medium text-[#1d1d1f]/70">{label}</p>
+      <div>
+        <p className="text-[13px] font-medium text-[#1d1d1f]/70">{label}</p>
+        {helper ? <p className="mt-0.5 truncate text-[11px] font-medium text-[#5A6573]">{helper}</p> : null}
+      </div>
     </div>
   );
 }

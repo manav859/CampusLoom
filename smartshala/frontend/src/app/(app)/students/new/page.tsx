@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { apiFetch } from "@/lib/api";
+import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
 type ClassData = { id: string; name: string; section: string };
@@ -27,6 +28,10 @@ export default function NewStudentPage() {
     address: "",
     classId: "",
     feeStructureId: "",
+    aadhaar: "",
+    apaar: "",
+    previousSchool: "",
+    siblingDiscount: false,
   });
 
   useEffect(() => {
@@ -67,6 +72,9 @@ export default function NewStudentPage() {
       if (!payload.alternatePhone) delete payload.alternatePhone;
       if (!payload.address) delete payload.address;
       if (!payload.feeStructureId) delete payload.feeStructureId;
+      if (!payload.aadhaar) delete payload.aadhaar;
+      if (!payload.apaar) delete payload.apaar;
+      if (!payload.previousSchool) delete payload.previousSchool;
       
       await apiFetch("/students", {
         method: "POST",
@@ -104,7 +112,7 @@ export default function NewStudentPage() {
           
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Full Name</label>
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Full Name <span className="text-[#ff3b30]">*</span></label>
               <input
                 required
                 className="glass-input w-full"
@@ -132,7 +140,7 @@ export default function NewStudentPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Gender</label>
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Gender <span className="text-[#ff3b30]">*</span></label>
                 <select
                   required
                   className="glass-input w-full"
@@ -156,6 +164,27 @@ export default function NewStudentPage() {
                 onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
               />
             </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Aadhaar Number</label>
+                <input
+                  className="glass-input w-full"
+                  placeholder="12-digit Aadhaar number"
+                  value={formData.aadhaar}
+                  onChange={(e) => setFormData({ ...formData, aadhaar: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">APAAR ID</label>
+                <input
+                  className="glass-input w-full"
+                  placeholder="12-digit APAAR ID"
+                  value={formData.apaar}
+                  onChange={(e) => setFormData({ ...formData, apaar: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -168,7 +197,7 @@ export default function NewStudentPage() {
           
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class & Section</label>
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class & Section <span className="text-[#ff3b30]">*</span></label>
               <select
                 required
                 className="glass-input w-full"
@@ -190,9 +219,31 @@ export default function NewStudentPage() {
               >
                 <option value="">Select fee structure</option>
                 {feeStructures.map((fs) => (
-                  <option key={fs.id} value={fs.id}>{fs.name} (₹{fs.totalAmount}) — {fs.academicYear}</option>
+                  <option key={fs.id} value={fs.id}>{fs.name} ({formatINR(fs.totalAmount, { compact: false })}) — {fs.academicYear}</option>
                 ))}
               </select>
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Previous School</label>
+              <input
+                className="glass-input w-full"
+                placeholder="Name of previous school (if any)"
+                value={formData.previousSchool}
+                onChange={(e) => setFormData({ ...formData, previousSchool: e.target.value })}
+              />
+            </div>
+            <div className="flex items-center mt-7">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-[rgba(0,0,0,0.1)] text-[#0071e3] focus:ring-[#0071e3]"
+                  checked={formData.siblingDiscount}
+                  onChange={(e) => setFormData({ ...formData, siblingDiscount: e.target.checked })}
+                />
+                <span className="text-[13px] font-semibold text-[#1d1d1f]">Apply Sibling Discount</span>
+              </label>
             </div>
           </div>
         </section>
@@ -206,7 +257,7 @@ export default function NewStudentPage() {
           
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Parent/Guardian Name</label>
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Parent/Guardian Name <span className="text-[#ff3b30]">*</span></label>
               <input
                 required
                 className="glass-input w-full"
@@ -218,7 +269,7 @@ export default function NewStudentPage() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Primary Phone</label>
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Primary Phone <span className="text-[#ff3b30]">*</span></label>
                 <input
                   required
                   className="glass-input w-full"

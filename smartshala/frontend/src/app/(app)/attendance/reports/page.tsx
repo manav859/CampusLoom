@@ -54,17 +54,18 @@ export default function AttendanceReportsPage() {
     [data]
   );
 
+  const alerts = useMemo(() => data?.alerts ?? [], [data]);
+  const pendingClassIds = useMemo(() => new Set(alerts.map((alert) => alert.classId)), [alerts]);
+
   const chartItems = useMemo(
     () =>
       classRows.map((row) => ({
         label: row.className,
-        value: row.percentage
+        value: row.percentage,
+        notMarked: pendingClassIds.has(row.classId)
       })),
-    [classRows]
+    [classRows, pendingClassIds]
   );
-
-  const alerts = useMemo(() => data?.alerts ?? [], [data]);
-  const pendingClassIds = useMemo(() => new Set(alerts.map((alert) => alert.classId)), [alerts]);
 
   if (loading) {
     return (
@@ -85,6 +86,9 @@ export default function AttendanceReportsPage() {
     return <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div>;
   }
 
+  const markedCount = data?.markedClasses ?? 0;
+  const totalClassesCount = data?.totalClasses ?? 0;
+
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="Reports" title="Daily attendance report" />
@@ -92,19 +96,20 @@ export default function AttendanceReportsPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card-interactive p-5">
           <p className="text-[13px] font-medium text-[#86868b]">Total classes</p>
-          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.totalClasses ?? 0}</p>
+          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{totalClassesCount}</p>
         </div>
         <div className="glass-card-interactive p-5">
           <p className="text-[13px] font-medium text-[#248a3d]">Marked</p>
-          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.markedClasses ?? 0}</p>
+          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{markedCount}</p>
         </div>
         <div className="glass-card-interactive p-5">
           <p className="text-[13px] font-medium text-[#c93400]">Pending</p>
           <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.pendingClasses ?? 0}</p>
         </div>
         <div className="glass-card-interactive p-5">
-          <p className="text-[13px] font-medium text-[#86868b]">Attendance</p>
+          <p className="text-[13px] font-medium text-[#86868b]">Avg. attendance (marked)</p>
           <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.attendancePercentage ?? 0}%</p>
+          <p className="mt-1 text-[12px] font-medium text-[#86868b]">{markedCount} of {totalClassesCount} classes marked</p>
         </div>
       </div>
 
@@ -157,3 +162,4 @@ export default function AttendanceReportsPage() {
     </div>
   );
 }
+

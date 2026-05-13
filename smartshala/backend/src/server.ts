@@ -2,6 +2,7 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { connectDatabase, disconnectDatabase } from "./core/prisma.js";
+import { startDbWarmupScheduler, stopDbWarmupScheduler } from "./middleware/dbWarmup.js";
 
 async function bootstrap() {
   const app = createApp();
@@ -10,11 +11,19 @@ async function bootstrap() {
     logger.info(`SmartShala API listening on http://localhost:${env.PORT}/api and /api/v1`);
   });
 
-  // Initial connection is now handled entirely by the dbWarmup middleware
-  // to avoid concurrent connection attempts that can deadlock Prisma.
+  void connectDatabase()
+    .then(() => {
+      logger.info("Database connection ready");
+      startDbWarmupScheduler();
+    })
+    .catch((error) => {
+      logger.warn({ err: error }, "Initial database connection failed; scheduled warmup will keep retrying");
+      startDbWarmupScheduler();
+    });
 
   const shutdown = async () => {
     logger.info("Shutting down SmartShala API");
+    stopDbWarmupScheduler();
     server.close(async () => {
       await disconnectDatabase();
       process.exit(0);

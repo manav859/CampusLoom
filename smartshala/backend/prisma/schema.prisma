@@ -138,6 +138,8 @@ model Student {
   @@unique([schoolId, admissionNumber])
   @@index([schoolId, classId])
   @@index([schoolId, isActive])
+  @@index([schoolId, parentPhone])
+  @@index([schoolId, alternatePhone])
   @@map("students")
 }
 
@@ -181,6 +183,7 @@ model BehaviourRecord {
 
   @@index([schoolId, studentId, occurredAt])
   @@index([schoolId, type])
+  @@index([schoolId, type, severity, occurredAt])
   @@map("behaviour_records")
 }
 
@@ -400,6 +403,7 @@ model AttendanceRecord {
 
   @@unique([sessionId, studentId])
   @@index([schoolId, studentId])
+  @@index([schoolId, status])
   @@map("attendance_records")
 }
 
@@ -518,6 +522,7 @@ model Notification {
   student           Student?           @relation(fields: [studentId], references: [id])
 
   @@index([schoolId, status, createdAt])
+  @@index([schoolId, createdAt])
   @@map("notifications")
 }
 
@@ -639,4 +644,12 @@ enum StudentDocumentType {
   MEDICAL
   PARENT_ID
   AGREEMENT
+  AADHAAR
+  APAAR
+  BIRTH_CERTIFICATE
+  CASTE_CERTIFICATE
+  TRANSFER_CERTIFICATE
+  BONAFIDE
+  REPORT_CARD
+  PHOTO
 }

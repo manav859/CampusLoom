@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { studentsApi, type StudentDetail, type StudentDocumentUploadPayload } from "@/lib/api";
+import { formatDateTimeShort } from "@/lib/formatters";
 
 export type DocumentsTabPanelProps = {
   student: StudentDetail;
@@ -12,18 +13,19 @@ type StudentDocument = StudentDetail["documents"][number];
 type DocumentType = StudentDocument["type"];
 
 const documentTypes: { value: DocumentType; label: string }[] = [
-  { value: "CERTIFICATE", label: "Certificates" },
+  { value: "AADHAAR", label: "Aadhaar" },
+  { value: "APAAR", label: "APAAR ID" },
+  { value: "BIRTH_CERTIFICATE", label: "Birth Certificate" },
+  { value: "CASTE_CERTIFICATE", label: "Caste Certificate" },
+  { value: "TRANSFER_CERTIFICATE", label: "Transfer Certificate" },
+  { value: "BONAFIDE", label: "Bonafide" },
   { value: "MEDICAL", label: "Medical" },
+  { value: "REPORT_CARD", label: "Report Card" },
+  { value: "PHOTO", label: "Photo" },
+  { value: "CERTIFICATE", label: "Other Certificate" },
   { value: "PARENT_ID", label: "Parent ID" },
   { value: "AGREEMENT", label: "Agreements" }
 ];
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-}
 
 function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
@@ -36,14 +38,15 @@ function typeLabel(type: DocumentType) {
 }
 
 function typeTone(type: DocumentType) {
-  if (type === "CERTIFICATE") return "good";
+  if (type === "CERTIFICATE" || type === "BIRTH_CERTIFICATE" || type === "CASTE_CERTIFICATE" || type === "TRANSFER_CERTIFICATE" || type === "BONAFIDE" || type === "REPORT_CARD") return "good";
   if (type === "MEDICAL") return "warn";
+  if (type === "AADHAAR" || type === "APAAR") return "neutral";
   return "neutral";
 }
 
 export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
   const [documents, setDocuments] = useState<StudentDocument[]>(student.documents ?? []);
-  const [type, setType] = useState<DocumentType>("CERTIFICATE");
+  const [type, setType] = useState<DocumentType>("AADHAAR");
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<{ tone: "good" | "warn" | "danger"; message: string } | null>(null);
@@ -61,6 +64,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
 
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
     if (!file) {
       setStatus({ tone: "danger", message: "Select a file before uploading." });
       return;
@@ -78,7 +82,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
       setDocuments((current) => [uploaded, ...current]);
       setName("");
       setFile(null);
-      event.currentTarget.reset();
+      form.reset();
       setStatus({ tone: "good", message: "Document uploaded." });
     } catch (error) {
       setStatus({ tone: "danger", message: error instanceof Error ? error.message : "Upload failed." });
@@ -192,7 +196,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
                       </td>
                       <td className="px-5 py-4"><StatusPill label={typeLabel(document.type)} tone={typeTone(document.type)} /></td>
                       <td className="px-5 py-4 text-[#6e6e73]">{document.uploadedBy.fullName}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatDate(document.uploadedAt)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateTimeShort(document.uploadedAt)}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{formatBytes(document.sizeBytes)}</td>
                       <td className="px-5 py-4">
                         <button

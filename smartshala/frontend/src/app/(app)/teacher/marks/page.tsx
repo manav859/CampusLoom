@@ -4,14 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { marksApi, type MarksContext, type MarksExam, type MarksExamDetail } from "@/lib/api";
+import { formatDateShort } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function dateLabel(value: string) {
-  return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
 }
 
 function examTone(status: MarksExam["status"]) {
@@ -360,7 +357,7 @@ export default function TeacherMarksPage() {
                       </td>
                       <td className="px-5 py-4 text-[#6e6e73]">{exam.subject}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{exam.maxMarks}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{dateLabel(exam.date)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(exam.date)}</td>
                       <td className="px-5 py-4"><StatusPill label={exam.status} tone={examTone(exam.status)} /></td>
                       <td className="px-5 py-4 font-semibold text-[#248a3d]">{exam.enteredCount}</td>
                       <td className="px-5 py-4 font-semibold text-[#d70015]">{exam.pendingCount}</td>

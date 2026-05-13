@@ -1,5 +1,6 @@
 import type { Kpi } from "@/types";
 import type { StudentDetail } from "@/lib/api";
+import { formatINR } from "@/lib/formatters";
 
 export type AttendanceSummary = {
   total: number;
@@ -10,24 +11,17 @@ export type AttendanceSummary = {
 export type PerformanceClassification = "Excellent" | "Good" | "Needs Attention" | "At Risk";
 
 export function money(value: string | number) {
-  return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
+  return formatINR(value);
 }
 
 export function classLabel(student: StudentDetail) {
   return `${student.class.name}-${student.class.section}`;
 }
 
-export function currentMonthAttendance(records: StudentDetail["attendanceRecords"]): AttendanceSummary {
-  const now = new Date();
-  const currentMonthRecords = records.filter((record) => {
-    const date = new Date(record.session.date);
-    return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-  });
-
-  const scopedRecords = currentMonthRecords.length > 0 ? currentMonthRecords : records;
-  const total = scopedRecords.length;
-  const attended = scopedRecords.filter((record) => record.status !== "ABSENT").length;
-  const absent = scopedRecords.filter((record) => record.status === "ABSENT").length;
+export function attendanceSummary(records: StudentDetail["attendanceRecords"]): AttendanceSummary {
+  const total = records.length;
+  const attended = records.filter((record) => record.status !== "ABSENT").length;
+  const absent = records.filter((record) => record.status === "ABSENT").length;
 
   return {
     total,

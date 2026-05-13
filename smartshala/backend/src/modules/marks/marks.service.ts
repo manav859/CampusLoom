@@ -2,6 +2,7 @@ import { NotificationKind, Prisma, UserRole } from "@prisma/client";
 import { logger } from "../../config/logger.js";
 import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { gradeForPercentage } from "../../core/grading.js";
 import { buildLowMarksMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 
@@ -99,15 +100,6 @@ async function ensureClassSubjects(user: MarksUser, classId: string, teacherId?:
 function percentage(marks: number, maxMarks: number) {
   if (maxMarks <= 0) return 0;
   return Math.round((marks / maxMarks) * 10000) / 100;
-}
-
-function gradeForPercentage(value: number) {
-  if (value >= 90) return "A+";
-  if (value >= 80) return "A";
-  if (value >= 70) return "B+";
-  if (value >= 60) return "B";
-  if (value >= 50) return "C";
-  return "D";
 }
 
 function examStatus(examDate: Date) {

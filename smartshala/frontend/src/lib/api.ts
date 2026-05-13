@@ -464,7 +464,7 @@ export type StudentDetail = {
   };
   documents: {
     id: string;
-    type: "CERTIFICATE" | "MEDICAL" | "PARENT_ID" | "AGREEMENT";
+    type: "CERTIFICATE" | "MEDICAL" | "PARENT_ID" | "AGREEMENT" | "AADHAAR" | "APAAR" | "BIRTH_CERTIFICATE" | "CASTE_CERTIFICATE" | "TRANSFER_CERTIFICATE" | "BONAFIDE" | "REPORT_CARD" | "PHOTO";
     name: string;
     originalName: string;
     mimeType: string;
@@ -514,7 +514,7 @@ export type BehaviourRecordPayload = {
 };
 
 export type StudentDocumentUploadPayload = {
-  type: "CERTIFICATE" | "MEDICAL" | "PARENT_ID" | "AGREEMENT";
+  type: "CERTIFICATE" | "MEDICAL" | "PARENT_ID" | "AGREEMENT" | "AADHAAR" | "APAAR" | "BIRTH_CERTIFICATE" | "CASTE_CERTIFICATE" | "TRANSFER_CERTIFICATE" | "BONAFIDE" | "REPORT_CARD" | "PHOTO";
   name?: string;
   file: File;
 };
@@ -749,7 +749,7 @@ export const feesApi = {
   dashboard: () => apiFetch<FeesDashboard>("/fees/dashboard"),
   defaulters: () => apiFetch<FeeDefaulter[]>("/fees/defaulters"),
   studentLedger: (studentId: string) => apiFetch<StudentFeeLedger>(`/fees/student/${studentId}`),
-  recordPayment: (payload: { studentId: string; amount: number; mode: "CASH" | "UPI" | "CHEQUE" }) =>
+  recordPayment: (payload: { studentId: string; amount: number; mode: "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "OTHER" }) =>
     apiFetch<PaymentResult>("/fees/payment", {
       method: "POST",
       body: JSON.stringify(payload)

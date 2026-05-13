@@ -1,5 +1,6 @@
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { StudentDetail } from "@/lib/api";
+import { formatDateShort } from "@/lib/formatters";
 
 export type HomeworkTabPanelProps = {
   student: StudentDetail;
@@ -7,7 +8,7 @@ export type HomeworkTabPanelProps = {
 
 function dateLabel(value: string | null) {
   if (!value) return "Not submitted";
-  return new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return formatDateShort(value);
 }
 
 function statusLabel(status: StudentDetail["homeworkAnalytics"]["assignments"][number]["status"]) {

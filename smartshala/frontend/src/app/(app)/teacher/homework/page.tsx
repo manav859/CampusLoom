@@ -10,16 +10,13 @@ import {
   type HomeworkContext,
   type HomeworkSubmissionStatus
 } from "@/lib/api";
+import { formatDateShort, formatDateTimeShort } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
 const generalSubjectId = "__GENERAL__";
 
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function dateLabel(value: string) {
-  return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
 }
 
 function assignmentTone(status: HomeworkAssignment["status"]) {
@@ -345,8 +342,8 @@ export default function TeacherHomeworkPage() {
                         {assignment.description ? <p className="mt-1 line-clamp-1 max-w-[260px] text-[12px] text-[#86868b]">{assignment.description}</p> : null}
                       </td>
                       <td className="px-5 py-4 text-[#6e6e73]">{assignment.subject}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{dateLabel(assignment.assignedDate)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{dateLabel(assignment.dueDate)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(assignment.assignedDate)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(assignment.dueDate)}</td>
                       <td className="px-5 py-4"><StatusPill label={assignment.status} tone={assignmentTone(assignment.status)} /></td>
                       <td className="px-5 py-4 font-semibold text-[#248a3d]">{assignment.submittedCount}</td>
                       <td className="px-5 py-4 font-semibold text-[#cc7700]">{assignment.lateCount}</td>
@@ -376,7 +373,7 @@ export default function TeacherHomeworkPage() {
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Submission tracking</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">
-                {selectedAssignment.title} | {selectedAssignment.className} | Due {dateLabel(selectedAssignment.dueDate)}
+                {selectedAssignment.title} | {selectedAssignment.className} | Due {formatDateShort(selectedAssignment.dueDate)}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -406,7 +403,7 @@ export default function TeacherHomeworkPage() {
                       </td>
                       <td className="px-5 py-4">
                         <StatusPill label={submissionLabel(submission.status)} tone={submissionTone(submission.status)} />
-                        {submission.submittedAt ? <p className="mt-1 text-[11px] text-[#86868b]">{dateLabel(submission.submittedAt)}</p> : null}
+                        {submission.submittedAt ? <p className="mt-1 text-[11px] text-[#86868b]">{formatDateTimeShort(submission.submittedAt)}</p> : null}
                       </td>
                       <td className="px-5 py-4">
                         <input

@@ -1,14 +1,11 @@
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { StudentDetail } from "@/lib/api";
+import { formatDateShort, humanizeConstant } from "@/lib/formatters";
 import { money } from "./studentProfileUtils";
 
 export type FeesTabPanelProps = {
   student: StudentDetail;
 };
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value));
-}
 
 function buildTransactionLedger(student: StudentDetail) {
   const total = student.feeAssignments.reduce((sum, assignment) => sum + Number(assignment.totalAmount ?? 0), 0);
@@ -68,6 +65,9 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                         label={assignment.status}
                         tone={assignment.status === "PAID" ? "good" : assignment.status === "PARTIAL" ? "warn" : "danger"}
                       />
+                      {assignment.status === "PARTIAL" ? (
+                        <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {money(assignment.paidAmount)} of {money(assignment.totalAmount)} — {money(assignment.pendingAmount)} pending</p>
+                      ) : null}
                     </td>
                   </tr>
                 ))
@@ -94,9 +94,9 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                 ) : (
                   recentTransactions.map((payment) => (
                     <tr key={payment.id} className="table-row">
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatDate(payment.date)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(payment.date)}</td>
                       <td className="px-5 py-4 font-semibold text-[#248a3d]">{money(payment.amount)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{payment.mode}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{payment.receiptNo ?? payment.receiptId ?? "Pending"}</td>
                       <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(payment.balanceAfter)}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName}</td>
@@ -119,7 +119,7 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                   <span className="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-[#34c759] ring-4 ring-[#34c759]/15" />
                   {index < transactionLedger.length - 1 ? <span className="absolute bottom-[-22px] left-[5px] top-5 w-px bg-[rgba(0,0,0,0.08)]" /> : null}
                   <p className="text-[13px] font-semibold text-[#1d1d1f]">{money(payment.amount)} posted</p>
-                  <p className="mt-1 text-[12px] text-[#86868b]">{formatDate(payment.date)} - {payment.mode}</p>
+                  <p className="mt-1 text-[12px] text-[#86868b]">{formatDateShort(payment.date)} - {humanizeConstant(payment.mode)}</p>
                   <p className="mt-1 text-[12px] font-semibold text-[#6e6e73]">Balance after: {money(payment.balanceAfter)}</p>
                 </div>
               ))

@@ -1,3 +1,5 @@
+import { humanizeConstant } from "@/lib/formatters";
+
 type Props = {
   label: string;
   tone?: "good" | "warn" | "danger" | "neutral";
@@ -13,7 +15,7 @@ const styles = {
 export function StatusPill({ label, tone = "neutral" }: Props) {
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide transition-all duration-200 ease-apple ${styles[tone]}`}>
-      {label}
+      {humanizeConstant(label)}
     </span>
   );
 }

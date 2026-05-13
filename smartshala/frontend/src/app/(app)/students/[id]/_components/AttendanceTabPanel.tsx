@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { StudentDetail } from "@/lib/api";
+import { formatDateShort } from "@/lib/formatters";
 
 export type AttendanceTabPanelProps = {
   student: StudentDetail;
@@ -11,7 +12,7 @@ export type AttendanceTabPanelProps = {
 const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function dateLabel(value: string) {
-  return new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  return formatDateShort(value);
 }
 
 function statusLabel(status: StudentDetail["attendanceAnalytics"]["calendar"][number]["status"]) {
@@ -196,20 +197,22 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
           </div>
 
           <div className="flex flex-1 items-center justify-center overflow-x-auto pt-6 pb-2">
-            <div className="inline-grid grid-cols-7 gap-1.5 sm:gap-2">
+          <div className="inline-grid grid-cols-7 gap-1.5 sm:gap-2">
               {weekdays.map((day) => (
                 <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#86868b]" key={day}>{day}</div>
               ))}
               {calendarSlots.map((slot) => {
-                if (slot.type === "blank") return <div key={slot.id} className="h-8 w-8 rounded-[8px] bg-transparent sm:h-10 sm:w-10" />;
+                if (slot.type === "blank") return <div key={slot.id} className="h-10 w-8 rounded-[8px] bg-transparent sm:h-12 sm:w-10" />;
                 const date = new Date(slot.date);
+                const letter = slot.status === "PRESENT" ? "P" : slot.status === "ABSENT" ? "A" : slot.status === "LATE" ? "L" : slot.status === "HOLIDAY" ? "H" : "";
                 return (
                   <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-[8px] shadow-sm ring-1 ring-inset ring-black/[0.04] transition-all duration-200 hover:scale-110 hover:shadow-md sm:h-10 sm:w-10 ${statusClasses(slot.status)}`}
+                    className={`flex h-10 w-8 flex-col items-center justify-center rounded-[8px] shadow-sm ring-1 ring-inset ring-black/[0.04] transition-all duration-200 hover:scale-110 hover:shadow-md sm:h-12 sm:w-10 ${statusClasses(slot.status)}`}
                     key={slot.date}
                     title={`${dateLabel(slot.date)} - ${statusLabel(slot.status)}`}
                   >
-                    <span className="text-[13px] font-bold sm:text-[15px]">{date.getDate()}</span>
+                    <span className="text-[11px] font-bold leading-none sm:text-[13px]">{date.getDate()}</span>
+                    {letter ? <span className="mt-0.5 text-[8px] font-bold uppercase leading-none opacity-80 sm:text-[9px]">{letter}</span> : null}
                   </div>
                 );
               })}
@@ -225,7 +228,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
         <div className="mt-5 space-y-3">
           {analytics.repeatedWeekdayAbsences.length === 0 ? (
             <div className="flex items-center justify-center rounded-[16px] border border-dashed border-[rgba(0,0,0,0.1)] bg-[rgba(0,0,0,0.01)] py-8 text-[13px] font-medium text-[#86868b]">
-              No repeated weekday absence pattern detected. All good!
+              No weekly absence pattern detected.
             </div>
           ) : (
             analytics.repeatedWeekdayAbsences.map((pattern) => (

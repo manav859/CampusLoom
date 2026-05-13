@@ -8,6 +8,8 @@ declare global {
       role: UserRole;
       fullName: string;
       phone?: string;
+      email?: string | null;
+      schoolName?: string;
     }
 
     interface Request {
