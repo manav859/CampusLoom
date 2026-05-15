@@ -2,6 +2,90 @@
 
 Date: 2026-05-14
 
+## 2026-05-15 Audit Sprint Additions
+
+### Render Deploy Fix
+
+- Added `backend/scripts/render-start.mjs`.
+- New Render start script runs Prisma migrations with `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1`.
+- Added retry loop for transient Prisma `P1002` / advisory-lock timeout failures.
+- Added backend script: `npm run render:start`.
+- Added `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1` to `backend/.env.example`.
+- Render dashboard start command should be changed from:
+  - `npx prisma migrate deploy && npm start`
+  - to `npm run render:start`
+
+### Login Page
+
+- Added password eye toggle.
+- Fixed language toggle so English/Hindi copy changes on click.
+- Implemented Forgot password flow with backend API.
+- Fixed Next login runtime error by moving interactive login state into a client shell.
+
+### Shared UI / Design Tokens
+
+- Added shared UI primitives for button, modal, form controls, data table, dropdown menu, and toast.
+- Added frontend design tokens for colors, typography, spacing, radius, shadows, focus rings, and Hindi font pairing.
+- Refactored login UI to use shared primitives.
+
+### Dashboard
+
+- Added severity levels for action alerts.
+- Replaced raw alert constants with readable labels.
+- Added Send reminder action for defaulter rows.
+- Wired dashboard defaulter reminder action to WhatsApp API.
+
+### Audit Log Infrastructure
+
+- Added Prisma `AuditLog` model and migration.
+- Added backend audit-log helper.
+- Added student create/update/activate/deactivate audit logging.
+- Added visible student edit-history panel for principal/admin.
+
+### Students List
+
+- Added bulk-select and bulk actions:
+  - Send WhatsApp
+  - Promote class
+  - Export CSV
+  - Mark inactive
+- Added sortable student table headers.
+- Preserved parent-phone search and distinct pending-fee styling.
+
+### Student Profile Header And Academic Tab
+
+- Added 4px status-pill padding and 6px gap.
+- Standardized KPI colors: green good, orange warning, red critical.
+- Added Print profile and Share with parent actions.
+- Added purple AI glyph beside Action insight.
+- Added `How is this generated?` tooltip.
+- Made duplicate exam names unique with date/sequence.
+- Added exam comparison legend.
+- Added inline student-vs-class comparison text.
+
+### Homework Tab
+
+- Rewired homework metrics to one assignment/submission source.
+- Added pending count so on-time + late + missing + pending reconciles to total.
+- Added class-average streak context.
+- Added WhatsApp Nudge parent action for missing/not-submitted assignments.
+
+### Register New Student
+
+- Changed DOB input to `dd/mm/yyyy` with validation and ISO conversion for API.
+- Replaced single guardian field with Father, Mother, and Other guardian sections.
+- Captured guardian name, phone, and occupation.
+- Added backend guardian fields, schema validation, Prisma migration, and API types.
+- Added student photo upload on registration.
+- Photo upload validates JPG/PNG up to 5MB and saves as student document type `PHOTO`.
+
+### Verification
+
+- Ran frontend TypeScript checks after UI changes.
+- Ran frontend production builds after profile/homework/register-student changes.
+- Ran backend TypeScript build after backend/student schema changes.
+- Ran Prisma generate after guardian schema update.
+- Applied guardian migration to the Render PostgreSQL database.
 
 ## Attendance / Student List
 
