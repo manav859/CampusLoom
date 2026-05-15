@@ -119,6 +119,15 @@ model Student {
   parentName          String
   parentPhone         String
   alternatePhone      String?
+  fatherName          String?
+  fatherPhone         String?
+  fatherOccupation    String?
+  motherName          String?
+  motherPhone         String?
+  motherOccupation    String?
+  guardianName        String?
+  guardianPhone       String?
+  guardianOccupation  String?
   address             String?
   joiningDate         DateTime               @default(now())
   isActive            Boolean                @default(true)

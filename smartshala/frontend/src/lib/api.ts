@@ -374,6 +374,15 @@ export type StudentDetail = {
   parentName: string;
   parentPhone: string;
   alternatePhone: string | null;
+  fatherName: string | null;
+  fatherPhone: string | null;
+  fatherOccupation: string | null;
+  motherName: string | null;
+  motherPhone: string | null;
+  motherOccupation: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  guardianOccupation: string | null;
   address: string | null;
   isActive: boolean;
   joiningDate: string;
@@ -417,8 +426,10 @@ export type StudentDetail = {
       onTime: number;
       late: number;
       missing: number;
+      pending: number;
     };
     currentStreak: number;
+    classAverageStreak: number;
     subjects: {
       subject: string;
       total: number;

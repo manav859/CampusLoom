@@ -102,8 +102,9 @@ async function studentAccessFilter(user: Express.UserContext) {
 function emptyHomeworkAnalytics() {
   return {
     completionPercentage: null,
-    counts: { total: 0, onTime: 0, late: 0, missing: 0 },
+    counts: { total: 0, onTime: 0, late: 0, missing: 0, pending: 0 },
     currentStreak: 0,
+    classAverageStreak: 0,
     subjects: [],
     assignments: []
   };
@@ -332,6 +333,7 @@ type HomeworkAssignmentForAnalytics = {
   maxMarks: unknown;
   subjectRef: { id: string; name: string } | null;
   submissions: {
+    studentId: string;
     status: HomeworkSubmissionStatus;
     marks: unknown;
     teacherNote: string | null;
@@ -373,8 +375,12 @@ function homeworkAssignmentSubjectName(assignment: HomeworkAssignmentForAnalytic
   return assignment.subjectRef?.name ?? assignment.subject ?? "General";
 }
 
-function normalizeHomeworkStatus(assignment: HomeworkAssignmentForAnalytics) {
-  const submission = assignment.submissions[0];
+function homeworkSubmissionForStudent(assignment: HomeworkAssignmentForAnalytics, studentId: string) {
+  return assignment.submissions.find((submission) => submission.studentId === studentId);
+}
+
+function normalizeHomeworkStatus(assignment: HomeworkAssignmentForAnalytics, studentId: string) {
+  const submission = homeworkSubmissionForStudent(assignment, studentId);
   if (submission) return submission.status;
   return assignment.dueDate.getTime() < Date.now() ? HomeworkSubmissionStatus.NOT_SUBMITTED : null;
 }
@@ -383,12 +389,24 @@ function isHomeworkNotSubmitted(status: HomeworkSubmissionStatus | "PENDING" | s
   return status === HomeworkSubmissionStatus.MISSING || status === HomeworkSubmissionStatus.NOT_SUBMITTED;
 }
 
-function homeworkAnalyticsFromAssignments(assignments: HomeworkAssignmentForAnalytics[]) {
+function homeworkStreakForStudent(assignments: HomeworkAssignmentForAnalytics[], studentId: string) {
+  return [...assignments]
+    .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())
+    .reduce((streak, assignment) => {
+      if (streak.stopped) return streak;
+      const status = normalizeHomeworkStatus(assignment, studentId);
+      if (status === HomeworkSubmissionStatus.ON_TIME) return { count: streak.count + 1, stopped: false };
+      if (status === null) return streak;
+      return { ...streak, stopped: true };
+    }, { count: 0, stopped: false }).count;
+}
+
+function homeworkAnalyticsFromAssignments(assignments: HomeworkAssignmentForAnalytics[], studentId: string, classmateIds: string[]) {
   const total = assignments.length;
   const log = assignments
     .map((assignment) => {
-      const submission = assignment.submissions[0];
-      const status = normalizeHomeworkStatus(assignment);
+      const submission = homeworkSubmissionForStudent(assignment, studentId);
+      const status = normalizeHomeworkStatus(assignment, studentId);
 
       return {
         id: assignment.id,
@@ -408,16 +426,12 @@ function homeworkAnalyticsFromAssignments(assignments: HomeworkAssignmentForAnal
   const onTime = log.filter((item) => item.status === HomeworkSubmissionStatus.ON_TIME).length;
   const late = log.filter((item) => item.status === HomeworkSubmissionStatus.LATE).length;
   const missing = log.filter((item) => isHomeworkNotSubmitted(item.status)).length;
+  const pending = log.filter((item) => item.status === "PENDING").length;
   const completionPercentage = total ? Math.round((onTime / total) * 100) : null;
-
-  const currentStreak = [...log]
-    .sort((a, b) => b.dueDate.getTime() - a.dueDate.getTime())
-    .reduce((streak, item) => {
-      if (streak.stopped) return streak;
-      if (item.status === HomeworkSubmissionStatus.ON_TIME) return { count: streak.count + 1, stopped: false };
-      if (item.status === "PENDING") return streak;
-      return { ...streak, stopped: true };
-    }, { count: 0, stopped: false }).count;
+  const currentStreak = homeworkStreakForStudent(assignments, studentId);
+  const classAverageStreak = classmateIds.length
+    ? Math.round(averageNumber(classmateIds.map((classmateId) => homeworkStreakForStudent(assignments, classmateId))))
+    : 0;
 
   const subjectMap = new Map<string, { subject: string; total: number; onTime: number; late: number; missing: number }>();
   log.forEach((item) => {
@@ -438,27 +452,33 @@ function homeworkAnalyticsFromAssignments(assignments: HomeworkAssignmentForAnal
 
   return {
     completionPercentage,
-    counts: { total, onTime, late, missing },
+    counts: { total, onTime, late, missing, pending },
     currentStreak,
+    classAverageStreak,
     subjects,
     assignments: log
   };
 }
 
 async function homeworkAnalytics(schoolId: string, classId: string, studentId: string) {
+  const classmates = await prisma.student.findMany({
+    where: { schoolId, classId, isActive: true },
+    select: { id: true }
+  });
+  const classmateIds = classmates.map((student) => student.id);
   const assignments = await prisma.homeworkAssignment.findMany({
     where: { schoolId, classId },
     include: {
       subjectRef: { select: { id: true, name: true } },
       submissions: {
-        where: { studentId },
-        select: { status: true, marks: true, teacherNote: true, submittedAt: true }
+        where: { studentId: { in: classmateIds } },
+        select: { studentId: true, status: true, marks: true, teacherNote: true, submittedAt: true }
       }
     },
     orderBy: [{ dueDate: "desc" }, { createdAt: "desc" }]
   });
 
-  return homeworkAnalyticsFromAssignments(assignments as HomeworkAssignmentForAnalytics[]);
+  return homeworkAnalyticsFromAssignments(assignments as HomeworkAssignmentForAnalytics[], studentId, classmateIds);
 }
 
 async function communicationAudit(user: Express.UserContext, studentId: string) {
