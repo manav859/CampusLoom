@@ -515,6 +515,17 @@ export type StudentDetail = {
       role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
     };
   }[];
+  editHistory: {
+    id: string;
+    action: string;
+    summary: string;
+    createdAt: string;
+    actor: {
+      id: string;
+      fullName: string;
+      role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
+    } | null;
+  }[];
   access: {
     role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
     allowedTabs: Array<"academic" | "homework" | "attendance" | "fees" | "communication" | "behaviour" | "documents">;

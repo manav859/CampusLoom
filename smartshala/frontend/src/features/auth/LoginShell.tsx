@@ -14,15 +14,27 @@ export function LoginShell() {
       imageCaption: "SmartShala Campus ERP - Attendance, Fees, Analytics."
     },
     hi: {
-      headline: <>स्कूल संचालन,<br />असेंबली से पहले तैयार.</>,
-      intro: "प्रिंसिपल और शिक्षक टीमों के लिए लॉगिन। अभिभावकों को अपडेट WhatsApp पर मिलते हैं।",
-      imageTitle: <>स्पष्टता और समझ के साथ<br />शिक्षा को सशक्त बनाएं.</>,
-      imageCaption: "SmartShala Campus ERP - उपस्थिति, फीस, एनालिटिक्स."
+      headline: (
+        <>
+          <span lang="hi">{"\u0938\u094D\u0915\u0942\u0932 \u0938\u0902\u091A\u093E\u0932\u0928,"}</span>
+          <br />
+          <span lang="hi">{"\u0905\u0938\u0947\u0902\u092C\u0932\u0940 \u0938\u0947 \u092A\u0939\u0932\u0947 \u0924\u0948\u092F\u093E\u0930."}</span>
+        </>
+      ),
+      intro: "\u092A\u094D\u0930\u093F\u0902\u0938\u093F\u092A\u0932 \u0914\u0930 \u0936\u093F\u0915\u094D\u0937\u0915 \u091F\u0940\u092E\u094B\u0902 \u0915\u0947 \u0932\u093F\u090F \u0932\u0949\u0917\u093F\u0928\u0964 \u0905\u092D\u093F\u092D\u093E\u0935\u0915\u094B\u0902 \u0915\u094B \u0905\u092A\u0921\u0947\u091F WhatsApp \u092A\u0930 \u092E\u093F\u0932\u0924\u0947 \u0939\u0948\u0902\u0964",
+      imageTitle: (
+        <>
+          <span lang="hi">{"\u0938\u094D\u092A\u0937\u094D\u091F\u0924\u093E \u0914\u0930 \u0938\u092E\u091D \u0915\u0947 \u0938\u093E\u0925"}</span>
+          <br />
+          <span lang="hi">{"\u0936\u093F\u0915\u094D\u0937\u093E \u0915\u094B \u0938\u0936\u0915\u094D\u0924 \u092C\u0928\u093E\u090F\u0902."}</span>
+        </>
+      ),
+      imageCaption: "SmartShala Campus ERP - \u0909\u092A\u0938\u094D\u0925\u093F\u0924\u093F, \u092B\u0940\u0938, \u090F\u0928\u093E\u0932\u093F\u091F\u093F\u0915\u094D\u0938."
     }
   }[language];
 
   return (
-    <main className="grid min-h-screen lg:grid-cols-[1fr_1fr]">
+    <main className="grid min-h-screen lg:grid-cols-[1fr_1fr]" lang={language}>
       <section className="flex items-center justify-center bg-[#f5f5f7] px-6 py-12">
         <div className="w-full max-w-[380px]">
           <div className="mb-8 flex items-center gap-2.5">
@@ -35,7 +47,7 @@ export function LoginShell() {
             <span className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">SmartShala</span>
           </div>
 
-          <h1 className="text-[34px] font-semibold leading-[1.1] tracking-tight text-[#1d1d1f]">
+          <h1 className="text-[34px] font-semibold leading-[1.18] tracking-normal text-[#1d1d1f]">
             {copy.headline}
           </h1>
           <p className="mt-3 text-[15px] leading-relaxed text-[#6e6e73]">
@@ -55,7 +67,7 @@ export function LoginShell() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent" />
         <div className="absolute bottom-12 left-12 right-12">
-          <p className="text-[32px] font-semibold leading-tight tracking-tight text-white">
+          <p className="text-[32px] font-semibold leading-[1.18] tracking-normal text-white">
             {copy.imageTitle}
           </p>
           <p className="mt-3 text-[15px] text-white/70">

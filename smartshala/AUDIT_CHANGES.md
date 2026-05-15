@@ -112,9 +112,9 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Add bilingual English + Hindi variants for WhatsApp templates.
 - [x] Expand student document types: Aadhaar, Birth certificate, Caste certificate, Transfer certificate, Bonafide, Medical, Report card, Photo, Agreement.
 - [x] Add bulk actions on Students: send WhatsApp, promote class, export CSV, mark inactive.
-- [ ] Run accessibility pass: contrast, focus rings, severity icons, minimum body text size, colorblind-safe states.
+- [x] Run accessibility pass: contrast, focus rings, severity icons, minimum body text size, colorblind-safe states.
 - [x] Add P/A/L letters to attendance calendar cells, not color alone.
-- [ ] Add immutable audit log infrastructure with visible `Edit history` on records.
+- [x] Add immutable audit log infrastructure with visible `Edit history` on records.
 - [ ] Confirm responsive layouts for Dashboard, Student Profile, Mark Attendance, Send Communication, Record Payment.
 - [x] Clarify partial payment display as one line: `Paid INR X of INR Y - INR Z still pending`.
 
@@ -124,7 +124,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [ ] Add exam term/type field: Unit Test, Mid-Term, Final, Term 1, Term 2.
 - [ ] Group exam history by term.
 - [x] Create reusable empty-state component with illustration, headline, supporting copy, and one primary CTA.
-- [ ] Start Hindi locale pass with i18n strings and Devanagari font pairing.
+- [x] Start Hindi locale pass with i18n strings and Devanagari font pairing.
 - [ ] Clean IA: merge Communication / WhatsApp Logs / Templates where appropriate.
 - [ ] Clarify Reports vs Analytics: printable/exportable reports vs interactive insights.
 - [ ] Add fee structure editor with list, create, edit, duplicate, archive.
@@ -168,7 +168,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [ ] Expand student documents.
 - [ ] Add half-day attendance, leave flow, and absent reason capture.
 - [ ] Add Students bulk-action system.
-- [ ] Add audit log infrastructure.
+- [x] Add audit log infrastructure.
 - [ ] Complete accessibility pass.
 - [ ] Add Hindi locale pass.
 - [ ] Build mobile/responsive layouts for top five workflows.
@@ -229,7 +229,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Move `Resend` and `Deactivate` into overflow menu.
 - [x] Populate Last Payment and Attendance columns or remove them.
 - [x] Add bulk-select and bulk actions.
-- [ ] Make column headers sortable.
+- [x] Make column headers sortable.
 - [x] Add search by parent phone.
 - [x] Make pending amount visually distinct from INR 0.
 - [x] Clarify status filter options.

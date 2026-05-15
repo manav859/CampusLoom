@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { studentsApi, type StudentDetail } from "@/lib/api";
 import { cachedFetch } from "@/lib/prefetchCache";
+import { EditHistoryPanel } from "./EditHistoryPanel";
 import { StickyHeader } from "./StickyHeader";
 import { StudentProfileTabs } from "./StudentProfileTabs";
 import {
@@ -161,6 +162,7 @@ export function StudentProfilePage() {
         canViewAttendance={canViewAttendance}
         canViewFees={canViewFees}
       />
+      <EditHistoryPanel history={student.editHistory ?? []} />
       <StudentProfileTabs student={student} attendance={attendanceWithSnapshot} pendingFees={feeBalance} paidFees={paidFees} />
     </div>
   );
