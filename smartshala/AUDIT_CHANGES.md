@@ -239,7 +239,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Use `dd/mm/yyyy` date picker for date of birth.
 - [x] Replace single guardian field with Mother, Father, Other Guardian sections.
 - [x] Capture guardian name, phone, and occupation.
-- [ ] Add student photo upload.
+- [x] Add student photo upload.
 - [x] Mark required fields with red asterisk.
 - [x] Add Aadhaar / APAAR ID field.
 - [x] Add Previous School field.
