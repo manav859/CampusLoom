@@ -31,6 +31,7 @@ model School {
   receipts                 Receipt[]
   studentDocuments         StudentDocument[]
   feeAssignments           StudentFeeAssignment[]
+  auditLogs                AuditLog[]
   students                 Student[]
   subjects                 Subject[]
   teacherPeriodAssignments TeacherPeriodAssignment[]
@@ -57,6 +58,7 @@ model User {
   classTeacherFor          Class[]                   @relation("ClassTeacher")
   paymentsRecorded         Payment[]                 @relation("PaymentRecordedBy")
   refreshTokens            RefreshToken[]
+  auditLogs                AuditLog[]                 @relation("AuditActor")
   uploadedStudentDocuments StudentDocument[]         @relation("StudentDocumentUploadedBy")
   teachingSubjects         Subject[]                 @relation("SubjectTeacher")
   periodAssignments        TeacherPeriodAssignment[] @relation("TeacherPeriodAssignmentTeacher")
@@ -141,6 +143,25 @@ model Student {
   @@index([schoolId, parentPhone])
   @@index([schoolId, alternatePhone])
   @@map("students")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  schoolId   String   @db.Uuid
+  actorId    String?  @db.Uuid
+  entityType String
+  entityId   String   @db.Uuid
+  action     String
+  summary    String
+  beforeJson Json?
+  afterJson  Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id])
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, entityType, entityId, createdAt])
+  @@index([schoolId, actorId, createdAt])
+  @@map("audit_logs")
 }
 
 model CommunicationLog {

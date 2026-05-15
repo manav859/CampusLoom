@@ -15,6 +15,7 @@ import { getPagination } from "../../core/pagination.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { gradeForPercentage } from "../../core/grading.js";
 import { calculateStudentAttendanceSummary } from "../../core/studentAttendance.js";
+import { recordAuditLog } from "../../core/auditLog.js";
 import { assignFee } from "../fees/fees.service.js";
 
 type AttendanceForSnapshot = {
@@ -943,6 +944,14 @@ export async function getStudent(user: Express.UserContext, id: string) {
     const communication = canViewCommunication ? await communicationAudit(user, student.id) : [];
     const behaviour = canViewBehaviour ? await behaviourAnalytics(user, student.id) : emptyBehaviourAnalytics(user.role);
     const documents = canViewDocuments ? await documentAudit(user.schoolId, student.id) : [];
+    const editHistory = isPrincipalRole(user.role)
+      ? await prisma.auditLog.findMany({
+          where: { schoolId: user.schoolId, entityType: "STUDENT", entityId: student.id },
+          include: { actor: { select: { id: true, fullName: true, role: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 25
+        })
+      : [];
     const feeBalance = canViewFees ? feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0) : 0;
     const currentRank = canViewAcademic
       ? await cached(`rank:${user.schoolId}:${student.classId}:${student.id}`, 30_000, () => currentRankForStudent(user.schoolId, student.classId, student.id))
@@ -965,6 +974,13 @@ export async function getStudent(user: Express.UserContext, id: string) {
       communicationAudit: communication,
       behaviourAnalytics: behaviour,
       documents,
+      editHistory: editHistory.map((entry) => ({
+        id: entry.id,
+        action: entry.action,
+        summary: entry.summary,
+        createdAt: entry.createdAt,
+        actor: entry.actor ? { id: entry.actor.id, fullName: entry.actor.fullName, role: entry.actor.role } : null
+      })),
       feeAssignments: canViewFees ? feeAssignments : [],
       attendanceRecords: canViewAttendance ? attendanceRecords : [],
       feeBalance
@@ -1170,8 +1186,9 @@ export async function generateAdmissionNumber(schoolId: string) {
   return `${prefix}${String(nextSequence).padStart(3, "0")}`;
 }
 
-export async function createStudent(schoolId: string, data: Record<string, unknown>) {
+export async function createStudent(user: Express.UserContext, data: Record<string, unknown>) {
   const { feeStructureId, ...studentData } = data as { feeStructureId?: string } & Record<string, unknown>;
+  const schoolId = user.schoolId;
   
   if (!studentData.admissionNumber) {
     studentData.admissionNumber = await generateAdmissionNumber(schoolId);
@@ -1190,23 +1207,69 @@ export async function createStudent(schoolId: string, data: Record<string, unkno
     await assignFee(schoolId, student.id, feeStructureId);
   }
 
+  await recordAuditLog({
+    schoolId,
+    actorId: user.id,
+    entityType: "STUDENT",
+    entityId: student.id,
+    action: "CREATE",
+    summary: `Created student ${student.fullName}`,
+    after: student
+  });
+
   return student;
 }
 
-export async function updateStudent(schoolId: string, id: string, data: Record<string, unknown>) {
+export async function updateStudent(user: Express.UserContext, id: string, data: Record<string, unknown>) {
+  const schoolId = user.schoolId;
   const existing = await prisma.student.findFirst({ where: { id, schoolId } });
   if (!existing) throw notFound("Student");
-  return prisma.student.update({ where: { id }, data });
+  const updated = await prisma.student.update({ where: { id }, data });
+  await recordAuditLog({
+    schoolId,
+    actorId: user.id,
+    entityType: "STUDENT",
+    entityId: id,
+    action: "UPDATE",
+    summary: `Updated student ${updated.fullName}`,
+    before: existing,
+    after: updated
+  });
+  return updated;
 }
 
-export async function deactivateStudent(schoolId: string, id: string) {
+export async function deactivateStudent(user: Express.UserContext, id: string) {
+  const schoolId = user.schoolId;
   const existing = await prisma.student.findFirst({ where: { id, schoolId } });
   if (!existing) throw notFound("Student");
-  return prisma.student.update({ where: { id }, data: { isActive: false } });
+  const updated = await prisma.student.update({ where: { id }, data: { isActive: false } });
+  await recordAuditLog({
+    schoolId,
+    actorId: user.id,
+    entityType: "STUDENT",
+    entityId: id,
+    action: "DEACTIVATE",
+    summary: `Marked ${updated.fullName} inactive`,
+    before: existing,
+    after: updated
+  });
+  return updated;
 }
 
-export async function activateStudent(schoolId: string, id: string) {
+export async function activateStudent(user: Express.UserContext, id: string) {
+  const schoolId = user.schoolId;
   const existing = await prisma.student.findFirst({ where: { id, schoolId } });
   if (!existing) throw notFound("Student");
-  return prisma.student.update({ where: { id }, data: { isActive: true } });
+  const updated = await prisma.student.update({ where: { id }, data: { isActive: true } });
+  await recordAuditLog({
+    schoolId,
+    actorId: user.id,
+    entityType: "STUDENT",
+    entityId: id,
+    action: "ACTIVATE",
+    summary: `Marked ${updated.fullName} active`,
+    before: existing,
+    after: updated
+  });
+  return updated;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
@@ -38,6 +38,9 @@ type ApiStudentItem = {
   lastPayment?: string | null;
   attendancePercentage?: number;
 };
+
+type SortKey = "name" | "class" | "feeStatus" | "pendingAmount" | "lastPayment" | "attendance";
+type SortDirection = "asc" | "desc";
 
 /* ── Fallback seed data (shown when API has no students) ── */
 const fallbackStudents: StudentRow[] = [
@@ -90,6 +93,27 @@ function csvCell(value: string | number | null | undefined) {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
+function sortValue(student: StudentRow, key: SortKey) {
+  if (key === "name") return student.fullName;
+  if (key === "class") return `${student.class.name}${student.class.section}`;
+  if (key === "feeStatus") return student.feeStatus ?? "";
+  if (key === "pendingAmount") return student.pendingAmount ?? Number.POSITIVE_INFINITY;
+  if (key === "lastPayment") return student.lastPayment ? new Date(student.lastPayment).getTime() : 0;
+  return student.attendancePercentage ?? -1;
+}
+
+function compareStudents(left: StudentRow, right: StudentRow, key: SortKey, direction: SortDirection) {
+  const leftValue = sortValue(left, key);
+  const rightValue = sortValue(right, key);
+  const multiplier = direction === "asc" ? 1 : -1;
+
+  if (typeof leftValue === "number" && typeof rightValue === "number") {
+    return (leftValue - rightValue) * multiplier || left.fullName.localeCompare(right.fullName, "en-IN");
+  }
+
+  return String(leftValue).localeCompare(String(rightValue), "en-IN", { numeric: true, sensitivity: "base" }) * multiplier;
+}
+
 /* ── Component ── */
 export default function StudentsPage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -111,6 +135,7 @@ export default function StudentsPage() {
     busy?: boolean;
   }>({ isOpen: false, action: null, message: "", targetClassId: "" });
   const [notice, setNotice] = useState<string | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
@@ -191,15 +216,36 @@ export default function StudentsPage() {
   const filtered = statusFilter && canViewFees
     ? students.filter((s) => s.feeStatus === statusFilter)
     : students;
+  const sortedFiltered = useMemo(
+    () => [...filtered].sort((left, right) => compareStudents(left, right, sort.key, sort.direction)),
+    [filtered, sort.direction, sort.key]
+  );
 
   const totalPages = Math.ceil(total / perPage);
-  const tableHeaders = canViewFees
-    ? ["", "#", "Student Name", "Class", "Fees Status", "Pending Amt", "Last Payment", "Attendance", "Actions"]
-    : ["", "#", "Student Name", "Class", "Attendance", "Actions"];
+  const tableHeaders: { label: string; sortKey?: SortKey }[] = canViewFees
+    ? [
+        { label: "" },
+        { label: "#" },
+        { label: "Student Name", sortKey: "name" },
+        { label: "Class", sortKey: "class" },
+        { label: "Fees Status", sortKey: "feeStatus" },
+        { label: "Pending Amt", sortKey: "pendingAmount" },
+        { label: "Last Payment", sortKey: "lastPayment" },
+        { label: "Attendance", sortKey: "attendance" },
+        { label: "Actions" }
+      ]
+    : [
+        { label: "" },
+        { label: "#" },
+        { label: "Student Name", sortKey: "name" },
+        { label: "Class", sortKey: "class" },
+        { label: "Attendance", sortKey: "attendance" },
+        { label: "Actions" }
+      ];
   const selectedStudents = selectedIds
     .map((id) => students.find((student) => student.id === id))
     .filter((student): student is StudentRow => Boolean(student));
-  const visibleIds = filtered.map((student) => student.id);
+  const visibleIds = sortedFiltered.map((student) => student.id);
   const visibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
   const selectedCount = selectedStudents.length;
 
@@ -209,6 +255,13 @@ export default function StudentsPage() {
 
   const handleActivate = (id: string) => {
     setConfirmDialog({ isOpen: true, action: 'activate', studentId: id });
+  };
+
+  const handleSort = (key: SortKey) => {
+    setSort((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
+    }));
   };
 
   const handleConfirmAction = async () => {
@@ -435,7 +488,11 @@ export default function StudentsPage() {
               <thead>
                 <tr className="bg-gradient-to-r from-[#1a3c4d] to-[#2a7a94]">
                   {tableHeaders.map((head, index) => (
-                    <th key={`${head}-${index}`} className="px-5 py-3.5 text-[12px] font-semibold text-white/90 tracking-wide whitespace-nowrap">
+                    <th
+                      aria-sort={head.sortKey ? (sort.key === head.sortKey ? (sort.direction === "asc" ? "ascending" : "descending") : "none") : undefined}
+                      key={`${head.label}-${index}`}
+                      className="px-5 py-3.5 text-[12px] font-semibold text-white/90 tracking-wide whitespace-nowrap"
+                    >
                       {index === 0 ? (
                         <input
                           aria-label="Select all visible students"
@@ -444,7 +501,18 @@ export default function StudentsPage() {
                           onChange={toggleVisibleSelection}
                           type="checkbox"
                         />
-                      ) : head}
+                      ) : head.sortKey ? (
+                        <button
+                          className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-left hover:bg-white/10"
+                          onClick={() => handleSort(head.sortKey!)}
+                          type="button"
+                        >
+                          {head.label}
+                          <span aria-hidden="true" className="text-[10px]">
+                            {sort.key === head.sortKey ? (sort.direction === "asc" ? "Asc" : "Desc") : "Sort"}
+                          </span>
+                        </button>
+                      ) : head.label}
                     </th>
                   ))}
                 </tr>
@@ -468,14 +536,14 @@ export default function StudentsPage() {
                       <td className="px-5 py-4"><div className="flex gap-2"><Skeleton className="h-7 w-14 rounded-lg" /><Skeleton className="h-7 w-14 rounded-lg" /></div></td>
                     </tr>
                   ))
-                ) : filtered.length === 0 ? (
+                ) : sortedFiltered.length === 0 ? (
                   <tr>
                     <td colSpan={tableHeaders.length} className="px-5 py-16 text-center text-[#86868b]">
                       <span className="text-[13px] font-medium">No students found.</span>
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((student, idx) => {
+                  sortedFiltered.map((student, idx) => {
                     const rowNum = (page - 1) * perPage + idx + 1;
                     const menuOpen = openActionMenu === student.id;
 
@@ -603,7 +671,7 @@ export default function StudentsPage() {
         {/* ── Pagination ── */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 border-t border-[rgba(0,0,0,0.06)] px-5 py-3 text-[12px] text-[#86868b]">
           <span>
-            Showing <span className="font-medium text-[#1d1d1f]">{filtered.length}</span> of <span className="font-medium text-[#1d1d1f]">{total}</span> students
+            Showing <span className="font-medium text-[#1d1d1f]">{sortedFiltered.length}</span> of <span className="font-medium text-[#1d1d1f]">{total}</span> students
           </span>
           <span className="hidden sm:inline">·</span>
           <div className="flex items-center gap-1.5">

@@ -37,17 +37,17 @@ export const downloadStudentDocument = asyncHandler(async (req: Request, res: Re
 });
 
 export const createStudent = asyncHandler(async (req: Request, res: Response) => {
-  res.status(201).json(await studentsService.createStudent(req.user!.schoolId, req.body));
+  res.status(201).json(await studentsService.createStudent(req.user!, req.body));
 });
 
 export const updateStudent = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await studentsService.updateStudent(req.user!.schoolId, req.params.id, req.body));
+  res.json(await studentsService.updateStudent(req.user!, req.params.id, req.body));
 });
 
 export const deactivateStudent = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await studentsService.deactivateStudent(req.user!.schoolId, req.params.id));
+  res.json(await studentsService.deactivateStudent(req.user!, req.params.id));
 });
 
 export const activateStudent = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await studentsService.activateStudent(req.user!.schoolId, req.params.id));
+  res.json(await studentsService.activateStudent(req.user!, req.params.id));
 });

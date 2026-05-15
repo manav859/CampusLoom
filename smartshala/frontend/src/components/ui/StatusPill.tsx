@@ -6,15 +6,25 @@ type Props = {
 };
 
 const styles = {
-  good: "bg-[#34c759]/[0.12] text-[#248a3d] border border-[#34c759]/20",
-  warn: "bg-[#ff9500]/[0.12] text-[#c93400] border border-[#ff9500]/20",
-  danger: "bg-[#ff3b30]/[0.12] text-[#d70015] border border-[#ff3b30]/20",
-  neutral: "bg-[rgba(0,0,0,0.05)] dark:bg-[rgba(255,255,255,0.05)] text-[#6e6e73] border border-transparent"
+  good: "bg-[var(--success-100)] text-[var(--success-600)] border border-[color:rgb(15_138_74/20%)]",
+  warn: "bg-[var(--warning-100)] text-[var(--warning-600)] border border-[color:rgb(185_90_0/20%)]",
+  danger: "bg-[var(--danger-100)] text-[var(--danger-600)] border border-[color:rgb(200_36_44/20%)]",
+  neutral: "bg-[var(--surface-50)] text-[var(--ink-500)] border border-[var(--border-200)]"
+};
+
+const symbols = {
+  good: "✓",
+  warn: "!",
+  danger: "×",
+  neutral: "•"
 };
 
 export function StatusPill({ label, tone = "neutral" }: Props) {
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide transition-all duration-200 ease-apple ${styles[tone]}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold leading-4 transition-all duration-200 ease-apple ${styles[tone]}`}>
+      <span aria-hidden="true" className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white/70 text-[10px] leading-none">
+        {symbols[tone]}
+      </span>
       {humanizeConstant(label)}
     </span>
   );

@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ─── Apple-like Inter Font ─── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
 
 :root {
   color-scheme: light;
@@ -82,7 +82,21 @@ body {
   color: var(--apple-text);
   background-color: var(--apple-bg);
   background-attachment: fixed;
-  letter-spacing: -0.015em;
+  letter-spacing: 0;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+summary {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2456E6]/40 focus-visible:ring-offset-2;
+}
+
+:lang(hi) {
+  font-family: var(--font-devanagari);
+  line-height: 1.1;
 }
 
 /* ─── Premium scrollbar ─── */
