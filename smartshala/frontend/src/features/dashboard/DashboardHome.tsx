@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AlertPanel } from "@/components/dashboard/AlertPanel";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { FeeOverviewChart } from "@/components/dashboard/FeeOverviewChart";
@@ -46,7 +47,8 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       if (dashboardResult.status === "fulfilled") {
         setData(dashboardResult.value);
       } else {
-        setError(dashboardResult.reason instanceof Error ? dashboardResult.reason.message : "Dashboard data unavailable");
+        setData({ role: mode === "ADMIN" ? "ADMIN" : "TEACHER", kpis: {}, attendance: [], alerts: [] });
+        setError("Dashboard metrics are refreshing. Showing available cards.");
       }
 
       if (feesResult.status === "fulfilled") setFees(feesResult.value);
@@ -62,30 +64,64 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   }, [mode]);
 
   /* ── KPI row ── */
-  const totalClasses = data?.kpis.totalClasses ?? data?.kpis.assignedClasses ?? 0;
-  const markedClasses = data?.kpis.classesMarked ?? 0;
-  const pendingClasses = data?.kpis.classesPending ?? data?.kpis.pendingAttendance ?? 0;
+  const kpis = data?.kpis ?? {};
+  const totalClasses = kpis.totalClasses ?? kpis.assignedClasses ?? 0;
+  const markedClasses = kpis.classesMarked ?? 0;
+  const pendingClasses = kpis.classesPending ?? kpis.pendingAttendance ?? 0;
   const markedTodayPercentage = totalClasses ? Math.round((markedClasses / totalClasses) * 100) : 0;
+  const pulseText = mode === "ADMIN"
+    ? `${markedClasses} of ${totalClasses} classes marked today, ${defaulters.length || kpis.overdueInstallments || 0} fee follow-ups pending.`
+    : `${pendingClasses} attendance actions pending for your assigned classes.`;
 
-  const adminKpis = data ? [
-    { label: mode === "ADMIN" ? "Students" : "Your students", value: data.kpis.totalStudents ?? data.kpis.assignedStudents ?? 0, tone: "teal" as const },
+  const adminKpis = [
+    {
+      label: mode === "ADMIN" ? "Students" : "Your students",
+      value: kpis.totalStudents ?? kpis.assignedStudents ?? 0,
+      formula: mode === "ADMIN" ? "Active students in the school." : "Active students in classes assigned to you.",
+      href: "/students",
+      tone: "teal" as const
+    },
     mode === "ADMIN"
       ? {
           label: "Marked today",
           value: `${markedTodayPercentage}%`,
           helper: `${markedClasses} of ${totalClasses} classes marked`,
+          formula: "Classes marked today / total active classes.",
+          href: "/attendance/reports",
           tone: pendingClasses > 0 ? "amber" as const : "green" as const
         }
       : {
           label: "Pending attendance",
           value: pendingClasses,
           helper: "Your classes today",
+          formula: "Assigned classes without today's attendance submitted.",
+          href: "/attendance",
           tone: pendingClasses > 0 ? "amber" as const : "green" as const
         },
-    { label: "Defaulters", value: defaulters.length || data.kpis.overdueInstallments || 0, tone: "red" as const },
-    { label: "Collected", value: mode === "ADMIN" ? formatINR(fees?.totalCollected ?? 0) : "Class view", tone: "amber" as const },
-    { label: "AI Alerts", value: data.alerts?.length || 0, tone: "purple" as const }
-  ] : [];
+    {
+      label: "Defaulters",
+      value: defaulters.length || kpis.overdueInstallments || 0,
+      helper: "Active fee assignments",
+      formula: "Students with pending or overdue fee balance.",
+      href: "/fees/defaulters",
+      tone: "red" as const
+    },
+    {
+      label: "Collected",
+      value: mode === "ADMIN" ? formatINR(fees?.totalCollected ?? 0) : "Class view",
+      formula: mode === "ADMIN" ? "Total fee payments received for active fee assignments." : "Fee totals are hidden in teacher view.",
+      href: mode === "ADMIN" ? "/fees" : "/teacher/classes",
+      tone: "amber" as const
+    },
+    {
+      label: "AI Alerts",
+      value: data?.alerts?.length || 0,
+      helper: "Opens risk insights",
+      formula: "Open risk and behaviour signals from dashboard analytics.",
+      href: "/analytics",
+      tone: "purple" as const
+    }
+  ];
 
   /* ── Alert items ── */
   const actionAlerts = data ? [
@@ -130,8 +166,18 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       <PageHeader
         eyebrow={mode === "ADMIN" ? "Principal dashboard" : "Teacher dashboard"}
       />
+      <p className="text-[14px] font-medium leading-6 text-[#5A6573]">{pulseText}</p>
 
       {error ? <div className="rounded-xl bg-[#ff9500]/10 px-4 py-3 text-[13px] font-medium text-[#c93400]">{error}</div> : null}
+
+      {mode === "ADMIN" ? (
+        <div className="flex flex-wrap gap-2">
+          <Link className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD]" href="/attendance">Mark today&apos;s attendance</Link>
+          <Link className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/defaulters">Send fee reminder</Link>
+          <Link className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/students/new">Add student</Link>
+          <Link className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/new">Record payment</Link>
+        </div>
+      ) : null}
 
       {/* ═══ Row 1 — KPI Summary Cards ═══ */}
       <div className="grid gap-4 grid-cols-2 xl:grid-cols-5">
@@ -156,7 +202,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
               title={mode === "ADMIN" ? "Attendance in marked classes" : "Your class attendance"}
               classes={(data?.attendance ?? []).map((a) => a.className)}
             />
-            <FeeOverviewChart segments={feeSegments} title="Fee overview" />
+            <FeeOverviewChart segments={feeSegments} title="Fee overview - active assignments" />
           </>
         )}
       </section>

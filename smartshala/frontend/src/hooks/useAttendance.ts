@@ -25,7 +25,14 @@ function monthInputFromDate(date: string) {
 function toMarkStatus(status: string): AttendanceMarkStatus {
   if (status === "ABSENT") return "ABSENT";
   if (status === "LATE") return "LATE";
+  if (status === "HALF_DAY") return "HALF_DAY";
   return "PRESENT";
+}
+
+function attendanceValue(status: AttendanceMarkStatus) {
+  if (status === "ABSENT") return 0;
+  if (status === "HALF_DAY") return 0.5;
+  return 1;
 }
 
 export function useAttendance() {
@@ -49,7 +56,9 @@ export function useAttendance() {
       total: students.length,
       present: students.filter((student) => student.status === "PRESENT").length,
       absent: students.filter((student) => student.status === "ABSENT").length,
-      late: students.filter((student) => student.status === "LATE").length
+      late: students.filter((student) => student.status === "LATE").length,
+      halfDay: students.filter((student) => student.status === "HALF_DAY").length,
+      attended: students.reduce((sum, student) => sum + attendanceValue(student.status), 0)
     }),
     [students]
   );
@@ -174,7 +183,14 @@ export function useAttendance() {
     setStudents((items) =>
       items.map((student) => {
         if (student.id !== studentId) return student;
-        const next = student.status === "PRESENT" ? "LATE" : student.status === "LATE" ? "ABSENT" : "PRESENT";
+        const next =
+          student.status === "PRESENT"
+            ? "LATE"
+            : student.status === "LATE"
+              ? "HALF_DAY"
+              : student.status === "HALF_DAY"
+                ? "ABSENT"
+                : "PRESENT";
         return { ...student, status: next };
       })
     );

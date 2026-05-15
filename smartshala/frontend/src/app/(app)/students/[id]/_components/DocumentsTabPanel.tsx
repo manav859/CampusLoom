@@ -44,23 +44,54 @@ function typeTone(type: DocumentType) {
   return "neutral";
 }
 
+const counterGroups = [
+  { label: "Identity", types: ["AADHAAR", "APAAR", "PARENT_ID", "PHOTO"] as DocumentType[] },
+  { label: "Admission", types: ["BIRTH_CERTIFICATE", "CASTE_CERTIFICATE", "TRANSFER_CERTIFICATE", "BONAFIDE"] as DocumentType[] },
+  { label: "Academic", types: ["REPORT_CARD", "CERTIFICATE"] as DocumentType[] },
+  { label: "Medical & agreements", types: ["MEDICAL", "AGREEMENT"] as DocumentType[] }
+];
+
 export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
   const [documents, setDocuments] = useState<StudentDocument[]>(student.documents ?? []);
   const [type, setType] = useState<DocumentType>("AADHAAR");
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [shareWithParent, setShareWithParent] = useState(true);
+  const [dragActive, setDragActive] = useState(false);
   const [status, setStatus] = useState<{ tone: "good" | "warn" | "danger"; message: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const counts = useMemo(
     () =>
-      documentTypes.map((item) => ({
+      counterGroups.map((item) => ({
         ...item,
-        count: documents.filter((document) => document.type === item.value).length
+        count: documents.filter((document) => item.types.includes(document.type)).length
       })),
     [documents]
   );
+
+  function validateAndSetFile(nextFile: File | null) {
+    if (!nextFile) {
+      setFile(null);
+      return;
+    }
+
+    const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png"]);
+    const allowedExtensions = /\.(pdf|jpe?g|png)$/i;
+    if (!allowedTypes.has(nextFile.type) && !allowedExtensions.test(nextFile.name)) {
+      setStatus({ tone: "danger", message: "Use PDF, JPG, or PNG files only." });
+      return;
+    }
+
+    if (nextFile.size > 5 * 1024 * 1024) {
+      setStatus({ tone: "danger", message: "File must be 5MB or smaller." });
+      return;
+    }
+
+    setStatus(null);
+    setFile(nextFile);
+  }
 
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -83,7 +114,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
       setName("");
       setFile(null);
       form.reset();
-      setStatus({ tone: "good", message: "Document uploaded." });
+      setStatus({ tone: "good", message: shareWithParent ? "Document uploaded and marked for parent sharing." : "Document uploaded." });
     } catch (error) {
       setStatus({ tone: "danger", message: error instanceof Error ? error.message : "Upload failed." });
     } finally {
@@ -107,9 +138,10 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
     <section className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {counts.map((item) => (
-          <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-4 shadow-apple-sm backdrop-blur-xl" key={item.value}>
+          <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-4 shadow-apple-sm backdrop-blur-xl" key={item.label}>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">{item.label}</p>
             <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{item.count}</p>
+            <p className="mt-1 text-[11px] font-medium text-[#86868b]">{item.types.map(typeLabel).join(", ")}</p>
           </div>
         ))}
       </div>
@@ -144,12 +176,49 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
 
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">File</span>
+              <div
+                className={`mt-1.5 rounded-xl border border-dashed px-4 py-5 text-center transition ${
+                  dragActive ? "border-[#2456E6] bg-[#E2F0FB]" : "border-[rgba(0,0,0,0.14)] bg-[rgba(0,0,0,0.02)]"
+                }`}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={(event) => {
+                  event.preventDefault();
+                  setDragActive(false);
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragActive(false);
+                  validateAndSetFile(event.dataTransfer.files?.[0] ?? null);
+                }}
+              >
+                <input
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="mx-auto block max-w-full text-[13px] font-medium text-[#6e6e73] file:mr-3 file:rounded-lg file:border-0 file:bg-[#1d1d1f] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-white"
+                  onChange={(event) => validateAndSetFile(event.target.files?.[0] ?? null)}
+                  type="file"
+                />
+                <p className="mt-3 text-[13px] font-semibold text-[#1d1d1f]">
+                  {file ? file.name : "Drag and drop a document here"}
+                </p>
+                <p className="mt-1 text-[12px] font-medium text-[#86868b]">PDF, JPG, PNG up to 5MB</p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f5f5f7] px-4 py-3">
               <input
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
-                className="mt-1.5 w-full rounded-xl border border-dashed border-[rgba(0,0,0,0.14)] bg-[rgba(0,0,0,0.02)] px-3 py-3 text-[13px] font-medium text-[#6e6e73] file:mr-3 file:rounded-lg file:border-0 file:bg-[#1d1d1f] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold file:text-white"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                type="file"
+                checked={shareWithParent}
+                className="mt-1 h-4 w-4 accent-[#2456E6]"
+                onChange={(event) => setShareWithParent(event.target.checked)}
+                type="checkbox"
               />
+              <span>
+                <span className="block text-[13px] font-semibold text-[#1d1d1f]">Share with parent</span>
+                <span className="block text-[12px] font-medium text-[#86868b]">Marks this upload as parent-facing once sharing rules are enabled.</span>
+              </span>
             </label>
 
             {status ? (

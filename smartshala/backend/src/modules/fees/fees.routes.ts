@@ -26,3 +26,4 @@ feesRouter.post("/payments", requireRole(financeRoles), validate({ body: payment
 feesRouter.get("/students/:studentId/ledger", requireRole(financeRoles), controller.getStudentLedger);
 feesRouter.get("/defaulters", requireRole(financeRoles), controller.defaulters);
 feesRouter.get("/receipts/:receiptId/pdf", requireRole(financeRoles), controller.receiptPdf);
+feesRouter.post("/receipts/:receiptId/send-whatsapp", requireRole(financeRoles), controller.sendReceiptWhatsApp);

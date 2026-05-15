@@ -60,6 +60,12 @@ function percentage(numerator: number, denominator: number) {
   return Math.round((numerator / denominator) * 1000) / 10;
 }
 
+function attendanceValue(status: AttendanceStatus) {
+  if (status === AttendanceStatus.ABSENT) return 0;
+  if (status === AttendanceStatus.HALF_DAY) return 0.5;
+  return 1;
+}
+
 function isAdminRole(role: UserRole) {
   return role === UserRole.PRINCIPAL || role === UserRole.ADMIN;
 }
@@ -200,6 +206,7 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
         sessionId: session.id,
         studentId: record.studentId,
         status: record.status,
+        attendanceValue: attendanceValue(record.status),
         remarks: record.remarks
       }))
     });
@@ -298,6 +305,7 @@ export async function getClassTodayAttendance(user: AttendanceUser, classId: str
         where: { schoolId: user.schoolId },
         select: {
           status: true,
+          attendanceValue: true,
           student: {
             select: {
               id: true,
@@ -320,7 +328,9 @@ export async function getClassTodayAttendance(user: AttendanceUser, classId: str
         total: 0,
         present: 0,
         absent: 0,
-        late: 0
+        late: 0,
+        halfDay: 0,
+        attended: 0
       }
     };
   }
@@ -337,6 +347,8 @@ export async function getClassTodayAttendance(user: AttendanceUser, classId: str
   const present = attendance.filter((record) => record.status === AttendanceStatus.PRESENT).length;
   const absent = attendance.filter((record) => record.status === AttendanceStatus.ABSENT).length;
   const late = attendance.filter((record) => record.status === AttendanceStatus.LATE).length;
+  const halfDay = attendance.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
+  const attended = session.records.reduce((sum, record) => sum + Number(record.attendanceValue), 0);
 
   return {
     classId,
@@ -347,7 +359,9 @@ export async function getClassTodayAttendance(user: AttendanceUser, classId: str
       total: attendance.length,
       present,
       absent,
-      late
+      late,
+      halfDay,
+      attended
     }
   };
 }
@@ -376,6 +390,7 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
     },
     select: {
       status: true,
+      attendanceValue: true,
       session: {
         select: { date: true }
       }
@@ -388,7 +403,8 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
   const present = records.filter((record) => record.status === AttendanceStatus.PRESENT).length;
   const absent = records.filter((record) => record.status === AttendanceStatus.ABSENT).length;
   const late = records.filter((record) => record.status === AttendanceStatus.LATE).length;
-  const attended = present + late;
+  const halfDay = records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
+  const attended = records.reduce((sum, record) => sum + Number(record.attendanceValue), 0);
 
   return {
     studentId: student.id,
@@ -398,6 +414,8 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
       present,
       absent,
       late,
+      halfDay,
+      attended,
       percentage: percentage(attended, records.length)
     },
     daily: records.map((record) => ({
@@ -426,7 +444,9 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
   const days = sessions.map((session) => {
     const present = session.records.filter((record) => record.status === AttendanceStatus.PRESENT).length;
     const late = session.records.filter((record) => record.status === AttendanceStatus.LATE).length;
+    const halfDay = session.records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
     const absent = session.records.filter((record) => record.status === AttendanceStatus.ABSENT).length;
+    const attended = session.records.reduce((sum, record) => sum + attendanceValue(record.status), 0);
     const total = session.records.length || students;
     return {
       date: formatDate(session.date),
@@ -434,8 +454,10 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
       total,
       present,
       late,
+      halfDay,
       absent,
-      percentage: percentage(present + late, total)
+      attended,
+      percentage: percentage(attended, total)
     };
   });
 
@@ -499,17 +521,21 @@ export async function getAttendanceDashboard(user: AttendanceUser, date = new Da
 
   const statusCounts = new Map(groupedRecords.map((item) => [item.status, item._count._all]));
   const present = (statusCounts.get(AttendanceStatus.PRESENT) ?? 0) + (statusCounts.get(AttendanceStatus.LATE) ?? 0);
+  const halfDay = statusCounts.get(AttendanceStatus.HALF_DAY) ?? 0;
+  const attended = present + (halfDay * 0.5);
   const absent = statusCounts.get(AttendanceStatus.ABSENT) ?? 0;
-  const totalMarkedStudents = present + absent;
+  const totalMarkedStudents = present + absent + halfDay;
 
   return {
     totalClasses: classes.length,
     markedClasses: markedClassIds.size,
     pendingClasses: Math.max(classes.length - markedClassIds.size, 0),
-    attendancePercentage: percentage(present, totalMarkedStudents),
+    attendancePercentage: percentage(attended, totalMarkedStudents),
     students: {
       present,
-      absent
+      absent,
+      halfDay,
+      attended
     },
     alerts: classes
       .filter((classRecord) => !markedClassIds.has(classRecord.id))
@@ -547,6 +573,8 @@ export async function dailyReport(user: Express.UserContext, date = new Date()) 
   return classes.map((classRecord) => {
     const session = classRecord.attendanceSessions[0];
     const present = session?.records.filter((record) => record.status === AttendanceStatus.PRESENT || record.status === AttendanceStatus.LATE).length ?? 0;
+    const halfDay = session?.records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length ?? 0;
+    const attended = (session?.records.reduce((sum, record) => sum + attendanceValue(record.status), 0) ?? 0);
     const absent = session?.records.filter((record) => record.status === AttendanceStatus.ABSENT).length ?? 0;
     const total = session?.records.length ?? classRecord._count.students;
 
@@ -556,8 +584,10 @@ export async function dailyReport(user: Express.UserContext, date = new Date()) 
       totalStudents: classRecord._count.students,
       marked: Boolean(session),
       present,
+      halfDay,
+      attended,
       absent,
-      attendancePercentage: total ? Math.round((present / total) * 100) : 0
+      attendancePercentage: total ? Math.round((attended / total) * 100) : 0
     };
   });
 }
@@ -582,7 +612,9 @@ export async function monthlyStudentReport(user: Express.UserContext, studentId:
     include: { session: true },
     orderBy: { session: { date: "asc" } }
   });
-  const present = records.filter((record) => record.status !== AttendanceStatus.ABSENT).length;
+  const present = records.filter((record) => record.status === AttendanceStatus.PRESENT || record.status === AttendanceStatus.LATE).length;
+  const halfDay = records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
+  const attended = records.reduce((sum, record) => sum + attendanceValue(record.status), 0);
   const absent = records.filter((record) => record.status === AttendanceStatus.ABSENT).length;
 
   return {
@@ -590,8 +622,10 @@ export async function monthlyStudentReport(user: Express.UserContext, studentId:
     month,
     totalMarkedDays: records.length,
     present,
+    halfDay,
+    attended,
     absent,
-    percentage: records.length ? Math.round((present / records.length) * 100) : 0,
+    percentage: records.length ? Math.round((attended / records.length) * 100) : 0,
     records
   };
 }

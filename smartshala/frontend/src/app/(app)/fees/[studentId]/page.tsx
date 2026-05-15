@@ -22,6 +22,10 @@ function receiptLabel(payment: Pick<StudentFeeLedger["payments"][number], "recei
   return payment.receiptNo ?? payment.receipt?.receiptNo ?? payment.receiptId ?? "Pending";
 }
 
+function paymentReference(payment: StudentFeeLedger["payments"][number]) {
+  return payment.upiTransactionId ?? payment.chequeNumber ?? payment.ddNumber ?? payment.bankReference ?? payment.gatewayTransactionId ?? "-";
+}
+
 export default function StudentFeeLedgerPage() {
   const params = useParams<{ studentId: string }>();
   const studentId = params.studentId;
@@ -31,6 +35,8 @@ export default function StudentFeeLedgerPage() {
   const [notice, setNotice] = useState("");
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [sendingReceiptId, setSendingReceiptId] = useState<string | null>(null);
 
   async function loadLedger() {
     setLoading(true);
@@ -55,7 +61,7 @@ export default function StudentFeeLedgerPage() {
     setNotice(
       `Payment of ${formatINR(result.payment.amount, { compact: false })} recorded - Receipt ${result.receipt.receiptNo} - ${statusLabel}` +
       (result.ledger.balance > 0 ? ` - Balance: ${formatINR(result.ledger.balance, { compact: false })}` : "") +
-      " - WhatsApp receipt queued"
+      (result.receiptNotificationQueued ? " - WhatsApp receipt queued" : "")
     );
     loadLedger();
   }
@@ -68,6 +74,30 @@ export default function StudentFeeLedgerPage() {
       setError("Failed to download receipt PDF");
     } finally {
       setDownloadingId(null);
+    }
+  }
+
+  async function handlePreviewReceipt(receiptId: string) {
+    setPreviewingId(receiptId);
+    try {
+      await feesApi.previewReceiptPdf(receiptId);
+    } catch {
+      setError("Failed to open receipt preview");
+    } finally {
+      setPreviewingId(null);
+    }
+  }
+
+  async function handleSendReceipt(receiptId: string) {
+    setSendingReceiptId(receiptId);
+    setError("");
+    try {
+      const result = await feesApi.sendReceiptWhatsApp(receiptId);
+      setNotice(`Receipt ${result.receiptNo} sent on WhatsApp to ${result.parentPhone}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send receipt on WhatsApp");
+    } finally {
+      setSendingReceiptId(null);
     }
   }
 
@@ -152,11 +182,11 @@ export default function StudentFeeLedgerPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[940px] text-left text-[13px]">
                   <thead className="table-head">
-                    <tr>{["Date", "Amount", "Mode", "Receipt ID", "Balance After", "Fee", "Receipt"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
+                    <tr>{["Date", "Amount", "Mode", "Reference", "Receipt ID", "Balance After", "Fee", "Actions"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
                   </thead>
                   <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                     {ledger.payments.length === 0 ? (
-                      <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={7}>No payments recorded yet.</td></tr>
+                      <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={8}>No payments recorded yet.</td></tr>
                     ) : (
                       ledger.payments.map((payment) => {
                         const receiptId = payment.receiptId ?? payment.receipt?.id ?? null;
@@ -165,21 +195,41 @@ export default function StudentFeeLedgerPage() {
                             <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(payment.date ?? payment.paidAt)}</td>
                             <td className="px-5 py-4 font-semibold text-[#248a3d]">{formatINR(payment.amount)}</td>
                             <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
+                            <td className="px-5 py-4 text-[#6e6e73]">{paymentReference(payment)}</td>
                             <td className="px-5 py-4 font-medium text-[#6e6e73]">{receiptLabel(payment)}</td>
                             <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(payment.balanceAfter)}</td>
                             <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName ?? "Fee"}</td>
                             <td className="px-5 py-4">
                               {receiptId ? (
-                                <button
-                                  onClick={() => handleDownloadReceipt(receiptId)}
-                                  disabled={downloadingId === receiptId}
-                                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[11px] font-bold text-[#0071e3] transition-colors hover:bg-[#0071e3] hover:text-white disabled:opacity-50"
-                                >
-                                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                                  </svg>
-                                  {downloadingId === receiptId ? "..." : "PDF"}
-                                </button>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => handlePreviewReceipt(receiptId)}
+                                    disabled={previewingId === receiptId}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#0f2557]/10 px-3 py-1.5 text-[11px] font-bold text-[#0f2557] transition-colors hover:bg-[#0f2557] hover:text-white disabled:opacity-50"
+                                  >
+                                    {previewingId === receiptId ? "Opening..." : "Preview"}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDownloadReceipt(receiptId)}
+                                    disabled={downloadingId === receiptId}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[11px] font-bold text-[#0071e3] transition-colors hover:bg-[#0071e3] hover:text-white disabled:opacity-50"
+                                  >
+                                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                    </svg>
+                                    {downloadingId === receiptId ? "..." : "PDF"}
+                                  </button>
+                                  <button
+                                    onClick={() => handleSendReceipt(receiptId)}
+                                    disabled={sendingReceiptId === receiptId}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366]/10 px-3 py-1.5 text-[11px] font-bold text-[#128C7E] transition-colors hover:bg-[#25D366] hover:text-white disabled:opacity-50"
+                                  >
+                                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347" />
+                                    </svg>
+                                    {sendingReceiptId === receiptId ? "Sending..." : "WhatsApp"}
+                                  </button>
+                                </div>
                               ) : (
                                 <span className="text-[11px] text-[#86868b]">-</span>
                               )}

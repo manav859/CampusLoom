@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Kpi } from "@/types";
 
 const toneMap: Record<NonNullable<Kpi["tone"]>, { bg: string; border: string; value: string; bar: string; shadow: string }> = {
@@ -12,15 +13,23 @@ const toneMap: Record<NonNullable<Kpi["tone"]>, { bg: string; border: string; va
   purple: { bg: "bg-gradient-to-br from-[#7e53db]/20 to-[#7e53db]/5", border: "border-[#7e53db]/20", value: "text-[#6341ac]", bar: "bg-gradient-to-b from-[#7e53db] to-[#6341ac]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(126,83,219,0.2)]" }
 };
 
-export function KpiCard({ label, value, helper, tone = "neutral" }: Kpi) {
+export function KpiCard({ label, value, helper, formula, href, tone = "neutral" }: Kpi) {
   const styles = toneMap[tone];
-  return (
-    <div className={`relative overflow-hidden rounded-[16px] h-[86px] pl-[22px] pr-5 py-3.5 flex flex-col justify-between backdrop-blur-2xl border transition-transform duration-300 hover:-translate-y-[3px] hover:shadow-xl ${styles.border} ${styles.bg} ${styles.shadow}`}>
+  const content = (
+    <div
+      className={`relative overflow-hidden rounded-[16px] h-[86px] pl-[22px] pr-5 py-3.5 flex flex-col justify-between backdrop-blur-2xl border transition-transform duration-300 ${href ? "cursor-pointer hover:-translate-y-[3px] hover:shadow-xl" : ""} ${styles.border} ${styles.bg} ${styles.shadow}`}
+      title={formula}
+    >
       {/* Premium Gradient Left Bar */}
       <div className={`absolute left-0 top-0 bottom-0 w-[6px] ${styles.bar}`} />
+      {formula ? (
+        <span className="absolute right-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white/70 text-[11px] font-bold text-[#6e6e73]">
+          ?
+        </span>
+      ) : null}
       
       {/* Value */}
-      <p className={`text-[28px] font-bold leading-none tracking-tight ${styles.value}`}>{value}</p>
+      <p className={`pr-7 text-[28px] font-bold leading-none tracking-tight ${styles.value}`}>{value}</p>
       
       {/* Label */}
       <div>
@@ -29,4 +38,14 @@ export function KpiCard({ label, value, helper, tone = "neutral" }: Kpi) {
       </div>
     </div>
   );
+
+  if (href) {
+    return (
+      <Link aria-label={`${label} details`} className="block focus:outline-none focus:ring-2 focus:ring-[#2456E6]/40 focus:ring-offset-2 rounded-[16px]" href={href}>
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }

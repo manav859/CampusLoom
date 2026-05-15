@@ -19,10 +19,10 @@ function buildAllowedOrigins() {
   const allowedOrigins = new Set<string>([...configuredOrigins, env.FRONTEND_URL]);
 
   if (env.NODE_ENV === "development") {
-    allowedOrigins.add("http://localhost:3000");
-    allowedOrigins.add("http://localhost:3001");
-    allowedOrigins.add("http://127.0.0.1:3000");
-    allowedOrigins.add("http://127.0.0.1:3001");
+    for (const port of [3000, 3001, 3002, 3003, 3004, 3005]) {
+      allowedOrigins.add(`http://localhost:${port}`);
+      allowedOrigins.add(`http://127.0.0.1:${port}`);
+    }
   }
 
   return allowedOrigins;

@@ -11,5 +11,7 @@ export type Kpi = {
   label: string;
   value: string | number;
   helper?: string;
+  formula?: string;
+  href?: string;
   tone?: "neutral" | "good" | "warn" | "danger" | "teal" | "purple" | "amber" | "green" | "red";
 };

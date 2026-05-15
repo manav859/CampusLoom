@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { studentsApi, type BehaviourRecordPayload, type StudentDetail } from "@/lib/api";
+import { studentsApi, whatsappApi, type BehaviourRecordPayload, type StudentDetail } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 import { invalidateCache } from "@/lib/prefetchCache";
 
@@ -22,6 +22,14 @@ function severityTone(record: BehaviourRecord) {
   if (record.severity === "HIGH") return "danger";
   if (record.severity === "MEDIUM" || record.type === "COUNSELLOR_NOTE") return "warn";
   return "neutral";
+}
+
+function severityLabel(severity: BehaviourRecord["severity"]) {
+  if (severity === "LOW") return "Minor";
+  if (severity === "MEDIUM") return "Major";
+  if (severity === "HIGH") return "Critical";
+  if (severity === "POSITIVE") return "Positive";
+  return "Note";
 }
 
 function typeBadgeClasses(type: BehaviourRecord["type"]) {
@@ -65,6 +73,9 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
   const [actionText, setActionText] = useState("");
   const [actionSaving, setActionSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [notifyError, setNotifyError] = useState("");
+  const [notifyingId, setNotifyingId] = useState<string | null>(null);
   const role = student.access?.role;
   const canWriteBehaviour = role === "TEACHER";
   const canTakeAction = role === "PRINCIPAL" || role === "ADMIN";
@@ -128,6 +139,23 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
     setActionError("");
   }
 
+  async function notifyParent(record: BehaviourRecord) {
+    setNotifyingId(record.id);
+    setNotice("");
+    setNotifyError("");
+    try {
+      await whatsappApi.send({
+        phone: student.parentPhone,
+        message: `SmartShala update for ${student.fullName}: ${typeLabel(record.type)} - ${record.title}. ${record.summary}`
+      });
+      setNotice(`Parent notified on WhatsApp for "${record.title}".`);
+    } catch (error) {
+      setNotifyError(error instanceof Error ? error.message : "Unable to notify parent on WhatsApp");
+    } finally {
+      setNotifyingId(null);
+    }
+  }
+
   async function handleActionSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedIncident) return;
@@ -159,8 +187,11 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
 
   return (
     <section className="space-y-4">
+      {notice ? <div className="rounded-xl bg-[#25D366]/10 px-4 py-3 text-[13px] font-medium text-[#128C7E]">{notice}</div> : null}
+      {notifyError ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{notifyError}</div> : null}
+
       {canWriteBehaviour ? (
-        <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-5 shadow-apple-sm backdrop-blur-xl" onSubmit={handleSubmit}>
+        <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-5 shadow-apple-sm backdrop-blur-xl" id="behaviour-form" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Add behaviour record</h2>
@@ -195,9 +226,9 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                 {form.type === "ACHIEVEMENT" ? <option value="POSITIVE">Positive</option> : null}
                 {form.type === "INCIDENT" ? (
                   <>
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium</option>
-                    <option value="HIGH">High</option>
+                    <option value="LOW">Minor</option>
+                    <option value="MEDIUM">Major</option>
+                    <option value="HIGH">Critical</option>
                   </>
                 ) : null}
               </select>
@@ -263,6 +294,20 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
         </div>
       ) : null}
 
+      {records.length === 0 ? (
+        <EmptyState
+          headline="No behaviour records"
+          description={emptyMessage(behaviour.canViewCounsellorNotes)}
+          action={
+            canWriteBehaviour ? (
+              <a className="btn-primary min-h-[42px] px-4 text-[13px]" href="#behaviour-form">
+                Log behaviour entry
+              </a>
+            ) : null
+          }
+        />
+      ) : (
+      <>
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-5 shadow-apple backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
@@ -280,7 +325,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                 <div className="rounded-xl border border-[rgba(0,0,0,0.05)] p-4" key={`incident-${record.id}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[14px] font-semibold text-[#1d1d1f]">{record.title}</p>
-                    <StatusPill label={record.severity} tone={severityTone(record)} />
+                    <StatusPill label={severityLabel(record.severity)} tone={severityTone(record)} />
                   </div>
                   <p className="mt-1 text-[12px] font-medium text-[#86868b]">{formatDateShort(record.occurredAt)}</p>
                   <p className="mt-2 text-[13px] leading-5 text-[#6e6e73]">{record.summary}</p>
@@ -289,6 +334,11 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                     {canTakeAction ? (
                       <button className="btn-secondary min-h-[34px] px-3 text-[12px]" onClick={() => openActionModal(record)} type="button">
                         {record.actionTaken ? "Update action" : "Take action"}
+                      </button>
+                    ) : null}
+                    {!record.isRestricted ? (
+                      <button className="btn-secondary min-h-[34px] px-3 text-[12px]" disabled={notifyingId === record.id} onClick={() => notifyParent(record)} type="button">
+                        {notifyingId === record.id ? "Notifying..." : "Notify parent"}
                       </button>
                     ) : null}
                   </div>
@@ -314,10 +364,15 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                 <div className="rounded-xl border border-[#34c759]/15 bg-[#34c759]/[0.04] p-4" key={`achievement-${record.id}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[14px] font-semibold text-[#1d1d1f]">{record.title}</p>
-                    <StatusPill label={record.severity} tone="good" />
+                    <StatusPill label={severityLabel(record.severity)} tone="good" />
                   </div>
                   <p className="mt-1 text-[12px] font-medium text-[#86868b]">{formatDateShort(record.occurredAt)}</p>
                   <p className="mt-2 text-[13px] leading-5 text-[#6e6e73]">{record.summary}</p>
+                  {!record.isRestricted ? (
+                    <button className="btn-secondary mt-3 min-h-[34px] px-3 text-[12px]" disabled={notifyingId === record.id} onClick={() => notifyParent(record)} type="button">
+                      {notifyingId === record.id ? "Notifying..." : "Notify parent"}
+                    </button>
+                  ) : null}
                 </div>
               ))
             )}
@@ -340,18 +395,13 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
-              {records.length === 0 ? (
-                <tr>
-                  <td className="px-5 py-8" colSpan={6}><EmptyState headline="No records" description={emptyMessage(behaviour.canViewCounsellorNotes)} /></td>
-                </tr>
-              ) : (
-                records.map((record) => (
+              {records.map((record) => (
                   <tr className="table-row" key={record.id}>
                     <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(record.occurredAt)}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClasses(record.type)}`}>{typeLabel(record.type)}</span>
                     </td>
-                    <td className="px-5 py-4"><StatusPill label={record.severity} tone={severityTone(record)} /></td>
+                    <td className="px-5 py-4"><StatusPill label={severityLabel(record.severity)} tone={severityTone(record)} /></td>
                     <td className="max-w-[360px] px-5 py-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-[#1d1d1f]">{record.title}</p>
@@ -367,16 +417,22 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                             {record.actionTaken ? "Update action" : "Take action"}
                           </button>
                         ) : null}
+                        {!record.isRestricted ? (
+                          <button className="btn-secondary min-h-[34px] px-3 text-[12px]" disabled={notifyingId === record.id} onClick={() => notifyParent(record)} type="button">
+                            {notifyingId === record.id ? "Notifying..." : "Notify parent"}
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-5 py-4 text-[#6e6e73]">{record.createdBy?.fullName ?? "System"}</td>
                   </tr>
-                ))
-              )}
+                ))}
             </tbody>
           </table>
         </div>
       </div>
+      </>
+      )}
 
       {selectedIncident ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
@@ -387,7 +443,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                 <h2 className="mt-1 text-[20px] font-semibold text-[#1d1d1f]">{selectedIncident.title}</h2>
                 <p className="mt-1 text-[13px] font-medium text-[#86868b]">{formatDateShort(selectedIncident.occurredAt)}</p>
               </div>
-              <StatusPill label={selectedIncident.severity} tone={severityTone(selectedIncident)} />
+              <StatusPill label={severityLabel(selectedIncident.severity)} tone={severityTone(selectedIncident)} />
             </div>
 
             <div className="mt-5 grid gap-3 rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/70 p-4 text-[13px] text-[#6e6e73]">

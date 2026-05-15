@@ -47,3 +47,7 @@ export const receiptPdf = asyncHandler(async (req: Request, res: Response) => {
   });
   res.send(pdfBuffer);
 });
+
+export const sendReceiptWhatsApp = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await feesService.sendReceiptWhatsApp(req.user!.schoolId, req.params.receiptId));
+});

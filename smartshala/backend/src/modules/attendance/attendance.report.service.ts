@@ -10,6 +10,8 @@ type ClassesTodayReportRow = {
   present: number;
   absent: number;
   late: number;
+  halfDay: number;
+  attended: number;
   total: number;
   percentage: number;
 };
@@ -77,7 +79,8 @@ export async function getClassesTodayReport(user: AttendanceReportUser): Promise
       ({
         [AttendanceStatus.PRESENT]: 0,
         [AttendanceStatus.ABSENT]: 0,
-        [AttendanceStatus.LATE]: 0
+        [AttendanceStatus.LATE]: 0,
+        [AttendanceStatus.HALF_DAY]: 0
       } satisfies Record<AttendanceStatus, number>);
 
     counts[recordGroup.status] = recordGroup._count._all;
@@ -88,12 +91,15 @@ export async function getClassesTodayReport(user: AttendanceReportUser): Promise
     const counts = countsByClassId.get(classRecord.id) ?? {
       [AttendanceStatus.PRESENT]: 0,
       [AttendanceStatus.ABSENT]: 0,
-      [AttendanceStatus.LATE]: 0
+      [AttendanceStatus.LATE]: 0,
+      [AttendanceStatus.HALF_DAY]: 0
     };
     const present = counts[AttendanceStatus.PRESENT];
     const absent = counts[AttendanceStatus.ABSENT];
     const late = counts[AttendanceStatus.LATE];
-    const total = present + absent + late;
+    const halfDay = counts[AttendanceStatus.HALF_DAY];
+    const attended = present + late + (halfDay * 0.5);
+    const total = present + absent + late + halfDay;
 
     return {
       classId: classRecord.id,
@@ -101,8 +107,10 @@ export async function getClassesTodayReport(user: AttendanceReportUser): Promise
       present,
       absent,
       late,
+      halfDay,
+      attended,
       total,
-      percentage: percentage(present + late, total)
+      percentage: percentage(attended, total)
     };
   });
 }

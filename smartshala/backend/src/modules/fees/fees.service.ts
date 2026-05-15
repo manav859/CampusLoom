@@ -24,6 +24,12 @@ type PaymentInput = {
   amount: number;
   mode: PaymentMode;
   paidAt?: Date;
+  upiTransactionId?: string;
+  chequeNumber?: string;
+  ddNumber?: string;
+  gatewayTransactionId?: string;
+  bankReference?: string;
+  sendReceiptOnWhatsApp?: boolean;
   notes?: string;
 };
 
@@ -120,6 +126,11 @@ type LedgerAssignment = {
     id: string;
     amount: unknown;
     mode: PaymentMode;
+    upiTransactionId?: string | null;
+    chequeNumber?: string | null;
+    ddNumber?: string | null;
+    gatewayTransactionId?: string | null;
+    bankReference?: string | null;
     paidAt: Date;
     createdAt?: Date;
     receipt?: { id: string; receiptNo: string } | null;
@@ -137,6 +148,11 @@ export function buildTransactionLedger(assignments: LedgerAssignment[]) {
         createdAt: payment.createdAt,
         amount: toNumber(payment.amount),
         mode: payment.mode,
+        upiTransactionId: payment.upiTransactionId ?? null,
+        chequeNumber: payment.chequeNumber ?? null,
+        ddNumber: payment.ddNumber ?? null,
+        gatewayTransactionId: payment.gatewayTransactionId ?? null,
+        bankReference: payment.bankReference ?? null,
         receiptId: payment.receipt?.id ?? null,
         receiptNo: payment.receipt?.receiptNo ?? null,
         receipt: payment.receipt ? { id: payment.receipt.id, receiptNo: payment.receipt.receiptNo } : null,
@@ -401,6 +417,11 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
         installmentId: data.installmentId,
         amount: data.amount,
         mode: data.mode,
+        upiTransactionId: data.upiTransactionId,
+        chequeNumber: data.chequeNumber,
+        ddNumber: data.ddNumber,
+        gatewayTransactionId: data.gatewayTransactionId,
+        bankReference: data.bankReference,
         paidAt,
         notes: data.notes,
         recordedById: user.id
@@ -429,21 +450,25 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
     return { payment, receipt, assignment: updatedAssignment };
   });
 
-  queuePaymentReceiptWhatsApp(
-    user.schoolId,
-    result.assignment.student,
-    data.amount,
-    result.receipt.receiptNo,
-    paidAt,
-    toNumber(result.assignment.pendingAmount),
-    result.assignment.status
-  );
+  const receiptNotificationQueued = data.sendReceiptOnWhatsApp ?? true;
+  if (receiptNotificationQueued) {
+    queuePaymentReceiptWhatsApp(
+      user.schoolId,
+      result.assignment.student,
+      data.amount,
+      result.receipt.receiptNo,
+      paidAt,
+      toNumber(result.assignment.pendingAmount),
+      result.assignment.status
+    );
+  }
 
   return {
     payment: result.payment,
     receipt: result.receipt,
     assignment: result.assignment,
-    ledger: mapAssignmentSummary(result.assignment)
+    ledger: mapAssignmentSummary(result.assignment),
+    receiptNotificationQueued
   };
 }
 
@@ -490,6 +515,51 @@ function queuePaymentReceiptWhatsApp(
       logger.warn({ err: error, schoolId, studentId: student.id, receiptNo }, "Failed to send fee receipt WhatsApp notification");
     });
   }, 10_000);
+}
+
+export async function sendReceiptWhatsApp(schoolId: string, receiptId: string) {
+  const receipt = await withRetry(() => prisma.receipt.findFirst({
+    where: { id: receiptId, schoolId },
+    include: {
+      payment: {
+        include: {
+          student: true,
+          assignment: true
+        }
+      }
+    }
+  }), { label: "sendReceiptWhatsAppLookup" });
+
+  if (!receipt) throw notFound("Receipt");
+
+  const payment = receipt.payment;
+  const student = payment.student;
+  const phone = student.parentPhone.trim();
+
+  if (!phone) {
+    throw new AppError(400, "Parent WhatsApp number is missing", "PARENT_PHONE_MISSING");
+  }
+
+  const message = buildFeeReceiptMessage(
+    student.fullName,
+    toNumber(payment.amount),
+    receipt.receiptNo,
+    formatDate(payment.paidAt),
+    toNumber(payment.assignment.pendingAmount),
+    payment.assignment.status
+  );
+  const result = await sendWhatsAppMessage(phone, message, {
+    schoolId,
+    studentId: student.id,
+    kind: NotificationKind.PAYMENT_RECEIPT
+  });
+
+  return {
+    success: result.success,
+    receiptId: receipt.id,
+    receiptNo: receipt.receiptNo,
+    parentPhone: phone
+  };
 }
 
 export async function getStudentLedger(schoolId: string, studentId: string) {
@@ -611,6 +681,11 @@ export async function getReceiptPdf(schoolId: string, receiptId: string) {
       payment: {
         amount: toNumber(payment.amount),
         mode: payment.mode,
+        upiTransactionId: payment.upiTransactionId,
+        chequeNumber: payment.chequeNumber,
+        ddNumber: payment.ddNumber,
+        gatewayTransactionId: payment.gatewayTransactionId,
+        bankReference: payment.bankReference,
         paidAt: payment.paidAt,
         notes: payment.notes
       },

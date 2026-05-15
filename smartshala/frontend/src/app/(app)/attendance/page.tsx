@@ -83,7 +83,14 @@ export default function TeacherAttendancePage() {
         </div>
       </div>
 
-      <AttendanceSummary total={attendance.summary.total} present={attendance.summary.present} absent={attendance.summary.absent} late={attendance.summary.late} />
+      <AttendanceSummary
+        total={attendance.summary.total}
+        present={attendance.summary.present}
+        absent={attendance.summary.absent}
+        late={attendance.summary.late}
+        halfDay={attendance.summary.halfDay}
+        attended={attendance.summary.attended}
+      />
 
       <section className="glass-card-interactive space-y-4 p-5">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -126,6 +133,7 @@ export default function TeacherAttendancePage() {
                   <span className="mt-2 block space-y-0.5 text-[11px] text-[#6e6e73]">
                     <span className="block font-semibold text-[#1d1d1f]">{day.percentage}%</span>
                     <span className="block">{day.absent} absent</span>
+                    {day.halfDay ? <span className="block">{day.halfDay} half-day</span> : null}
                     <span className="block">{day.late} late</span>
                   </span>
                 ) : isHoliday ? (

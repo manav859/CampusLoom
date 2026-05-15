@@ -1,6 +1,11 @@
 import { FeeFrequency, PaymentMode } from "@prisma/client";
 import { z } from "zod";
 
+const optionalTrimmed = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().optional()
+);
+
 export const feeStructureSchema = z.object({
   classId: z.string().uuid().optional(),
   name: z.string().trim().min(2).optional(),
@@ -43,9 +48,39 @@ export const paymentSchema = z.object({
   amount: z.coerce.number().positive(),
   mode: z.preprocess((value) => (typeof value === "string" ? value.toUpperCase() : value), z.nativeEnum(PaymentMode)),
   paidAt: z.coerce.date().optional(),
+  upiTransactionId: optionalTrimmed,
+  chequeNumber: optionalTrimmed,
+  ddNumber: optionalTrimmed,
+  gatewayTransactionId: optionalTrimmed,
+  bankReference: optionalTrimmed,
+  sendReceiptOnWhatsApp: z.coerce.boolean().optional().default(true),
   notes: z.string().trim().optional()
 }).superRefine((data, ctx) => {
   if (!data.assignmentId && !data.studentId) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["studentId"], message: "Either studentId or assignmentId is required" });
+  }
+
+  const requiredReferences: Partial<Record<PaymentMode, keyof typeof data>> = {
+    [PaymentMode.UPI]: "upiTransactionId",
+    [PaymentMode.CHEQUE]: "chequeNumber",
+    [PaymentMode.DD]: "ddNumber",
+    [PaymentMode.BANK_TRANSFER]: "bankReference",
+    [PaymentMode.ONLINE_GATEWAY]: "gatewayTransactionId"
+  };
+  const referenceLabels: Partial<Record<keyof typeof data, string>> = {
+    upiTransactionId: "UPI transaction ID",
+    chequeNumber: "Cheque number",
+    ddNumber: "DD number",
+    bankReference: "Bank reference",
+    gatewayTransactionId: "Gateway transaction ID"
+  };
+  const requiredField = requiredReferences[data.mode];
+
+  if (requiredField && !data[requiredField]) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [requiredField],
+      message: `${referenceLabels[requiredField]} is required for ${data.mode.toLowerCase().replace(/_/g, " ")} payments`
+    });
   }
 });

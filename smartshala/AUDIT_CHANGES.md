@@ -91,27 +91,27 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 - [x] Fix the real attendance source-of-truth bug: Vijay Agarwal shows conflicting attendance across profile surfaces. Every student attendance percent must call the same query/function for the same period.
 - [x] Add automated test coverage so two views of the same student cannot show different attendance for the same period.
-- [ ] Add fee payment modes: Cash, UPI, Cheque, DD, Bank Transfer, Online Gateway.
-- [ ] Add mode-specific payment reference fields: cheque number, UPI transaction ID, gateway transaction ID, bank reference.
-- [ ] Generate receipt PDF preview with school logo.
-- [ ] Add `Send on WhatsApp` for every receipt and ledger row.
+- [x] Add fee payment modes: Cash, UPI, Cheque, DD, Bank Transfer, Online Gateway.
+- [x] Add mode-specific payment reference fields: cheque number, UPI transaction ID, gateway transaction ID, bank reference.
+- [x] Generate receipt PDF preview with school logo.
+- [x] Add `Send on WhatsApp` for every receipt and ledger row.
 - [x] Replace principal dashboard slider-like attendance chart with the teacher dashboard 7-bar plus smooth-line chart component.
 - [x] Reframe school-wide `100% Attendance` metrics as scoped metrics like `Marked today: X% (Y of Z classes marked)`.
 - [x] Build an INR currency utility with Indian grouping, Lakh/Crore formatting for >= INR 1L, and no paise on crore KPI figures.
 - [x] Apply INR utility everywhere.
-- [ ] Add half-day attendance state and store it as 0.5 in the data model.
+- [x] Add half-day attendance state and store it as 0.5 in the data model.
 
 ## High Priority
 
-- [ ] Refresh demo seed data: realistic names, phones, admission numbers, class sizes, marks, ranks, fee balances, dates, and locations.
-- [ ] Remove seed-data tells: `test` parent, `1234567890`, `.local` emails, repeated INR 49,466 balances, 367 days overdue, Pune/Ahmedabad mismatch.
+- [x] Refresh demo seed data: realistic names, phones, admission numbers, class sizes, marks, ranks, fee balances, dates, and locations.
+- [x] Remove seed-data tells: `test` parent, `1234567890`, `.local` emails, repeated INR 49,466 balances, 367 days overdue, Pune/Ahmedabad mismatch.
 - [x] Collapse multi-button table rows into one primary action plus overflow menu.
-- [ ] Build a component library for KPI card, table, pill, modal, form, button, empty state, dropdown, and toast.
+- [x] Build a component library for KPI card, table, pill, modal, form, button, empty state, dropdown, and toast.
 - [ ] Refactor screens to use the component library.
-- [ ] Expand WhatsApp templates to at least: Attendance alert, Absence notification, Fee reminder, Exam announcement, PTM invite, Holiday notice, Generic notice, Birthday wish.
-- [ ] Add bilingual English + Hindi variants for WhatsApp templates.
+- [x] Expand WhatsApp templates to at least: Attendance alert, Absence notification, Fee reminder, Exam announcement, PTM invite, Holiday notice, Generic notice, Birthday wish.
+- [x] Add bilingual English + Hindi variants for WhatsApp templates.
 - [x] Expand student document types: Aadhaar, Birth certificate, Caste certificate, Transfer certificate, Bonafide, Medical, Report card, Photo, Agreement.
-- [ ] Add bulk actions on Students: send WhatsApp, promote class, export CSV, mark inactive.
+- [x] Add bulk actions on Students: send WhatsApp, promote class, export CSV, mark inactive.
 - [ ] Run accessibility pass: contrast, focus rings, severity icons, minimum body text size, colorblind-safe states.
 - [x] Add P/A/L letters to attendance calendar cells, not color alone.
 - [ ] Add immutable audit log infrastructure with visible `Edit history` on records.
@@ -143,7 +143,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ## Quick Wins
 
-- [ ] Demo seed cleanup.
+- [x] Demo seed cleanup.
 - [x] INR currency utility with Lakh/Crore and Indian grouping.
 - [x] Sentence-case all status pills.
 - [x] Initials-avatar component on Students and Teachers lists.
@@ -155,16 +155,16 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Add reusable empty state to remaining views: Exams list, Teacher logs, Recent incidents.
 - [x] Replace principal attendance chart with teacher dashboard chart component.
 - [x] Standardize KPI tile label sizes and weights.
-- [ ] Add tooltips on KPIs explaining formulas.
-- [ ] Add `Forgot password` and language toggle on login.
+- [x] Add tooltips on KPIs explaining formulas.
+- [x] Add `Forgot password` and language toggle on login.
 
 ## Medium Effort Work
 
-- [ ] Build color, typography, spacing, radius, and shadow tokens as code variables.
+- [x] Build color, typography, spacing, radius, and shadow tokens as code variables.
 - [ ] Refactor shared UI into component library.
 - [ ] Reconcile every visible metric to one source-of-truth query and add tests.
 - [ ] Implement expanded payment modes, reference capture, and PDF receipts.
-- [ ] Expand WhatsApp templates with bilingual variants and variable preview.
+- [x] Expand WhatsApp templates with bilingual variants and variable preview.
 - [ ] Expand student documents.
 - [ ] Add half-day attendance, leave flow, and absent reason capture.
 - [ ] Add Students bulk-action system.
@@ -194,32 +194,32 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Login Page
 
-- [ ] Add `Forgot password` link below password field.
-- [ ] Add language toggle: English / Hindi.
-- [ ] Add support phone line: `Trouble signing in? Call +91-XXXX`.
-- [ ] Change sign-in button to stronger brand blue `#2456E6`.
-- [ ] Add spinner inside sign-in button during loading state.
+- [x] Add `Forgot password` link below password field.
+- [x] Add language toggle: English / Hindi.
+- [x] Add support phone line: `Trouble signing in? Call +91-XXXX`.
+- [x] Change sign-in button to stronger brand blue `#2456E6`.
+- [x] Add spinner inside sign-in button during loading state.
 - [ ] Optional: add staff phone OTP sign-in.
 - [ ] Plan school code or subdomain field for multi-school SaaS.
 
 ### Principal Dashboard / Homepage
 
 - [x] Replace misleading `100% Attendance` KPI with scoped marked-today copy.
-- [ ] Add KPI formula tooltip for every tile.
-- [ ] Replace slider-looking attendance chart with standard 7-bar plus line chart.
-- [ ] Make KPI tiles clickable and link them to underlying lists.
-- [ ] Add `School pulse` sentence under title.
-- [ ] Add quick actions: Mark today's attendance, Send fee reminder, Add student, Record payment.
-- [ ] Label fee donut with time window.
-- [ ] Clarify AI Alerts tile click behavior.
-- [ ] Add time-window context to Defaulters tile.
+- [x] Add KPI formula tooltip for every tile.
+- [x] Replace slider-looking attendance chart with standard 7-bar plus line chart.
+- [x] Make KPI tiles clickable and link them to underlying lists.
+- [x] Add `School pulse` sentence under title.
+- [x] Add quick actions: Mark today's attendance, Send fee reminder, Add student, Record payment.
+- [x] Label fee donut with time window.
+- [x] Clarify AI Alerts tile click behavior.
+- [x] Add time-window context to Defaulters tile.
 
 ### Today's Actions And Recent Events
 
 - [ ] Add severity levels: critical red, high orange, medium yellow.
 - [x] Replace raw labels like `LOW_ATTENDANCE` with plain English.
-- [ ] Vary defaulter amounts in demo data.
-- [ ] Fix implausible 367-day overdue demo data.
+- [x] Vary defaulter amounts in demo data.
+- [x] Fix implausible 367-day overdue demo data.
 - [ ] Sort recent events by importance or split into `Needs action` and `Recently happened`.
 - [ ] Add `Send reminder` button on defaulter rows.
 
@@ -227,10 +227,10 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 - [x] Keep only `View` inline.
 - [x] Move `Resend` and `Deactivate` into overflow menu.
-- [ ] Populate Last Payment and Attendance columns or remove them.
-- [ ] Add bulk-select and bulk actions.
+- [x] Populate Last Payment and Attendance columns or remove them.
+- [x] Add bulk-select and bulk actions.
 - [ ] Make column headers sortable.
-- [ ] Add search by parent phone.
+- [x] Add search by parent phone.
 - [x] Make pending amount visually distinct from INR 0.
 - [x] Clarify status filter options.
 
@@ -247,7 +247,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Student Profile Header And Academic Tab
 
-- [ ] Clean demo data: real parent names, realistic phone numbers, plausible admission numbers.
+- [x] Clean demo data: real parent names, realistic phone numbers, plausible admission numbers.
 - [ ] Add spacing around status pills: 4px padding, 6px gap.
 - [ ] Standardize KPI color logic: green good, orange warning, red critical.
 - [ ] Add purple AI glyph next to Action insight.
@@ -284,41 +284,41 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Match top attendance tile calculation to attendance tab calculation.
 - [x] Tone AI message to `No weekly pattern detected` when appropriate.
 - [x] Add P/A/L letter inside each calendar cell.
-- [ ] Add absent dates list below calendar.
-- [ ] Add class-average attendance context.
+- [x] Add absent dates list below calendar.
+- [x] Add class-average attendance context.
 
 ### Student Profile Fees Tab
 
 - [ ] Add UPI, Bank Transfer, Cheque, DD, Online Gateway modes.
 - [ ] Add transaction/reference details per mode.
-- [ ] Make receipt IDs clickable.
-- [ ] Open PDF receipt preview with school logo.
-- [ ] Add `Send to parent on WhatsApp` per receipt.
+- [x] Make receipt IDs clickable.
+- [x] Open PDF receipt preview with school logo.
+- [x] Add `Send to parent on WhatsApp` per receipt.
 - [x] Convert status pills to sentence case.
 
 ### Student Profile Communication Tab
 
-- [ ] Add CTA inside empty tiles: `Log a call`, `Add manual note`.
-- [ ] Add full-message expansion/modal for long summaries.
+- [x] Add CTA inside empty tiles: `Log a call`, `Add manual note`.
+- [x] Add full-message expansion/modal for long summaries.
 - [ ] Use WhatsApp statuses: Sent, Delivered, Read, Failed.
-- [ ] Add retry option for Failed.
-- [ ] Add channel filter chips: All, WhatsApp, Call, Manual.
+- [x] Add retry option for Failed.
+- [x] Add channel filter chips: All, WhatsApp, Call, Manual.
 
 ### Student Profile Behaviour Tab
 
-- [ ] Replace stacked empty states with one consolidated empty state.
-- [ ] Add `Log behaviour entry` button.
+- [x] Replace stacked empty states with one consolidated empty state.
+- [x] Add `Log behaviour entry` button.
 - [x] Remove confusing `0 used` pill.
-- [ ] Add severity tags: Minor, Major, Critical.
-- [ ] Add `Notify parent via WhatsApp` on behaviour entries.
+- [x] Add severity tags: Minor, Major, Critical.
+- [x] Add `Notify parent via WhatsApp` on behaviour entries.
 
 ### Student Profile Documents Tab
 
-- [ ] Expand document type dropdown for Indian admission needs.
-- [ ] Match top counters to document dropdown types.
-- [ ] Add drag-and-drop upload zone.
-- [ ] Add helper text: `PDF, JPG, PNG up to 5MB`.
-- [ ] Add `Share with parent` toggle for selected document types.
+- [x] Expand document type dropdown for Indian admission needs.
+- [x] Match top counters to document dropdown types.
+- [x] Add drag-and-drop upload zone.
+- [x] Add helper text: `PDF, JPG, PNG up to 5MB`.
+- [x] Add `Share with parent` toggle for selected document types.
 
 ### Teachers List
 
@@ -326,7 +326,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Keep `Manage` as primary inline button.
 - [x] Add initials avatars on teacher rows.
 - [ ] Make number of periods configurable per school.
-- [ ] Replace `.local` demo emails with realistic school emails.
+- [x] Replace `.local` demo emails with realistic school emails.
 - [x] Add filters by class teacher, subject taught, and status.
 
 ### Manage Classes And Subjects Modal
@@ -340,7 +340,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Classes Grid
 
-- [ ] Vary class strengths in demo data.
+- [x] Vary class strengths in demo data.
 - [x] Move trash/delete into overflow menu.
 - [x] Add confirmation modal before class delete.
 - [x] Drop `Active` badge unless inactive/archived states exist.
@@ -371,7 +371,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [ ] Add confirmation modal on `Reset all present`.
 - [ ] Add tooltip explaining `Reliable attendance`.
 - [x] Add P/A/L letters inside calendar cells.
-- [ ] Add Half day option.
+- [x] Add Half day option.
 
 ### Attendance Class Selector
 
@@ -381,7 +381,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Attendance Per-Student Controls
 
-- [ ] Drop or rename `Cycle status` to `Today's status`.
+- [x] Drop or rename `Cycle status` to `Today's status`.
 - [ ] Standardize dates to `dd MMM yyyy`.
 - [ ] Add first-use tooltip for P/L/A controls.
 - [ ] Use one save button label across save states.
@@ -427,11 +427,11 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 ### Communication / Parent Communication
 
 - [ ] Build unified template library.
-- [ ] Resolve template variables in preview pane.
+- [x] Resolve template variables in preview pane.
 - [x] Truncate log previews to one line.
 - [ ] Add `View full` link for messages.
 - [ ] Add scheduled send date/time picker.
-- [ ] Add bilingual template variants.
+- [x] Add bilingual template variants.
 
 ### Daily Attendance Report
 
@@ -447,7 +447,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Round currency to nearest rupee in KPI tiles.
 - [x] Format INR >= 1,00,000 as Lakh/Crore.
 - [x] Standardize INR prefix and Indian grouping.
-- [ ] Vary demo defaulter amounts.
+- [x] Vary demo defaulter amounts.
 - [ ] Make `Create Fee Structure` open/manage existing structures.
 - [ ] Add edit/duplicate options for fee structures.
 - [ ] Add tooltips for defaulter follow-up queue and WhatsApp receipts.
@@ -466,11 +466,11 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 ### Record Payment Modal
 
 - [x] Add payment modes beyond Cash.
-- [ ] Add mode-specific reference fields.
-- [ ] Add Date field with default today and backdating allowed.
+- [x] Add mode-specific reference fields.
+- [x] Add Date field with default today and backdating allowed.
 - [ ] Show next receipt number before recording.
-- [ ] Add `Send receipt to parent on WhatsApp` checkbox enabled by default.
-- [ ] Show running balance preview after payment.
+- [x] Add `Send receipt to parent on WhatsApp` checkbox enabled by default.
+- [x] Show running balance preview after payment.
 
 ### Analytics / Risk Insights
 
@@ -496,9 +496,9 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Settings
 
-- [ ] Fix Pune vs Ahmedabad location mismatch.
-- [ ] Add WhatsApp templates: Fee reminder, Exam announcement, PTM invite, Holiday notice, Generic notice, Birthday wish.
-- [ ] Add bilingual template support.
+- [x] Fix Pune vs Ahmedabad location mismatch.
+- [x] Add WhatsApp templates: Fee reminder, Exam announcement, PTM invite, Holiday notice, Generic notice, Birthday wish.
+- [x] Add bilingual template support.
 - [ ] Plan Settings IA: School profile, Academic year, Holiday calendar, Grading bands, Fee categories, User roles, WhatsApp templates, Branding, Integrations, Backup.
 - [ ] Show success toast on save.
 - [ ] Add school logo upload.

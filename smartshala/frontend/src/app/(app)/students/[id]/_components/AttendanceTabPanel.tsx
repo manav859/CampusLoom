@@ -19,6 +19,7 @@ function statusLabel(status: StudentDetail["attendanceAnalytics"]["calendar"][nu
   if (status === "PRESENT") return "Present";
   if (status === "ABSENT") return "Absent";
   if (status === "LATE") return "Late";
+  if (status === "HALF_DAY") return "Half day";
   if (status === "HOLIDAY") return "Holiday";
   return "Unmarked";
 }
@@ -27,6 +28,7 @@ function statusClasses(status: StudentDetail["attendanceAnalytics"]["calendar"][
   if (status === "PRESENT") return "bg-[#34c759] text-white/60";
   if (status === "ABSENT") return "bg-[#ff3b30] text-white/60";
   if (status === "LATE") return "bg-[#ff9500] text-white/70";
+  if (status === "HALF_DAY") return "bg-[#7c3aed] text-white/70";
   if (status === "HOLIDAY") return "bg-[#f5f5f7] text-[#1d1d1f]/30";
   return "bg-[rgba(0,0,0,0.02)] text-[#1d1d1f]/20";
 }
@@ -105,7 +107,14 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
   ];
 
   /* ── "present / total" for the Total Days card ── */
-  const presentDays = metrics.totalDays - metrics.absences;
+  const presentDays = metrics.attended ?? (metrics.totalDays - metrics.absences - (metrics.halfDays * 0.5));
+  const absentDates = useMemo(
+    () =>
+      analytics.records
+        .filter((record) => record.status === "ABSENT")
+        .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime()),
+    [analytics.records]
+  );
 
   return (
     <section className="space-y-4">
@@ -137,6 +146,11 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
             <div className="mt-3">
               <StatusPill label={metrics.attendancePercentage >= 80 ? "Healthy" : "Watch"} tone={metricTone(metrics.attendancePercentage)} />
             </div>
+            {metrics.classAverageAttendance !== null ? (
+              <p className="mt-3 text-[11px] font-medium text-[#86868b] sm:text-[12px]">
+                Class average: <span className="font-semibold text-[#1d1d1f]">{metrics.classAverageAttendance}%</span>
+              </p>
+            ) : null}
           </div>
 
           {/* Total days — present/total format */}
@@ -149,7 +163,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
                 <span>{metrics.totalDays}</span>
               </p>
             </div>
-            <p className="mt-3 text-[11px] font-medium text-[#86868b] sm:text-[12px]">{metrics.late} late marks</p>
+            <p className="mt-3 text-[11px] font-medium text-[#86868b] sm:text-[12px]">{metrics.late} late, {metrics.halfDays} half-day</p>
           </div>
 
           {/* Absences */}
@@ -192,6 +206,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
               <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#34c759] shadow-sm" /> Present</div>
               <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#ff3b30] shadow-sm" /> Absent</div>
               <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#ff9500] shadow-sm" /> Late</div>
+              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#7c3aed] shadow-sm" /> Half day</div>
               <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-black/10 bg-[#f5f5f7]" /> Holiday</div>
             </div>
           </div>
@@ -204,7 +219,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
               {calendarSlots.map((slot) => {
                 if (slot.type === "blank") return <div key={slot.id} className="h-10 w-8 rounded-[8px] bg-transparent sm:h-12 sm:w-10" />;
                 const date = new Date(slot.date);
-                const letter = slot.status === "PRESENT" ? "P" : slot.status === "ABSENT" ? "A" : slot.status === "LATE" ? "L" : slot.status === "HOLIDAY" ? "H" : "";
+                const letter = slot.status === "PRESENT" ? "P" : slot.status === "ABSENT" ? "A" : slot.status === "LATE" ? "L" : slot.status === "HALF_DAY" ? "HD" : slot.status === "HOLIDAY" ? "H" : "";
                 return (
                   <div
                     className={`flex h-10 w-8 flex-col items-center justify-center rounded-[8px] shadow-sm ring-1 ring-inset ring-black/[0.04] transition-all duration-200 hover:scale-110 hover:shadow-md sm:h-12 sm:w-10 ${statusClasses(slot.status)}`}
@@ -221,6 +236,63 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
         </section>
 
       </div>
+
+      <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-white p-5 sm:p-6 shadow-apple">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Absent dates</h2>
+              <p className="mt-1 text-[13px] text-[#86868b]">Most recent absences from recorded attendance days.</p>
+            </div>
+            <StatusPill label={`${absentDates.length} absences`} tone={absentDates.length > 0 ? "danger" : "good"} />
+          </div>
+
+          <div className="mt-5">
+            {absentDates.length === 0 ? (
+              <div className="rounded-[16px] border border-dashed border-[rgba(0,0,0,0.1)] bg-[rgba(0,0,0,0.01)] px-4 py-7 text-center text-[13px] font-medium text-[#86868b]">
+                No absences recorded in this period.
+              </div>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {absentDates.slice(0, 8).map((record) => (
+                  <div className="flex items-center justify-between rounded-[14px] bg-[#ff3b30]/[0.06] px-4 py-3 ring-1 ring-inset ring-[#ff3b30]/15" key={record.date}>
+                    <span className="text-[13px] font-semibold text-[#1d1d1f]">{formatDateShort(record.date)}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#c90011]">Absent</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {absentDates.length > 8 ? (
+              <p className="mt-3 text-[12px] font-medium text-[#86868b]">Showing 8 most recent of {absentDates.length} absences.</p>
+            ) : null}
+          </div>
+        </div>
+
+        <aside className="rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-white p-5 sm:p-6 shadow-apple">
+          <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Class context</h2>
+          <div className="mt-5 space-y-4">
+            <div className="rounded-[16px] bg-[#f5f5f7] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Student</p>
+              <p className="mt-1 text-[28px] font-bold leading-none text-[#1d1d1f]">{metrics.attendancePercentage}%</p>
+            </div>
+            <div className="rounded-[16px] bg-[#E2F0FB] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1F6FB8]">Class average</p>
+              <p className="mt-1 text-[28px] font-bold leading-none text-[#0F2557]">
+                {metrics.classAverageAttendance === null ? "-" : `${metrics.classAverageAttendance}%`}
+              </p>
+            </div>
+            {metrics.classAverageAttendance !== null ? (
+              <p className="text-[13px] font-medium leading-relaxed text-[#5A6573]">
+                {metrics.attendancePercentage >= metrics.classAverageAttendance
+                  ? `${student.fullName} is at or above class average.`
+                  : `${student.fullName} is ${metrics.classAverageAttendance - metrics.attendancePercentage}% below class average.`}
+              </p>
+            ) : (
+              <p className="text-[13px] font-medium leading-relaxed text-[#5A6573]">Class average appears after classmates have recorded attendance.</p>
+            )}
+          </div>
+        </aside>
+      </section>
 
       {/* ── Pattern detection ── */}
       <section className="rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-white p-5 sm:p-6 shadow-apple">

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, communicationApi } from "@/lib/api";
 import { formatDateShort, formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
@@ -16,6 +16,7 @@ type StudentRow = {
   admissionNumber: string;
   fullName: string;
   class: { name: string; section: string };
+  parentPhone?: string;
   isActive: boolean;
   /* enriched fields — filled from API or fallback */
   feeStatus: "PAID" | "PENDING" | "OVERDUE" | null;
@@ -29,6 +30,7 @@ type ApiStudentItem = {
   admissionNumber: string;
   fullName: string;
   class: { name: string; section: string };
+  parentPhone?: string;
   isActive: boolean;
   feeAssignments?: { pendingAmount: string | number; status: string }[];
   feeStatus?: "PAID" | "PENDING" | "OVERDUE";
@@ -39,13 +41,13 @@ type ApiStudentItem = {
 
 /* ── Fallback seed data (shown when API has no students) ── */
 const fallbackStudents: StudentRow[] = [
-  { id: "1", admissionNumber: "ADM001", fullName: "Rohit Sharma", class: { name: "9", section: "A" }, isActive: true, feeStatus: "OVERDUE", pendingAmount: 36000, lastPayment: null, attendancePercentage: 66 },
-  { id: "2", admissionNumber: "ADM002", fullName: "Priya Kulkarni", class: { name: "7", section: "B" }, isActive: true, feeStatus: "OVERDUE", pendingAmount: 24000, lastPayment: null, attendancePercentage: 90 },
-  { id: "3", admissionNumber: "ADM003", fullName: "Arjun Mehta", class: { name: "6", section: "C" }, isActive: true, feeStatus: "PENDING", pendingAmount: 18500, lastPayment: null, attendancePercentage: 78 },
-  { id: "4", admissionNumber: "ADM004", fullName: "Aarav Shah", class: { name: "8", section: "A" }, isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-14", attendancePercentage: 95 },
-  { id: "5", admissionNumber: "ADM005", fullName: "Sneha Joshi", class: { name: "10", section: "B" }, isActive: true, feeStatus: "PENDING", pendingAmount: 12000, lastPayment: null, attendancePercentage: 88 },
-  { id: "6", admissionNumber: "ADM006", fullName: "Veer Rao", class: { name: "8", section: "A" }, isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-10", attendancePercentage: 92 },
-  { id: "7", admissionNumber: "ADM007", fullName: "Pooja Verma", class: { name: "6", section: "C" }, isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-12", attendancePercentage: 72 },
+  { id: "1", admissionNumber: "ADM001", fullName: "Rohit Sharma", class: { name: "9", section: "A" }, parentPhone: "+919876543210", isActive: true, feeStatus: "OVERDUE", pendingAmount: 36000, lastPayment: null, attendancePercentage: 66 },
+  { id: "2", admissionNumber: "ADM002", fullName: "Priya Kulkarni", class: { name: "7", section: "B" }, parentPhone: "+919812345670", isActive: true, feeStatus: "OVERDUE", pendingAmount: 24000, lastPayment: null, attendancePercentage: 90 },
+  { id: "3", admissionNumber: "ADM003", fullName: "Arjun Mehta", class: { name: "6", section: "C" }, parentPhone: "+919845612307", isActive: true, feeStatus: "PENDING", pendingAmount: 18500, lastPayment: null, attendancePercentage: 78 },
+  { id: "4", admissionNumber: "ADM004", fullName: "Aarav Shah", class: { name: "8", section: "A" }, parentPhone: "+919845670123", isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-14", attendancePercentage: 95 },
+  { id: "5", admissionNumber: "ADM005", fullName: "Sneha Joshi", class: { name: "10", section: "B" }, parentPhone: "+919822334455", isActive: true, feeStatus: "PENDING", pendingAmount: 12000, lastPayment: null, attendancePercentage: 88 },
+  { id: "6", admissionNumber: "ADM006", fullName: "Veer Rao", class: { name: "8", section: "A" }, parentPhone: "+919833445566", isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-10", attendancePercentage: 92 },
+  { id: "7", admissionNumber: "ADM007", fullName: "Pooja Verma", class: { name: "6", section: "C" }, parentPhone: "+919811223344", isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-12", attendancePercentage: 72 },
 ];
 
 /* ── Helpers ── */
@@ -83,6 +85,11 @@ function roleCanViewFees(role?: string) {
   return role === "ADMIN" || role === "PRINCIPAL" || role === "ACCOUNTANT";
 }
 
+function csvCell(value: string | number | null | undefined) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 /* ── Component ── */
 export default function StudentsPage() {
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -94,6 +101,16 @@ export default function StudentsPage() {
   const [canViewFees, setCanViewFees] = useState(false);
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; action: 'activate' | 'deactivate'; studentId: string | null; error?: string }>({ isOpen: false, action: 'deactivate', studentId: null });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkDialog, setBulkDialog] = useState<{
+    isOpen: boolean;
+    action: "whatsapp" | "promote" | "inactive" | null;
+    message: string;
+    targetClassId: string;
+    error?: string;
+    busy?: boolean;
+  }>({ isOpen: false, action: null, message: "", targetClassId: "" });
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
@@ -177,8 +194,14 @@ export default function StudentsPage() {
 
   const totalPages = Math.ceil(total / perPage);
   const tableHeaders = canViewFees
-    ? ["#", "Student Name", "Class", "Fees Status", "Pending Amt", "Last Payment", "Attendance", "Actions"]
-    : ["#", "Student Name", "Class", "Attendance", "Actions"];
+    ? ["", "#", "Student Name", "Class", "Fees Status", "Pending Amt", "Last Payment", "Attendance", "Actions"]
+    : ["", "#", "Student Name", "Class", "Attendance", "Actions"];
+  const selectedStudents = selectedIds
+    .map((id) => students.find((student) => student.id === id))
+    .filter((student): student is StudentRow => Boolean(student));
+  const visibleIds = filtered.map((student) => student.id);
+  const visibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+  const selectedCount = selectedStudents.length;
 
   const handleDelete = (id: string) => {
     setConfirmDialog({ isOpen: true, action: 'deactivate', studentId: id });
@@ -203,6 +226,106 @@ export default function StudentsPage() {
       setConfirmDialog({ isOpen: false, action: 'deactivate', studentId: null });
     } catch (e: any) {
       setConfirmDialog((prev) => ({ ...prev, error: e?.message || `Failed to ${action} student` }));
+    }
+  };
+
+  const toggleVisibleSelection = () => {
+    setSelectedIds((prev) => {
+      if (visibleSelected) return prev.filter((id) => !visibleIds.includes(id));
+      return Array.from(new Set([...prev, ...visibleIds]));
+    });
+  };
+
+  const toggleStudentSelection = (id: string) => {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
+  };
+
+  const exportSelectedCsv = () => {
+    const rows = [
+      ["Admission No", "Student Name", "Class", "Parent Phone", "Fee Status", "Pending Amount", "Attendance"],
+      ...selectedStudents.map((student) => [
+        student.admissionNumber,
+        student.fullName,
+        `${student.class.name}-${student.class.section}`,
+        student.parentPhone ?? "",
+        student.feeStatus ? student.feeStatus.toLowerCase() : "",
+        student.pendingAmount ?? "",
+        student.attendancePercentage === null ? "" : `${student.attendancePercentage}%`
+      ])
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `students-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setNotice(`Exported ${selectedCount} selected students.`);
+  };
+
+  const openBulkDialog = (action: "whatsapp" | "promote" | "inactive") => {
+    setBulkDialog({
+      isOpen: true,
+      action,
+      message: action === "whatsapp" ? "Dear parent, this is an update from SmartShala." : "",
+      targetClassId: "",
+    });
+  };
+
+  const closeBulkDialog = () => {
+    if (bulkDialog.busy) return;
+    setBulkDialog({ isOpen: false, action: null, message: "", targetClassId: "" });
+  };
+
+  const handleBulkConfirm = async () => {
+    if (!bulkDialog.action || selectedCount === 0) return;
+    setBulkDialog((prev) => ({ ...prev, busy: true, error: undefined }));
+    try {
+      if (bulkDialog.action === "whatsapp") {
+        const message = bulkDialog.message.trim();
+        if (message.length < 3) throw new Error("Message must be at least 3 characters.");
+        await Promise.all(selectedStudents.map((student) =>
+          communicationApi.sendMessage({
+            targetType: "STUDENT",
+            studentId: student.id,
+            type: "CUSTOM",
+            message
+          })
+        ));
+        setNotice(`Queued WhatsApp message for ${selectedCount} parents.`);
+      }
+
+      if (bulkDialog.action === "promote") {
+        const targetClass = classes.find((cls) => cls.id === bulkDialog.targetClassId);
+        if (!targetClass) throw new Error("Select target class.");
+        await Promise.all(selectedStudents.map((student) =>
+          apiFetch(`/students/${student.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ classId: targetClass.id })
+          })
+        ));
+        setStudents((prev) => prev.map((student) =>
+          selectedIds.includes(student.id)
+            ? { ...student, class: { name: targetClass.name, section: targetClass.section } }
+            : student
+        ));
+        setNotice(`Promoted ${selectedCount} students to ${targetClass.name}-${targetClass.section}.`);
+      }
+
+      if (bulkDialog.action === "inactive") {
+        await Promise.all(selectedStudents.map((student) => apiFetch(`/students/${student.id}`, { method: "DELETE" })));
+        setStudents((prev) => prev.filter((student) => !selectedIds.includes(student.id)));
+        setTotal((prev) => Math.max(0, prev - selectedCount));
+        setNotice(`Marked ${selectedCount} students inactive.`);
+      }
+
+      setSelectedIds([]);
+      closeBulkDialog();
+    } catch (e: any) {
+      setBulkDialog((prev) => ({ ...prev, busy: false, error: e?.message || "Bulk action failed" }));
     }
   };
 
@@ -276,6 +399,29 @@ export default function StudentsPage() {
         </div>
       </div>
 
+      {notice ? (
+        <div className="flex items-center justify-between rounded-xl border border-[#E2F0FB] bg-[#E2F0FB] px-4 py-3 text-[13px] font-semibold text-[#1F6FB8]">
+          <span>{notice}</span>
+          <button className="text-[#1F6FB8] underline-offset-2 hover:underline" onClick={() => setNotice(null)} type="button">Dismiss</button>
+        </div>
+      ) : null}
+
+      {selectedCount > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-[#DCE1E8] bg-white px-4 py-3 shadow-[0_8px_22px_-16px_rgba(15,20,25,0.35)] sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[13px] font-semibold text-[#0F1419]">{selectedCount} selected</p>
+            <p className="text-[12px] font-medium text-[#5A6573]">Bulk actions apply to visible selected student rows.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("whatsapp")} type="button">Send WhatsApp</button>
+            {isAdmin ? <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("promote")} type="button">Promote class</button> : null}
+            <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={exportSelectedCsv} type="button">Export CSV</button>
+            {isAdmin ? <button className="rounded-lg bg-[#C8242C] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#a51d24]" onClick={() => openBulkDialog("inactive")} type="button">Mark inactive</button> : null}
+            <button className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setSelectedIds([])} type="button">Clear</button>
+          </div>
+        </div>
+      ) : null}
+
       {/* ── Table ── */}
       <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.06)] shadow-[0_2px_20px_-4px_rgba(0,0,0,0.04)] backdrop-blur-xl bg-white/80">
         <div className="relative">
@@ -288,8 +434,18 @@ export default function StudentsPage() {
             <table className={`w-full text-left text-[13px] ${canViewFees ? "min-w-[900px]" : "min-w-[640px]"}`}>
               <thead>
                 <tr className="bg-gradient-to-r from-[#1a3c4d] to-[#2a7a94]">
-                  {tableHeaders.map((head) => (
-                    <th key={head} className="px-5 py-3.5 text-[12px] font-semibold text-white/90 tracking-wide whitespace-nowrap">{head}</th>
+                  {tableHeaders.map((head, index) => (
+                    <th key={`${head}-${index}`} className="px-5 py-3.5 text-[12px] font-semibold text-white/90 tracking-wide whitespace-nowrap">
+                      {index === 0 ? (
+                        <input
+                          aria-label="Select all visible students"
+                          checked={visibleSelected}
+                          className="h-4 w-4 rounded border-white/60"
+                          onChange={toggleVisibleSelection}
+                          type="checkbox"
+                        />
+                      ) : head}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -297,6 +453,7 @@ export default function StudentsPage() {
                 {loading && students.length === 0 ? (
                   Array.from({ length: 7 }).map((_, i) => (
                     <tr key={`skel-${i}`} className="animate-pulse">
+                      <td className="px-5 py-4"><Skeleton className="h-4 w-6 rounded-md" /></td>
                       <td className="px-5 py-4"><Skeleton className="h-4 w-6 rounded-md" /></td>
                       <td className="px-5 py-4"><Skeleton className="h-4 w-32 rounded-md" /></td>
                       <td className="px-5 py-4"><Skeleton className="h-4 w-12 rounded-md" /></td>
@@ -324,6 +481,15 @@ export default function StudentsPage() {
 
                     return (
                       <tr key={student.id} className="group transition-colors duration-200 hover:bg-[#f5f5f7]/60">
+                        <td className="px-5 py-4">
+                          <input
+                            aria-label={`Select ${student.fullName}`}
+                            checked={selectedIds.includes(student.id)}
+                            className="h-4 w-4 rounded border-[#C2C9D4]"
+                            onChange={() => toggleStudentSelection(student.id)}
+                            type="checkbox"
+                          />
+                        </td>
                         <td className="px-5 py-4 text-[#86868b] font-medium">{rowNum}</td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
@@ -530,6 +696,70 @@ export default function StudentsPage() {
                 className={`flex-1 py-3 text-[14px] font-semibold transition-colors ${confirmDialog.action === 'deactivate' ? 'text-[#ff3b30] hover:bg-[#ff3b30]/10' : 'text-[#34c759] hover:bg-[#34c759]/10'}`}
               >
                 {confirmDialog.action === 'deactivate' ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {bulkDialog.isOpen && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" style={{ zIndex: 9999 }}>
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-[#DCE1E8] px-6 py-4">
+              <h3 className="text-[18px] font-semibold text-[#0F1419]">
+                {bulkDialog.action === "whatsapp" ? "Send WhatsApp" : bulkDialog.action === "promote" ? "Promote class" : "Mark inactive"}
+              </h3>
+              <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{selectedCount} selected students</p>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              {bulkDialog.action === "whatsapp" ? (
+                <label className="block">
+                  <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Message</span>
+                  <textarea
+                    className="mt-2 min-h-[120px] w-full rounded-xl border border-[#DCE1E8] px-3 py-2 text-[14px] leading-6 outline-none focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+                    onChange={(e) => setBulkDialog((prev) => ({ ...prev, message: e.target.value }))}
+                    value={bulkDialog.message}
+                  />
+                </label>
+              ) : null}
+
+              {bulkDialog.action === "promote" ? (
+                <label className="block">
+                  <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Target class</span>
+                  <select
+                    className="mt-2 h-11 w-full rounded-xl border border-[#DCE1E8] bg-white px-3 text-[14px] outline-none focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+                    onChange={(e) => setBulkDialog((prev) => ({ ...prev, targetClassId: e.target.value }))}
+                    value={bulkDialog.targetClassId}
+                  >
+                    <option value="">Select class</option>
+                    {classes.map((cls) => (
+                      <option key={cls.id} value={cls.id}>{cls.name}-{cls.section}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              {bulkDialog.action === "inactive" ? (
+                <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">
+                  This marks selected students inactive. Existing records stay available.
+                </div>
+              ) : null}
+
+              {bulkDialog.error ? (
+                <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">
+                  {bulkDialog.error}
+                </div>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[#DCE1E8] bg-[#F7F8FB] px-6 py-4">
+              <button className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" disabled={bulkDialog.busy} onClick={closeBulkDialog} type="button">Cancel</button>
+              <button
+                className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD] disabled:bg-[#C2C9D4] disabled:text-[#7A8390]"
+                disabled={bulkDialog.busy}
+                onClick={handleBulkConfirm}
+                type="button"
+              >
+                {bulkDialog.busy ? "Working..." : "Confirm"}
               </button>
             </div>
           </div>

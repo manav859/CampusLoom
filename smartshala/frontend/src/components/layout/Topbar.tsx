@@ -119,7 +119,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
                 <p className="truncate text-[15px] font-semibold text-[#1d1d1f] tracking-tight leading-tight">
                   {user.schoolName || "SmartShala"}{" "}
                   <span className="text-[#86868b] font-normal">·</span>{" "}
-                  <span className="text-[#86868b] font-normal text-[13px]">Pune</span>
+                  <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
                 </p>
                 <p className="text-[11px] font-medium text-[#86868b] leading-tight">
                   Academic Year {getAcademicYear()}
