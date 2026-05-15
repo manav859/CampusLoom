@@ -60,6 +60,8 @@ async function assertClassAccess(user: CommunicationUser, classId: string) {
 
 function notificationKindFor(type: CommunicationMessageType) {
   if (type === CommunicationMessageType.ATTENDANCE_ALERT) return NotificationKind.LOW_ATTENDANCE;
+  if (type === CommunicationMessageType.ABSENCE_NOTIFICATION) return NotificationKind.ABSENCE;
+  if (type === CommunicationMessageType.FEE_REMINDER) return NotificationKind.FEE_REMINDER;
   return NotificationKind.SCHOOL_ALERT;
 }
 

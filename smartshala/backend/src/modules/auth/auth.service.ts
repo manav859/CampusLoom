@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { UserRole, UserStatus } from "@prisma/client";
+import { NotificationKind, NotificationStatus, UserRole, UserStatus } from "@prisma/client";
 import { env } from "../../config/env.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError } from "../../core/errors.js";
@@ -198,6 +198,36 @@ export async function login(identifier: string, password: string) {
     accessToken,
     refreshToken,
     user: publicUser(user)
+  };
+}
+
+export async function forgotPassword(identifier: string) {
+  const normalizedIdentifier = identifier.trim();
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [{ email: normalizedIdentifier }, { phone: normalizedIdentifier }],
+      status: UserStatus.ACTIVE,
+      isActive: true
+    },
+    include: { school: true }
+  });
+
+  if (user) {
+    await prisma.notification.create({
+      data: {
+        schoolId: user.schoolId,
+        kind: NotificationKind.SCHOOL_ALERT,
+        recipientPhone: user.phone,
+        message: `Password reset requested for ${user.fullName}. SmartShala support will verify the requester before changing login credentials.`,
+        status: NotificationStatus.QUEUED
+      }
+    });
+  }
+
+  return {
+    message: "If this account exists, a password reset request has been recorded. SmartShala support will verify and contact the school administrator.",
+    supportPhone: "+91-98765-43210",
+    supportEmail: "support@smartshala.in"
   };
 }
 

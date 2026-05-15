@@ -1,10 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { feesApi, type PaymentResult } from "@/lib/api";
+import { feesApi, type PaymentMode, type PaymentReferencePayload, type PaymentResult } from "@/lib/api";
 import { formatINR, humanizeConstant } from "@/lib/formatters";
-
-type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "OTHER";
 
 type PaymentModalProps = {
   open: boolean;
@@ -15,21 +13,52 @@ type PaymentModalProps = {
   onSuccess: (result: PaymentResult) => void;
 };
 
+const referenceFields: Partial<Record<PaymentMode, { name: keyof PaymentReferencePayload; label: string; placeholder: string }>> = {
+  UPI: { name: "upiTransactionId", label: "UPI transaction ID", placeholder: "e.g. 4132XXXX7890" },
+  CHEQUE: { name: "chequeNumber", label: "Cheque number", placeholder: "e.g. 006421" },
+  DD: { name: "ddNumber", label: "DD number", placeholder: "e.g. 841529" },
+  BANK_TRANSFER: { name: "bankReference", label: "Bank reference", placeholder: "e.g. NEFT/UTR reference" },
+  ONLINE_GATEWAY: { name: "gatewayTransactionId", label: "Gateway transaction ID", placeholder: "e.g. pay_XXXXXX" }
+};
+
+function todayInputValue() {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
+}
+
+function paymentReference(payment: PaymentResult["payment"]) {
+  return payment.upiTransactionId ?? payment.chequeNumber ?? payment.ddNumber ?? payment.bankReference ?? payment.gatewayTransactionId ?? null;
+}
+
 export function PaymentModal({ open, studentId, studentName, maxAmount, onClose, onSuccess }: PaymentModalProps) {
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<PaymentMode>("CASH");
+  const [paidAt, setPaidAt] = useState(todayInputValue);
+  const [sendReceiptOnWhatsApp, setSendReceiptOnWhatsApp] = useState(true);
+  const [references, setReferences] = useState<PaymentReferencePayload>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<PaymentResult | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [sendingReceipt, setSendingReceipt] = useState(false);
+  const [receiptSent, setReceiptSent] = useState(false);
 
   useEffect(() => {
     if (open) {
       setAmount("");
       setMode("CASH");
+      setPaidAt(todayInputValue());
+      setSendReceiptOnWhatsApp(true);
+      setReferences({});
       setError("");
       setSuccess(null);
       setDownloading(false);
+      setPreviewing(false);
+      setSendingReceipt(false);
+      setReceiptSent(false);
     }
   }, [open]);
 
@@ -49,10 +78,24 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
       return;
     }
 
+    const referenceField = referenceFields[mode];
+    const referenceValue = referenceField ? references[referenceField.name]?.trim() : undefined;
+    if (referenceField && !referenceValue) {
+      setError(`${referenceField.label} is required for ${humanizeConstant(mode)} payments.`);
+      return;
+    }
+
     setSubmitting(true);
     setError("");
     try {
-      const result = await feesApi.recordPayment({ studentId, amount: numericAmount, mode });
+      const result = await feesApi.recordPayment({
+        studentId,
+        amount: numericAmount,
+        mode,
+        paidAt,
+        sendReceiptOnWhatsApp,
+        ...(referenceField ? { [referenceField.name]: referenceValue } : {})
+      });
       setSuccess(result);
 
       // Auto-download PDF receipt
@@ -84,6 +127,37 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
       setDownloading(false);
     }
   }
+
+  async function handlePreviewReceipt() {
+    if (!success) return;
+    setPreviewing(true);
+    try {
+      await feesApi.previewReceiptPdf(success.receipt.id);
+    } catch {
+      setError("Failed to open receipt preview");
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function handleSendReceipt() {
+    if (!success) return;
+    setSendingReceipt(true);
+    setError("");
+    try {
+      await feesApi.sendReceiptWhatsApp(success.receipt.id);
+      setReceiptSent(true);
+    } catch {
+      setError("Failed to send receipt on WhatsApp");
+    } finally {
+      setSendingReceipt(false);
+    }
+  }
+
+  const referenceField = referenceFields[mode];
+  const receiptReference = success ? paymentReference(success.payment) : null;
+  const numericAmount = Number(amount) || 0;
+  const balanceAfterPreview = Math.max(0, maxAmount - Math.min(numericAmount, maxAmount));
 
   return (
     <div
@@ -125,6 +199,16 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                 <span className="font-bold text-[#248a3d]">{formatINR(success.payment.amount, { compact: false })}</span>
               </div>
               <div className="flex justify-between text-[13px]">
+                <span className="text-[#86868b]">Payment Mode</span>
+                <span className="font-semibold text-[#1d1d1f]">{humanizeConstant(success.payment.mode)}</span>
+              </div>
+              {receiptReference ? (
+                <div className="flex justify-between gap-4 text-[13px]">
+                  <span className="text-[#86868b]">Reference</span>
+                  <span className="break-all text-right font-semibold text-[#1d1d1f]">{receiptReference}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between text-[13px]">
                 <span className="text-[#86868b]">Total Paid</span>
                 <span className="font-semibold text-[#1d1d1f]">{formatINR(success.ledger.paid, { compact: false })}</span>
               </div>
@@ -151,22 +235,36 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
               <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
               </svg>
-              WhatsApp receipt will be sent to parent in ~10 seconds
+              {sendReceiptOnWhatsApp || receiptSent ? "WhatsApp receipt sent or queued for parent" : "WhatsApp receipt not sent automatically"}
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                onClick={handlePreviewReceipt}
+                disabled={previewing}
+                className="btn-primary min-h-[48px] gap-2 disabled:opacity-50"
+              >
+                {previewing ? "Opening..." : "Preview PDF"}
+              </button>
               <button
                 onClick={handleDownloadReceipt}
                 disabled={downloading}
-                className="btn-primary flex-1 min-h-[48px] gap-2 disabled:opacity-50"
+                className="btn-secondary min-h-[48px] gap-2 disabled:opacity-50"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                 </svg>
-                {downloading ? "Downloading…" : "Download PDF"}
+                {downloading ? "Downloading..." : "Download"}
               </button>
-              <button onClick={onClose} className="btn-secondary flex-1 min-h-[48px]">
+              <button
+                onClick={handleSendReceipt}
+                disabled={sendingReceipt || receiptSent}
+                className="btn-secondary min-h-[48px] gap-2 disabled:opacity-50"
+              >
+                {receiptSent ? "WhatsApp sent" : sendingReceipt ? "Sending..." : "Send WhatsApp"}
+              </button>
+              <button onClick={onClose} className="btn-secondary min-h-[48px]">
                 Done
               </button>
             </div>
@@ -202,15 +300,66 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                 />
               </label>
               <label className="block">
+                <span className="text-[13px] font-semibold text-[#1d1d1f]">Payment date</span>
+                <input
+                  className="glass-input mt-2 min-h-[48px]"
+                  onChange={(event) => setPaidAt(event.target.value)}
+                  type="date"
+                  value={paidAt}
+                />
+              </label>
+              <label className="block">
                 <span className="text-[13px] font-semibold text-[#1d1d1f]">Mode</span>
-                <select className="glass-input mt-2 min-h-[48px]" onChange={(event) => setMode(event.target.value as PaymentMode)} value={mode}>
+                <select
+                  className="glass-input mt-2 min-h-[48px]"
+                  onChange={(event) => {
+                    setMode(event.target.value as PaymentMode);
+                    setReferences({});
+                  }}
+                  value={mode}
+                >
                   <option value="CASH">Cash</option>
                   <option value="UPI">UPI</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
                   <option value="CHEQUE">Cheque</option>
+                  <option value="DD">DD</option>
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="ONLINE_GATEWAY">Online Gateway</option>
                   <option value="OTHER">Other</option>
                 </select>
               </label>
+              {referenceField ? (
+                <label className="block">
+                  <span className="text-[13px] font-semibold text-[#1d1d1f]">{referenceField.label}</span>
+                  <input
+                    className="glass-input mt-2 min-h-[48px]"
+                    onChange={(event) => setReferences({ [referenceField.name]: event.target.value })}
+                    placeholder={referenceField.placeholder}
+                    value={references[referenceField.name] ?? ""}
+                  />
+                </label>
+              ) : null}
+              <label className="flex items-start gap-3 rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-3">
+                <input
+                  checked={sendReceiptOnWhatsApp}
+                  className="mt-1 h-4 w-4 accent-[#2456E6]"
+                  onChange={(event) => setSendReceiptOnWhatsApp(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>
+                  <span className="block text-[13px] font-semibold text-[#1d1d1f]">Send receipt to parent on WhatsApp</span>
+                  <span className="block text-[12px] font-medium text-[#5A6573]">Enabled by default for receipt workflows.</span>
+                </span>
+              </label>
+              <div className="rounded-xl bg-[#F7F8FB] px-4 py-3 text-[13px]">
+                <div className="flex justify-between gap-3">
+                  <span className="text-[#5A6573]">Balance after payment</span>
+                  <span className="font-bold text-[#1d1d1f]">{formatINR(balanceAfterPreview, { compact: false })}</span>
+                </div>
+                <div className="mt-1 flex justify-between gap-3 text-[12px]">
+                  <span className="text-[#5A6573]">Receipt number</span>
+                  <span className="font-semibold text-[#5A6573]">Generated on save</span>
+                </div>
+              </div>
               {error ? <p className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</p> : null}
               <button className="btn-primary min-h-[48px] w-full disabled:cursor-not-allowed disabled:opacity-50" disabled={submitting} type="submit">
                 {submitting ? "Recording payment…" : "Record Payment"}

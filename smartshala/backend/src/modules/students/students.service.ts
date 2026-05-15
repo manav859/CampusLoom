@@ -19,6 +19,7 @@ import { assignFee } from "../fees/fees.service.js";
 
 type AttendanceForSnapshot = {
   status: AttendanceStatus;
+  attendanceValue?: unknown;
   session: { date: Date };
 };
 
@@ -111,7 +112,7 @@ function emptyAttendanceAnalytics() {
   return {
     records: [],
     calendar: [],
-    metrics: { attendancePercentage: 0, totalDays: 0, absences: 0, late: 0, remainingBefore75: 0 },
+    metrics: { attendancePercentage: 0, totalDays: 0, absences: 0, late: 0, halfDays: 0, attended: 0, remainingBefore75: 0, classAverageAttendance: null },
     cbseWarning: false,
     repeatedWeekdayAbsences: []
   };
@@ -202,7 +203,7 @@ function startOfLocalDay(date: Date) {
   return copy;
 }
 
-function attendanceAnalytics(records: AttendanceForSnapshot[]) {
+function attendanceAnalytics(records: AttendanceForSnapshot[], classAverageAttendance: number | null = null) {
   const sortedRecords = [...records].sort((a, b) => a.session.date.getTime() - b.session.date.getTime());
   const attendanceRows = sortedRecords.map((record) => ({
     date: record.session.date,
@@ -247,16 +248,42 @@ function attendanceAnalytics(records: AttendanceForSnapshot[]) {
   return {
     records: attendanceRows,
     calendar,
-    metrics: {
+      metrics: {
       attendancePercentage: summary.attendancePercentage,
       totalDays: summary.totalDays,
       absences: summary.absences,
       late: summary.late,
-      remainingBefore75: summary.remainingBefore75
+      halfDays: summary.halfDays,
+      attended: summary.attended,
+      remainingBefore75: summary.remainingBefore75,
+      classAverageAttendance
     },
     cbseWarning: summary.attendancePercentage > 0 && summary.attendancePercentage < 80,
     repeatedWeekdayAbsences
   };
+}
+
+async function classAverageAttendance(schoolId: string, classId: string) {
+  const classmates = await prisma.student.findMany({
+    where: { schoolId, classId, isActive: true },
+    select: {
+      attendanceRecords: {
+        take: 60,
+        orderBy: { createdAt: "desc" },
+        select: {
+          status: true,
+          attendanceValue: true,
+          session: { select: { date: true } }
+        }
+      }
+    }
+  });
+
+  const percentages = classmates
+    .map((classmate) => calculateStudentAttendanceSummary(classmate.attendanceRecords).attendancePercentage)
+    .filter((percentage) => percentage > 0);
+
+  return average(percentages);
 }
 
 function percentage(marksObtained: unknown, maxMarks: unknown) {
@@ -451,6 +478,7 @@ async function communicationAudit(user: Express.UserContext, studentId: string) 
       select: {
         id: true,
         kind: true,
+        recipientPhone: true,
         message: true,
         status: true,
         sentAt: true,
@@ -480,7 +508,8 @@ async function communicationAudit(user: Express.UserContext, studentId: string) 
       status: notification.status,
       timestamp: notification.sentAt ?? notification.createdAt,
       source: "notification",
-      reference: notification.kind
+      reference: notification.kind,
+      recipientPhone: notification.recipientPhone
     })),
     ...communicationLogs.map((log) => ({
       id: log.id,
@@ -490,7 +519,8 @@ async function communicationAudit(user: Express.UserContext, studentId: string) 
       status: log.status,
       timestamp: log.timestamp,
       source: "communication_log",
-      reference: log.messageType
+      reference: log.messageType,
+      recipientPhone: null
     }))
   ].sort((left, right) => right.timestamp.getTime() - left.timestamp.getTime() || right.id.localeCompare(left.id));
 }
@@ -715,7 +745,7 @@ async function currentRankForStudent(schoolId: string, classId: string, studentI
       attendanceRecords: {
         take: 60,
         orderBy: { createdAt: "desc" },
-        select: { status: true, session: { select: { date: true } } }
+        select: { status: true, attendanceValue: true, session: { select: { date: true } } }
       },
       feeAssignments: { select: { pendingAmount: true } }
     }
@@ -750,6 +780,7 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
     const canViewFees = hasTab(allowedTabsForRole(user.role), "fees");
 
     const { classId } = (query || {}) as { classId?: string };
+    const canViewAttendance = hasTab(allowedTabsForRole(user.role), "attendance");
 
     const where = {
       schoolId: user.schoolId,
@@ -767,19 +798,74 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
       ...((query as any).showInactive === "true" || (query as any).showInactive === true ? { isActive: false } : { isActive: true })
     };
 
-    const [items, total] = await Promise.all([
+    const [records, total] = await Promise.all([
       prisma.student.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
         include: {
           class: { select: { id: true, name: true, section: true, academicYear: true } },
-          ...(canViewFees ? { feeAssignments: { select: { id: true, pendingAmount: true, status: true } } } : {})
+          ...(canViewFees
+            ? {
+                feeAssignments: {
+                  select: {
+                    id: true,
+                    pendingAmount: true,
+                    status: true,
+                    payments: {
+                      select: { paidAt: true },
+                      orderBy: { paidAt: "desc" },
+                      take: 1
+                    }
+                  }
+                }
+              }
+            : {}),
+          ...(canViewAttendance
+            ? {
+                attendanceRecords: {
+                  take: 60,
+                  orderBy: { createdAt: "desc" },
+                  select: {
+                    status: true,
+                    attendanceValue: true,
+                    session: { select: { date: true } }
+                  }
+                }
+              }
+            : {})
         },
         orderBy: [{ class: { name: "asc" } }, { rollNumber: "asc" }, { fullName: "asc" }]
       }),
       prisma.student.count({ where })
     ]);
+
+    const items = records.map((record) => {
+      const student = record as typeof record & {
+        attendanceRecords?: AttendanceForSnapshot[];
+      };
+      const feeRows = (student as unknown as {
+        feeAssignments?: {
+          id: string;
+          pendingAmount: unknown;
+          status: unknown;
+          payments?: { paidAt: Date }[];
+        }[];
+      }).feeAssignments;
+      const latestPayment = feeRows
+        ?.flatMap((assignment) => assignment.payments ?? [])
+        .sort((left, right) => right.paidAt.getTime() - left.paidAt.getTime())[0]?.paidAt ?? null;
+      const feeAssignments = feeRows?.map(({ payments: _payments, ...assignment }) => assignment);
+      const { attendanceRecords: _attendanceRecords, feeAssignments: _feeAssignments, ...payload } = student as any;
+
+      return {
+        ...payload,
+        ...(canViewFees ? { feeAssignments, lastPayment: latestPayment } : {}),
+        ...(canViewAttendance
+          ? { attendancePercentage: attendanceSnapshot(student.attendanceRecords ?? []).attendancePercentage }
+          : {})
+      };
+    });
 
     return { items, total, page: pagination.page, limit: pagination.limit };
   }, { label: "listStudents" });
@@ -833,10 +919,15 @@ export async function getStudent(user: Express.UserContext, id: string) {
     const feeAssignments = studentRecord.feeAssignments ?? [];
     const { attendancePercentage, lastAbsentDate } =
       canViewAttendance || canViewAcademic ? attendanceSnapshot(attendanceRecords) : { attendancePercentage: 0, lastAbsentDate: null };
-    const attendance = canViewAttendance ? attendanceAnalytics(attendanceRecords) : emptyAttendanceAnalytics();
-    const homework = canViewHomework
-      ? await cached(`homework:${user.schoolId}:${student.classId}:${student.id}`, 30_000, () => homeworkAnalytics(user.schoolId, student.classId, student.id))
-      : emptyHomeworkAnalytics();
+    const [attendanceClassAverage, homework] = await Promise.all([
+      canViewAttendance
+        ? cached(`attendance-class-average:${user.schoolId}:${student.classId}`, 30_000, () => classAverageAttendance(user.schoolId, student.classId))
+        : Promise.resolve(null),
+      canViewHomework
+        ? cached(`homework:${user.schoolId}:${student.classId}:${student.id}`, 30_000, () => homeworkAnalytics(user.schoolId, student.classId, student.id))
+        : Promise.resolve(emptyHomeworkAnalytics())
+    ]);
+    const attendance = canViewAttendance ? attendanceAnalytics(attendanceRecords, attendanceClassAverage) : emptyAttendanceAnalytics();
     const performance = canViewAcademic
       ? performanceSnapshot(examResults, homeworkRecords, attendancePercentage, homework.completionPercentage)
       : {

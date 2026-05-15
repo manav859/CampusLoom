@@ -7,6 +7,48 @@
 
 :root {
   color-scheme: light;
+  --brand-primary: #2456E6;
+  --brand-primary-hover: #1B45BD;
+  --brand-primary-active: #1638A0;
+  --brand-secondary: #0F2557;
+  --brand-accent: #7C3AED;
+  --success-600: #0F8A4A;
+  --success-100: #E1F5EA;
+  --warning-600: #B95A00;
+  --warning-100: #FFF2DC;
+  --danger-600: #C8242C;
+  --danger-100: #FCE3E5;
+  --info-600: #1F6FB8;
+  --info-100: #E2F0FB;
+  --ink-900: #0F1419;
+  --ink-500: #5A6573;
+  --surface-50: #F7F8FB;
+  --border-200: #DCE1E8;
+  --button-secondary-text: #2A3340;
+  --button-secondary-border: #C2C9D4;
+  --button-disabled-bg: #C2C9D4;
+  --button-disabled-text: #7A8390;
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-devanagari: 'Hind', 'Mukta', 'Noto Sans Devanagari', var(--font-primary);
+  --type-h1: 24px;
+  --leading-h1: 32px;
+  --type-h2: 20px;
+  --leading-h2: 28px;
+  --type-h3: 16px;
+  --leading-h3: 24px;
+  --type-body: 14px;
+  --leading-body: 22px;
+  --type-caption: 12px;
+  --leading-caption: 16px;
+  --type-kpi: 28px;
+  --leading-kpi: 32px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 16px;
+  --shadow-card: 0 8px 24px -18px rgba(15, 20, 25, 0.28);
+  --shadow-menu: 0 12px 32px -12px rgba(15, 20, 25, 0.35);
+  --shadow-modal: 0 24px 80px -28px rgba(15, 20, 25, 0.45);
   --apple-bg: #ffffff;
   --apple-text: #000000;
   --apple-text-secondary: #424245;
@@ -36,7 +78,7 @@ html {
 
 body {
   min-height: 100vh;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font-primary);
   color: var(--apple-text);
   background-color: var(--apple-bg);
   background-attachment: fixed;

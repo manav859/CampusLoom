@@ -46,10 +46,12 @@ export default function AttendanceReportsPage() {
 
   const totals = useMemo(
     () => ({
-      total: data ? data.students.present + data.students.absent : 0,
+      total: data ? data.students.present + data.students.absent + (data.students.halfDay ?? 0) : 0,
       present: data?.students.present ?? 0,
       absent: data?.students.absent ?? 0,
-      late: 0
+      late: 0,
+      halfDay: data?.students.halfDay ?? 0,
+      attended: data?.students.attended
     }),
     [data]
   );
@@ -113,7 +115,14 @@ export default function AttendanceReportsPage() {
         </div>
       </div>
 
-      <AttendanceSummary total={totals.total} present={totals.present} absent={totals.absent} late={totals.late} />
+      <AttendanceSummary
+        total={totals.total}
+        present={totals.present}
+        absent={totals.absent}
+        late={totals.late}
+        halfDay={totals.halfDay}
+        attended={totals.attended}
+      />
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="glass-card-interactive p-6">
@@ -130,6 +139,7 @@ export default function AttendanceReportsPage() {
                   <th className="px-5 py-3.5 font-semibold">Class</th>
                   <th className="px-5 py-3.5 font-semibold">Total</th>
                   <th className="px-5 py-3.5 font-semibold">Present</th>
+                  <th className="px-5 py-3.5 font-semibold">Half day</th>
                   <th className="px-5 py-3.5 font-semibold">Absent</th>
                   <th className="px-5 py-3.5 font-semibold">Rate</th>
                 </tr>
@@ -137,7 +147,7 @@ export default function AttendanceReportsPage() {
               <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                 {classRows.length === 0 ? (
                   <tr>
-                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={5}>
+                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>
                       No classes available.
                     </td>
                   </tr>
@@ -147,6 +157,7 @@ export default function AttendanceReportsPage() {
                       <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{row.className}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{row.total}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? <StatusPill label="Pending" tone="warn" /> : row.present}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "-" : row.halfDay}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "—" : row.absent}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">
                         {pendingClassIds.has(row.classId) ? <StatusPill label="Pending" tone="warn" /> : `${row.percentage}%`}
@@ -162,4 +173,3 @@ export default function AttendanceReportsPage() {
     </div>
   );
 }
-

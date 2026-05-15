@@ -20,7 +20,12 @@ export function classLabel(student: StudentDetail) {
 
 export function attendanceSummary(records: StudentDetail["attendanceRecords"]): AttendanceSummary {
   const total = records.length;
-  const attended = records.filter((record) => record.status !== "ABSENT").length;
+  const attended = records.reduce((sum, record) => {
+    if (record.attendanceValue !== undefined && record.attendanceValue !== null) return sum + Number(record.attendanceValue);
+    if (record.status === "ABSENT") return sum;
+    if (record.status === "HALF_DAY") return sum + 0.5;
+    return sum + 1;
+  }, 0);
   const absent = records.filter((record) => record.status === "ABSENT").length;
 
   return {

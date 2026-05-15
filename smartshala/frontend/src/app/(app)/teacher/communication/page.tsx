@@ -10,26 +10,32 @@ import {
   type CommunicationMessageType,
   type TeacherCommunicationLog
 } from "@/lib/api";
+import {
+  communicationTemplates,
+  renderCommunicationTemplate,
+  templateForType,
+  templateLabel,
+  type TemplateLanguage,
+  type TemplateVariables
+} from "@/lib/communicationTemplates";
 import { formatDateTimeShort } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
-
-const messageTemplates: Record<CommunicationMessageType, string> = {
-  ATTENDANCE_ALERT: "Dear parent, please note that your child's attendance needs attention. Kindly connect with the class teacher.",
-  HOMEWORK_REMINDER: "Dear parent, this is a reminder to help your child complete the assigned homework by the due date.",
-  CUSTOM: ""
-};
-
-function typeLabel(type: CommunicationMessageType) {
-  if (type === "ATTENDANCE_ALERT") return "Attendance alert";
-  if (type === "HOMEWORK_REMINDER") return "Homework reminder";
-  return "Custom";
-}
 
 function statusTone(status: TeacherCommunicationLog["status"]) {
   if (status === "SENT" || status === "COMPLETED") return "good";
   if (status === "FAILED" || status === "MISSED") return "danger";
   if (status === "QUEUED") return "warn";
   return "neutral";
+}
+
+function todayDisplay() {
+  return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(new Date());
+}
+
+function defaultMessage(type: CommunicationMessageType, language: TemplateLanguage, variables: TemplateVariables) {
+  const template = templateForType(type);
+  if (!template) return "";
+  return renderCommunicationTemplate(template.variants[language], variables);
 }
 
 export default function TeacherCommunicationPage() {
@@ -39,7 +45,8 @@ export default function TeacherCommunicationPage() {
   const [classId, setClassId] = useState("");
   const [studentId, setStudentId] = useState("");
   const [messageType, setMessageType] = useState<CommunicationMessageType>("ATTENDANCE_ALERT");
-  const [message, setMessage] = useState(messageTemplates.ATTENDANCE_ALERT);
+  const [language, setLanguage] = useState<TemplateLanguage>("en");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -49,6 +56,25 @@ export default function TeacherCommunicationPage() {
   const students = selectedClass?.students ?? [];
   const selectedStudent = useMemo(() => students.find((student) => student.id === studentId) ?? null, [students, studentId]);
   const recipientCount = targetType === "CLASS" ? students.length : selectedStudent ? 1 : 0;
+  const templateVariables = useMemo<TemplateVariables>(() => ({
+    studentName: selectedStudent?.fullName ?? "{studentName}",
+    className: selectedClass ? `${selectedClass.name}-${selectedClass.section}` : "{className}",
+    schoolName: "SmartShala Ahmedabad Public School",
+    date: todayDisplay(),
+    amount: "INR 2,500",
+    dueDate: todayDisplay(),
+    examName: "Unit Test 1",
+    ptmTime: "10:00 AM",
+    holidayReason: "school notice",
+    teacherName: "Class teacher"
+  }), [selectedClass, selectedStudent]);
+  const selectedTemplate = templateForType(messageType);
+
+  useEffect(() => {
+    if (messageType !== "CUSTOM") {
+      setMessage(defaultMessage(messageType, language, templateVariables));
+    }
+  }, [language, messageType, templateVariables]);
 
   useEffect(() => {
     let active = true;
@@ -99,7 +125,7 @@ export default function TeacherCommunicationPage() {
 
   function handleMessageTypeChange(nextType: CommunicationMessageType) {
     setMessageType(nextType);
-    setMessage(messageTemplates[nextType]);
+    setMessage(defaultMessage(nextType, language, templateVariables));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -218,22 +244,53 @@ export default function TeacherCommunicationPage() {
                 onChange={(event) => handleMessageTypeChange(event.target.value as CommunicationMessageType)}
                 value={messageType}
               >
-                <option value="ATTENDANCE_ALERT">Attendance alert</option>
-                <option value="HOMEWORK_REMINDER">Homework reminder</option>
+                {communicationTemplates.map((template) => (
+                  <option key={template.type} value={template.type}>{template.label}</option>
+                ))}
                 <option value="CUSTOM">Custom message</option>
               </select>
             </label>
 
+            {selectedTemplate ? (
+              <div>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Language</span>
+                <div className="mt-1.5 grid grid-cols-2 gap-2 rounded-xl bg-[#f5f5f7] p-1">
+                  {[
+                    { value: "en", label: "English" },
+                    { value: "hi", label: "Hindi" }
+                  ].map((option) => (
+                    <button
+                      className={`rounded-lg px-3 py-2 text-[13px] font-semibold transition ${language === option.value ? "bg-white text-[#1d1d1f] shadow-apple-sm" : "text-[#6e6e73] hover:text-[#1d1d1f]"}`}
+                      key={option.value}
+                      onClick={() => setLanguage(option.value as TemplateLanguage)}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[12px] font-medium text-[#86868b]">{selectedTemplate.description}</p>
+              </div>
+            ) : null}
+
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Message</span>
               <textarea
-                className="mt-1.5 min-h-[150px] w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none placeholder:text-[#86868b] focus:border-[#0071e3]"
+                className="mt-1.5 min-h-[150px] w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium leading-6 text-[#1d1d1f] outline-none placeholder:text-[#86868b] focus:border-[#0071e3]"
                 disabled={sending}
                 onChange={(event) => setMessage(event.target.value)}
                 placeholder="Write the parent message"
                 value={message}
               />
             </label>
+
+            {selectedTemplate ? (
+              <div className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white px-4 py-3 text-[12px] text-[#6e6e73]">
+                <p className="font-semibold text-[#1d1d1f]">Template preview</p>
+                <p className="mt-2 leading-5">{renderCommunicationTemplate(selectedTemplate.variants.en, templateVariables)}</p>
+                <p className="mt-2 leading-6">{renderCommunicationTemplate(selectedTemplate.variants.hi, templateVariables)}</p>
+              </div>
+            ) : null}
 
             <div className="rounded-xl bg-[#f5f5f7] px-4 py-3 text-[13px] text-[#6e6e73]">
               <span className="font-semibold text-[#1d1d1f]">{recipientCount}</span> parent contact{recipientCount === 1 ? "" : "s"} selected.
@@ -289,7 +346,7 @@ export default function TeacherCommunicationPage() {
                         <p className="font-semibold text-[#1d1d1f]">{log.studentName}</p>
                         <p className="mt-1 text-[12px] text-[#86868b]">{log.className} | Roll {log.rollNumber ?? "-"}</p>
                       </td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{typeLabel(log.type)}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{templateLabel(log.type)}</td>
                       <td className="px-5 py-4">
                         <p className="line-clamp-1 max-w-[360px] text-[#6e6e73]">{log.message}</p>
                       </td>

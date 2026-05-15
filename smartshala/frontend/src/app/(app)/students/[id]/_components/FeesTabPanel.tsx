@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
-import type { StudentDetail } from "@/lib/api";
+import { feesApi, type StudentDetail } from "@/lib/api";
 import { formatDateShort, humanizeConstant } from "@/lib/formatters";
 import { money } from "./studentProfileUtils";
 
@@ -16,6 +19,11 @@ function buildTransactionLedger(student: StudentDetail) {
         date: payment.paidAt,
         amount: Number(payment.amount ?? 0),
         mode: payment.mode,
+        upiTransactionId: payment.upiTransactionId ?? null,
+        chequeNumber: payment.chequeNumber ?? null,
+        ddNumber: payment.ddNumber ?? null,
+        gatewayTransactionId: payment.gatewayTransactionId ?? null,
+        bankReference: payment.bankReference ?? null,
         receiptId: payment.receipt?.id ?? null,
         receiptNo: payment.receipt?.receiptNo ?? null,
         feeStructureName: assignment.feeStructure.name
@@ -30,12 +38,56 @@ function buildTransactionLedger(student: StudentDetail) {
   });
 }
 
+function paymentReference(payment: ReturnType<typeof buildTransactionLedger>[number]) {
+  return payment.upiTransactionId ?? payment.chequeNumber ?? payment.ddNumber ?? payment.bankReference ?? payment.gatewayTransactionId ?? "-";
+}
+
+function receiptLabel(payment: ReturnType<typeof buildTransactionLedger>[number]) {
+  return payment.receiptNo ?? payment.receiptId ?? "Pending";
+}
+
 export default function FeesTabPanel({ student }: FeesTabPanelProps) {
   const transactionLedger = buildTransactionLedger(student);
   const recentTransactions = [...transactionLedger].reverse();
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  async function handlePreviewReceipt(receiptId: string) {
+    setPreviewingId(receiptId);
+    setError("");
+    try {
+      await feesApi.previewReceiptPdf(receiptId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to open receipt preview");
+    } finally {
+      setPreviewingId(null);
+    }
+  }
+
+  async function handleSendReceipt(receiptId: string) {
+    setSendingId(receiptId);
+    setError("");
+    try {
+      const result = await feesApi.sendReceiptWhatsApp(receiptId);
+      setNotice(`Receipt ${result.receiptNo} sent on WhatsApp to ${result.parentPhone}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send receipt on WhatsApp");
+    } finally {
+      setSendingId(null);
+    }
+  }
 
   return (
     <section className="space-y-4">
+      {notice ? (
+        <div className="rounded-xl bg-[#25D366]/10 px-4 py-3 text-[13px] font-medium text-[#128C7E]">{notice}</div>
+      ) : null}
+      {error ? (
+        <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div>
+      ) : null}
+
       <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
         <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Fee assignments</h2>
@@ -86,22 +138,63 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-[13px]">
               <thead className="table-head">
-                <tr>{["Date", "Amount", "Mode", "Receipt ID", "Balance After", "Fee"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
+                <tr>{["Date", "Amount", "Mode", "Reference", "Receipt ID", "Balance After", "Fee", "Actions"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                 {recentTransactions.length === 0 ? (
-                  <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>No payments recorded yet.</td></tr>
+                  <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={8}>No payments recorded yet.</td></tr>
                 ) : (
-                  recentTransactions.map((payment) => (
-                    <tr key={payment.id} className="table-row">
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(payment.date)}</td>
-                      <td className="px-5 py-4 font-semibold text-[#248a3d]">{money(payment.amount)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{payment.receiptNo ?? payment.receiptId ?? "Pending"}</td>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(payment.balanceAfter)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName}</td>
-                    </tr>
-                  ))
+                  recentTransactions.map((payment) => {
+                    const receiptId = payment.receiptId;
+                    return (
+                      <tr key={payment.id} className="table-row">
+                        <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(payment.date)}</td>
+                        <td className="px-5 py-4 font-semibold text-[#248a3d]">{money(payment.amount)}</td>
+                        <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
+                        <td className="px-5 py-4 text-[#6e6e73]">{paymentReference(payment)}</td>
+                        <td className="px-5 py-4">
+                          {receiptId ? (
+                            <button
+                              className="font-semibold text-[#2456E6] underline-offset-2 hover:underline disabled:opacity-50"
+                              disabled={previewingId === receiptId}
+                              onClick={() => handlePreviewReceipt(receiptId)}
+                              type="button"
+                            >
+                              {receiptLabel(payment)}
+                            </button>
+                          ) : (
+                            <span className="text-[#86868b]">Pending</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(payment.balanceAfter)}</td>
+                        <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName}</td>
+                        <td className="px-5 py-4">
+                          {receiptId ? (
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                className="rounded-lg bg-[#0F2557]/10 px-3 py-1.5 text-[11px] font-bold text-[#0F2557] transition-colors hover:bg-[#0F2557] hover:text-white disabled:opacity-50"
+                                disabled={previewingId === receiptId}
+                                onClick={() => handlePreviewReceipt(receiptId)}
+                                type="button"
+                              >
+                                {previewingId === receiptId ? "Opening..." : "Preview PDF"}
+                              </button>
+                              <button
+                                className="rounded-lg bg-[#25D366]/10 px-3 py-1.5 text-[11px] font-bold text-[#128C7E] transition-colors hover:bg-[#25D366] hover:text-white disabled:opacity-50"
+                                disabled={sendingId === receiptId}
+                                onClick={() => handleSendReceipt(receiptId)}
+                                type="button"
+                              >
+                                {sendingId === receiptId ? "Sending..." : "WhatsApp"}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-[#86868b]">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

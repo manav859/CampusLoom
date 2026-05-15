@@ -131,12 +131,18 @@ export const authApi = {
       auth: false,
       body: JSON.stringify({ identifier, password })
     }),
+  forgotPassword: (identifier: string) =>
+    apiFetch<{ message: string; supportPhone: string; supportEmail: string }>("/auth/forgot-password", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({ identifier })
+    }),
   me: () => apiFetch<{ user: SessionUser }>("/auth/me"),
   logout: () => apiFetch<void>("/auth/logout", { method: "POST" })
 };
 
-export type AttendanceMarkStatus = "PRESENT" | "ABSENT" | "LATE";
-export type AttendanceReadStatus = "PRESENT" | "ABSENT" | "LATE";
+export type AttendanceMarkStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
+export type AttendanceReadStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
 
 export type ClassSummary = {
   id: string;
@@ -167,6 +173,8 @@ export type ClassTodayAttendance = {
     present: number;
     absent: number;
     late: number;
+    halfDay: number;
+    attended: number;
   };
 };
 
@@ -194,6 +202,8 @@ export type ClassMonthlyAttendance = {
     total: number;
     present: number;
     late: number;
+    halfDay: number;
+    attended: number;
     absent: number;
     percentage: number;
   }[];
@@ -207,6 +217,8 @@ export type AttendanceDashboard = {
   students: {
     present: number;
     absent: number;
+    halfDay?: number;
+    attended?: number;
   };
   alerts: {
     type: "MISSING_ATTENDANCE";
@@ -221,6 +233,8 @@ export type ClassesTodayReportRow = {
   present: number;
   absent: number;
   late: number;
+  halfDay: number;
+  attended: number;
   total: number;
   percentage: number;
 };
@@ -238,6 +252,16 @@ export type NotificationLog = {
     fullName: string;
     admissionNumber: string;
   } | null;
+};
+
+export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "DD" | "ONLINE_GATEWAY" | "OTHER";
+
+export type PaymentReferencePayload = {
+  upiTransactionId?: string | null;
+  chequeNumber?: string | null;
+  ddNumber?: string | null;
+  gatewayTransactionId?: string | null;
+  bankReference?: string | null;
 };
 
 export type FeeAssignmentSummary = {
@@ -303,7 +327,12 @@ export type StudentFeeLedger = {
     id: string;
     date: string;
     amount: string | number;
-    mode: "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "OTHER";
+    mode: PaymentMode;
+    upiTransactionId?: string | null;
+    chequeNumber?: string | null;
+    ddNumber?: string | null;
+    gatewayTransactionId?: string | null;
+    bankReference?: string | null;
     paidAt: string;
     receiptId: string | null;
     receiptNo?: string;
@@ -315,7 +344,12 @@ export type StudentFeeLedger = {
     id: string;
     date: string;
     amount: number;
-    mode: "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "OTHER";
+    mode: PaymentMode;
+    upiTransactionId?: string | null;
+    chequeNumber?: string | null;
+    ddNumber?: string | null;
+    gatewayTransactionId?: string | null;
+    bankReference?: string | null;
     receiptId: string | null;
     receiptNo: string | null;
     assignmentId: string;
@@ -326,9 +360,10 @@ export type StudentFeeLedger = {
 };
 
 export type PaymentResult = {
-  payment: { id: string; amount: string | number; mode: string; paidAt: string };
+  payment: { id: string; amount: string | number; mode: PaymentMode; paidAt: string } & PaymentReferencePayload;
   receipt: { id: string; receiptNo: string };
   ledger: { total: number; paid: number; balance: number; balanceAmount: number; status: string };
+  receiptNotificationQueued?: boolean;
 };
 
 export type StudentDetail = {
@@ -419,7 +454,10 @@ export type StudentDetail = {
       totalDays: number;
       absences: number;
       late: number;
+      halfDays: number;
+      attended: number;
       remainingBefore75: number;
+      classAverageAttendance: number | null;
     };
     cbseWarning: boolean;
     repeatedWeekdayAbsences: {
@@ -437,6 +475,7 @@ export type StudentDetail = {
     timestamp: string;
     source: "notification" | "communication_log";
     reference: string | null;
+    recipientPhone?: string | null;
   }[];
   behaviourAnalytics: {
     canViewCounsellorNotes: boolean;
@@ -491,7 +530,12 @@ export type StudentDetail = {
     payments: {
       id: string;
       amount: string | number;
-      mode: "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "OTHER";
+      mode: PaymentMode;
+      upiTransactionId?: string | null;
+      chequeNumber?: string | null;
+      ddNumber?: string | null;
+      gatewayTransactionId?: string | null;
+      bankReference?: string | null;
       paidAt: string;
       receipt?: { id: string; receiptNo: string } | null;
     }[];
@@ -499,6 +543,7 @@ export type StudentDetail = {
   attendanceRecords: {
     id: string;
     status: AttendanceReadStatus;
+    attendanceValue?: string | number | null;
     session: { date: string; classId: string };
   }[];
 };
@@ -621,7 +666,17 @@ export type CreateMarksExamPayload = {
   results: { studentId: string; marks: number }[];
 };
 
-export type CommunicationMessageType = "ATTENDANCE_ALERT" | "HOMEWORK_REMINDER" | "CUSTOM";
+export type CommunicationMessageType =
+  | "ATTENDANCE_ALERT"
+  | "ABSENCE_NOTIFICATION"
+  | "FEE_REMINDER"
+  | "EXAM_ANNOUNCEMENT"
+  | "PTM_INVITE"
+  | "HOLIDAY_NOTICE"
+  | "GENERIC_NOTICE"
+  | "BIRTHDAY_WISH"
+  | "HOMEWORK_REMINDER"
+  | "CUSTOM";
 
 export type CommunicationContext = {
   classes: {
@@ -749,12 +804,12 @@ export const feesApi = {
   dashboard: () => apiFetch<FeesDashboard>("/fees/dashboard"),
   defaulters: () => apiFetch<FeeDefaulter[]>("/fees/defaulters"),
   studentLedger: (studentId: string) => apiFetch<StudentFeeLedger>(`/fees/student/${studentId}`),
-  recordPayment: (payload: { studentId: string; amount: number; mode: "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "OTHER" }) =>
+  recordPayment: (payload: { studentId: string; amount: number; mode: PaymentMode; paidAt?: string; sendReceiptOnWhatsApp?: boolean } & PaymentReferencePayload) =>
     apiFetch<PaymentResult>("/fees/payment", {
       method: "POST",
       body: JSON.stringify(payload)
     }),
-  downloadReceiptPdf: async (receiptId: string) => {
+  receiptPdfBlob: async (receiptId: string) => {
     const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.accessToken") : null;
     const response = await fetch(`${env.apiBaseUrl}/fees/receipts/${receiptId}/pdf`, {
       headers: {
@@ -762,7 +817,20 @@ export const feesApi = {
       }
     });
     if (!response.ok) throw new Error("Failed to download receipt");
-    const blob = await response.blob();
+    return response.blob();
+  },
+  previewReceiptPdf: async (receiptId: string) => {
+    const blob = await feesApi.receiptPdfBlob(receiptId);
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      URL.revokeObjectURL(url);
+      throw new Error("Browser blocked receipt preview");
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
+  downloadReceiptPdf: async (receiptId: string) => {
+    const blob = await feesApi.receiptPdfBlob(receiptId);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -771,7 +839,11 @@ export const feesApi = {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }
+  },
+  sendReceiptWhatsApp: (receiptId: string) =>
+    apiFetch<{ success: boolean; receiptId: string; receiptNo: string; parentPhone: string }>(`/fees/receipts/${receiptId}/send-whatsapp`, {
+      method: "POST"
+    })
 };
 
 export const whatsappApi = {

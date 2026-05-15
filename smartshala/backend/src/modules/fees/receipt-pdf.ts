@@ -14,6 +14,11 @@ type ReceiptData = {
   payment: {
     amount: number;
     mode: string;
+    upiTransactionId?: string | null;
+    chequeNumber?: string | null;
+    ddNumber?: string | null;
+    gatewayTransactionId?: string | null;
+    bankReference?: string | null;
     paidAt: Date;
     notes?: string | null;
   };
@@ -53,6 +58,21 @@ function formatDateTime(date: Date): string {
   }).format(date);
 }
 
+function paymentReferenceRows(payment: ReceiptData["payment"]): [string, string][] {
+  const rows: [string, string][] = [];
+  if (payment.upiTransactionId) rows.push(["UPI Transaction ID", payment.upiTransactionId]);
+  if (payment.chequeNumber) rows.push(["Cheque Number", payment.chequeNumber]);
+  if (payment.ddNumber) rows.push(["DD Number", payment.ddNumber]);
+  if (payment.gatewayTransactionId) rows.push(["Gateway Transaction ID", payment.gatewayTransactionId]);
+  if (payment.bankReference) rows.push(["Bank Reference", payment.bankReference]);
+  return rows;
+}
+
+function schoolInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words.slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "SS";
+}
+
 export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
@@ -77,14 +97,25 @@ export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
       // ─── Header Background ───
       doc.rect(0, 0, doc.page.width, 130).fill("#1a3c4d");
 
+      // School logo mark
+      doc.circle(leftMargin + 27, 58, 27).fill("#ffffff");
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(16)
+        .fillColor("#1a3c4d")
+        .text(schoolInitials(data.schoolName), leftMargin, 50, {
+          width: 54,
+          align: "center"
+        });
+
       // School name
       doc
         .font("Helvetica-Bold")
         .fontSize(22)
         .fillColor("#ffffff")
-        .text(data.schoolName.toUpperCase(), leftMargin, 35, {
-          width: pageWidth,
-          align: "center"
+        .text(data.schoolName.toUpperCase(), leftMargin + 70, 35, {
+          width: pageWidth - 70,
+          align: "left"
         });
 
       // Subtitle
@@ -92,9 +123,9 @@ export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
         .font("Helvetica")
         .fontSize(10)
         .fillColor("rgba(255,255,255,0.7)")
-        .text("FEE PAYMENT RECEIPT", leftMargin, 65, {
-          width: pageWidth,
-          align: "center"
+        .text("FEE PAYMENT RECEIPT", leftMargin + 70, 65, {
+          width: pageWidth - 70,
+          align: "left"
         });
 
       // Receipt number & date row
@@ -169,8 +200,9 @@ export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
       const paymentPairs = [
         ["Fee Structure", data.feeStructure.name],
         ["Academic Year", data.feeStructure.academicYear],
-        ["Payment Mode", data.payment.mode],
-        ["Payment Date", formatDate(data.payment.paidAt)]
+        ["Payment Mode", data.payment.mode.replace(/_/g, " ")],
+        ["Payment Date", formatDate(data.payment.paidAt)],
+        ...paymentReferenceRows(data.payment)
       ];
 
       if (data.payment.notes) {

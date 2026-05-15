@@ -12,6 +12,11 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   res.json(result);
 });
 
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const result = await authService.forgotPassword(req.body.identifier);
+  res.status(202).json(result);
+});
+
 export const refresh = asyncHandler(async (req: Request, res: Response) => {
   const result = await authService.refresh(req.body.refreshToken);
   res.json(result);
