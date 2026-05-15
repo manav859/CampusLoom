@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, studentsApi } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
@@ -35,6 +35,7 @@ export default function NewStudentPage() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [studentPhoto, setStudentPhoto] = useState<File | null>(null);
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -86,6 +87,27 @@ export default function NewStudentPage() {
     }).catch(console.error);
   }, [router]);
 
+  function selectPhoto(file: File | null) {
+    if (!file) {
+      setStudentPhoto(null);
+      return;
+    }
+
+    const allowedTypes = new Set(["image/jpeg", "image/png"]);
+    if (!allowedTypes.has(file.type)) {
+      setErrorMsg("Student photo must be a JPG or PNG file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg("Student photo must be 5MB or smaller.");
+      return;
+    }
+
+    setErrorMsg("");
+    setStudentPhoto(file);
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -134,10 +156,19 @@ export default function NewStudentPage() {
       if (!payload.apaar) delete payload.apaar;
       if (!payload.previousSchool) delete payload.previousSchool;
       
-      await apiFetch("/students", {
+      const createdStudent = await apiFetch<{ id: string }>("/students", {
         method: "POST",
         body: JSON.stringify(payload),
       });
+
+      if (studentPhoto) {
+        await studentsApi.uploadDocument(createdStudent.id, {
+          type: "PHOTO",
+          name: `${payload.fullName} photo`,
+          file: studentPhoto
+        });
+      }
+
       router.push("/students");
       router.refresh();
     } catch (error: any) {
@@ -244,6 +275,25 @@ export default function NewStudentPage() {
                   value={formData.apaar}
                   onChange={(e) => setFormData({ ...formData, apaar: e.target.value })}
                 />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-dashed border-[#C2C9D4] bg-white/55 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <label className="text-[13px] font-semibold text-[#1d1d1f]">Student photo</label>
+                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">JPG or PNG up to 5MB. Stored in student documents as Photo.</p>
+                  {studentPhoto ? <p className="mt-2 text-[12px] font-semibold text-[#2456E6]">{studentPhoto.name}</p> : null}
+                </div>
+                <label className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB]">
+                  Choose photo
+                  <input
+                    accept="image/jpeg,image/png"
+                    className="sr-only"
+                    type="file"
+                    onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)}
+                  />
+                </label>
               </div>
             </div>
           </div>
