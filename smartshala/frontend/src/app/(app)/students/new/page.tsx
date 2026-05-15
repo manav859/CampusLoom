@@ -10,6 +10,25 @@ import { cachedFetch } from "@/lib/prefetchCache";
 type ClassData = { id: string; name: string; section: string };
 type FeeStructure = { id: string; name: string; totalAmount: number; academicYear: string };
 
+function dateDisplayToIso(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+  if (!match) throw new Error("Date of birth must be in dd/mm/yyyy format.");
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    throw new Error("Date of birth must be a valid calendar date.");
+  }
+
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export default function NewStudentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -25,6 +44,15 @@ export default function NewStudentPage() {
     parentName: "",
     parentPhone: "",
     alternatePhone: "",
+    fatherName: "",
+    fatherPhone: "",
+    fatherOccupation: "",
+    motherName: "",
+    motherPhone: "",
+    motherOccupation: "",
+    guardianName: "",
+    guardianPhone: "",
+    guardianOccupation: "",
     address: "",
     classId: "",
     feeStructureId: "",
@@ -64,13 +92,43 @@ export default function NewStudentPage() {
     setErrorMsg("");
     try {
       const payload: any = { ...formData };
+      const primaryGuardian = [
+        { name: payload.fatherName, phone: payload.fatherPhone },
+        { name: payload.motherName, phone: payload.motherPhone },
+        { name: payload.guardianName, phone: payload.guardianPhone }
+      ].find((guardian) => String(guardian.name ?? "").trim() && String(guardian.phone ?? "").trim());
+
+      if (!primaryGuardian) {
+        throw new Error("Add at least one guardian with name and phone.");
+      }
+
+      payload.parentName = primaryGuardian.name;
+      payload.parentPhone = primaryGuardian.phone;
       if (!payload.rollNumber) delete payload.rollNumber;
       else payload.rollNumber = parseInt(payload.rollNumber);
       
       if (!payload.dateOfBirth) delete payload.dateOfBirth;
+      else payload.dateOfBirth = dateDisplayToIso(payload.dateOfBirth);
       if (!payload.gender) delete payload.gender;
-      if (!payload.alternatePhone) delete payload.alternatePhone;
-      if (!payload.address) delete payload.address;
+      if (!payload.alternatePhone) {
+        const alternate = [payload.motherPhone, payload.fatherPhone, payload.guardianPhone].find((phone) => phone && phone !== payload.parentPhone);
+        if (alternate) payload.alternatePhone = alternate;
+      }
+      [
+        "alternatePhone",
+        "fatherName",
+        "fatherPhone",
+        "fatherOccupation",
+        "motherName",
+        "motherPhone",
+        "motherOccupation",
+        "guardianName",
+        "guardianPhone",
+        "guardianOccupation",
+        "address"
+      ].forEach((key) => {
+        if (!payload[key]) delete payload[key];
+      });
       if (!payload.feeStructureId) delete payload.feeStructureId;
       if (!payload.aadhaar) delete payload.aadhaar;
       if (!payload.apaar) delete payload.apaar;
@@ -158,11 +216,14 @@ export default function NewStudentPage() {
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Date of Birth</label>
               <input
-                type="date"
+                inputMode="numeric"
+                pattern="\d{2}/\d{2}/\d{4}"
                 className="glass-input w-full"
+                placeholder="dd/mm/yyyy"
                 value={formData.dateOfBirth}
                 onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
               />
+              <p className="ml-1 text-[12px] font-medium text-[#5A6573]">Format: dd/mm/yyyy</p>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -255,39 +316,110 @@ export default function NewStudentPage() {
             Guardian Details
           </h3>
           
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Parent/Guardian Name <span className="text-[#ff3b30]">*</span></label>
-              <input
-                required
-                className="glass-input w-full"
-                placeholder="Full name of parent"
-                value={formData.parentName}
-                onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
-              />
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white/55 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h4 className="text-[14px] font-semibold text-[#1d1d1f]">Father</h4>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">Primary if first filled</span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Name</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="Father name"
+                    value={formData.fatherName}
+                    onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Phone</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="10-digit mobile"
+                    value={formData.fatherPhone}
+                    onChange={(e) => setFormData({ ...formData, fatherPhone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Occupation</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="e.g. Business"
+                    value={formData.fatherOccupation}
+                    onChange={(e) => setFormData({ ...formData, fatherOccupation: e.target.value })}
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Primary Phone <span className="text-[#ff3b30]">*</span></label>
-                <input
-                  required
-                  className="glass-input w-full"
-                  placeholder="Primary contact number"
-                  value={formData.parentPhone}
-                  onChange={(e) => setFormData({ ...formData, parentPhone: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Alternate Phone (Optional)</label>
-                <input
-                  className="glass-input w-full"
-                  placeholder="Secondary contact number"
-                  value={formData.alternatePhone}
-                  onChange={(e) => setFormData({ ...formData, alternatePhone: e.target.value })}
-                />
+            <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white/55 p-4">
+              <h4 className="mb-3 text-[14px] font-semibold text-[#1d1d1f]">Mother</h4>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Name</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="Mother name"
+                    value={formData.motherName}
+                    onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Phone</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="10-digit mobile"
+                    value={formData.motherPhone}
+                    onChange={(e) => setFormData({ ...formData, motherPhone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Occupation</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="e.g. Teacher"
+                    value={formData.motherOccupation}
+                    onChange={(e) => setFormData({ ...formData, motherOccupation: e.target.value })}
+                  />
+                </div>
               </div>
             </div>
+
+            <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white/55 p-4">
+              <h4 className="mb-3 text-[14px] font-semibold text-[#1d1d1f]">Other guardian</h4>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Name</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="Guardian name"
+                    value={formData.guardianName}
+                    onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Phone</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="10-digit mobile"
+                    value={formData.guardianPhone}
+                    onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Occupation</label>
+                  <input
+                    className="glass-input w-full"
+                    placeholder="e.g. Retired"
+                    value={formData.guardianOccupation}
+                    onChange={(e) => setFormData({ ...formData, guardianOccupation: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[12px] font-medium text-[#5A6573]">At least one guardian must have name and phone.</p>
 
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Address</label>

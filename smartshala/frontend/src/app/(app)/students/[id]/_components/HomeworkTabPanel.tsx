@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
-import type { StudentDetail } from "@/lib/api";
+import { whatsappApi, type StudentDetail } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 
 export type HomeworkTabPanelProps = {
@@ -25,13 +28,42 @@ function statusTone(status: StudentDetail["homeworkAnalytics"]["assignments"][nu
   return "neutral";
 }
 
+function needsParentNudge(status: StudentDetail["homeworkAnalytics"]["assignments"][number]["status"]) {
+  return status === "MISSING" || status === "NOT_SUBMITTED";
+}
+
 export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
   const homework = student.homeworkAnalytics;
   const completion = homework.completionPercentage ?? 0;
   const lowCompletion = homework.counts.total > 0 && completion < 50;
+  const [sendingAssignmentId, setSendingAssignmentId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const canNudgeParent = student.access.role === "PRINCIPAL" || student.access.role === "ADMIN" || student.access.role === "TEACHER";
+
+  async function nudgeParent(assignment: StudentDetail["homeworkAnalytics"]["assignments"][number]) {
+    setSendingAssignmentId(assignment.id);
+    setNotice(null);
+    setError(null);
+
+    try {
+      await whatsappApi.send({
+        phone: student.parentPhone,
+        message: `Dear parent, ${student.fullName} has not submitted "${assignment.title}" for ${assignment.subject}. Due date: ${formatDateShort(assignment.dueDate)}. Please help them complete it.`
+      });
+      setNotice(`Nudge sent for ${assignment.title}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send nudge");
+    } finally {
+      setSendingAssignmentId(null);
+    }
+  }
 
   return (
     <section className="space-y-4">
+      {notice ? <div className="rounded-xl border border-[#0F8A4A]/20 bg-[#E1F5EA] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
+      {error ? <div className="rounded-xl border border-[#C8242C]/20 bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
+
       <div className={`rounded-2xl border p-5 shadow-apple ${lowCompletion ? "border-[#ff3b30]/20 bg-[#ff3b30]/[0.06]" : "border-[rgba(0,0,0,0.04)] bg-white"}`}>
         <div className="grid gap-5 lg:grid-cols-[220px_1fr] lg:items-center">
           <div>
@@ -40,6 +72,9 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
               {homework.counts.total ? `${completion}%` : "--"}
             </p>
             <p className="mt-2 text-[12px] font-medium text-[#6e6e73]">On-time submissions over total assignments</p>
+            <p className="mt-1 text-[12px] font-semibold text-[#5A6573]">
+              {homework.counts.onTime} on time + {homework.counts.late} late + {homework.counts.missing} missing + {homework.counts.pending} pending = {homework.counts.total}
+            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -58,6 +93,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
             <div className="rounded-xl bg-white/70 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Streak</p>
               <p className="mt-1.5 text-[24px] font-semibold text-[#1d1d1f]">{homework.currentStreak}</p>
+              <p className="mt-1 text-[11px] font-semibold text-[#5A6573]">Class avg {homework.classAverageStreak}</p>
             </div>
           </div>
         </div>
@@ -81,12 +117,12 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
                 <div className={`rounded-xl p-4 ${subjectLow ? "bg-[#ff3b30]/[0.07]" : "bg-[rgba(0,0,0,0.02)]"}`} key={subject.subject}>
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[13px] font-semibold text-[#1d1d1f]">{subject.subject}</p>
-                    <p className={`text-[13px] font-semibold ${subjectLow ? "text-[#c90011]" : "text-[#0071e3]"}`}>{subject.completionPercentage}%</p>
+                    <p className={`text-[13px] font-semibold ${subjectLow ? "text-[#c90011]" : "text-[#2456E6]"}`}>{subject.completionPercentage}%</p>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e5e5ea]">
-                    <div className={`h-full rounded-full ${subjectLow ? "bg-[#ff3b30]" : "bg-[#0071e3]"}`} style={{ width: `${subject.completionPercentage}%` }} />
+                    <div className={`h-full rounded-full ${subjectLow ? "bg-[#ff3b30]" : "bg-[#2456E6]"}`} style={{ width: `${subject.completionPercentage}%` }} />
                   </div>
-                  <p className="mt-2 text-[12px] text-[#86868b]">{subject.onTime} on time - {subject.late} late - {subject.missing} missing</p>
+                  <p className="mt-2 text-[12px] text-[#86868b]">{subject.onTime} on time - {subject.late} late - {subject.missing} missing - {subject.total} total</p>
                 </div>
               );
             })
@@ -102,7 +138,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
           <table className="w-full min-w-[920px] text-left text-[13px]">
             <thead className="table-head">
               <tr>
-                {["Assignment", "Subject", "Assigned", "Due", "Status", "Marks", "Teacher note"].map((head) => (
+                {["Assignment", "Subject", "Assigned", "Due", "Status", "Marks", "Teacher note", "Action"].map((head) => (
                   <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
                 ))}
               </tr>
@@ -110,7 +146,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
             <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
               {homework.assignments.length === 0 ? (
                 <tr>
-                  <td className="px-5 py-12 text-center text-[#86868b]" colSpan={7}>No assignment log found.</td>
+                  <td className="px-5 py-12 text-center text-[#86868b]" colSpan={8}>No assignment log found.</td>
                 </tr>
               ) : (
                 homework.assignments.map((assignment) => (
@@ -124,6 +160,20 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
                       {assignment.marks === null ? "Not marked" : assignment.maxMarks === null ? assignment.marks : `${assignment.marks}/${assignment.maxMarks}`}
                     </td>
                     <td className="px-5 py-4 text-[#6e6e73]">{assignment.teacherNote ?? "-"}</td>
+                    <td className="px-5 py-4">
+                      {canNudgeParent && needsParentNudge(assignment.status) ? (
+                        <button
+                          className="rounded-md border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:text-[#7A8390]"
+                          disabled={sendingAssignmentId === assignment.id}
+                          onClick={() => nudgeParent(assignment)}
+                          type="button"
+                        >
+                          {sendingAssignmentId === assignment.id ? "Sending..." : "Nudge parent"}
+                        </button>
+                      ) : (
+                        <span className="text-[12px] text-[#86868b]">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}

@@ -1,10 +1,26 @@
 import Link from "next/link";
 
 type AlertItem = {
+  actionLabel?: string;
+  disabled?: boolean;
   label: string;
   detail?: string;
+  onAction?: () => void;
+  severity?: "critical" | "high" | "medium";
   tone?: "danger" | "warn" | "neutral";
   href?: string;
+};
+
+const severityStyles = {
+  critical: "bg-[var(--danger-100)] text-[var(--danger-600)]",
+  high: "bg-[var(--warning-100)] text-[var(--warning-600)]",
+  medium: "bg-[#FFF9D8] text-[#7A5A00]"
+};
+
+const severityLabels = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium"
 };
 
 const toneStyles = {
@@ -38,14 +54,41 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
           alerts.map((alert, index) => {
             const tone = alert.tone ?? "neutral";
             const content = (
-              <div className={`flex items-start gap-3 rounded-xl px-4 py-3.5 transition-all duration-300 ease-apple hover:scale-[1.01] ${toneStyles[tone]}`}>
+              <div className={`flex items-start justify-between gap-3 rounded-xl px-4 py-3.5 transition-all duration-300 ease-apple hover:scale-[1.01] ${toneStyles[tone]}`}>
+                <div className="flex min-w-0 items-start gap-3">
                 <span className="indicator-dot mt-1.5 shrink-0" style={{ color: toneColors[tone], backgroundColor: toneColors[tone] }} />
-                <div>
-                  <p className="text-[13px] font-bold tracking-tight">{alert.label}</p>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[13px] font-bold tracking-tight">{alert.label}</p>
+                    {alert.severity ? (
+                      <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] ${severityStyles[alert.severity]}`}>
+                        {severityLabels[alert.severity]}
+                      </span>
+                    ) : null}
+                  </div>
                   {alert.detail ? <p className="mt-0.5 text-[12px] opacity-70 font-medium">{alert.detail}</p> : null}
                 </div>
+                </div>
+                {alert.actionLabel && alert.onAction ? (
+                  <button
+                    className="shrink-0 rounded-lg bg-white/70 px-3 py-1.5 text-[11px] font-bold text-[#2456E6] shadow-sm hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={alert.disabled}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      alert.onAction?.();
+                    }}
+                    type="button"
+                  >
+                    {alert.actionLabel}
+                  </button>
+                ) : null}
               </div>
             );
+
+            if (alert.onAction) {
+              return <div key={`${alert.label}-${index}`}>{content}</div>;
+            }
 
             return alert.href ? <Link key={`${alert.label}-${index}`} href={alert.href}>{content}</Link> : <div key={`${alert.label}-${index}`}>{content}</div>;
           })

@@ -9,7 +9,7 @@ import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
-import { apiFetch, feesApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
+import { apiFetch, feesApi, studentsApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
@@ -28,6 +28,8 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const [waLogs, setWaLogs] = useState<NotificationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [sendingReminderId, setSendingReminderId] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -124,10 +126,32 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   ];
 
   /* ── Alert items ── */
+  async function sendFeeReminder(item: FeeDefaulter) {
+    setSendingReminderId(item.studentId);
+    setNotice("");
+    setError("");
+    try {
+      const student = await studentsApi.get(item.studentId);
+      await whatsappApi.send({
+        phone: student.parentPhone,
+        message: `Dear Parent, fee balance of ${formatINR(item.balance, { compact: false })} for ${item.name} is pending. Please clear it at the earliest.`
+      });
+      setNotice(`WhatsApp reminder sent to ${item.name}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send fee reminder");
+    } finally {
+      setSendingReminderId("");
+    }
+  }
+
   const actionAlerts = data ? [
     ...defaulters.slice(0, 2).map((item) => ({
+      actionLabel: sendingReminderId === item.studentId ? "Sending..." : "Send reminder",
+      disabled: sendingReminderId === item.studentId,
       label: `${item.name} has ${formatINR(item.balance, { compact: false })} pending`,
       detail: `${item.class} - ${item.daysOverdue} days overdue`,
+      onAction: () => sendFeeReminder(item),
+      severity: item.daysOverdue >= 30 ? "critical" as const : item.daysOverdue > 0 ? "high" as const : "medium" as const,
       tone: item.daysOverdue > 0 ? "danger" as const : "warn" as const,
       href: `/fees/${item.studentId}`
     })),
@@ -137,6 +161,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           ? `${alert.studentName}: ${alert.message}`
           : alert.studentName ?? alert.message ?? "Attendance action needed",
       detail: alert.flags?.join(", ") ?? alert.severity ?? undefined,
+      severity: alert.severity === "HIGH" ? "critical" as const : alert.severity === "MEDIUM" ? "high" as const : "medium" as const,
       tone: alert.severity === "HIGH" ? "danger" as const : "warn" as const,
       href: alert.studentId ? `/students/${alert.studentId}` : undefined
     })),
@@ -146,6 +171,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       .map((item) => ({
         label: `${item.className} low attendance`,
         detail: `${item.attendancePercentage}% attendance today`,
+        severity: item.attendancePercentage < 60 ? "critical" as const : "high" as const,
         tone: "warn" as const,
         href: "/attendance/reports"
       }))
@@ -169,6 +195,12 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       <p className="text-[14px] font-medium leading-6 text-[#5A6573]">{pulseText}</p>
 
       {error ? <div className="rounded-xl bg-[#ff9500]/10 px-4 py-3 text-[13px] font-medium text-[#c93400]">{error}</div> : null}
+      {notice ? (
+        <div className="flex items-center justify-between rounded-xl bg-[#34c759]/10 px-4 py-3 text-[13px] font-medium text-[#248a3d]">
+          <span>{notice}</span>
+          <button className="font-semibold underline-offset-2 hover:underline" onClick={() => setNotice("")} type="button">Dismiss</button>
+        </div>
+      ) : null}
 
       {mode === "ADMIN" ? (
         <div className="flex flex-wrap gap-2">

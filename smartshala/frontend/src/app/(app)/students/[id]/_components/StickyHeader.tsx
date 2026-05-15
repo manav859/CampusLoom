@@ -54,9 +54,9 @@ type KpiTone = "good" | "warn" | "danger" | "neutral";
 
 const kpiToneStyles: Record<KpiTone, { bg: string; border: string; value: string; bar: string }> = {
   neutral: { bg: "from-[#f5f5f7]/80 to-white/40", border: "border-[#e5e5ea]", value: "text-[#1d1d1f]", bar: "from-[#d2d2d7] to-[#aeaeb2]" },
-  good:    { bg: "from-[#34c759]/20 to-[#34c759]/5", border: "border-[#34c759]/20", value: "text-[#248a3d]", bar: "from-[#34c759] to-[#248a3d]" },
-  warn:    { bg: "from-[#ff9500]/20 to-[#ff9500]/5", border: "border-[#ff9500]/20", value: "text-[#cc7700]", bar: "from-[#ff9500] to-[#cc7700]" },
-  danger:  { bg: "from-[#ff3b30]/20 to-[#ff3b30]/5", border: "border-[#ff3b30]/20", value: "text-[#c90011]", bar: "from-[#ff3b30] to-[#c90011]" },
+  good:    { bg: "from-[#22a74c]/20 to-[#22a74c]/5", border: "border-[#22a74c]/20", value: "text-[#187d37]", bar: "from-[#22a74c] to-[#187d37]" },
+  warn:    { bg: "from-[#ff9500]/20 to-[#ff9500]/5", border: "border-[#ff9500]/20", value: "text-[#b86400]", bar: "from-[#ff9500] to-[#b86400]" },
+  danger:  { bg: "from-[#d63230]/20 to-[#d63230]/5", border: "border-[#d63230]/20", value: "text-[#b02725]", bar: "from-[#d63230] to-[#b02725]" },
 };
 
 function MiniKpiCard({ label, value, tone = "neutral" }: { label: string; value: string; tone?: KpiTone }) {
@@ -73,15 +73,15 @@ function MiniKpiCard({ label, value, tone = "neutral" }: { label: string; value:
 /* ── Squarish status tags ── */
 
 const tagStyles: Record<PillTone, string> = {
-  good:    "bg-[#34c759]/[0.10] text-[#248a3d] border-[#34c759]/20",
-  warn:    "bg-[#ff9500]/[0.10] text-[#c93400] border-[#ff9500]/20",
-  danger:  "bg-[#ff3b30]/[0.10] text-[#d70015] border-[#ff3b30]/20",
+  good:    "bg-[#22a74c]/[0.10] text-[#187d37] border-[#22a74c]/20",
+  warn:    "bg-[#ff9500]/[0.10] text-[#b86400] border-[#ff9500]/20",
+  danger:  "bg-[#d63230]/[0.10] text-[#b02725] border-[#d63230]/20",
   neutral: "bg-[rgba(0,0,0,0.04)] text-[#6e6e73] border-transparent",
 };
 
 function StatusTag({ label, tone = "neutral" }: { label: string; tone?: PillTone }) {
   return (
-    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold tracking-wide transition-all duration-200 ${tagStyles[tone]}`}>
+    <span className={`inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-semibold tracking-wide transition-all duration-200 ${tagStyles[tone]}`}>
       {label}
     </span>
   );
@@ -114,6 +114,28 @@ function LedgerIcon() {
   );
 }
 
+function PrintIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+      <path d="M6 9V2h12v7" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 14h12v8H6z" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="m8.59 13.51 6.83 3.98" />
+      <path d="m15.41 6.51-6.82 3.98" />
+    </svg>
+  );
+}
+
 /* ── Main Header ── */
 
 export function StickyHeader({
@@ -138,6 +160,9 @@ export function StickyHeader({
   const feeTone: KpiTone = feeBalance <= 0 ? "good" : "warn";
   const absentTone: KpiTone = daysSinceLastAbsent === null ? "good" : daysSinceLastAbsent <= 2 ? "danger" : "neutral";
   const canContactParent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN" || student.access?.role === "TEACHER";
+  const parentShareMessage = encodeURIComponent(
+    `SmartShala profile update for ${student.fullName}: attendance ${attendancePercentage}%, academic ${performanceClassification}, fee balance ${money(feeBalance)}.`
+  );
 
   return (
     <div className="py-1.5">
@@ -160,7 +185,7 @@ export function StickyHeader({
                   {classLabel(student)} · {student.admissionNumber}
                 </span>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <div className="mt-1 flex flex-wrap items-center gap-[6px]">
                 {canViewAcademic ? <StatusTag label={academic.label} tone={academic.tone} /> : null}
                 {canViewAttendance ? <StatusTag label={attendance.label} tone={attendance.tone} /> : null}
                 {canViewFees ? <StatusTag label={fees.label} tone={fees.tone} /> : null}
@@ -188,8 +213,25 @@ export function StickyHeader({
                   <WhatsAppIcon />
                   WhatsApp
                 </a>
+                <a
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
+                  href={`${whatsappLink(student.parentPhone)}?text=${parentShareMessage}`}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <ShareIcon />
+                  Share
+                </a>
               </>
             ) : null}
+            <button
+              className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
+              onClick={() => window.print()}
+              type="button"
+            >
+              <PrintIcon />
+              Print profile
+            </button>
             {canViewFees ? (
               <Link
                 className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"

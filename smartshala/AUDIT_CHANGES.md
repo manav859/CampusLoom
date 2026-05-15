@@ -216,12 +216,12 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Today's Actions And Recent Events
 
-- [ ] Add severity levels: critical red, high orange, medium yellow.
+- [x] Add severity levels: critical red, high orange, medium yellow.
 - [x] Replace raw labels like `LOW_ATTENDANCE` with plain English.
 - [x] Vary defaulter amounts in demo data.
 - [x] Fix implausible 367-day overdue demo data.
 - [ ] Sort recent events by importance or split into `Needs action` and `Recently happened`.
-- [ ] Add `Send reminder` button on defaulter rows.
+- [x] Add `Send reminder` button on defaulter rows.
 
 ### Students List
 
@@ -236,9 +236,9 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Register New Student Form
 
-- [ ] Use `dd/mm/yyyy` date picker for date of birth.
-- [ ] Replace single guardian field with Mother, Father, Other Guardian sections.
-- [ ] Capture guardian name, phone, and occupation.
+- [x] Use `dd/mm/yyyy` date picker for date of birth.
+- [x] Replace single guardian field with Mother, Father, Other Guardian sections.
+- [x] Capture guardian name, phone, and occupation.
 - [ ] Add student photo upload.
 - [x] Mark required fields with red asterisk.
 - [x] Add Aadhaar / APAAR ID field.
@@ -248,11 +248,11 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 ### Student Profile Header And Academic Tab
 
 - [x] Clean demo data: real parent names, realistic phone numbers, plausible admission numbers.
-- [ ] Add spacing around status pills: 4px padding, 6px gap.
-- [ ] Standardize KPI color logic: green good, orange warning, red critical.
-- [ ] Add purple AI glyph next to Action insight.
-- [ ] Add `How is this generated?` tooltip for Action insight.
-- [ ] Add `Print profile` / `Share with parent` button.
+- [x] Add spacing around status pills: 4px padding, 6px gap.
+- [x] Standardize KPI color logic: green good, orange warning, red critical.
+- [x] Add purple AI glyph next to Action insight.
+- [x] Add `How is this generated?` tooltip for Action insight.
+- [x] Add `Print profile` / `Share with parent` button.
 
 ### Student Profile Academic Deep Dive
 
@@ -260,24 +260,24 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Add test that fails when same student/period has conflicting attendance values.
 - [x] Fix grade band: 0% should be F or ABS.
 - [x] Define grade bands explicitly in code.
-- [ ] Make duplicate exam names unique with date or sequence.
+- [x] Make duplicate exam names unique with date or sequence.
 - [x] Replace confusing partial fee labels with one clear line.
 - [ ] Seed realistic class averages and ranks.
 
 ### Student Profile Exam Comparison
 
 - [ ] Seed realistic marks distribution.
-- [ ] Add legend to exam comparison chart.
-- [ ] Wire homework completion numbers to one source.
-- [ ] Add inline comparison: `You are X% below class average`.
+- [x] Add legend to exam comparison chart.
+- [x] Wire homework completion numbers to one source.
+- [x] Add inline comparison: `You are X% below class average`.
 
 ### Student Profile Homework Tab
 
-- [ ] Reconcile submitted/late/missing/streak numbers with subject completion percent.
-- [ ] Add `Class average streak` context line.
+- [x] Reconcile submitted/late/missing/streak numbers with subject completion percent.
+- [x] Add `Class average streak` context line.
 - [ ] Support homework file attachments.
 - [ ] Allow teachers to upload graded work back.
-- [ ] Add `Nudge parent on WhatsApp` for not submitted assignments.
+- [x] Add `Nudge parent on WhatsApp` for not submitted assignments.
 
 ### Student Profile Attendance Tab
 
