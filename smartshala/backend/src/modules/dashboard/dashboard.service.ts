@@ -4,17 +4,35 @@ import { dailyReport } from "../attendance/attendance.service.js";
 import { dashboard as feesDashboard } from "../fees/fees.service.js";
 import { riskSummary } from "../analytics/analytics.service.js";
 
+const DASHBOARD_CACHE_TTL_MS = 15_000;
+const dashboardCache = new Map<string, { expiresAt: number; payload: unknown }>();
+
 function startOfToday() {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   return date;
 }
 
+function cacheKey(user: Express.UserContext) {
+  return `${user.schoolId}:${user.role}:${user.id}`;
+}
+
 export async function getDashboard(user: Express.UserContext) {
-  if (user.role === UserRole.PRINCIPAL || user.role === UserRole.ADMIN) return principalDashboard(user);
-  if (user.role === UserRole.TEACHER) return teacherDashboard(user);
-  if (user.role === UserRole.ACCOUNTANT) return accountantDashboard(user);
-  return parentDashboard(user);
+  const key = cacheKey(user);
+  const cached = dashboardCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.payload;
+
+  const payload =
+    user.role === UserRole.PRINCIPAL || user.role === UserRole.ADMIN
+      ? await principalDashboard(user)
+      : user.role === UserRole.TEACHER
+        ? await teacherDashboard(user)
+        : user.role === UserRole.ACCOUNTANT
+          ? await accountantDashboard(user)
+          : await parentDashboard(user);
+
+  dashboardCache.set(key, { expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS, payload });
+  return payload;
 }
 
 async function accountantDashboard(user: Express.UserContext) {
@@ -93,6 +111,21 @@ async function principalDashboard(user: Express.UserContext) {
       record.createdBy?.fullName ? `Logged by ${record.createdBy.fullName}` : "Logged behaviour"
     ]
   }));
+  const dashboardDefaulters = feeSummary.topDefaulters.map((assignment) => {
+    const dueDate = assignment.feeStructure.installments?.[0]?.dueDate;
+    const daysOverdue = dueDate ? Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / 86_400_000)) : 0;
+
+    return {
+      studentId: assignment.studentId,
+      name: assignment.student.fullName,
+      class: `${assignment.student.class.name}-${assignment.student.class.section}`,
+      balance: Number(assignment.pendingAmount),
+      balanceAmount: Number(assignment.pendingAmount),
+      dueDate,
+      daysOverdue,
+      status: assignment.status
+    };
+  });
 
   return {
     role: user.role,
@@ -108,6 +141,7 @@ async function principalDashboard(user: Express.UserContext) {
     },
     attendance,
     feeSummary,
+    defaulters: dashboardDefaulters,
     alerts: [...behaviourAlerts, ...risks.studentRisks].slice(0, 8),
     aiSummary: risks.principalSummary
   };
