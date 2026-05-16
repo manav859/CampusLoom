@@ -18,6 +18,18 @@ export const createFeeStructure = asyncHandler(async (req: Request, res: Respons
   res.status(201).json(await feesService.createFeeStructure(req.user!.schoolId, req.body));
 });
 
+export const updateFeeStructure = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await feesService.updateFeeStructure(req.user!.schoolId, req.params.id, req.body));
+});
+
+export const duplicateFeeStructure = asyncHandler(async (req: Request, res: Response) => {
+  res.status(201).json(await feesService.duplicateFeeStructure(req.user!.schoolId, req.params.id));
+});
+
+export const archiveFeeStructure = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await feesService.archiveFeeStructure(req.user!.schoolId, req.params.id));
+});
+
 export const assignFee = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(await feesService.assignFee(req.user!.schoolId, req.body.studentId, req.body.feeStructureId));
 });

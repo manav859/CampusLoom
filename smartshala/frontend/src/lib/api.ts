@@ -294,6 +294,18 @@ export type FeesDashboard = {
   topDefaulters: FeeAssignmentSummary[];
 };
 
+export type FeeStructure = {
+  id: string;
+  name: string;
+  academicYear: string;
+  frequency: "ANNUAL" | "QUARTERLY" | "MONTHLY" | "CUSTOM" | "BIANNUAL";
+  totalAmount: string | number;
+  isActive: boolean;
+  class?: { id: string; name: string; section: string; academicYear?: string } | null;
+  installments?: { id: string; name: string; dueDate: string; amount: string | number; sortOrder: number }[];
+  _count?: { assignments: number };
+};
+
 export type FeeDefaulter = {
   studentId: string;
   name: string;
@@ -887,6 +899,20 @@ export const attendanceApi = {
 export const feesApi = {
   dashboard: () => apiFetch<FeesDashboard>("/fees/dashboard"),
   defaulters: () => apiFetch<FeeDefaulter[]>("/fees/defaulters"),
+  structures: () => apiFetch<FeeStructure[]>("/fees/structures"),
+  updateStructure: (id: string, payload: Partial<Pick<FeeStructure, "name" | "academicYear" | "frequency" | "isActive">> & { totalAmount?: number; classId?: string | null }) =>
+    apiFetch<FeeStructure>(`/fees/structures/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    }),
+  duplicateStructure: (id: string) =>
+    apiFetch<FeeStructure>(`/fees/structures/${id}/duplicate`, {
+      method: "POST"
+    }),
+  archiveStructure: (id: string) =>
+    apiFetch<FeeStructure>(`/fees/structures/${id}/archive`, {
+      method: "POST"
+    }),
   studentLedger: (studentId: string) => apiFetch<StudentFeeLedger>(`/fees/student/${studentId}`),
   recordPayment: (payload: { studentId: string; amount: number; mode: PaymentMode; paidAt?: string; sendReceiptOnWhatsApp?: boolean } & PaymentReferencePayload) =>
     apiFetch<PaymentResult>("/fees/payment", {

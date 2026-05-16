@@ -314,6 +314,93 @@ export async function getFeeStructure(schoolId: string, id: string) {
   }, { label: "getFeeStructure" });
 }
 
+export async function updateFeeStructure(schoolId: string, id: string, data: Partial<FeeStructureInput> & { classId?: string | null; isActive?: boolean }) {
+  return withRetry(async () => {
+    const existing = await prisma.feeStructure.findFirst({
+      where: { id, schoolId },
+      include: { installments: { orderBy: { sortOrder: "asc" } } }
+    });
+    if (!existing) throw notFound("Fee structure");
+
+    if (data.classId) {
+      const classRecord = await prisma.class.findFirst({ where: { id: data.classId, schoolId } });
+      if (!classRecord) throw notFound("Class");
+    }
+
+    if (data.installments) {
+      const installmentTotal = data.installments.reduce((sum, installment) => sum + installment.amount, 0);
+      const expectedTotal = data.totalAmount ?? toNumber(existing.totalAmount);
+      if (Math.round(installmentTotal * 100) !== Math.round(expectedTotal * 100)) {
+        throw new AppError(400, "Installment total must equal total fee amount", "INVALID_INSTALLMENT_TOTAL");
+      }
+    }
+
+    return prisma.$transaction(async (tx) => {
+      if (data.installments) {
+        await tx.feeInstallment.deleteMany({ where: { feeStructureId: id } });
+      }
+
+      return tx.feeStructure.update({
+        where: { id },
+        data: {
+          classId: data.classId === undefined ? undefined : data.classId,
+          name: data.name,
+          academicYear: data.academicYear,
+          frequency: data.frequency,
+          totalAmount: data.totalAmount,
+          isActive: data.isActive,
+          installments: data.installments
+            ? {
+                create: data.installments.map((installment) => ({
+                  name: installment.name,
+                  dueDate: installment.dueDate,
+                  amount: installment.amount,
+                  sortOrder: installment.sortOrder
+                }))
+              }
+            : undefined
+        },
+        include: { class: true, installments: { orderBy: { sortOrder: "asc" } }, _count: { select: { assignments: true } } }
+      });
+    });
+  }, { label: "updateFeeStructure" });
+}
+
+export async function duplicateFeeStructure(schoolId: string, id: string) {
+  return withRetry(async () => {
+    const existing = await prisma.feeStructure.findFirst({
+      where: { id, schoolId },
+      include: { installments: { orderBy: { sortOrder: "asc" } } }
+    });
+    if (!existing) throw notFound("Fee structure");
+
+    return prisma.feeStructure.create({
+      data: {
+        schoolId,
+        classId: existing.classId,
+        name: `${existing.name} Copy`,
+        academicYear: existing.academicYear,
+        frequency: existing.frequency,
+        totalAmount: existing.totalAmount,
+        isActive: false,
+        installments: {
+          create: existing.installments.map((installment) => ({
+            name: installment.name,
+            dueDate: installment.dueDate,
+            amount: installment.amount,
+            sortOrder: installment.sortOrder
+          }))
+        }
+      },
+      include: { class: true, installments: { orderBy: { sortOrder: "asc" } }, _count: { select: { assignments: true } } }
+    });
+  }, { label: "duplicateFeeStructure" });
+}
+
+export async function archiveFeeStructure(schoolId: string, id: string) {
+  return updateFeeStructure(schoolId, id, { isActive: false });
+}
+
 export async function assignFee(schoolId: string, studentId: string, feeStructureId: string) {
   return withRetry(async () => {
     const [student, feeStructure] = await Promise.all([
