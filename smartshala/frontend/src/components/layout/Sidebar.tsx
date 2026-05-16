@@ -18,11 +18,11 @@ const adminLinks: NavLink[] = [
   { label: "Attendance", href: "/attendance", icon: "attendance" },
   { label: "Homework", href: "/teacher/homework", icon: "reports" },
   { label: "Marks", href: "/teacher/marks", icon: "analytics" },
-  { label: "Communication", href: "/teacher/communication", icon: "notifications" },
+  { label: "Comms hub", href: "/teacher/communication", icon: "notifications" },
   { label: "Reports", href: "/reports", icon: "reports" },
   { label: "Fees", href: "/fees", icon: "fees" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
-  { label: "WhatsApp Logs", href: "/notifications", icon: "notifications" },
+  { label: "Message logs", href: "/notifications", icon: "notifications" },
   { label: "Settings", href: "/settings", icon: "settings" }
 ];
 
@@ -31,7 +31,7 @@ const teacherLinks: NavLink[] = [
   { label: "Classes", href: "/teacher/classes", icon: "classes" },
   { label: "Homework", href: "/teacher/homework", icon: "reports" },
   { label: "Marks", href: "/teacher/marks", icon: "analytics" },
-  { label: "Communication", href: "/teacher/communication", icon: "notifications" },
+  { label: "Comms hub", href: "/teacher/communication", icon: "notifications" },
   { label: "Mark Attendance", href: "/attendance", icon: "attendance" },
   { label: "Students", href: "/students", icon: "students" }
 ];

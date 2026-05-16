@@ -7,6 +7,9 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <PageHeader eyebrow="AI analytics" title="Attendance and fee risk insights" />
+      <p className="max-w-3xl text-[14px] leading-6 text-[#5A6573]">
+        Analytics is for interactive risk discovery and explainability. Printable exports live under Reports.
+      </p>
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard label="Below 75%" value="8" tone="danger" />
         <KpiCard label="Combined risk" value="3" tone="danger" />

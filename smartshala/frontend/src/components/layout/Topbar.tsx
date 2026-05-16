@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { SessionUser } from "@/types";
 import { clearCache } from "@/lib/prefetchCache";
+import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { NotificationPanel } from "./NotificationPanel";
 
 /* ── Live Clock ── */
@@ -181,6 +182,8 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c5.385 0 9.75 4.365 9.75 9.75s-4.365 9.75-9.75 9.75a9.723 9.723 0 01-4.688-1.2L3 21.75l1.2-4.312A9.723 9.723 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25z" />
               </svg>
             </button>
+
+            <AcademicYearSwitcher />
 
             {/* Divider */}
             <div className="hidden lg:block h-7 w-px bg-[#d2d2d7]/60" />

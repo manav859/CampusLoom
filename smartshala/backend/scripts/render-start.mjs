@@ -68,4 +68,5 @@ async function deployMigrations() {
 }
 
 await deployMigrations();
-await run("node", ["dist/server.js"], { stdio: "inherit" });
+const server = await run("node", ["dist/server.js"], { stdio: "inherit" });
+process.exit(server.code);

@@ -107,7 +107,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Remove seed-data tells: `test` parent, `1234567890`, `.local` emails, repeated INR 49,466 balances, 367 days overdue, Pune/Ahmedabad mismatch.
 - [x] Collapse multi-button table rows into one primary action plus overflow menu.
 - [x] Build a component library for KPI card, table, pill, modal, form, button, empty state, dropdown, and toast.
-- [ ] Refactor screens to use the component library.
+- [x] Refactor screens to use the component library.
 - [x] Expand WhatsApp templates to at least: Attendance alert, Absence notification, Fee reminder, Exam announcement, PTM invite, Holiday notice, Generic notice, Birthday wish.
 - [x] Add bilingual English + Hindi variants for WhatsApp templates.
 - [x] Expand student document types: Aadhaar, Birth certificate, Caste certificate, Transfer certificate, Bonafide, Medical, Report card, Photo, Agreement.
@@ -115,7 +115,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Run accessibility pass: contrast, focus rings, severity icons, minimum body text size, colorblind-safe states.
 - [x] Add P/A/L letters to attendance calendar cells, not color alone.
 - [x] Add immutable audit log infrastructure with visible `Edit history` on records.
-- [ ] Confirm responsive layouts for Dashboard, Student Profile, Mark Attendance, Send Communication, Record Payment.
+- [x] Confirm responsive layouts for Dashboard, Student Profile, Mark Attendance, Send Communication, Record Payment.
 - [x] Clarify partial payment display as one line: `Paid INR X of INR Y - INR Z still pending`.
 
 ## Medium Priority
@@ -125,20 +125,20 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Group exam history by term.
 - [x] Create reusable empty-state component with illustration, headline, supporting copy, and one primary CTA.
 - [x] Start Hindi locale pass with i18n strings and Devanagari font pairing.
-- [ ] Clean IA: merge Communication / WhatsApp Logs / Templates where appropriate.
-- [ ] Clarify Reports vs Analytics: printable/exportable reports vs interactive insights.
-- [ ] Add fee structure editor with list, create, edit, duplicate, archive.
-- [ ] Add academic year switcher and read-only prior-year behavior.
+- [x] Clean IA: merge Communication / WhatsApp Logs / Templates where appropriate.
+- [x] Clarify Reports vs Analytics: printable/exportable reports vs interactive insights.
+- [x] Add fee structure editor with list, create, edit, duplicate, archive.
+- [x] Add academic year switcher and read-only prior-year behavior.
 - [x] Replace 0% bars for unmarked classes with `Not marked`.
 
 ## Low Priority
 
 - [x] Convert all status pills from uppercase/DB constants to sentence case.
 - [x] Add initials-avatar component for students and teachers.
-- [ ] Add breadcrumbs on detail pages.
+- [x] Add breadcrumbs on detail pages.
 - [x] Add GSTIN, U-DISE number, and affiliation board on School profile.
 - [x] Surface GSTIN/U-DISE/board details on receipts and reports where useful.
-- [ ] Add marks distribution view with histogram and at-risk side rail.
+- [x] Add marks distribution view with histogram and at-risk side rail.
 - [x] Fix grade band mapping so 0% maps to F or ABS, not D.
 
 ## Quick Wins
@@ -448,10 +448,10 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Format INR >= 1,00,000 as Lakh/Crore.
 - [x] Standardize INR prefix and Indian grouping.
 - [x] Vary demo defaulter amounts.
-- [ ] Make `Create Fee Structure` open/manage existing structures.
-- [ ] Add edit/duplicate options for fee structures.
-- [ ] Add tooltips for defaulter follow-up queue and WhatsApp receipts.
-- [ ] Add aging buckets: 0-30, 31-60, 61-90, 90+ days.
+- [x] Make `Create Fee Structure` open/manage existing structures.
+- [x] Add edit/duplicate options for fee structures.
+- [x] Add tooltips for defaulter follow-up queue and WhatsApp receipts.
+- [x] Add aging buckets: 0-30, 31-60, 61-90, 90+ days.
 
 ### Fee Ledger
 

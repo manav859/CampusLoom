@@ -32,6 +32,23 @@ export const feeStructureSchema = z.object({
   }
 });
 
+export const feeStructureUpdateSchema = z.object({
+  classId: z.string().uuid().nullable().optional(),
+  name: z.string().trim().min(2).optional(),
+  academicYear: z.string().trim().min(4).optional(),
+  frequency: z.nativeEnum(FeeFrequency).optional(),
+  totalAmount: z.coerce.number().positive().optional(),
+  installments: z.array(
+    z.object({
+      name: z.string().trim().min(2),
+      dueDate: z.coerce.date(),
+      amount: z.coerce.number().positive(),
+      sortOrder: z.coerce.number().int().default(0)
+    })
+  ).min(1).optional(),
+  isActive: z.coerce.boolean().optional()
+});
+
 export const assignFeeSchema = z.object({
   studentId: z.string().uuid(),
   feeStructureId: z.string().uuid()

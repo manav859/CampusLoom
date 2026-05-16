@@ -56,6 +56,20 @@ function withUniqueExamLabels<T extends { examName: string; examDate: string }>(
   });
 }
 
+function marksDistribution(rows: { percentage: number }[]) {
+  const buckets = [
+    { label: "0-39", min: 0, max: 39, tone: "bg-[#C8242C]" },
+    { label: "40-59", min: 40, max: 59, tone: "bg-[#B95A00]" },
+    { label: "60-79", min: 60, max: 79, tone: "bg-[#2456E6]" },
+    { label: "80-100", min: 80, max: 100, tone: "bg-[#0F8A4A]" }
+  ];
+
+  return buckets.map((bucket) => ({
+    ...bucket,
+    count: rows.filter((row) => row.percentage >= bucket.min && row.percentage <= bucket.max).length
+  }));
+}
+
 export default function AcademicTabPanel({ student, attendance, pendingFees, paidFees }: AcademicTabPanelProps) {
   const analytics = student.academicAnalytics;
   const hasExams = analytics.exams.length > 0;
@@ -64,6 +78,14 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
   const examRows = withUniqueExamLabels(analytics.exams);
   const trendRows = withUniqueExamLabels(analytics.trend).map((item) => ({ ...item, label: item.displayExamName }));
   const subjectRows = [...analytics.subjects].sort((a, b) => b.studentAverage - a.studentAverage || a.subject.localeCompare(b.subject));
+  const distributionRows = marksDistribution(analytics.exams);
+  const distributionMax = Math.max(1, ...distributionRows.map((row) => row.count));
+  const riskSignals = [
+    attendance.percentage < 75 ? `Attendance below 75% at ${attendance.percentage}%` : null,
+    pendingFees > 0 ? `${money(pendingFees)} pending fees` : null,
+    (student.examAverage ?? 0) > 0 && (student.examAverage ?? 0) < 50 ? `Exam average below pass band at ${student.examAverage}%` : null,
+    (student.homeworkCompletion ?? 0) > 0 && (student.homeworkCompletion ?? 0) < 60 ? `Homework completion low at ${student.homeworkCompletion}%` : null
+  ].filter(Boolean) as string[];
   const profileRows: { label: string; value: ReactNode }[] = [
     { label: "Admission no", value: student.admissionNumber },
     { label: "Roll no", value: student.rollNumber ?? "Not set" },
@@ -257,6 +279,51 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
             )}
           </div>
         </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Marks distribution</h2>
+              <p className="mt-1 text-[12px] font-medium text-[#86868b]">Histogram of this student&apos;s recorded exam percentages.</p>
+            </div>
+            <StatusPill label={`${analytics.exams.length} exams`} tone={hasExams ? "good" : "neutral"} />
+          </div>
+          <div className="mt-5 grid h-[220px] grid-cols-4 items-end gap-3">
+            {distributionRows.map((bucket) => (
+              <div className="flex h-full flex-col justify-end gap-2" key={bucket.label}>
+                <div className="flex min-h-[160px] items-end rounded-xl bg-[#F7F8FB] px-3 py-2">
+                  <div
+                    aria-label={`${bucket.count} exams in ${bucket.label}`}
+                    className={`w-full rounded-t-lg ${bucket.tone}`}
+                    style={{ height: `${Math.max(8, (bucket.count / distributionMax) * 100)}%` }}
+                  />
+                </div>
+                <div className="text-center">
+                  <p className="text-[12px] font-bold text-[#0F1419]">{bucket.count}</p>
+                  <p className="text-[11px] font-semibold text-[#86868b]">{bucket.label}%</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <aside className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">At-risk signals</h2>
+          <p className="mt-1 text-[12px] font-medium text-[#86868b]">Signals combine attendance, fees, marks, and homework.</p>
+          <div className="mt-5 space-y-3">
+            {riskSignals.length === 0 ? (
+              <div className="rounded-xl bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">No active academic risk signal.</div>
+            ) : (
+              riskSignals.map((signal) => (
+                <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5]/60 p-4" key={signal}>
+                  <p className="text-[13px] font-semibold text-[#C8242C]">{signal}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
       </section>
 
       <section className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
