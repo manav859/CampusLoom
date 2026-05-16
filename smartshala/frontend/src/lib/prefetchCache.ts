@@ -148,10 +148,8 @@ export function prefetchForRole(role: string) {
   if (role === "PRINCIPAL" || role === "ADMIN") {
     enqueuePrefetch(["classes:list", "classes:list:ADMIN"], () => classesApi.list());
     enqueuePrefetch("dashboard", () => apiFetch("/dashboard"));
-    enqueuePrefetch("fees:dashboard", () => feesApi.dashboard());
-    enqueuePrefetch("fees:defaulters", () => feesApi.defaulters());
     enqueuePrefetch("fees:structures", () => apiFetch<any[]>("/fees/structures"));
-    enqueuePrefetch(["wa:logs", "notifications:logs"], () => whatsappApi.logs());
+    enqueuePrefetch("notifications:logs", () => whatsappApi.logs());
     enqueuePrefetch("attendance:dashboard", () => attendanceApi.dashboard());
     enqueuePrefetch("attendance:classesToday", () => attendanceApi.classesTodayReport());
     enqueuePrefetch("students:list:limit=10&page=1", () => apiFetch<any>("/students?limit=10&page=1"));

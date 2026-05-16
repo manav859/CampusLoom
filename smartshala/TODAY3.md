@@ -97,3 +97,27 @@
 - `npm.cmd run build --prefix frontend`
 - `npm.cmd run test:fee-adjustment --prefix backend`
 - Applied fee adjustment migration to the configured PostgreSQL database.
+
+## Dashboard performance pass
+
+- Reduced the principal dashboard from four startup API calls to one:
+  - Removed separate dashboard-time calls for fee dashboard, defaulters, and WhatsApp logs.
+  - Reused `feeSummary` and top defaulters returned by `/dashboard`.
+- Added a short 15-second in-process backend cache for `/dashboard`, keyed by school, role, and user.
+- Optimized attendance daily report:
+  - Stopped loading full nested attendance records per class.
+  - Switched to session lookup plus grouped status counts.
+- Optimized risk summary:
+  - Stopped loading every student's full attendance record and fee assignment arrays.
+  - Switched to `groupBy` aggregates for attendance status counts and pending fee sums.
+  - Avoided large `IN (...)` lists by using scoped relational filters.
+- Trimmed dashboard prefetch work:
+  - Admin prefetch now avoids duplicate fee/defaulter requests already covered by dashboard payload.
+  - Kept skeleton/loading UI untouched.
+- No UI layout, skeleton, or visible dashboard structure was removed.
+
+## Dashboard performance verification
+
+- `npm.cmd run build --prefix backend`
+- `npm.cmd run lint --prefix frontend`
+- `npm.cmd run build --prefix frontend`

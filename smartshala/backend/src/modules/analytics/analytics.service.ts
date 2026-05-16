@@ -8,26 +8,71 @@ function startOfMonth() {
 
 export async function riskSummary(user: Express.UserContext) {
   const since = startOfMonth();
+  const studentWhere = {
+    schoolId: user.schoolId,
+    isActive: true,
+    ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
+  };
+
   const students = await prisma.student.findMany({
-    where: {
-      schoolId: user.schoolId,
-      isActive: true,
-      ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
-    },
-    include: {
-      class: true,
-      attendanceRecords: { where: { session: { date: { gte: since } } } },
-      feeAssignments: { where: { pendingAmount: { gt: new Prisma.Decimal(0) } } }
+    where: studentWhere,
+    select: {
+      id: true,
+      fullName: true,
+      class: { select: { name: true, section: true } }
     }
   });
+  if (students.length === 0) {
+    return {
+      generatedAt: new Date(),
+      lowAttendanceCount: 0,
+      combinedRiskCount: 0,
+      repeatAbsenteeCount: 0,
+      principalSummary: "0 students are below the 75% attendance threshold this month.",
+      studentRisks: []
+    };
+  }
+
+  const scopedStudentWhere = user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {};
+  const [attendanceGroups, feeGroups] = await Promise.all([
+    prisma.attendanceRecord.groupBy({
+      by: ["studentId", "status"],
+      where: {
+        schoolId: user.schoolId,
+        student: { schoolId: user.schoolId, isActive: true, ...scopedStudentWhere },
+        session: { date: { gte: since } }
+      },
+      _count: { _all: true }
+    }),
+    prisma.studentFeeAssignment.groupBy({
+      by: ["studentId"],
+      where: {
+        schoolId: user.schoolId,
+        student: { schoolId: user.schoolId, isActive: true, ...scopedStudentWhere },
+        pendingAmount: { gt: new Prisma.Decimal(0) }
+      },
+      _sum: { pendingAmount: true }
+    })
+  ]);
+
+  const attendanceByStudent = new Map<string, { absent: number; marked: number }>();
+  for (const group of attendanceGroups) {
+    const current = attendanceByStudent.get(group.studentId) ?? { absent: 0, marked: 0 };
+    current.marked += group._count._all;
+    if (group.status === AttendanceStatus.ABSENT) current.absent += group._count._all;
+    attendanceByStudent.set(group.studentId, current);
+  }
+
+  const feesByStudent = new Map(feeGroups.map((group) => [group.studentId, Number(group._sum.pendingAmount ?? 0)]));
 
   const studentRisks = students
     .map((student) => {
-      const marked = student.attendanceRecords.length;
-      const absent = student.attendanceRecords.filter((record) => record.status === AttendanceStatus.ABSENT).length;
+      const attendance = attendanceByStudent.get(student.id);
+      const marked = attendance?.marked ?? 0;
+      const absent = attendance?.absent ?? 0;
       const present = marked - absent;
       const attendancePercentage = marked ? Math.round((present / marked) * 100) : 100;
-      const pendingFees = student.feeAssignments.reduce((sum, item) => sum + Number(item.pendingAmount), 0);
+      const pendingFees = feesByStudent.get(student.id) ?? 0;
       const flags = [
         attendancePercentage < 75 ? "LOW_ATTENDANCE" : null,
         absent >= 3 ? "REPEAT_ABSENTEE" : null,
@@ -91,4 +136,3 @@ export async function classPerformance(user: Express.UserContext) {
     };
   });
 }
-

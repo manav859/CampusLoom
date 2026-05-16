@@ -243,7 +243,10 @@ export async function dashboard(schoolId: string) {
       }),
       prisma.studentFeeAssignment.findMany({
         where: { schoolId, pendingAmount: { gt: new Prisma.Decimal(0) } },
-        include: { student: { include: { class: true } }, feeStructure: true },
+        include: {
+          student: { include: { class: true } },
+          feeStructure: { include: { installments: { orderBy: { dueDate: "asc" }, take: 1 } } }
+        },
         orderBy: { pendingAmount: "desc" },
         take: 10
       })

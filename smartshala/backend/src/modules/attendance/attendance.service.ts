@@ -549,19 +549,46 @@ export async function getAttendanceDashboard(user: AttendanceUser, dateFrom = ne
 
 export async function dailyReport(user: Express.UserContext, date = new Date()) {
   const normalizedDate = startOfDay(date);
-  const classes = await prisma.class.findMany({
-    where: {
-      schoolId: user.schoolId,
-      ...(user.role === UserRole.TEACHER ? { classTeacherId: user.id } : {})
-    },
-    include: {
-      _count: { select: { students: true } },
-      attendanceSessions: {
-        where: { schoolId: user.schoolId, date: normalizedDate },
-        include: { records: true }
+  const classWhere = {
+    schoolId: user.schoolId,
+    ...(user.role === UserRole.TEACHER ? { classTeacherId: user.id } : {})
+  };
+  const [classes, sessions] = await Promise.all([
+    prisma.class.findMany({
+      where: classWhere,
+      select: {
+        id: true,
+        name: true,
+        section: true,
+        _count: { select: { students: true } }
       }
-    }
-  });
+    }),
+    prisma.attendanceSession.findMany({
+      where: {
+        schoolId: user.schoolId,
+        date: normalizedDate,
+        ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
+      },
+      select: { id: true, classId: true }
+    })
+  ]);
+  const sessionByClass = new Map(sessions.map((session) => [session.classId, session.id]));
+  const recordGroups = sessions.length
+    ? await prisma.attendanceRecord.groupBy({
+        by: ["sessionId", "status"],
+        where: {
+          schoolId: user.schoolId,
+          sessionId: { in: sessions.map((session) => session.id) }
+        },
+        _count: { _all: true }
+      })
+    : [];
+  const countsBySession = new Map<string, Map<AttendanceStatus, number>>();
+  for (const group of recordGroups) {
+    const counts = countsBySession.get(group.sessionId) ?? new Map<AttendanceStatus, number>();
+    counts.set(group.status, group._count._all);
+    countsBySession.set(group.sessionId, counts);
+  }
 
   classes.sort((a, b) => {
     const numA = parseInt(a.name, 10);
@@ -571,18 +598,20 @@ export async function dailyReport(user: Express.UserContext, date = new Date()) 
   });
 
   return classes.map((classRecord) => {
-    const session = classRecord.attendanceSessions[0];
-    const present = session?.records.filter((record) => record.status === AttendanceStatus.PRESENT || record.status === AttendanceStatus.LATE).length ?? 0;
-    const halfDay = session?.records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length ?? 0;
-    const attended = (session?.records.reduce((sum, record) => sum + attendanceValue(record.status), 0) ?? 0);
-    const absent = session?.records.filter((record) => record.status === AttendanceStatus.ABSENT).length ?? 0;
-    const total = session?.records.length ?? classRecord._count.students;
+    const sessionId = sessionByClass.get(classRecord.id);
+    const counts = sessionId ? countsBySession.get(sessionId) : undefined;
+    const present = (counts?.get(AttendanceStatus.PRESENT) ?? 0) + (counts?.get(AttendanceStatus.LATE) ?? 0);
+    const halfDay = counts?.get(AttendanceStatus.HALF_DAY) ?? 0;
+    const absent = counts?.get(AttendanceStatus.ABSENT) ?? 0;
+    const totalMarked = present + halfDay + absent;
+    const attended = present + (halfDay * 0.5);
+    const total = totalMarked || classRecord._count.students;
 
     return {
       classId: classRecord.id,
       className: `${classRecord.name}-${classRecord.section}`,
       totalStudents: classRecord._count.students,
-      marked: Boolean(session),
+      marked: Boolean(sessionId),
       present,
       halfDay,
       attended,
