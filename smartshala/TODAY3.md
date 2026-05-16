@@ -1,12 +1,5 @@
 # TODAY3 - 2026-05-16
 
-## Deployment/runtime
-
-- Fixed the local `/dashboard` 500 caused by a stale mixed `.next` build that required missing chunk `./778.js`.
-- Rebuilt the frontend and verified `/dashboard` returns `200`.
-- Updated backend `npm start` to use the Render migration retry wrapper: `node scripts/render-start.mjs`.
-- Kept `npm run start:server` for plain `node dist/server.js`.
-- Render note: the service start command should be `npm start` or `npm run render:start`, not `npx prisma migrate deploy && npm start`, because the raw command bypasses the advisory-lock retry wrapper.
 
 ## Exams and marks
 
@@ -89,15 +82,6 @@
   - Tooltips.
   - Aging buckets.
 
-## Verification run
-
-- `npm.cmd run prisma:generate --prefix backend`
-- `npm.cmd run build --prefix backend`
-- `npm.cmd run lint --prefix frontend`
-- `npm.cmd run build --prefix frontend`
-- `npm.cmd run test:fee-adjustment --prefix backend`
-- Applied fee adjustment migration to the configured PostgreSQL database.
-
 ## Dashboard performance pass
 
 - Reduced the principal dashboard from four startup API calls to one:
@@ -116,8 +100,3 @@
   - Kept skeleton/loading UI untouched.
 - No UI layout, skeleton, or visible dashboard structure was removed.
 
-## Dashboard performance verification
-
-- `npm.cmd run build --prefix backend`
-- `npm.cmd run lint --prefix frontend`
-- `npm.cmd run build --prefix frontend`

@@ -1,27 +1,31 @@
 import { BehaviourSeverity, BehaviourType, Gender, StudentDocumentType } from "@prisma/client";
 import { z } from "zod";
 
+const optionalText = z.string().min(2).nullable().optional();
+const optionalPhone = z.string().min(10).nullable().optional();
+const optionalDate = z.union([z.null(), z.coerce.date()]).optional();
+
 export const studentSchema = z.object({
   classId: z.string().uuid(),
   fullName: z.string().min(2),
   admissionNumber: z.string().min(1).optional(),
-  rollNumber: z.coerce.number().int().positive().optional(),
-  dateOfBirth: z.coerce.date().optional(),
-  gender: z.nativeEnum(Gender).optional(),
+  rollNumber: z.coerce.number().int().positive().nullable().optional(),
+  dateOfBirth: optionalDate,
+  gender: z.nativeEnum(Gender).nullable().optional(),
   parentName: z.string().min(2),
   parentPhone: z.string().min(10),
-  alternatePhone: z.string().min(10).optional(),
-  fatherName: z.string().min(2).optional(),
-  fatherPhone: z.string().min(10).optional(),
-  fatherOccupation: z.string().min(2).optional(),
-  motherName: z.string().min(2).optional(),
-  motherPhone: z.string().min(10).optional(),
-  motherOccupation: z.string().min(2).optional(),
-  guardianName: z.string().min(2).optional(),
-  guardianPhone: z.string().min(10).optional(),
-  guardianOccupation: z.string().min(2).optional(),
-  address: z.string().optional(),
-  joiningDate: z.coerce.date().optional(),
+  alternatePhone: optionalPhone,
+  fatherName: optionalText,
+  fatherPhone: optionalPhone,
+  fatherOccupation: optionalText,
+  motherName: optionalText,
+  motherPhone: optionalPhone,
+  motherOccupation: optionalText,
+  guardianName: optionalText,
+  guardianPhone: optionalPhone,
+  guardianOccupation: optionalText,
+  address: z.string().nullable().optional(),
+  joiningDate: optionalDate,
   isActive: z.boolean().optional(),
   feeStructureId: z.string().uuid().optional()
 });

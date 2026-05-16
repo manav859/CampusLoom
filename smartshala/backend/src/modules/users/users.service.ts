@@ -166,9 +166,13 @@ export async function createUser(schoolId: string, data: { fullName: string; ema
 export async function updateUser(schoolId: string, id: string, data: Record<string, unknown>) {
   const exists = await prisma.user.findFirst({ where: { id, schoolId } });
   if (!exists) throw notFound("User");
+  const updateData = {
+    ...data,
+    ...(data.status === "ACTIVE" ? { isActive: true } : data.status === "INACTIVE" ? { isActive: false } : {})
+  };
   return prisma.user.update({
     where: { id },
-    data,
+    data: updateData,
     select: { id: true, fullName: true, email: true, phone: true, role: true, status: true }
   });
 }

@@ -397,9 +397,12 @@ export type FeeAdjustmentResult = {
 
 export type StudentDetail = {
   id: string;
+  classId: string;
   fullName: string;
   admissionNumber: string;
   rollNumber: number | null;
+  dateOfBirth: string | null;
+  gender: "MALE" | "FEMALE" | "OTHER" | null;
   parentName: string;
   parentPhone: string;
   alternatePhone: string | null;
@@ -560,6 +563,8 @@ export type StudentDetail = {
     action: string;
     summary: string;
     createdAt: string;
+    beforeJson?: Record<string, unknown> | null;
+    afterJson?: Record<string, unknown> | null;
     actor: {
       id: string;
       fullName: string;
