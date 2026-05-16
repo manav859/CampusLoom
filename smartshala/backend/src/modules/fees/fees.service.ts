@@ -1,4 +1,4 @@
-import { InstallmentStatus, NotificationKind, PaymentMode, Prisma } from "@prisma/client";
+import { FeeAdjustmentType, InstallmentStatus, NotificationKind, PaymentMode, Prisma } from "@prisma/client";
 import { logger } from "../../config/logger.js";
 import { prisma, withRetry, isRetryableError } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
@@ -31,6 +31,14 @@ type PaymentInput = {
   bankReference?: string;
   sendReceiptOnWhatsApp?: boolean;
   notes?: string;
+};
+
+type FeeAdjustmentInput = {
+  assignmentId?: string;
+  studentId?: string;
+  type: FeeAdjustmentType;
+  amount: number;
+  reason: string;
 };
 
 function toNumber(value: unknown) {
@@ -136,6 +144,28 @@ type LedgerAssignment = {
     receipt?: { id: string; receiptNo: string } | null;
   }[];
 };
+
+function mapAdjustment(adjustment: {
+  id: string;
+  type: FeeAdjustmentType;
+  amount: unknown;
+  reason: string;
+  createdAt: Date;
+  assignmentId: string;
+  recordedBy?: { id: string; fullName: string } | null;
+  assignment?: { feeStructure?: { name: string } } | null;
+}) {
+  return {
+    id: adjustment.id,
+    type: adjustment.type,
+    amount: toNumber(adjustment.amount),
+    reason: adjustment.reason,
+    createdAt: adjustment.createdAt,
+    assignmentId: adjustment.assignmentId,
+    feeStructureName: adjustment.assignment?.feeStructure?.name ?? "Fee",
+    recordedBy: adjustment.recordedBy ?? null
+  };
+}
 
 export function buildTransactionLedger(assignments: LedgerAssignment[]) {
   const total = assignments.reduce((sum, assignment) => sum + toNumber(assignment.totalAmount), 0);
@@ -493,6 +523,72 @@ export async function collectPayment(user: Express.UserContext, data: PaymentInp
   );
 }
 
+export async function applyFeeAdjustment(user: Express.UserContext, data: FeeAdjustmentInput) {
+  return withRetry(async () => {
+    const assignment = data.assignmentId
+      ? await prisma.studentFeeAssignment.findFirst({
+          where: { id: data.assignmentId, schoolId: user.schoolId },
+          include: { student: true, feeStructure: true }
+        })
+      : await prisma.studentFeeAssignment.findFirst({
+          where: { schoolId: user.schoolId, studentId: data.studentId, pendingAmount: { gt: new Prisma.Decimal(0) } },
+          include: { student: true, feeStructure: true },
+          orderBy: { assignedAt: "asc" }
+        });
+
+    if (!assignment) throw notFound("Fee assignment");
+
+    const pendingBefore = toNumber(assignment.pendingAmount);
+    if (pendingBefore <= 0) {
+      throw new AppError(400, "Fee assignment is already paid", "FEE_ALREADY_PAID");
+    }
+    if (data.amount > pendingBefore) {
+      throw new AppError(400, "Adjustment exceeds pending amount", "ADJUSTMENT_EXCEEDS_BALANCE", {
+        balance: pendingBefore
+      });
+    }
+
+    const amount = toMoney(data.amount);
+    const nextTotal = toMoney(toNumber(assignment.totalAmount) - amount);
+    const nextPending = toMoney(pendingBefore - amount);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const adjustment = await tx.feeAdjustment.create({
+        data: {
+          schoolId: user.schoolId,
+          studentId: assignment.studentId,
+          assignmentId: assignment.id,
+          recordedById: user.id,
+          type: data.type,
+          amount,
+          reason: data.reason
+        },
+        include: {
+          recordedBy: { select: { id: true, fullName: true } },
+          assignment: { include: { feeStructure: true } }
+        }
+      });
+
+      const updatedAssignment = await tx.studentFeeAssignment.update({
+        where: { id: assignment.id },
+        data: {
+          totalAmount: nextTotal,
+          pendingAmount: nextPending,
+          status: nextPending === 0 ? InstallmentStatus.PAID : toNumber(assignment.paidAmount) > 0 ? InstallmentStatus.PARTIAL : InstallmentStatus.PENDING
+        },
+        include: { student: { include: { class: true } }, feeStructure: true }
+      });
+
+      return { adjustment, assignment: updatedAssignment };
+    });
+
+    return {
+      adjustment: mapAdjustment(result.adjustment),
+      ledger: mapAssignmentSummary(result.assignment)
+    };
+  }, { label: "applyFeeAdjustment" });
+}
+
 function queuePaymentReceiptWhatsApp(
   schoolId: string,
   student: { id: string; fullName: string; parentPhone: string },
@@ -571,7 +667,11 @@ export async function getStudentLedger(schoolId: string, studentId: string) {
         feeAssignments: {
           include: {
             feeStructure: { include: { installments: { orderBy: { sortOrder: "asc" } } } },
-            payments: { include: { receipt: true, installment: true }, orderBy: { paidAt: "desc" } }
+            payments: { include: { receipt: true, installment: true }, orderBy: { paidAt: "desc" } },
+            adjustments: {
+              include: { recordedBy: { select: { id: true, fullName: true } } },
+              orderBy: { createdAt: "desc" }
+            }
           },
           orderBy: { assignedAt: "desc" }
         }
@@ -603,7 +703,18 @@ export async function getStudentLedger(schoolId: string, studentId: string) {
         ...mapAssignmentSummary(assignment)
       })),
       transactionLedger,
-      payments
+      payments,
+      adjustments: student.feeAssignments
+        .flatMap((assignment) =>
+          assignment.adjustments.map((adjustment) =>
+            mapAdjustment({
+              ...adjustment,
+              assignmentId: assignment.id,
+              assignment: { feeStructure: assignment.feeStructure }
+            })
+          )
+        )
+        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
     };
   }, { label: "getStudentLedger" });
 }
@@ -670,7 +781,16 @@ export async function getReceiptPdf(schoolId: string, receiptId: string) {
     return generateReceiptPdf({
       receiptNo: receipt.receiptNo,
       issuedAt: receipt.issuedAt,
-      schoolName: receipt.school.name,
+      school: {
+        name: receipt.school.name,
+        city: receipt.school.city,
+        state: receipt.school.state,
+        phone: receipt.school.phone,
+        gstin: receipt.school.gstin,
+        udiseNumber: receipt.school.udiseNumber,
+        affiliationBoard: receipt.school.affiliationBoard,
+        logoUrl: receipt.school.logoUrl
+      },
       student: {
         fullName: student.fullName,
         admissionNumber: student.admissionNumber,

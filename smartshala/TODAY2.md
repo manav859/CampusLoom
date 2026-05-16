@@ -4,16 +4,7 @@ Date: 2026-05-14
 
 ## 2026-05-15 Audit Sprint Additions
 
-### Render Deploy Fix
 
-- Added `backend/scripts/render-start.mjs`.
-- New Render start script runs Prisma migrations with `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1`.
-- Added retry loop for transient Prisma `P1002` / advisory-lock timeout failures.
-- Added backend script: `npm run render:start`.
-- Added `PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=1` to `backend/.env.example`.
-- Render dashboard start command should be changed from:
-  - `npx prisma migrate deploy && npm start`
-  - to `npm run render:start`
 
 ### Login Page
 
@@ -40,7 +31,7 @@ Date: 2026-05-14
 - Added Prisma `AuditLog` model and migration.
 - Added backend audit-log helper.
 - Added student create/update/activate/deactivate audit logging.
-- Added visible student edit-history panel for principal/admin.
+- Added visible student edit-history panel for principal/admin. ************edit button??
 
 ### Students List
 
@@ -78,14 +69,6 @@ Date: 2026-05-14
 - Added backend guardian fields, schema validation, Prisma migration, and API types.
 - Added student photo upload on registration.
 - Photo upload validates JPG/PNG up to 5MB and saves as student document type `PHOTO`.
-
-### Verification
-
-- Ran frontend TypeScript checks after UI changes.
-- Ran frontend production builds after profile/homework/register-student changes.
-- Ran backend TypeScript build after backend/student schema changes.
-- Ran Prisma generate after guardian schema update.
-- Applied guardian migration to the Render PostgreSQL database.
 
 ## Attendance / Student List
 

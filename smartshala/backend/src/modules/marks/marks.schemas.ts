@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const examTermSchema = z.enum(["UNIT_TEST", "MID_TERM", "FINAL", "TERM_1", "TERM_2"]);
+
 export const marksExamQuerySchema = z.object({
   classId: z.string().uuid().optional()
 });
@@ -12,6 +14,7 @@ export const createExamWithMarksSchema = z.object({
   classId: z.string().uuid(),
   subjectId: z.string().uuid(),
   name: z.string().trim().min(2).max(160),
+  term: examTermSchema,
   maxMarks: z.coerce.number().positive().max(999),
   date: z.coerce.date(),
   results: z.array(

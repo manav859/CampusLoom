@@ -1,4 +1,4 @@
-import { NotificationKind, Prisma, UserRole } from "@prisma/client";
+import { ExamTerm, NotificationKind, Prisma, UserRole } from "@prisma/client";
 import { logger } from "../../config/logger.js";
 import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
@@ -13,6 +13,7 @@ type CreateExamWithMarksInput = {
   classId: string;
   subjectId: string;
   name: string;
+  term: ExamTerm;
   maxMarks: number;
   date: Date;
   results: { studentId: string; marks: number; teacherNote?: string }[];
@@ -110,6 +111,7 @@ function mapExam(exam: {
   id: string;
   classId: string | null;
   name: string;
+  term: ExamTerm;
   maxMarks: unknown;
   examDate: Date;
   subjectRef: { id: string; name: string } | null;
@@ -126,6 +128,7 @@ function mapExam(exam: {
     subjectId: exam.subjectRef?.id ?? null,
     subject: exam.subjectRef?.name ?? "General",
     name: exam.name,
+    term: exam.term,
     maxMarks: Number(exam.maxMarks ?? 0),
     date: exam.examDate,
     status: examStatus(exam.examDate),
@@ -336,6 +339,7 @@ export async function createExamWithMarks(user: Express.UserContext, input: Crea
           classId: input.classId,
           subjectId: subject.id,
           name: input.name,
+          term: input.term,
           maxMarks,
           examDate: input.date
         }
@@ -450,6 +454,7 @@ export async function getExam(user: Express.UserContext, examId: string) {
           id: exam.id,
           classId: exam.classId,
           name: exam.name,
+          term: exam.term,
           maxMarks: exam.maxMarks,
           examDate: exam.examDate,
           subjectRef: exam.subjectRef,

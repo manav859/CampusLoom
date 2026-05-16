@@ -1,12 +1,14 @@
-import { AttendanceStatus } from "@prisma/client";
+import { AttendanceStatus, NotificationKind } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
-import { startOfDay } from "./attendance.service.js";
+import { endOfDay, startOfDay } from "./attendance.service.js";
+import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 
 type AttendanceReportUser = Pick<Express.UserContext, "schoolId">;
 
 type ClassesTodayReportRow = {
   classId: string;
   className: string;
+  marked: boolean;
   present: number;
   absent: number;
   late: number;
@@ -14,6 +16,7 @@ type ClassesTodayReportRow = {
   attended: number;
   total: number;
   percentage: number;
+  classTeacherName: string | null;
 };
 
 function percentage(attended: number, total: number) {
@@ -30,8 +33,22 @@ function classSort(left: { name: string; section: string }, right: { name: strin
   return left.name.localeCompare(right.name) || left.section.localeCompare(right.section);
 }
 
-export async function getClassesTodayReport(user: AttendanceReportUser): Promise<ClassesTodayReportRow[]> {
-  const today = startOfDay(new Date());
+function reportRange(dateFrom = new Date(), dateTo = dateFrom) {
+  return {
+    start: startOfDay(dateFrom),
+    end: endOfDay(dateTo)
+  };
+}
+
+function reportDateLabel(start: Date, end: Date) {
+  const format = (date: Date) => date.toISOString().slice(0, 10);
+  const startLabel = format(start);
+  const endLabel = format(end);
+  return startLabel === endLabel ? startLabel : `${startLabel} to ${endLabel}`;
+}
+
+export async function getClassesTodayReport(user: AttendanceReportUser, dateFrom = new Date(), dateTo = dateFrom): Promise<ClassesTodayReportRow[]> {
+  const { start, end } = reportRange(dateFrom, dateTo);
 
   const [classes, sessions] = await Promise.all([
     prisma.class.findMany({
@@ -39,13 +56,14 @@ export async function getClassesTodayReport(user: AttendanceReportUser): Promise
       select: {
         id: true,
         name: true,
-        section: true
+        section: true,
+        classTeacher: { select: { fullName: true } }
       }
     }),
     prisma.attendanceSession.findMany({
       where: {
         schoolId: user.schoolId,
-        date: today
+        date: { gte: start, lte: end }
       },
       select: {
         id: true,
@@ -104,13 +122,60 @@ export async function getClassesTodayReport(user: AttendanceReportUser): Promise
     return {
       classId: classRecord.id,
       className: `${classRecord.name}${classRecord.section}`,
+      marked: countsByClassId.has(classRecord.id),
       present,
       absent,
       late,
       halfDay,
       attended,
       total,
-      percentage: percentage(attended, total)
+      percentage: percentage(attended, total),
+      classTeacherName: classRecord.classTeacher?.fullName ?? null
     };
   });
+}
+
+export async function nudgePendingTeachers(user: AttendanceReportUser, dateFrom = new Date(), dateTo = dateFrom) {
+  const { start, end } = reportRange(dateFrom, dateTo);
+  const sessions = await prisma.attendanceSession.findMany({
+    where: {
+      schoolId: user.schoolId,
+      date: { gte: start, lte: end }
+    },
+    select: { classId: true }
+  });
+  const markedClassIds = new Set(sessions.map((session) => session.classId));
+  const pendingClasses = await prisma.class.findMany({
+    where: {
+      schoolId: user.schoolId,
+      id: { notIn: [...markedClassIds] },
+      classTeacher: { isNot: null }
+    },
+    select: {
+      name: true,
+      section: true,
+      classTeacher: { select: { fullName: true, phone: true } }
+    },
+    orderBy: [{ name: "asc" }, { section: "asc" }]
+  });
+
+  const dateLabel = reportDateLabel(start, end);
+  let sentCount = 0;
+
+  for (const classRecord of pendingClasses) {
+    const phone = classRecord.classTeacher?.phone?.trim();
+    if (!phone) continue;
+    const className = `${classRecord.name}-${classRecord.section}`;
+    const message = `Reminder: attendance for Class ${className} is still pending for ${dateLabel}. Please mark it in SmartShala.`;
+    const result = await sendWhatsAppMessage(phone, message, {
+      schoolId: user.schoolId,
+      kind: NotificationKind.SCHOOL_ALERT
+    });
+    if (result.success) sentCount += 1;
+  }
+
+  return {
+    pendingCount: pendingClasses.length,
+    sentCount
+  };
 }

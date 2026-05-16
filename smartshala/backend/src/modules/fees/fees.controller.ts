@@ -30,6 +30,10 @@ export const collectPayment = asyncHandler(async (req: Request, res: Response) =
   res.status(201).json(await feesService.collectPayment(req.user!, req.body));
 });
 
+export const applyFeeAdjustment = asyncHandler(async (req: Request, res: Response) => {
+  res.status(201).json(await feesService.applyFeeAdjustment(req.user!, req.body));
+});
+
 export const getStudentLedger = asyncHandler(async (req: Request, res: Response) => {
   res.json(await feesService.getStudentLedger(req.user!.schoolId, req.params.studentId));
 });

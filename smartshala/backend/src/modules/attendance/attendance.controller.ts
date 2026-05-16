@@ -51,7 +51,11 @@ export const getClassMonthlyAttendance = asyncHandler<Request<ClassMonthlyParams
 });
 
 export const getAttendanceDashboard = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await attendanceService.getAttendanceDashboard(req.user!));
+  res.json(await attendanceService.getAttendanceDashboard(
+    req.user!,
+    req.query.dateFrom ? new Date(req.query.dateFrom as string) : undefined,
+    req.query.dateTo ? new Date(req.query.dateTo as string) : undefined
+  ));
 });
 
 export const markAttendance = asyncHandler<Request<Record<string, never>, unknown, MarkAttendanceBody>>(async (req, res) => {

@@ -1,4 +1,4 @@
-import { FeeFrequency, PaymentMode } from "@prisma/client";
+import { FeeAdjustmentType, FeeFrequency, PaymentMode } from "@prisma/client";
 import { z } from "zod";
 
 const optionalTrimmed = z.preprocess(
@@ -82,5 +82,17 @@ export const paymentSchema = z.object({
       path: [requiredField],
       message: `${referenceLabels[requiredField]} is required for ${data.mode.toLowerCase().replace(/_/g, " ")} payments`
     });
+  }
+});
+
+export const feeAdjustmentSchema = z.object({
+  assignmentId: z.string().uuid().optional(),
+  studentId: z.string().uuid().optional(),
+  type: z.nativeEnum(FeeAdjustmentType),
+  amount: z.coerce.number().positive(),
+  reason: z.string().trim().min(3).max(500)
+}).superRefine((data, ctx) => {
+  if (!data.assignmentId && !data.studentId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["studentId"], message: "Either studentId or assignmentId is required" });
   }
 });

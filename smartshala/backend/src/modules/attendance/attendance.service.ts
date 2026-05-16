@@ -470,13 +470,13 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
   };
 }
 
-export async function getAttendanceDashboard(user: AttendanceUser, date = new Date()) {
+export async function getAttendanceDashboard(user: AttendanceUser, dateFrom = new Date(), dateTo = dateFrom) {
   if (!isAdminRole(user.role)) {
     throw new AppError(403, "You do not have permission to view the attendance dashboard", "FORBIDDEN");
   }
 
-  const todayStart = startOfDay(date);
-  const todayEnd = endOfDay(date);
+  const rangeStart = startOfDay(dateFrom);
+  const rangeEnd = endOfDay(dateTo);
 
   const [classes, sessions, groupedRecords] = await Promise.all([
     prisma.class.findMany({
@@ -490,7 +490,7 @@ export async function getAttendanceDashboard(user: AttendanceUser, date = new Da
     prisma.attendanceSession.findMany({
       where: {
         schoolId: user.schoolId,
-        date: { gte: todayStart, lte: todayEnd }
+        date: { gte: rangeStart, lte: rangeEnd }
       },
       select: {
         id: true,
@@ -503,7 +503,7 @@ export async function getAttendanceDashboard(user: AttendanceUser, date = new Da
         schoolId: user.schoolId,
         session: {
           schoolId: user.schoolId,
-          date: { gte: todayStart, lte: todayEnd }
+          date: { gte: rangeStart, lte: rangeEnd }
         }
       },
       _count: { _all: true }

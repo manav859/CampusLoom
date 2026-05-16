@@ -18,6 +18,10 @@ import {
 export const attendanceRouter = Router();
 const attendanceRoles = [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.TEACHER] as const;
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
+const attendanceReportQuerySchema = z.object({
+  dateFrom: z.coerce.date().optional(),
+  dateTo: z.coerce.date().optional()
+});
 
 attendanceRouter.use(requireAuth);
 attendanceRouter.get(
@@ -39,7 +43,8 @@ attendanceRouter.get(
   controller.getStudentMonthlyAttendance
 );
 attendanceRouter.get("/dashboard", requireRole(adminRoles), controller.getAttendanceDashboard);
-attendanceRouter.get("/report/classes-today", requireRole(adminRoles), reportController.getClassesTodayReport);
+attendanceRouter.get("/report/classes-today", requireRole(adminRoles), validate({ query: attendanceReportQuerySchema }), reportController.getClassesTodayReport);
+attendanceRouter.post("/report/nudge-pending", requireRole(adminRoles), validate({ query: attendanceReportQuerySchema }), reportController.nudgePendingTeachers);
 attendanceRouter.get("/roster", requireRole(attendanceRoles), validate({ query: z.object({ classId: z.string().uuid(), date: z.coerce.date().optional() }) }), controller.getRoster);
 attendanceRouter.post("/mark", requireRole(attendanceRoles), validate({ body: markAttendanceSchema }), controller.markAttendance);
 attendanceRouter.get("/daily", requireRole(attendanceRoles), validate({ query: attendanceQuerySchema.pick({ date: true }) }), controller.dailyReport);
