@@ -265,6 +265,9 @@ export default function TeachersPage() {
                   <td className="px-5 py-4 text-right">
                     {isAdmin ? (
                       <div className="flex justify-end gap-2">
+                        <Link href={`/teachers/${teacher.id}/edit`} className="inline-flex items-center rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[11px] font-bold text-[#0071e3] hover:bg-[#0071e3] hover:text-white transition-colors">
+                          Edit
+                        </Link>
                         <button onClick={() => openAssignments(teacher.id)} className="inline-flex items-center rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[11px] font-bold text-[#0071e3] hover:bg-[#0071e3] hover:text-white transition-colors">
                           Manage
                         </button>

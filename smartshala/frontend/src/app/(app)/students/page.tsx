@@ -606,6 +606,14 @@ export default function StudentsPage() {
                             >
                               View
                             </Link>
+                            {isAdmin ? (
+                              <Link
+                                href={`/students/${student.id}/edit`}
+                                className="inline-flex items-center rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[11px] font-bold text-[#0071e3] transition-colors hover:bg-[#0071e3] hover:text-white"
+                              >
+                                Edit
+                              </Link>
+                            ) : null}
                             {(isAdmin || (canViewFees && student.feeStatus && student.feeStatus !== "PAID")) ? (
                               <div className="relative">
                                 <button

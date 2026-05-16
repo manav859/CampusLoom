@@ -114,6 +114,15 @@ function LedgerIcon() {
   );
 }
 
+function EditIcon() {
+  return (
+    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
 function PrintIcon() {
   return (
     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
@@ -160,6 +169,7 @@ export function StickyHeader({
   const feeTone: KpiTone = feeBalance <= 0 ? "good" : "warn";
   const absentTone: KpiTone = daysSinceLastAbsent === null ? "good" : daysSinceLastAbsent <= 2 ? "danger" : "neutral";
   const canContactParent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN" || student.access?.role === "TEACHER";
+  const canEditStudent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN";
   const parentShareMessage = encodeURIComponent(
     `SmartShala profile update for ${student.fullName}: attendance ${attendancePercentage}%, academic ${performanceClassification}, fee balance ${money(feeBalance)}.`
   );
@@ -195,6 +205,15 @@ export function StickyHeader({
 
           {/* Right: Action buttons */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {canEditStudent ? (
+              <Link
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#005bb5]"
+                href={`/students/${student.id}/edit`}
+              >
+                <EditIcon />
+                Edit
+              </Link>
+            ) : null}
             {canContactParent ? (
               <>
                 <a
