@@ -97,14 +97,20 @@ async function main() {
       name: "SmartShala Ahmedabad Public School",
       city: "Ahmedabad",
       state: "Gujarat",
-      phone: "079-4102-8821"
+      phone: "079-4102-8821",
+      gstin: "24AABCS1429B1Z8",
+      udiseNumber: "24071234567",
+      affiliationBoard: "CBSE"
     },
     create: {
       name: "SmartShala Ahmedabad Public School",
       code: "DEMO-SCHOOL",
       city: "Ahmedabad",
       state: "Gujarat",
-      phone: "079-4102-8821"
+      phone: "079-4102-8821",
+      gstin: "24AABCS1429B1Z8",
+      udiseNumber: "24071234567",
+      affiliationBoard: "CBSE"
     }
   });
 
@@ -308,6 +314,7 @@ async function main() {
           schoolId: school.id,
           classId: classRecord.id,
           name: `Unit Test 1 - ${subject}`,
+          term: "UNIT_TEST",
           examDate: new Date(2026, 1 + subjectIndex, 18 + subjectIndex),
           maxMarks: 100
         }

@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { FeeCard } from "@/components/fees/FeeCard";
 import { PaymentModal } from "@/components/fees/PaymentModal";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Modal, ModalCloseButton } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
@@ -37,6 +39,10 @@ export default function StudentFeeLedgerPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const [sendingReceiptId, setSendingReceiptId] = useState<string | null>(null);
+  const [adjustmentOpen, setAdjustmentOpen] = useState<"CONCESSION" | "DISCOUNT" | null>(null);
+  const [adjustmentAmount, setAdjustmentAmount] = useState("");
+  const [adjustmentReason, setAdjustmentReason] = useState("");
+  const [savingAdjustment, setSavingAdjustment] = useState(false);
 
   async function loadLedger() {
     setLoading(true);
@@ -101,6 +107,41 @@ export default function StudentFeeLedgerPage() {
     }
   }
 
+  function openAdjustment(type: "CONCESSION" | "DISCOUNT") {
+    setAdjustmentOpen(type);
+    setAdjustmentAmount("");
+    setAdjustmentReason(type === "CONCESSION" ? "Approved fee concession" : "Approved fee discount");
+  }
+
+  async function submitAdjustment(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!ledger || !adjustmentOpen) return;
+    const amount = Number(adjustmentAmount);
+    if (!amount || amount <= 0 || amount > ledger.balance) {
+      setError(`Adjustment amount must be between INR 1 and ${formatINR(ledger.balance, { compact: false })}.`);
+      return;
+    }
+
+    setSavingAdjustment(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await feesApi.applyAdjustment({
+        studentId: ledger.student.id,
+        type: adjustmentOpen,
+        amount,
+        reason: adjustmentReason
+      });
+      setNotice(`${humanizeConstant(adjustmentOpen)} of ${formatINR(result.adjustment.amount, { compact: false })} applied.`);
+      setAdjustmentOpen(null);
+      await loadLedger();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to apply fee adjustment");
+    } finally {
+      setSavingAdjustment(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -136,11 +177,35 @@ export default function StudentFeeLedgerPage() {
         </div>
       ) : ledger ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <FeeCard label="Total fees" value={formatINR(ledger.total)} />
-            <FeeCard label="Paid" value={formatINR(ledger.paid)} tone="good" />
-            <FeeCard label="Balance" value={formatINR(ledger.balance)} tone={ledger.balance > 0 ? "warn" : "good"} />
-            <FeeCard label="Status" value={humanizeConstant(ledger.status)} tone={statusTone(ledger.status)} />
+          <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Ledger summary</h2>
+                  <StatusPill label={humanizeConstant(ledger.status)} tone={statusTone(ledger.status)} />
+                </div>
+                <p className="mt-1 text-[13px] text-[#86868b]">
+                  {ledger.student.class.name}-{ledger.student.class.section} - Admission {ledger.student.admissionNumber}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button className="btn-secondary min-h-9 px-3 text-[12px]" onClick={() => setNotice("Invoice draft generated from current ledger balance.")} type="button">Generate invoice</button>
+                <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("CONCESSION")} type="button">Issue concession</button>
+                <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("DISCOUNT")} type="button">Apply discount</button>
+              </div>
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              {[
+                ["Total fees", formatINR(ledger.total), "text-[#1d1d1f]"],
+                ["Paid", formatINR(ledger.paid), "text-[#248a3d]"],
+                ["Balance", formatINR(ledger.balance), ledger.balance > 0 ? "text-[#B95A00]" : "text-[#248a3d]"]
+              ].map(([label, value, tone]) => (
+                <div className="border-t border-[#DCE1E8] pt-4" key={label}>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">{label}</p>
+                  <p className={`mt-2 text-[26px] font-semibold tracking-tight ${tone}`}>{value}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
@@ -161,9 +226,9 @@ export default function StudentFeeLedgerPage() {
                       <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.paid)}</td>
                       <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(assignment.balance)}</td>
                       <td className="px-5 py-4">
-                        <StatusPill label={assignment.status} tone={statusTone(assignment.status)} />
+                        <StatusPill label={humanizeConstant(assignment.status)} tone={statusTone(assignment.status)} />
                         {assignment.status === "PARTIAL" ? (
-                          <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {formatINR(assignment.paid, { compact: false })} of {formatINR(assignment.total, { compact: false })} — {formatINR(assignment.balance, { compact: false })} pending</p>
+                          <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {formatINR(assignment.paid, { compact: false })} of {formatINR(assignment.total, { compact: false })} - {formatINR(assignment.balance, { compact: false })} pending</p>
                         ) : null}
                       </td>
                     </tr>
@@ -173,6 +238,45 @@ export default function StudentFeeLedgerPage() {
             </div>
           </section>
 
+          {ledger.adjustments.length > 0 ? (
+            <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
+              <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
+                <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Concessions and discounts</h2>
+                <p className="mt-0.5 text-[13px] text-[#86868b]">Approved fee reductions are preserved with reason and recorder.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-[13px]">
+                  <thead className="table-head">
+                    <tr>{["Date", "Type", "Amount", "Fee", "Reason", "Recorded by"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
+                  </thead>
+                  <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+                    {ledger.adjustments.map((adjustment) => (
+                      <tr className="table-row" key={adjustment.id}>
+                        <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(adjustment.createdAt)}</td>
+                        <td className="px-5 py-4"><StatusPill label={humanizeConstant(adjustment.type)} tone="warn" /></td>
+                        <td className="px-5 py-4 font-semibold text-[#B95A00]">{formatINR(adjustment.amount)}</td>
+                        <td className="px-5 py-4 text-[#6e6e73]">{adjustment.feeStructureName}</td>
+                        <td className="px-5 py-4 text-[#6e6e73]">{adjustment.reason}</td>
+                        <td className="px-5 py-4 text-[#6e6e73]">{adjustment.recordedBy?.fullName ?? "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+
+          {ledger.payments.length === 0 ? (
+            <EmptyState
+              headline="No fee payments recorded"
+              description="Record the first payment to generate receipts, update running balance, and notify the parent on WhatsApp."
+              action={
+                <button className="btn-primary min-h-10 px-4 text-[13px]" disabled={ledger.balance <= 0} onClick={() => setPaymentOpen(true)} type="button">
+                  Record payment
+                </button>
+              }
+            />
+          ) : (
           <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
             <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
               <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
@@ -262,6 +366,7 @@ export default function StudentFeeLedgerPage() {
               </div>
             </aside>
           </section>
+          )}
 
           <PaymentModal
             maxAmount={ledger.balance}
@@ -271,8 +376,46 @@ export default function StudentFeeLedgerPage() {
             studentId={ledger.student.id}
             studentName={ledger.student.fullName}
           />
+
+          <Modal
+            isOpen={Boolean(adjustmentOpen)}
+            onClose={() => setAdjustmentOpen(null)}
+            title={adjustmentOpen === "CONCESSION" ? "Issue concession" : "Apply discount"}
+            description={`This reduces pending fees for ${ledger.student.fullName}. The change is recorded in ledger history.`}
+            footer={
+              <>
+                <ModalCloseButton onClick={() => setAdjustmentOpen(null)} />
+                <Button form="fee-adjustment-form" isLoading={savingAdjustment} type="submit">
+                  Save adjustment
+                </Button>
+              </>
+            }
+          >
+            <form className="space-y-4" id="fee-adjustment-form" onSubmit={submitAdjustment}>
+              <label className="block">
+                <span className="text-[13px] font-semibold text-[#1d1d1f]">Amount</span>
+                <input
+                  className="glass-input mt-2"
+                  max={ledger.balance}
+                  min={1}
+                  onChange={(event) => setAdjustmentAmount(event.target.value)}
+                  type="number"
+                  value={adjustmentAmount}
+                />
+              </label>
+              <label className="block">
+                <span className="text-[13px] font-semibold text-[#1d1d1f]">Reason</span>
+                <textarea
+                  className="glass-input mt-2 min-h-[92px] resize-none py-3"
+                  onChange={(event) => setAdjustmentReason(event.target.value)}
+                  value={adjustmentReason}
+                />
+              </label>
+            </form>
+          </Modal>
         </>
       ) : null}
     </div>
   );
 }
+

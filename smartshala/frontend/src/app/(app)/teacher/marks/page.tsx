@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { marksApi, type MarksContext, type MarksExam, type MarksExamDetail } from "@/lib/api";
@@ -15,12 +15,29 @@ function examTone(status: MarksExam["status"]) {
   return status === "MARKS_ENTERED" ? "good" : "warn";
 }
 
+const examTermOptions: { value: MarksExam["term"]; label: string }[] = [
+  { value: "UNIT_TEST", label: "Unit Test" },
+  { value: "MID_TERM", label: "Mid-Term" },
+  { value: "FINAL", label: "Final" },
+  { value: "TERM_1", label: "Term 1" },
+  { value: "TERM_2", label: "Term 2" }
+];
+
+function examTermLabel(term: MarksExam["term"]) {
+  return examTermOptions.find((option) => option.value === term)?.label ?? "Unit Test";
+}
+
+function examStatusLabel(status: MarksExam["status"]) {
+  return status === "MARKS_ENTERED" ? "Marks entered" : "Scheduled";
+}
+
 export default function TeacherMarksPage() {
   const [context, setContext] = useState<MarksContext>({ classes: [] });
   const [exams, setExams] = useState<MarksExam[]>([]);
   const [classId, setClassId] = useState("");
   const [subjectId, setSubjectId] = useState("");
-  const [name, setName] = useState("Mid-Term");
+  const [name, setName] = useState("Unit Test 1");
+  const [term, setTerm] = useState<MarksExam["term"]>("UNIT_TEST");
   const [maxMarks, setMaxMarks] = useState(100);
   const [date, setDate] = useState(todayInputValue());
   const [marks, setMarks] = useState<Record<string, string>>({});
@@ -36,6 +53,17 @@ export default function TeacherMarksPage() {
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
   const subjects = useMemo(() => selectedClass?.subjects ?? [], [selectedClass]);
   const students = useMemo(() => selectedClass?.students ?? [], [selectedClass]);
+  const examsByTerm = useMemo(() => {
+    const grouped = new Map<MarksExam["term"], MarksExam[]>();
+    exams.forEach((exam) => {
+      const rows = grouped.get(exam.term) ?? [];
+      rows.push(exam);
+      grouped.set(exam.term, rows);
+    });
+    return examTermOptions
+      .map((option) => ({ ...option, exams: grouped.get(option.value) ?? [] }))
+      .filter((group) => group.exams.length > 0);
+  }, [exams]);
 
   useEffect(() => {
     let active = true;
@@ -142,6 +170,7 @@ export default function TeacherMarksPage() {
         classId,
         subjectId,
         name: name.trim(),
+        term,
         maxMarks: numericMax,
         date,
         results
@@ -225,6 +254,19 @@ export default function TeacherMarksPage() {
                 onChange={(event) => setName(event.target.value)}
                 value={name}
               />
+            </label>
+
+            <label className="block">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Term / type</span>
+              <select
+                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
+                onChange={(event) => setTerm(event.target.value as MarksExam["term"])}
+                value={term}
+              >
+                {examTermOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
             </label>
 
             <label className="block">
@@ -349,30 +391,39 @@ export default function TeacherMarksPage() {
                     <td className="px-5 py-12 text-center text-[#86868b]" colSpan={9}>No exams saved yet.</td>
                   </tr>
                 ) : (
-                  exams.map((exam) => (
-                    <tr className="table-row" key={exam.id}>
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-[#1d1d1f]">{exam.name}</p>
-                        <p className="mt-1 text-[12px] text-[#86868b]">{exam.className}</p>
-                      </td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{exam.subject}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{exam.maxMarks}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(exam.date)}</td>
-                      <td className="px-5 py-4"><StatusPill label={exam.status} tone={examTone(exam.status)} /></td>
-                      <td className="px-5 py-4 font-semibold text-[#248a3d]">{exam.enteredCount}</td>
-                      <td className="px-5 py-4 font-semibold text-[#d70015]">{exam.pendingCount}</td>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
-                      <td className="px-5 py-4">
-                        <button
-                          className="rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[12px] font-semibold text-[#0071e3] transition hover:bg-[#0071e3] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={loadingExamId === exam.id}
-                          onClick={() => openExam(exam.id)}
-                          type="button"
-                        >
-                          {loadingExamId === exam.id ? "Loading..." : "View students"}
-                        </button>
-                      </td>
-                    </tr>
+                  examsByTerm.map((group) => (
+                    <Fragment key={group.value}>
+                      <tr>
+                        <td className="bg-[#f7f8fb] px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#5A6573]" colSpan={9}>
+                          {group.label}
+                        </td>
+                      </tr>
+                      {group.exams.map((exam) => (
+                        <tr className="table-row" key={exam.id}>
+                          <td className="px-5 py-4">
+                            <p className="font-semibold text-[#1d1d1f]">{exam.name}</p>
+                            <p className="mt-1 text-[12px] text-[#86868b]">{exam.className}</p>
+                          </td>
+                          <td className="px-5 py-4 text-[#6e6e73]">{exam.subject}</td>
+                          <td className="px-5 py-4 text-[#6e6e73]">{exam.maxMarks}</td>
+                          <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(exam.date)}</td>
+                          <td className="px-5 py-4"><StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} /></td>
+                          <td className="px-5 py-4 font-semibold text-[#248a3d]">{exam.enteredCount}</td>
+                          <td className="px-5 py-4 font-semibold text-[#d70015]">{exam.pendingCount}</td>
+                          <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
+                          <td className="px-5 py-4">
+                            <button
+                              className="rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[12px] font-semibold text-[#0071e3] transition hover:bg-[#0071e3] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={loadingExamId === exam.id}
+                              onClick={() => openExam(exam.id)}
+                              type="button"
+                            >
+                              {loadingExamId === exam.id ? "Loading..." : "View students"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
                   ))
                 )}
               </tbody>
@@ -387,7 +438,7 @@ export default function TeacherMarksPage() {
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Student marks</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">
-                {selectedExam.name} | {selectedExam.className} | {selectedExam.subject} | Max {selectedExam.maxMarks}
+                {selectedExam.name} | {examTermLabel(selectedExam.term)} | {selectedExam.className} | {selectedExam.subject} | Max {selectedExam.maxMarks}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

@@ -1,10 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
+import { Button } from "@/components/ui/Button";
+import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
+import { formatDateShort } from "@/lib/formatters";
 
 function calendarDayClasses(input: { selected: boolean; marked: boolean; isHoliday: boolean }) {
   if (input.selected) {
@@ -22,8 +26,10 @@ function calendarDayClasses(input: { selected: boolean; marked: boolean; isHolid
 
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const classLabel = attendance.selectedClass ? `${attendance.selectedClass.name}-${attendance.selectedClass.section}` : "Class";
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
+  const selectedDateLabel = formatDateShort(attendance.selectedDate);
   const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstOfMonth = new Date(monthYear, monthNumber - 1, 1);
@@ -39,14 +45,24 @@ export default function TeacherAttendancePage() {
         eyebrow="Attendance"
         title="Reliable attendance"
         action={
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={attendance.markAllPresent}
-            disabled={!attendance.canEdit || attendance.submitting || attendance.loading}
-          >
-            Reset all present
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(0,0,0,0.08)] bg-white text-[13px] font-bold text-[#5A6573] shadow-apple-sm"
+              aria-label="Reliable attendance details"
+              title="Reliable attendance uses saved roster records as the source of truth for daily totals, monthly charts, and student profiles."
+            >
+              i
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setResetConfirmOpen(true)}
+              disabled={!attendance.canEdit || attendance.submitting || attendance.loading}
+            >
+              Reset all present
+            </button>
+          </div>
         }
       />
 
@@ -150,7 +166,7 @@ export default function TeacherAttendancePage() {
       <div className="glass-card-interactive flex flex-col gap-2 px-5 py-4 text-[13px] sm:flex-row sm:items-center sm:justify-between">
         <span className="font-semibold text-[#1d1d1f]">{classLabel}</span>
         <span className="text-[#86868b]">
-          {attendance.selectedDate} {attendance.marked ? "- saved" : "- unsaved"}
+          {selectedDateLabel} - {attendance.marked ? "Saved" : "Unsaved"}
         </span>
       </div>
 
@@ -190,17 +206,42 @@ export default function TeacherAttendancePage() {
         className="fixed inset-x-0 bottom-0 z-20 border-t border-[rgba(0,0,0,0.06)] bg-white/80 px-4 pt-3 backdrop-blur-apple md:sticky md:inset-auto md:bottom-4 md:border-0 md:bg-transparent md:px-0 md:pt-0 md:backdrop-blur-none"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto flex max-w-5xl justify-end">
           <button
             type="button"
-            className="btn-primary min-h-[52px] w-full text-[15px] disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-primary min-h-[52px] w-full text-[15px] disabled:cursor-not-allowed disabled:opacity-50 sm:w-[232px]"
             onClick={attendance.submitAttendance}
             disabled={submitDisabled}
           >
-            {attendance.submitting ? "Saving..." : attendance.marked ? "Save Attendance Changes" : "Submit Attendance"}
+            {attendance.submitting ? "Saving attendance..." : "Save attendance"}
           </button>
         </div>
       </div>
+
+      <Modal
+        isOpen={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+        title="Reset all present?"
+        description={`This changes every ${classLabel} student on ${selectedDateLabel} to Present. Review the list before saving.`}
+        footer={
+          <>
+            <ModalCloseButton onClick={() => setResetConfirmOpen(false)} />
+            <Button
+              onClick={() => {
+                attendance.markAllPresent();
+                setResetConfirmOpen(false);
+              }}
+              variant="primary"
+            >
+              Reset all present
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] leading-6 text-[var(--ink-500)]">
+          Existing Absent, Late, and Half day selections in the current roster will become Present locally. The change is saved only after you use Save attendance.
+        </p>
+      </Modal>
     </div>
   );
 }

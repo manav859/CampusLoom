@@ -230,6 +230,7 @@ export type AttendanceDashboard = {
 export type ClassesTodayReportRow = {
   classId: string;
   className: string;
+  marked: boolean;
   present: number;
   absent: number;
   late: number;
@@ -237,6 +238,7 @@ export type ClassesTodayReportRow = {
   attended: number;
   total: number;
   percentage: number;
+  classTeacherName: string | null;
 };
 
 export type NotificationLog = {
@@ -357,6 +359,16 @@ export type StudentFeeLedger = {
     feeStructureName: string;
     balanceAfter: number;
   }[];
+  adjustments: {
+    id: string;
+    type: "CONCESSION" | "DISCOUNT";
+    amount: number;
+    reason: string;
+    createdAt: string;
+    assignmentId: string;
+    feeStructureName: string;
+    recordedBy: { id: string; fullName: string } | null;
+  }[];
 };
 
 export type PaymentResult = {
@@ -364,6 +376,11 @@ export type PaymentResult = {
   receipt: { id: string; receiptNo: string };
   ledger: { total: number; paid: number; balance: number; balanceAmount: number; status: string };
   receiptNotificationQueued?: boolean;
+};
+
+export type FeeAdjustmentResult = {
+  adjustment: StudentFeeLedger["adjustments"][number];
+  ledger: { total: number; paid: number; balance: number; balanceAmount: number; status: string };
 };
 
 export type StudentDetail = {
@@ -656,6 +673,7 @@ export type MarksExam = {
   subjectId: string | null;
   subject: string;
   name: string;
+  term: "UNIT_TEST" | "MID_TERM" | "FINAL" | "TERM_1" | "TERM_2";
   maxMarks: number;
   date: string;
   status: "SCHEDULED" | "MARKS_ENTERED";
@@ -683,6 +701,7 @@ export type CreateMarksExamPayload = {
   classId: string;
   subjectId: string;
   name: string;
+  term: MarksExam["term"];
   maxMarks: number;
   date: string;
   results: { studentId: string; marks: number }[];
@@ -743,6 +762,21 @@ export type SendTeacherMessageResult = {
   count: number;
   logs: TeacherCommunicationLog[];
 };
+
+export type SchoolProfile = {
+  id: string;
+  name: string;
+  code: string;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  gstin: string | null;
+  udiseNumber: string | null;
+  affiliationBoard: string | null;
+  logoUrl: string | null;
+};
+
+export type SchoolProfilePayload = Pick<SchoolProfile, "name" | "city" | "state" | "phone" | "gstin" | "udiseNumber" | "affiliationBoard" | "logoUrl">;
 
 export const classesApi = {
   list: () => apiFetch<ClassSummary[]>("/classes"),
@@ -809,6 +843,15 @@ export const communicationApi = {
     })
 };
 
+export const settingsApi = {
+  schoolProfile: () => apiFetch<SchoolProfile>("/settings/school-profile"),
+  updateSchoolProfile: (payload: SchoolProfilePayload) =>
+    apiFetch<SchoolProfile>("/settings/school-profile", {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    })
+};
+
 export const attendanceApi = {
   classToday: (classId: string) => apiFetch<ClassTodayAttendance>(`/attendance/class/${classId}/today`),
   roster: (classId: string, date: string) => apiFetch<AttendanceRoster>(`/attendance/roster?classId=${classId}&date=${date}`),
@@ -818,8 +861,27 @@ export const attendanceApi = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
-  dashboard: () => apiFetch<AttendanceDashboard>("/attendance/dashboard"),
-  classesTodayReport: () => apiFetch<ClassesTodayReportRow[]>("/attendance/report/classes-today")
+  dashboard: (range?: { dateFrom?: string; dateTo?: string }) => {
+    const params = new URLSearchParams();
+    if (range?.dateFrom) params.set("dateFrom", range.dateFrom);
+    if (range?.dateTo) params.set("dateTo", range.dateTo);
+    const query = params.toString();
+    return apiFetch<AttendanceDashboard>(`/attendance/dashboard${query ? `?${query}` : ""}`);
+  },
+  classesTodayReport: (range?: { dateFrom?: string; dateTo?: string }) => {
+    const params = new URLSearchParams();
+    if (range?.dateFrom) params.set("dateFrom", range.dateFrom);
+    if (range?.dateTo) params.set("dateTo", range.dateTo);
+    const query = params.toString();
+    return apiFetch<ClassesTodayReportRow[]>(`/attendance/report/classes-today${query ? `?${query}` : ""}`);
+  },
+  nudgePendingTeachers: (range?: { dateFrom?: string; dateTo?: string }) => {
+    const params = new URLSearchParams();
+    if (range?.dateFrom) params.set("dateFrom", range.dateFrom);
+    if (range?.dateTo) params.set("dateTo", range.dateTo);
+    const query = params.toString();
+    return apiFetch<{ pendingCount: number; sentCount: number }>(`/attendance/report/nudge-pending${query ? `?${query}` : ""}`, { method: "POST" });
+  }
 };
 
 export const feesApi = {
@@ -828,6 +890,11 @@ export const feesApi = {
   studentLedger: (studentId: string) => apiFetch<StudentFeeLedger>(`/fees/student/${studentId}`),
   recordPayment: (payload: { studentId: string; amount: number; mode: PaymentMode; paidAt?: string; sendReceiptOnWhatsApp?: boolean } & PaymentReferencePayload) =>
     apiFetch<PaymentResult>("/fees/payment", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  applyAdjustment: (payload: { studentId?: string; assignmentId?: string; type: "CONCESSION" | "DISCOUNT"; amount: number; reason: string }) =>
+    apiFetch<FeeAdjustmentResult>("/fees/adjustments", {
       method: "POST",
       body: JSON.stringify(payload)
     }),

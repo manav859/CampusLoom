@@ -6,14 +6,57 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
-import { attendanceApi, type AttendanceDashboard, type ClassesTodayReportRow } from "@/lib/api";
+import { attendanceApi, settingsApi, type AttendanceDashboard, type ClassesTodayReportRow, type SchoolProfile } from "@/lib/api";
+import { formatDateShort } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
+
+type DateFilter = "today" | "yesterday" | "week" | "month" | "custom";
+
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function filterRange(filter: DateFilter, customDate: string) {
+  const today = new Date();
+  const start = new Date(today);
+  const end = new Date(today);
+
+  if (filter === "yesterday") {
+    start.setDate(today.getDate() - 1);
+    end.setDate(today.getDate() - 1);
+  } else if (filter === "week") {
+    start.setDate(today.getDate() - today.getDay());
+  } else if (filter === "month") {
+    start.setDate(1);
+  } else if (filter === "custom") {
+    const custom = new Date(customDate);
+    start.setTime(custom.getTime());
+    end.setTime(custom.getTime());
+  }
+
+  return { dateFrom: dateInputValue(start), dateTo: dateInputValue(end) };
+}
+
+function csvCell(value: string | number | null) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
 
 export default function AttendanceReportsPage() {
   const [data, setData] = useState<AttendanceDashboard | null>(null);
   const [classRows, setClassRows] = useState<ClassesTodayReportRow[]>([]);
+  const [schoolProfile, setSchoolProfile] = useState<SchoolProfile | null>(null);
+  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [customDate, setCustomDate] = useState(dateInputValue(new Date()));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const range = useMemo(() => filterRange(dateFilter, customDate), [customDate, dateFilter]);
+  const rangeLabel = range.dateFrom === range.dateTo ? formatDateShort(range.dateFrom) : `${formatDateShort(range.dateFrom)} - ${formatDateShort(range.dateTo)}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -23,14 +66,18 @@ export default function AttendanceReportsPage() {
       setError("");
 
       try {
-        const [dashboard, attendanceByClass] = await Promise.all([
-          cachedFetch("attendance:dashboard", () => attendanceApi.dashboard()),
-          cachedFetch("attendance:classesToday", () => attendanceApi.classesTodayReport())
+        const cacheKey = `${range.dateFrom}:${range.dateTo}`;
+        const [dashboard, attendanceByClass, school] = await Promise.all([
+          cachedFetch(`attendance:dashboard:${cacheKey}`, () => attendanceApi.dashboard(range)),
+          cachedFetch(`attendance:classesToday:${cacheKey}`, () => attendanceApi.classesTodayReport(range)),
+          cachedFetch("settings:schoolProfile", () => settingsApi.schoolProfile())
         ]);
 
         if (cancelled) return;
         setData(dashboard);
         setClassRows(attendanceByClass);
+        setSchoolProfile(school);
+        setNotice("");
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Unable to load attendance reports");
       } finally {
@@ -42,7 +89,7 @@ export default function AttendanceReportsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [range]);
 
   const totals = useMemo(
     () => ({
@@ -56,8 +103,15 @@ export default function AttendanceReportsPage() {
     [data]
   );
 
-  const alerts = useMemo(() => data?.alerts ?? [], [data]);
-  const pendingClassIds = useMemo(() => new Set(alerts.map((alert) => alert.classId)), [alerts]);
+  const pendingClassIds = useMemo(() => new Set(classRows.filter((row) => !row.marked).map((row) => row.classId)), [classRows]);
+  const schoolMeta = useMemo(() => {
+    if (!schoolProfile) return "";
+    return [
+      schoolProfile.affiliationBoard ? `Board: ${schoolProfile.affiliationBoard}` : "",
+      schoolProfile.udiseNumber ? `U-DISE: ${schoolProfile.udiseNumber}` : "",
+      schoolProfile.gstin ? `GSTIN: ${schoolProfile.gstin}` : ""
+    ].filter(Boolean).join(" | ");
+  }, [schoolProfile]);
 
   const chartItems = useMemo(
     () =>
@@ -68,6 +122,48 @@ export default function AttendanceReportsPage() {
       })),
     [classRows, pendingClassIds]
   );
+
+  function exportCsv() {
+    const rows = [
+      [schoolProfile?.name ?? "School", "", "", "", "", "", "", "", ""],
+      [schoolMeta, "", "", "", "", "", "", "", ""],
+      [`Report range: ${rangeLabel}`, "", "", "", "", "", "", "", ""],
+      ["Class", "Teacher", "Marked", "Total", "Present", "Late", "Half day", "Absent", "Rate"],
+      ...classRows.map((row) => [
+        row.className,
+        row.classTeacherName ?? "",
+        row.marked ? "Yes" : "No",
+        row.total,
+        row.present,
+        row.late,
+        row.halfDay,
+        row.absent,
+        row.marked ? `${row.percentage}%` : "Pending"
+      ])
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `attendance-report-${range.dateFrom}-${range.dateTo}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setNotice(`Exported ${classRows.length} attendance rows.`);
+  }
+
+  async function nudgeTeachers() {
+    setError("");
+    setNotice("");
+    try {
+      const result = await attendanceApi.nudgePendingTeachers(range);
+      setNotice(`Nudged ${result.sentCount} of ${result.pendingCount} pending class teachers.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to nudge teachers");
+    }
+  }
 
   if (loading) {
     return (
@@ -93,7 +189,56 @@ export default function AttendanceReportsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Reports" title="Daily attendance report" />
+      <PageHeader
+        eyebrow="Reports"
+        title="Daily attendance report"
+        action={
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-secondary min-h-10 px-4 text-[13px]" disabled={pendingClassIds.size === 0} onClick={nudgeTeachers} type="button">
+              Nudge teachers
+            </button>
+            <button className="btn-primary min-h-10 px-4 text-[13px]" onClick={exportCsv} type="button">
+              Export CSV
+            </button>
+          </div>
+        }
+      />
+
+      <div className="glass-card-interactive flex flex-col gap-3 p-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {([
+            ["today", "Today"],
+            ["yesterday", "Yesterday"],
+            ["week", "This week"],
+            ["month", "This month"],
+            ["custom", "Custom"]
+          ] as const).map(([value, label]) => (
+            <button
+              className={`rounded-lg px-3 py-2 text-[12px] font-semibold transition ${dateFilter === value ? "bg-[#2456E6] text-white" : "border border-[#DCE1E8] bg-white text-[#2A3340] hover:bg-[#F7F8FB]"}`}
+              key={value}
+              onClick={() => setDateFilter(value)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {dateFilter === "custom" ? (
+            <input className="glass-input min-h-10 text-[13px]" onChange={(event) => setCustomDate(event.target.value)} type="date" value={customDate} />
+          ) : null}
+          <p className="text-[13px] font-medium text-[#5A6573]">{rangeLabel}</p>
+        </div>
+      </div>
+
+      {schoolProfile ? (
+        <div className="rounded-xl border border-[#DCE1E8] bg-white px-4 py-3 text-[13px] text-[#5A6573]">
+          <span className="font-semibold text-[#0F1419]">{schoolProfile.name}</span>
+          {schoolMeta ? <span className="ml-2">{schoolMeta}</span> : null}
+        </div>
+      ) : null}
+
+      {notice ? <div className="rounded-xl bg-[#34c759]/10 p-4 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="glass-card-interactive p-5">
@@ -133,10 +278,11 @@ export default function AttendanceReportsPage() {
         </div>
         <div className="overflow-hidden rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] shadow-apple">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-left text-[13px]">
+            <table className="w-full min-w-[680px] text-left text-[13px]">
               <thead className="table-head">
                 <tr>
                   <th className="px-5 py-3.5 font-semibold">Class</th>
+                  <th className="px-5 py-3.5 font-semibold">Teacher</th>
                   <th className="px-5 py-3.5 font-semibold">Total</th>
                   <th className="px-5 py-3.5 font-semibold">Present</th>
                   <th className="px-5 py-3.5 font-semibold">Half day</th>
@@ -147,7 +293,7 @@ export default function AttendanceReportsPage() {
               <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                 {classRows.length === 0 ? (
                   <tr>
-                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>
+                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={7}>
                       No classes available.
                     </td>
                   </tr>
@@ -155,10 +301,11 @@ export default function AttendanceReportsPage() {
                   classRows.map((row) => (
                     <tr className="table-row" key={row.classId}>
                       <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{row.className}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{row.classTeacherName ?? "-"}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{row.total}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? <StatusPill label="Pending" tone="warn" /> : row.present}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "-" : row.halfDay}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "—" : row.absent}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "-" : row.absent}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">
                         {pendingClassIds.has(row.classId) ? <StatusPill label="Pending" tone="warn" /> : `${row.percentage}%`}
                       </td>
@@ -173,3 +320,4 @@ export default function AttendanceReportsPage() {
     </div>
   );
 }
+

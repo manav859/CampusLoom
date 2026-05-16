@@ -121,8 +121,8 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 ## Medium Priority
 
 - [x] Standardize date display to `dd MMM yyyy` using one date utility. Keep ISO only in data attributes.
-- [ ] Add exam term/type field: Unit Test, Mid-Term, Final, Term 1, Term 2.
-- [ ] Group exam history by term.
+- [x] Add exam term/type field: Unit Test, Mid-Term, Final, Term 1, Term 2.
+- [x] Group exam history by term.
 - [x] Create reusable empty-state component with illustration, headline, supporting copy, and one primary CTA.
 - [x] Start Hindi locale pass with i18n strings and Devanagari font pairing.
 - [ ] Clean IA: merge Communication / WhatsApp Logs / Templates where appropriate.
@@ -136,8 +136,8 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Convert all status pills from uppercase/DB constants to sentence case.
 - [x] Add initials-avatar component for students and teachers.
 - [ ] Add breadcrumbs on detail pages.
-- [ ] Add GSTIN, U-DISE number, and affiliation board on School profile.
-- [ ] Surface GSTIN/U-DISE/board details on receipts and reports where useful.
+- [x] Add GSTIN, U-DISE number, and affiliation board on School profile.
+- [x] Surface GSTIN/U-DISE/board details on receipts and reports where useful.
 - [ ] Add marks distribution view with histogram and at-risk side rail.
 - [x] Fix grade band mapping so 0% maps to F or ABS, not D.
 
@@ -366,10 +366,10 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Reliable Attendance Main View
 
-- [ ] Make Save button normal width, about 200-240px.
-- [ ] Place Save button right-aligned in sticky bottom bar.
-- [ ] Add confirmation modal on `Reset all present`.
-- [ ] Add tooltip explaining `Reliable attendance`.
+- [x] Make Save button normal width, about 200-240px.
+- [x] Place Save button right-aligned in sticky bottom bar.
+- [x] Add confirmation modal on `Reset all present`.
+- [x] Add tooltip explaining `Reliable attendance`.
 - [x] Add P/A/L letters inside calendar cells.
 - [x] Add Half day option.
 
@@ -382,9 +382,9 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 ### Attendance Per-Student Controls
 
 - [x] Drop or rename `Cycle status` to `Today's status`.
-- [ ] Standardize dates to `dd MMM yyyy`.
-- [ ] Add first-use tooltip for P/L/A controls.
-- [ ] Use one save button label across save states.
+- [x] Standardize dates to `dd MMM yyyy`.
+- [x] Add first-use tooltip for P/L/A controls.
+- [x] Use one save button label across save states.
 - [ ] Show `Saved - 9:45 AM` when saved.
 - [ ] Add absent reason: Sick, Family, Other, Unexcused.
 
@@ -420,8 +420,8 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 - [x] Change `MARKS_ENTERED` to `Marks entered`.
 - [ ] Seed plausible class averages.
-- [ ] Add Term/Type dropdown while creating exam.
-- [ ] Group exam history by term.
+- [x] Add Term/Type dropdown while creating exam.
+- [x] Group exam history by term.
 - [ ] Add `Lock after submit` with principal override.
 
 ### Communication / Parent Communication
@@ -437,10 +437,10 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 - [x] Reframe attendance KPI with scope: `100% in 1 marked class - 24 still pending`.
 - [x] Or split into `Marked classes` and `Average attendance (marked only)`.
-- [ ] Add `Nudge teachers` for pending classes.
-- [ ] Add date filter: Today, Yesterday, This week, This month, Custom.
+- [x] Add `Nudge teachers` for pending classes.
+- [x] Add date filter: Today, Yesterday, This week, This month, Custom.
 - [x] Replace 0% bars for unmarked classes with `Not marked`.
-- [ ] Add Export to PDF / CSV.
+- [x] Add Export to PDF / CSV.
 
 ### Fees Collection Command Center
 
@@ -455,12 +455,12 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Fee Ledger
 
-- [ ] Collapse redundant four tiles into one summary card.
-- [ ] Use sentence case for status pill.
-- [ ] Show one consolidated empty state, not two.
+- [x] Collapse redundant four tiles into one summary card.
+- [x] Use sentence case for status pill.
+- [x] Show one consolidated empty state, not two.
 - [ ] Add `Generate invoice`.
-- [ ] Add `Issue concession`.
-- [ ] Add `Apply discount`.
+- [x] Add `Issue concession`.
+- [x] Add `Apply discount`.
 - [ ] Add year-on-year fee history.
 
 ### Record Payment Modal
@@ -500,11 +500,11 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Add WhatsApp templates: Fee reminder, Exam announcement, PTM invite, Holiday notice, Generic notice, Birthday wish.
 - [x] Add bilingual template support.
 - [ ] Plan Settings IA: School profile, Academic year, Holiday calendar, Grading bands, Fee categories, User roles, WhatsApp templates, Branding, Integrations, Backup.
-- [ ] Show success toast on save.
-- [ ] Add school logo upload.
-- [ ] Add GSTIN.
-- [ ] Add U-DISE number.
-- [ ] Add affiliation board: CBSE, ICSE, State.
+- [x] Show success toast on save.
+- [x] Add school logo upload.
+- [x] Add GSTIN.
+- [x] Add U-DISE number.
+- [x] Add affiliation board: CBSE, ICSE, State.
 
 ### Teacher Dashboard
 

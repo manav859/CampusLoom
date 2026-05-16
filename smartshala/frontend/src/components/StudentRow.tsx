@@ -51,6 +51,7 @@ function StudentRowComponent({ student, onToggle, onSetStatus, disabled = false 
         <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/70 p-1">
           {(["PRESENT", "LATE", "HALF_DAY", "ABSENT"] as AttendanceMarkStatus[]).map((status) => (
             <button
+              aria-label={`Mark ${student.name} as ${status === "HALF_DAY" ? "Half day" : status.toLowerCase()}`}
               aria-pressed={student.status === status}
               className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
                 student.status === status ? statusStyles[status] : "text-[#6e6e73] hover:bg-[rgba(0,0,0,0.04)]"
@@ -58,6 +59,7 @@ function StudentRowComponent({ student, onToggle, onSetStatus, disabled = false 
               disabled={disabled}
               key={status}
               onClick={() => onSetStatus(student.id, status)}
+              title={status === "PRESENT" ? "Present" : status === "LATE" ? "Late" : status === "HALF_DAY" ? "Half day" : "Absent"}
               type="button"
             >
               {status === "PRESENT" ? "P" : status === "LATE" ? "L" : status === "HALF_DAY" ? "H" : "A"}
