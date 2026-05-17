@@ -36,11 +36,32 @@ model School {
   directDbUrl      String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+  passwordResetRequests PasswordResetRequest[]
 
   @@index([schoolId, isActive])
   @@index([deletionStatus, deletionScheduledAt])
   @@index([email])
   @@map("schools")
+}
+
+model PasswordResetRequest {
+  id          String              @id @default(uuid()) @db.Uuid
+  schoolId    String              @db.VarChar(8)
+  userId      String              @db.Uuid
+  userName    String
+  email       String?
+  phone       String
+  role        String
+  identifier  String
+  status      PasswordResetStatus @default(PENDING)
+  requestedAt DateTime            @default(now())
+  completedAt DateTime?
+  completedBy String?
+  school      School              @relation(fields: [schoolId], references: [schoolId], onDelete: Cascade)
+
+  @@index([status, requestedAt])
+  @@index([schoolId, status])
+  @@map("password_reset_requests")
 }
 
 model Coupon {
@@ -89,4 +110,10 @@ enum TenantDeletionStatus {
   CANCELLED
   DELETED
   FAILED
+}
+
+enum PasswordResetStatus {
+  PENDING
+  COMPLETED
+  DISMISSED
 }

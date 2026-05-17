@@ -4,7 +4,10 @@ import { asyncHandler } from "../../core/asyncHandler.js";
 import { rateLimit } from "../../middleware/rateLimit.js";
 import { requireSuperAdmin } from "./superAdmin.middleware.js";
 import {
+  completePasswordResetRequest,
+  dismissPasswordResetRequest,
   loginSuperAdmin,
+  listPasswordResetRequests,
   listSchoolsForSuperAdmin,
   listSchoolUsers,
   resetTenantUserPassword,
@@ -13,6 +16,7 @@ import {
   updateTenantUserStatus
 } from "./superAdmin.service.js";
 import {
+  passwordResetRequestParamSchema,
   resetUserPasswordSchema,
   schoolIdParamSchema,
   superAdminLoginSchema,
@@ -39,6 +43,29 @@ superAdminRouter.get(
   "/schools",
   asyncHandler(async (_req, res) => {
     res.json(await listSchoolsForSuperAdmin());
+  })
+);
+
+superAdminRouter.get(
+  "/password-reset-requests",
+  asyncHandler(async (_req, res) => {
+    res.json(await listPasswordResetRequests());
+  })
+);
+
+superAdminRouter.patch(
+  "/password-reset-requests/:requestId/complete",
+  validate({ params: passwordResetRequestParamSchema, body: resetUserPasswordSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await completePasswordResetRequest(req.params.requestId, req.body.password, "SUPER_ADMIN"));
+  })
+);
+
+superAdminRouter.patch(
+  "/password-reset-requests/:requestId/dismiss",
+  validate({ params: passwordResetRequestParamSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await dismissPasswordResetRequest(req.params.requestId, "SUPER_ADMIN"));
   })
 );
 
