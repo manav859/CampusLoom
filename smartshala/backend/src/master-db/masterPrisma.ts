@@ -1,4 +1,4 @@
-import { PrismaClient } from "../generated/master-client/index.js";
+import { PrismaClient } from "../../node_modules/@smartshala/master-client/index.js";
 import { env } from "../config/env.js";
 
 const globalForMasterPrisma = globalThis as typeof globalThis & {

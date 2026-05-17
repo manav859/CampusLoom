@@ -1,4 +1,4 @@
-import { PaymentStatus, PlanType } from "../../generated/master-client/index.js";
+import { PaymentStatus, PlanType } from "../../../node_modules/@smartshala/master-client/index.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
 import { logger } from "../../config/logger.js";
