@@ -1,9 +1,12 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { NotificationKind, NotificationStatus, UserRole, UserStatus } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import { env } from "../../config/env.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError } from "../../core/errors.js";
+import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
+import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
 import { getTenantContext } from "../../tenant/tenantContext.js";
 
 type TokenUser = {
@@ -59,7 +62,7 @@ function publicUser(user: {
   role: UserRole;
   schoolId: string;
   school: { name: string };
-}) {
+}, tenantSchoolId = getTenantContext()?.schoolId) {
   return {
     id: user.id,
     name: user.fullName,
@@ -69,7 +72,7 @@ function publicUser(user: {
     role: user.role,
     schoolId: user.schoolId,
     schoolName: user.school.name,
-    tenantSchoolId: getTenantContext()?.schoolId
+    tenantSchoolId
   };
 }
 
@@ -84,7 +87,8 @@ export function publicUserFromToken(user: Express.UserContext) {
     phone: user.phone ?? "",
     role: user.role,
     schoolId: user.schoolId,
-    schoolName: user.schoolName
+    schoolName: user.schoolName,
+    tenantSchoolId: user.tenantSchoolId
   };
 }
 
@@ -164,7 +168,49 @@ export async function register(data: RegisterInput) {
 }
 
 export async function login(identifier: string, password: string) {
-  const user = await prisma.user.findFirst({
+  const normalizedIdentifier = identifier.trim();
+  const tenantContext = getTenantContext();
+
+  if (tenantContext) {
+    return loginWithClient(prisma, normalizedIdentifier, password, tenantContext.schoolId);
+  }
+
+  const tenant = await tenantForPublicLogin(normalizedIdentifier);
+  if (tenant) {
+    return loginWithClient(getTenantPrismaClient(tenant.dbUrl), normalizedIdentifier, password, tenant.schoolId);
+  }
+
+  return loginWithClient(prisma, normalizedIdentifier, password);
+}
+
+async function tenantForPublicLogin(identifier: string) {
+  if (!isMasterDbConfigured()) return null;
+
+  const school = await masterPrisma.school.findFirst({
+    where: {
+      OR: [{ email: identifier }, { phone: identifier }],
+      isActive: true
+    },
+    select: {
+      schoolId: true,
+      dbUrl: true,
+      isTrial: true,
+      trialEndsAt: true
+    }
+  });
+
+  if (!school) return null;
+
+  const trialExpired = Boolean(school.isTrial && school.trialEndsAt && school.trialEndsAt <= new Date());
+  if (trialExpired) {
+    throw new AppError(402, "School subscription is inactive or expired", "SCHOOL_INACTIVE");
+  }
+
+  return school;
+}
+
+async function loginWithClient(client: PrismaClient, identifier: string, password: string, tenantSchoolId?: string) {
+  const user = await client.user.findFirst({
     where: {
       OR: [{ email: identifier }, { phone: identifier }],
       status: UserStatus.ACTIVE,
@@ -187,12 +233,13 @@ export async function login(identifier: string, password: string) {
     email: user.email,
     schoolName: user.school.name,
     tenantSchoolId: getTenantContext()?.schoolId
+      ?? tenantSchoolId
   };
   const accessToken = signAccessToken(tokenUser);
   const refreshToken = signRefreshToken(tokenUser);
   const tokenHash = await bcrypt.hash(refreshToken, 10);
 
-  await prisma.refreshToken.create({
+  await client.refreshToken.create({
     data: {
       userId: user.id,
       tokenHash,
@@ -203,7 +250,7 @@ export async function login(identifier: string, password: string) {
   return {
     accessToken,
     refreshToken,
-    user: publicUser(user)
+    user: publicUser(user, tenantSchoolId)
   };
 }
 

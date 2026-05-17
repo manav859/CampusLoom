@@ -15,7 +15,7 @@ export default async function OnboardingSuccessPage({ searchParams }: PageProps)
         <h1 className="mt-3 text-3xl font-semibold tracking-normal text-[#1d1d1f]">Your SmartShala school is active.</h1>
         <p className="mt-4 text-sm leading-6 text-[#6e6e73]">School ID: {schoolId ?? "created"}</p>
         {schoolId ? (
-          <Link className="mt-7 inline-flex min-h-11 items-center justify-center rounded-full bg-[#0071e3] px-6 text-sm font-semibold text-white" href={`/${schoolId}/login`}>
+          <Link className="mt-7 inline-flex min-h-11 items-center justify-center rounded-full bg-[#0071e3] px-6 text-sm font-semibold text-white" href="/login">
             Open login
           </Link>
         ) : null}

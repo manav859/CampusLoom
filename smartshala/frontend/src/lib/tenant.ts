@@ -9,6 +9,10 @@ export function withSchoolPath(path: string, pathname?: string | null) {
   return schoolId ? `/${schoolId}${path}` : path;
 }
 
+export function withResolvedSchoolPath(path: string, schoolId?: string | null) {
+  return schoolId && /^[A-Z0-9]{8}$/.test(schoolId) ? `/${schoolId}${path}` : withSchoolPath(path);
+}
+
 export function tenantApiBase(baseUrl: string) {
   if (typeof window === "undefined") return baseUrl;
   const schoolId = schoolIdFromPath(window.location.pathname);
