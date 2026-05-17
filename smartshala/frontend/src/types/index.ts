@@ -4,6 +4,8 @@ export type SessionUser = {
   id: string;
   fullName: string;
   role: Role;
+  schoolId?: string;
+  tenantSchoolId?: string;
   schoolName: string;
 };
 

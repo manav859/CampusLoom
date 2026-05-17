@@ -14,6 +14,7 @@ type OnboardingInput = {
   ownerName: string;
   email: string;
   phone: string;
+  adminPassword: string;
   address: string;
   numberOfStudents: number;
   numberOfStaff: number;
@@ -54,7 +55,7 @@ export async function onboardSchool(input: OnboardingInput) {
       email: input.email,
       phone: input.phone,
       dbName,
-      adminPassword: "SmartShala@123"
+      adminPassword: input.adminPassword
     });
 
     const school = await masterPrisma.school.create({
@@ -100,7 +101,7 @@ export async function onboardSchool(input: OnboardingInput) {
       amountPaid: Number(school.amountPaid),
       adminLogin: {
         identifier: input.email,
-        password: "SmartShala@123"
+        password: input.adminPassword
       }
     };
   } catch (error) {

@@ -37,6 +37,8 @@ export default function OnboardPage() {
     ownerName: "",
     email: "",
     phone: "",
+    adminPassword: "",
+    confirmPassword: "",
     address: "",
     numberOfStudents: "300",
     numberOfStaff: "35",
@@ -70,11 +72,20 @@ export default function OnboardPage() {
     setError("");
 
     try {
+      if (form.adminPassword !== form.confirmPassword) {
+        throw new Error("Passwords do not match");
+      }
+
       const response = await fetch(`${env.apiBaseUrl}/onboarding`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          schoolName: form.schoolName,
+          ownerName: form.ownerName,
+          email: form.email,
+          phone: form.phone,
+          adminPassword: form.adminPassword,
+          address: form.address,
           numberOfStudents: Number(form.numberOfStudents),
           numberOfStaff: Number(form.numberOfStaff),
           planType,
@@ -144,6 +155,8 @@ export default function OnboardPage() {
               <Input label="Principal/Owner Name" onChange={(value) => setForm({ ...form, ownerName: value })} value={form.ownerName} />
               <Input label="Email" onChange={(value) => setForm({ ...form, email: value })} type="email" value={form.email} />
               <Input label="Phone" onChange={(value) => setForm({ ...form, phone: value })} value={form.phone} />
+              <Input label="Initial Password" onChange={(value) => setForm({ ...form, adminPassword: value })} type="password" value={form.adminPassword} />
+              <Input label="Confirm Password" onChange={(value) => setForm({ ...form, confirmPassword: value })} type="password" value={form.confirmPassword} />
               <Input label="Number of Students" onChange={(value) => setForm({ ...form, numberOfStudents: value })} type="number" value={form.numberOfStudents} />
               <Input label="Number of Staff" onChange={(value) => setForm({ ...form, numberOfStaff: value })} type="number" value={form.numberOfStaff} />
             </div>

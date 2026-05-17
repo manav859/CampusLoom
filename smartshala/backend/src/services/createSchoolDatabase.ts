@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { PrismaClient, UserRole, UserStatus } from "@prisma/client";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
+import { AppError } from "../core/errors.js";
 
 type CreateSchoolDatabaseInput = {
   schoolId: string;
@@ -15,13 +16,25 @@ type CreateSchoolDatabaseInput = {
 };
 
 function required(value: string | undefined, name: string) {
-  if (!value) throw new Error(`${name} is required for Neon onboarding`);
+  if (!value) {
+    throw new AppError(
+      503,
+      `${name} is not configured. Add it in Render environment variables before onboarding a new school.`,
+      "NEON_ONBOARDING_CONFIG_MISSING"
+    );
+  }
   return value;
 }
 
 function databaseUrlFromTemplate(template: string | undefined, dbName: string, fallback?: string) {
   const source = template ?? fallback;
-  if (!source) throw new Error("Database URL template is not configured");
+  if (!source) {
+    throw new AppError(
+      503,
+      "Tenant database URL template is not configured. Add NEON_DATABASE_URL_TEMPLATE in Render environment variables.",
+      "TENANT_DATABASE_URL_TEMPLATE_MISSING"
+    );
+  }
   if (source.includes("{database}")) return source.replaceAll("{database}", dbName);
 
   const url = new URL(source);
@@ -77,7 +90,12 @@ async function createNeonDatabase(dbName: string) {
   });
 
   if (!response.ok && response.status !== 409) {
-    throw new Error(`Neon database creation failed: ${response.status} ${await response.text()}`);
+    logger.error({ status: response.status, body: await response.text() }, "Neon database creation failed");
+    throw new AppError(
+      502,
+      "Neon database creation failed. Check NEON_API_KEY, NEON_PROJECT_ID, NEON_BRANCH_ID, and NEON_ROLE_NAME.",
+      "NEON_DATABASE_CREATE_FAILED"
+    );
   }
 }
 
