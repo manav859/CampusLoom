@@ -44,6 +44,8 @@ type ReceiptData = {
   };
 };
 
+type Row = [string, string];
+
 function formatMoney(value: number): string {
   return `Rs ${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -67,8 +69,8 @@ function formatDateTime(date: Date): string {
   }).format(date);
 }
 
-function paymentReferenceRows(payment: ReceiptData["payment"]): [string, string][] {
-  const rows: [string, string][] = [];
+function paymentReferenceRows(payment: ReceiptData["payment"]): Row[] {
+  const rows: Row[] = [];
   if (payment.upiTransactionId) rows.push(["UPI Transaction ID", payment.upiTransactionId]);
   if (payment.chequeNumber) rows.push(["Cheque Number", payment.chequeNumber]);
   if (payment.ddNumber) rows.push(["DD Number", payment.ddNumber]);
@@ -99,6 +101,67 @@ function imageBufferFromDataUrl(value: string | null | undefined) {
   return Buffer.from(match[1], "base64");
 }
 
+function fitFontSize(doc: PDFKit.PDFDocument, text: string, width: number, maxHeight: number, startSize: number, minSize: number) {
+  for (let size = startSize; size >= minSize; size -= 1) {
+    doc.font("Helvetica-Bold").fontSize(size);
+    if (doc.heightOfString(text, { width }) <= maxHeight) return size;
+  }
+  return minSize;
+}
+
+function ensureSpace(doc: PDFKit.PDFDocument, y: number, needed: number, margin: number) {
+  if (y + needed <= doc.page.height - margin) return y;
+  doc.addPage();
+  return margin;
+}
+
+function sectionTitle(doc: PDFKit.PDFDocument, title: string, x: number, y: number, width: number) {
+  doc.font("Helvetica-Bold").fontSize(9).fillColor("#6e6e73").text(title, x, y, {
+    width,
+    characterSpacing: 0.4
+  });
+  doc.rect(x, y + 15, width, 1).fill("#e5e5ea");
+  return y + 27;
+}
+
+function drawRows(doc: PDFKit.PDFDocument, rows: Row[], x: number, y: number, width: number) {
+  const labelWidth = 135;
+  const gap = 18;
+  const valueX = x + labelWidth + gap;
+  const valueWidth = width - labelWidth - gap;
+
+  for (const [label, rawValue] of rows) {
+    const value = rawValue || "-";
+    doc.font("Helvetica").fontSize(9);
+    const labelHeight = doc.heightOfString(label, { width: labelWidth });
+    doc.font("Helvetica-Bold").fontSize(10);
+    const valueHeight = doc.heightOfString(value, { width: valueWidth, lineGap: 2 });
+    const rowHeight = Math.max(20, labelHeight, valueHeight) + 8;
+
+    doc.font("Helvetica").fontSize(9).fillColor("#6e6e73").text(label, x, y, {
+      width: labelWidth
+    });
+    doc.font("Helvetica-Bold").fontSize(10).fillColor("#1d1d1f").text(value, valueX, y - 1, {
+      width: valueWidth,
+      lineGap: 2
+    });
+    y += rowHeight;
+  }
+
+  return y;
+}
+
+function drawMetric(doc: PDFKit.PDFDocument, label: string, value: string, x: number, y: number, width: number, color = "#1d1d1f") {
+  doc.font("Helvetica").fontSize(8.5).fillColor("#6e6e73").text(label, x, y, {
+    width,
+    characterSpacing: 0.2
+  });
+  doc.font("Helvetica-Bold").fontSize(13).fillColor(color).text(value, x, y + 15, {
+    width,
+    lineGap: 1
+  });
+}
+
 export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
@@ -118,79 +181,11 @@ export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      const pageWidth = doc.page.width - 100; // 50 margin each side
-      const leftMargin = 50;
+      const margin = 50;
+      const pageWidth = doc.page.width - margin * 2;
+      const leftMargin = margin;
+      const rightMargin = leftMargin + pageWidth;
 
-      // ─── Header Background ───
-      doc.rect(0, 0, doc.page.width, 130).fill("#1a3c4d");
-
-      const logoBuffer = imageBufferFromDataUrl(data.school.logoUrl);
-      if (logoBuffer) {
-        doc.roundedRect(leftMargin, 31, 54, 54, 8).fill("#ffffff");
-        try {
-          doc.image(logoBuffer, leftMargin + 6, 37, { fit: [42, 42], align: "center", valign: "center" });
-        } catch {
-          doc.font("Helvetica-Bold").fontSize(16).fillColor("#1a3c4d").text(schoolInitials(schoolName), leftMargin, 50, {
-            width: 54,
-            align: "center"
-          });
-        }
-      } else {
-        doc.circle(leftMargin + 27, 58, 27).fill("#ffffff");
-        doc.font("Helvetica-Bold").fontSize(16).fillColor("#1a3c4d").text(schoolInitials(schoolName), leftMargin, 50, {
-          width: 54,
-          align: "center"
-        });
-      }
-
-      // School name
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(22)
-        .fillColor("#ffffff")
-        .text(schoolName.toUpperCase(), leftMargin + 70, 30, {
-          width: pageWidth - 70,
-          align: "left"
-        });
-
-      const meta = schoolMetaRows(data.school);
-      // Subtitle
-      doc
-        .font("Helvetica")
-        .fontSize(10)
-        .fillColor("rgba(255,255,255,0.7)")
-        .text("FEE PAYMENT RECEIPT", leftMargin + 70, 57, {
-          width: pageWidth - 70,
-          align: "left"
-        });
-      if (meta.length > 0) {
-        doc
-          .font("Helvetica")
-          .fontSize(8)
-          .fillColor("rgba(255,255,255,0.78)")
-          .text(meta.join("  |  "), leftMargin + 70, 74, {
-            width: pageWidth - 70,
-            align: "left"
-          });
-      }
-
-      // Receipt number & date row
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(11)
-        .fillColor("#ffffff")
-        .text(data.receiptNo, leftMargin, 95, { width: pageWidth / 2 });
-      doc
-        .font("Helvetica")
-        .fontSize(10)
-        .fillColor("rgba(255,255,255,0.8)")
-        .text(`Issued: ${formatDateTime(data.issuedAt)}`, leftMargin, 97, {
-          width: pageWidth,
-          align: "right"
-        });
-
-      // ─── Status Badge ───
-      let y = 150;
       const statusColors: Record<string, { bg: string; text: string; label: string }> = {
         PAID: { bg: "#34c759", text: "#ffffff", label: "FULLY PAID" },
         PARTIAL: { bg: "#ff9500", text: "#ffffff", label: "PARTIAL PAYMENT" },
@@ -198,52 +193,89 @@ export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
         OVERDUE: { bg: "#ff3b30", text: "#ffffff", label: "OVERDUE" }
       };
       const statusStyle = statusColors[data.ledger.status] ?? statusColors.PENDING;
-      const badgeWidth = 140;
-      const badgeX = leftMargin + pageWidth - badgeWidth;
-      doc.roundedRect(badgeX, y, badgeWidth, 24, 12).fill(statusStyle.bg);
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(9)
-        .fillColor(statusStyle.text)
-        .text(statusStyle.label, badgeX, y + 7, {
-          width: badgeWidth,
+
+      doc.rect(0, 0, doc.page.width, 160).fill("#1a3c4d");
+
+      const logoBuffer = imageBufferFromDataUrl(data.school.logoUrl);
+      const logoX = leftMargin;
+      const logoY = 32;
+      const logoSize = 58;
+      doc.roundedRect(logoX, logoY, logoSize, logoSize, 10).fill("#ffffff");
+      if (logoBuffer) {
+        try {
+          doc.image(logoBuffer, logoX + 7, logoY + 7, { fit: [44, 44], align: "center", valign: "center" });
+        } catch {
+          doc.font("Helvetica-Bold").fontSize(16).fillColor("#1a3c4d").text(schoolInitials(schoolName), logoX, logoY + 20, {
+            width: logoSize,
+            align: "center"
+          });
+        }
+      } else {
+        doc.font("Helvetica-Bold").fontSize(16).fillColor("#1a3c4d").text(schoolInitials(schoolName), logoX, logoY + 20, {
+          width: logoSize,
           align: "center"
         });
+      }
 
-      // ─── Student Details Section ───
-      y = 145;
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(9)
-        .fillColor("#86868b")
-        .text("STUDENT DETAILS", leftMargin, y);
-      y += 18;
+      const schoolX = leftMargin + 74;
+      const infoWidth = 145;
+      const schoolWidth = pageWidth - 74 - infoWidth - 18;
+      const schoolFont = fitFontSize(doc, schoolName.toUpperCase(), schoolWidth, 44, 17, 12);
+      doc.font("Helvetica-Bold").fontSize(schoolFont).fillColor("#ffffff").text(schoolName.toUpperCase(), schoolX, 29, {
+        width: schoolWidth,
+        height: 46,
+        lineGap: 1
+      });
 
-      doc.rect(leftMargin, y, pageWidth, 1).fill("#e5e5ea");
-      y += 10;
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("#d7e3e8").text("FEE PAYMENT RECEIPT", schoolX, 78, {
+        width: schoolWidth
+      });
 
-      const detailPairs = [
+      const meta = schoolMetaRows(data.school).join(" | ");
+      if (meta) {
+        doc.font("Helvetica").fontSize(8).fillColor("#c7d4da").text(meta, schoolX, 96, {
+          width: schoolWidth,
+          height: 38,
+          lineGap: 2
+        });
+      }
+
+      const infoX = rightMargin - infoWidth;
+      doc.roundedRect(infoX, 31, infoWidth, 86, 8).fill("#ffffff");
+      doc.font("Helvetica-Bold").fontSize(8).fillColor("#6e6e73").text("RECEIPT NO", infoX + 12, 43, {
+        width: infoWidth - 24
+      });
+      doc.font("Helvetica-Bold").fontSize(11).fillColor("#1d1d1f").text(data.receiptNo, infoX + 12, 58, {
+        width: infoWidth - 24
+      });
+      doc.font("Helvetica").fontSize(8).fillColor("#6e6e73").text("Issued", infoX + 12, 80, {
+        width: infoWidth - 24
+      });
+      doc.font("Helvetica-Bold").fontSize(8.5).fillColor("#1d1d1f").text(formatDateTime(data.issuedAt), infoX + 12, 94, {
+        width: infoWidth - 24,
+        lineGap: 1
+      });
+
+      doc.roundedRect(leftMargin, 128, 150, 24, 12).fill(statusStyle.bg);
+      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(statusStyle.text).text(statusStyle.label, leftMargin, 135, {
+        width: 150,
+        align: "center"
+      });
+
+      let y = 184;
+      y = sectionTitle(doc, "STUDENT DETAILS", leftMargin, y, pageWidth);
+      y = drawRows(doc, [
         ["Student Name", data.student.fullName],
         ["Admission No", data.student.admissionNumber],
         ["Class / Section", data.student.class],
         ["Parent / Guardian", data.student.parentName],
         ["Contact", data.student.parentPhone]
-      ];
+      ], leftMargin, y, pageWidth);
 
-      for (const [label, value] of detailPairs) {
-        doc.font("Helvetica").fontSize(9).fillColor("#86868b").text(label, leftMargin, y, { width: 140 });
-        doc.font("Helvetica-Bold").fontSize(10).fillColor("#1d1d1f").text(value, leftMargin + 150, y - 1);
-        y += 20;
-      }
+      y = ensureSpace(doc, y + 8, 160, margin);
+      y = sectionTitle(doc, "PAYMENT DETAILS", leftMargin, y, pageWidth);
 
-      // ─── Payment Details Section ───
-      y += 10;
-      doc.font("Helvetica-Bold").fontSize(9).fillColor("#86868b").text("PAYMENT DETAILS", leftMargin, y);
-      y += 18;
-      doc.rect(leftMargin, y, pageWidth, 1).fill("#e5e5ea");
-      y += 10;
-
-      const paymentPairs = [
+      const paymentPairs: Row[] = [
         ["Fee Structure", data.feeStructure.name],
         ["Academic Year", data.feeStructure.academicYear],
         ["Payment Mode", data.payment.mode.replace(/_/g, " ")],
@@ -255,93 +287,59 @@ export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
         paymentPairs.push(["Notes", data.payment.notes]);
       }
 
-      for (const [label, value] of paymentPairs) {
-        doc.font("Helvetica").fontSize(9).fillColor("#86868b").text(label, leftMargin, y, { width: 140 });
-        doc.font("Helvetica-Bold").fontSize(10).fillColor("#1d1d1f").text(value, leftMargin + 150, y - 1);
-        y += 20;
-      }
+      y = drawRows(doc, paymentPairs, leftMargin, y, pageWidth);
 
-      // ─── Amount Summary Box ───
-      y += 15;
-      const boxHeight = 120;
+      y = ensureSpace(doc, y + 8, 210, margin);
+      const boxHeight = 126;
       doc.roundedRect(leftMargin, y, pageWidth, boxHeight, 8).fill("#f5f5f7");
-
-      const col1 = leftMargin + 20;
-      const col2 = leftMargin + pageWidth / 2 + 20;
-      let boxY = y + 15;
-
-      // Row 1: Total Fee & Amount Paid
-      doc.font("Helvetica").fontSize(9).fillColor("#86868b").text("TOTAL FEE", col1, boxY);
-      doc.font("Helvetica").fontSize(9).fillColor("#86868b").text("AMOUNT PAID (THIS RECEIPT)", col2, boxY);
-      boxY += 14;
-      doc.font("Helvetica-Bold").fontSize(14).fillColor("#1d1d1f").text(formatMoney(data.feeStructure.totalAmount), col1, boxY);
-      doc.font("Helvetica-Bold").fontSize(14).fillColor("#248a3d").text(formatMoney(data.payment.amount), col2, boxY);
-
-      // Row 2: Total Paid & Remaining Balance
-      boxY += 30;
-      doc.font("Helvetica").fontSize(9).fillColor("#86868b").text("TOTAL PAID TO DATE", col1, boxY);
-      doc.font("Helvetica").fontSize(9).fillColor("#86868b").text("REMAINING BALANCE", col2, boxY);
-      boxY += 14;
-      doc.font("Helvetica-Bold").fontSize(14).fillColor("#1d1d1f").text(formatMoney(data.ledger.paidAmount), col1, boxY);
+      const boxPad = 20;
+      const metricGap = 22;
+      const metricWidth = (pageWidth - boxPad * 2 - metricGap) / 2;
+      const col1 = leftMargin + boxPad;
+      const col2 = col1 + metricWidth + metricGap;
       const balanceColor = data.ledger.pendingAmount > 0 ? "#d70015" : "#248a3d";
-      doc.font("Helvetica-Bold").fontSize(14).fillColor(balanceColor).text(formatMoney(data.ledger.pendingAmount), col2, boxY);
+      drawMetric(doc, "TOTAL FEE", formatMoney(data.feeStructure.totalAmount), col1, y + 18, metricWidth);
+      drawMetric(doc, "AMOUNT PAID (THIS RECEIPT)", formatMoney(data.payment.amount), col2, y + 18, metricWidth, "#248a3d");
+      drawMetric(doc, "TOTAL PAID TO DATE", formatMoney(data.ledger.paidAmount), col1, y + 72, metricWidth);
+      drawMetric(doc, "REMAINING BALANCE", formatMoney(data.ledger.pendingAmount), col2, y + 72, metricWidth, balanceColor);
 
-      // ─── Highlighted Amount Paid ───
       y += boxHeight + 20;
       doc.roundedRect(leftMargin, y, pageWidth, 50, 8).fill("#1a3c4d");
-      doc
-        .font("Helvetica")
-        .fontSize(10)
-        .fillColor("rgba(255,255,255,0.7)")
-        .text("AMOUNT RECEIVED", leftMargin + 20, y + 10);
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(20)
-        .fillColor("#ffffff")
-        .text(formatMoney(data.payment.amount), leftMargin + 20, y + 25);
-      doc
-        .font("Helvetica")
-        .fontSize(10)
-        .fillColor("rgba(255,255,255,0.7)")
-        .text(`via ${data.payment.mode}`, leftMargin + pageWidth - 120, y + 18, {
-          width: 100,
-          align: "right"
-        });
+      doc.font("Helvetica").fontSize(9).fillColor("#d7e3e8").text("AMOUNT RECEIVED", leftMargin + 20, y + 10, {
+        width: pageWidth - 40
+      });
+      doc.font("Helvetica-Bold").fontSize(18).fillColor("#ffffff").text(formatMoney(data.payment.amount), leftMargin + 20, y + 25, {
+        width: pageWidth * 0.58
+      });
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("#d7e3e8").text(`via ${data.payment.mode.replace(/_/g, " ")}`, leftMargin + pageWidth * 0.62, y + 18, {
+        width: pageWidth * 0.32,
+        align: "right"
+      });
 
-      // ─── Footer ───
-      y += 80;
+      y += 78;
+      y = ensureSpace(doc, y, 70, margin);
       doc.rect(leftMargin, y, pageWidth, 1).fill("#e5e5ea");
       y += 15;
+
       const footerMeta = schoolMetaRows(data.school).join(" | ");
       if (footerMeta) {
-        doc
-          .font("Helvetica")
-          .fontSize(8)
-          .fillColor("#86868b")
-          .text(footerMeta, leftMargin, y, {
-            width: pageWidth,
-            align: "center"
-          });
-        y += 14;
+        doc.font("Helvetica").fontSize(8).fillColor("#6e6e73").text(footerMeta, leftMargin, y, {
+          width: pageWidth,
+          align: "center",
+          lineGap: 1
+        });
+        y += doc.heightOfString(footerMeta, { width: pageWidth, lineGap: 1 }) + 6;
       }
 
-      doc
-        .font("Helvetica")
-        .fontSize(8)
-        .fillColor("#86868b")
-        .text("This is a computer-generated receipt and does not require a signature.", leftMargin, y, {
-          width: pageWidth,
-          align: "center"
-        });
+      doc.font("Helvetica").fontSize(8).fillColor("#6e6e73").text("This is a computer-generated receipt and does not require a signature.", leftMargin, y, {
+        width: pageWidth,
+        align: "center"
+      });
       y += 14;
-      doc
-        .font("Helvetica")
-        .fontSize(8)
-        .fillColor("#86868b")
-        .text(`Generated by SmartShala ERP - ${formatDateTime(new Date())}`, leftMargin, y, {
-          width: pageWidth,
-          align: "center"
-        });
+      doc.font("Helvetica").fontSize(8).fillColor("#6e6e73").text(`Generated by SmartShala ERP - ${formatDateTime(new Date())}`, leftMargin, y, {
+        width: pageWidth,
+        align: "center"
+      });
 
       doc.end();
     } catch (error) {
