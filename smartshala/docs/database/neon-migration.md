@@ -103,6 +103,7 @@ Failure returns HTTP `503` with a safe error name.
 - `npx prisma db pull`
 - `npm run build`
 - Login APIs
+- Demo principal login: `principal@smartshala.local` / `SmartShala@123`
 - Student/class/attendance/fees CRUD flows
 - Dashboard and analytics Prisma queries
 - Production deploy logs

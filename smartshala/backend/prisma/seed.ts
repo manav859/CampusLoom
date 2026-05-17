@@ -140,7 +140,7 @@ async function main() {
     data: {
       schoolId: school.id,
       fullName: "Dr. Vinay Desai",
-      email: "principal@smartshalaahmedabad.edu.in",
+      email: "principal@smartshala.local",
       phone: "9876504001",
       role: UserRole.PRINCIPAL,
       passwordHash,
@@ -378,7 +378,7 @@ async function main() {
   }
 
   console.log("Seed completed.");
-  console.log("Login: principal@smartshalaahmedabad.edu.in / SmartShala@123");
+  console.log("Login: principal@smartshala.local / SmartShala@123");
 }
 
 main()
