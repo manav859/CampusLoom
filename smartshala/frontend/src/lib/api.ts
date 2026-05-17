@@ -883,6 +883,11 @@ export const settingsApi = {
       body: JSON.stringify(payload)
     }),
   databaseDeletionStatus: () => apiFetch<DatabaseDeletionStatus>("/settings/database-deletion"),
+  verifyDatabaseDeletionPassword: (password: string) =>
+    apiFetch<{ verified: true }>("/settings/database-deletion/verify-password", {
+      method: "POST",
+      body: JSON.stringify({ password })
+    }),
   requestDatabaseDeletion: (password: string) =>
     apiFetch<DatabaseDeletionStatus>("/settings/database-deletion/request", {
       method: "POST",

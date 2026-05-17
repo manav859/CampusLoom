@@ -4,7 +4,8 @@ import { AppError } from "../../core/errors.js";
 import {
   cancelTenantDeletion,
   getTenantDeletionStatus,
-  requestTenantDeletion
+  requestTenantDeletion,
+  verifyTenantDeletionPassword
 } from "../../services/databaseDeletion.service.js";
 import * as settingsService from "./settings.service.js";
 
@@ -37,6 +38,10 @@ export const requestDatabaseDeletion = asyncHandler(async (req: Request, res: Re
       password: req.body.password
     })
   );
+});
+
+export const verifyDatabaseDeletionPassword = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await verifyTenantDeletionPassword({ userId: req.user!.id, password: req.body.password }));
 });
 
 export const cancelDatabaseDeletion = asyncHandler(async (req: Request, res: Response) => {
