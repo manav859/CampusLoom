@@ -223,7 +223,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       </div>
 
       {/* ═══ Row 2 — Charts Row ═══ */}
-      <section className="grid gap-4 xl:grid-cols-[3fr_2fr]" style={{ minHeight: 280 }}>
+      <section className="dashboard-charts-grid grid gap-4" style={{ minHeight: 280 }}>
         {loading ? (
           <>
             <ChartSkeleton height={280} />

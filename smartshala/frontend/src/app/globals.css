@@ -124,6 +124,18 @@ summary {
 }
 
 @layer components {
+  .dashboard-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 1280px) {
+    .dashboard-charts-grid {
+      grid-template-columns:
+        minmax(0, calc((100% - 1rem) * 0.6 + 20px))
+        minmax(0, calc((100% - 1rem) * 0.4 - 20px));
+    }
+  }
+
   /* ─── Apple Cards ─── */
   .glass-card {
     border-radius: var(--apple-radius-lg);
