@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient } from "../src/generated/master-client/index.js";
+import { PrismaClient } from "../node_modules/@smartshala/master-client/index.js";
 
 const required = (value, name) => {
   if (!value) throw new Error(`${name} is required`);

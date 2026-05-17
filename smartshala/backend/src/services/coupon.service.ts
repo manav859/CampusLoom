@@ -1,4 +1,4 @@
-import { Prisma } from "../generated/master-client/index.js";
+import { Prisma } from "../../node_modules/@smartshala/master-client/index.js";
 import { masterPrisma } from "../master-db/masterPrisma.js";
 
 const BASE_PRICE = 20_000;

@@ -1,4 +1,4 @@
-import type { School } from "../generated/master-client/index.js";
+import type { School } from "../../node_modules/@smartshala/master-client/index.js";
 import { masterPrisma } from "../master-db/masterPrisma.js";
 
 export function trialEndsFrom(start = new Date()) {
