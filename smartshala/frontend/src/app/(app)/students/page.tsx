@@ -93,6 +93,153 @@ function csvCell(value: string | number | null | undefined) {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
+function pdfEscape(value: string | number | null | undefined) {
+  return String(value ?? "")
+    .replace(/[^\x20-\x7E]/g, "?")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+}
+
+function pdfMoney(value: number) {
+  return `Rs ${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function wrapPdfText(value: string | number | null | undefined, width: number, fontSize = 8) {
+  const text = String(value ?? "-").trim() || "-";
+  const maxChars = Math.max(6, Math.floor(width / (fontSize * 0.48)));
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of text.split(/\s+/)) {
+    if (word.length > maxChars) {
+      if (current) {
+        lines.push(current);
+        current = "";
+      }
+      for (let i = 0; i < word.length; i += maxChars) lines.push(word.slice(i, i + maxChars));
+      continue;
+    }
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+
+  if (current) lines.push(current);
+  return lines;
+}
+
+function buildStudentsPdf(students: StudentRow[]) {
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 40;
+  const rowLineHeight = 10;
+  const columns = [
+    { label: "Admission No", width: 68 },
+    { label: "Student Name", width: 118 },
+    { label: "Class", width: 46 },
+    { label: "Parent Phone", width: 88 },
+    { label: "Fee Status", width: 62 },
+    { label: "Pending", width: 76 },
+    { label: "Attendance", width: 57 }
+  ];
+  const tableWidth = columns.reduce((sum, col) => sum + col.width, 0);
+  const pages: string[][] = [];
+  let commands: string[] = [];
+  let y = margin;
+
+  const emit = (command: string) => commands.push(command);
+  const pdfY = (topY: number) => pageHeight - topY;
+  const text = (value: string | number | null | undefined, x: number, topY: number, size = 8, font = "F1") => {
+    emit(`BT /${font} ${size} Tf 0 0 0 rg ${x.toFixed(2)} ${pdfY(topY).toFixed(2)} Td (${pdfEscape(value)}) Tj ET`);
+  };
+  const rect = (x: number, topY: number, width: number, height: number, fill: string) => {
+    emit(`q ${fill} rg ${x.toFixed(2)} ${(pageHeight - topY - height).toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re f Q`);
+  };
+  const line = (x1: number, topY1: number, x2: number, topY2: number, color = "0.86 0.88 0.91") => {
+    emit(`q ${color} RG 0.5 w ${x1.toFixed(2)} ${pdfY(topY1).toFixed(2)} m ${x2.toFixed(2)} ${pdfY(topY2).toFixed(2)} l S Q`);
+  };
+  const header = () => {
+    y = margin;
+    text("Students Export", margin, y, 18, "F2");
+    text(`Generated ${new Date().toLocaleDateString("en-IN")} | ${students.length} selected`, margin, y + 20, 9);
+    y += 44;
+    rect(margin, y, tableWidth, 22, "0.95 0.96 0.98");
+    let x = margin;
+    for (const col of columns) {
+      text(col.label, x + 5, y + 14, 7.5, "F2");
+      x += col.width;
+    }
+    y += 22;
+  };
+  const newPage = () => {
+    if (commands.length) pages.push(commands);
+    commands = [];
+    header();
+  };
+
+  header();
+  for (const student of students) {
+    const row = [
+      student.admissionNumber,
+      student.fullName,
+      `${student.class.name}-${student.class.section}`,
+      student.parentPhone ?? "-",
+      student.feeStatus ? student.feeStatus.toLowerCase() : "-",
+      student.pendingAmount === null ? "-" : pdfMoney(student.pendingAmount),
+      student.attendancePercentage === null ? "-" : `${student.attendancePercentage}%`
+    ];
+    const wrapped = row.map((cell, index) => wrapPdfText(cell, columns[index].width - 10));
+    const rowHeight = Math.max(24, Math.max(...wrapped.map((lines) => lines.length)) * rowLineHeight + 10);
+    if (y + rowHeight > pageHeight - margin - 24) newPage();
+
+    line(margin, y, margin + tableWidth, y);
+    let x = margin;
+    wrapped.forEach((lines, columnIndex) => {
+      lines.forEach((lineText, lineIndex) => text(lineText, x + 5, y + 14 + lineIndex * rowLineHeight, 7.5));
+      x += columns[columnIndex].width;
+    });
+    y += rowHeight;
+  }
+
+  pages.push(commands);
+  const totalPages = pages.length;
+  pages.forEach((page, index) => {
+    page.push(`BT /F1 8 Tf 0.35 0.4 0.45 rg ${margin.toFixed(2)} 24 Td (${pdfEscape(`Page ${index + 1} of ${totalPages}`)}) Tj ET`);
+  });
+
+  const objects = ["<< /Type /Catalog /Pages 2 0 R >>"];
+  const kids: string[] = [];
+  pages.forEach((page, index) => {
+    const content = page.join("\n");
+    const pageObj = 3 + index * 2;
+    const contentObj = pageObj + 1;
+    kids.push(`${pageObj} 0 R`);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> >> >> /Contents ${contentObj} 0 R >>`);
+    objects.push(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+  });
+  objects.splice(1, 0, `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${pages.length} >>`);
+
+  let body = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(body.length);
+    body += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = body.length;
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    body += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([body], { type: "application/pdf" });
+}
+
 function sortValue(student: StudentRow, key: SortKey) {
   if (key === "name") return student.fullName;
   if (key === "class") return `${student.class.name}${student.class.section}`;
@@ -341,6 +488,19 @@ export default function StudentsPage() {
     setNotice(`Exported ${selectedCount} selected students.`);
   };
 
+  const exportSelectedPdf = () => {
+    const blob = buildStudentsPdf(selectedStudents);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `students-${new Date().toISOString().slice(0, 10)}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setNotice(`Exported ${selectedCount} selected students as PDF.`);
+  };
+
   const openBulkDialog = (action: "whatsapp" | "promote" | "inactive") => {
     setBulkDialog({
       isOpen: true,
@@ -491,6 +651,7 @@ export default function StudentsPage() {
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("whatsapp")} type="button">Send WhatsApp</button>
             {isAdmin ? <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("promote")} type="button">Promote class</button> : null}
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={exportSelectedCsv} type="button">Export CSV</button>
+            <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={exportSelectedPdf} type="button">Export PDF</button>
             {isAdmin ? <button className="rounded-lg bg-[#C8242C] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#a51d24]" onClick={() => openBulkDialog("inactive")} type="button">Mark inactive</button> : null}
             <button className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setSelectedIds([])} type="button">Clear</button>
           </div>
