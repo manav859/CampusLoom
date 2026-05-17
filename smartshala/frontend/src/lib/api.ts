@@ -59,7 +59,12 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    if (response.status === 401 && typeof window !== "undefined" && !path.includes("/auth/")) {
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined" &&
+      !path.includes("/auth/") &&
+      payload?.error?.code !== "INVALID_PASSWORD"
+    ) {
       window.localStorage.removeItem("smartshala.accessToken");
       window.localStorage.removeItem("smartshala.refreshToken");
       window.location.href = "/login";
@@ -94,7 +99,12 @@ export async function apiFormFetch<T>(path: string, body: FormData, options: Api
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    if (response.status === 401 && typeof window !== "undefined" && !path.includes("/auth/")) {
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined" &&
+      !path.includes("/auth/") &&
+      payload?.error?.code !== "INVALID_PASSWORD"
+    ) {
       window.localStorage.removeItem("smartshala.accessToken");
       window.localStorage.removeItem("smartshala.refreshToken");
       window.location.href = "/login";
