@@ -40,6 +40,8 @@ export default function SettingsPage() {
   const [deletionPassword, setDeletionPassword] = useState("");
   const [deletionPasswordVerified, setDeletionPasswordVerified] = useState(false);
   const [deletionBusy, setDeletionBusy] = useState(false);
+  const [deletionError, setDeletionError] = useState("");
+  const [deletionNotice, setDeletionNotice] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -121,20 +123,20 @@ export default function SettingsPage() {
 
   async function requestDeletion() {
     setDeletionBusy(true);
-    setError("");
-    setNotice("");
+    setDeletionError("");
+    setDeletionNotice("");
     try {
       const status = await settingsApi.requestDatabaseDeletion(deletionPassword);
       setDeletionStatus(status);
       setDeletionPassword("");
       setDeletionPasswordVerified(false);
-      setNotice("Database deletion scheduled. You can cancel it before the scheduled date.");
+      setDeletionNotice("Database deletion scheduled. You can cancel it before the scheduled date.");
       window.localStorage.removeItem("smartshala.accessToken");
       window.localStorage.removeItem("smartshala.refreshToken");
       window.localStorage.removeItem("smartshala.user");
       router.replace("/login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to schedule database deletion");
+      setDeletionError(err instanceof Error ? err.message : "Unable to schedule database deletion");
     } finally {
       setDeletionBusy(false);
     }
@@ -142,15 +144,15 @@ export default function SettingsPage() {
 
   async function verifyDeletionPassword() {
     setDeletionBusy(true);
-    setError("");
-    setNotice("");
+    setDeletionError("");
+    setDeletionNotice("");
     setDeletionPasswordVerified(false);
     try {
       await settingsApi.verifyDatabaseDeletionPassword(deletionPassword);
       setDeletionPasswordVerified(true);
-      setNotice("Password verified. Confirm below to schedule deletion.");
+      setDeletionNotice("Password verified. Confirm below to schedule deletion.");
     } catch {
-      setError("Password incorrect.");
+      setDeletionError("Password incorrect.");
     } finally {
       setDeletionBusy(false);
     }
@@ -158,16 +160,16 @@ export default function SettingsPage() {
 
   async function cancelDeletion() {
     setDeletionBusy(true);
-    setError("");
-    setNotice("");
+    setDeletionError("");
+    setDeletionNotice("");
     try {
       const status = await settingsApi.cancelDatabaseDeletion(deletionPassword);
       setDeletionStatus(status);
       setDeletionPassword("");
       setDeletionPasswordVerified(false);
-      setNotice("Database deletion cancelled.");
+      setDeletionNotice("Database deletion cancelled.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to cancel database deletion");
+      setDeletionError(err instanceof Error ? err.message : "Unable to cancel database deletion");
     } finally {
       setDeletionBusy(false);
     }
@@ -306,11 +308,23 @@ export default function SettingsPage() {
               onChange={(event) => {
                 setDeletionPassword(event.target.value);
                 setDeletionPasswordVerified(false);
+                setDeletionError("");
+                setDeletionNotice("");
               }}
               placeholder="Enter your password"
               type="password"
               value={deletionPassword}
             />
+            {deletionError ? (
+              <p className="mt-3 rounded-xl bg-[#ff3b30]/10 px-3 py-2 text-[12px] font-semibold text-[#d70015]">
+                {deletionError}
+              </p>
+            ) : null}
+            {deletionNotice ? (
+              <p className="mt-3 rounded-xl bg-[#34c759]/10 px-3 py-2 text-[12px] font-semibold text-[#248a3d]">
+                {deletionNotice}
+              </p>
+            ) : null}
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               {deletionPending ? (
                 <button
