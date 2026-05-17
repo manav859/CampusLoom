@@ -15,6 +15,7 @@ import { onboardingRouter } from "../modules/onboarding/onboarding.routes.js";
 import { reportsRouter } from "../modules/reports/reports.routes.js";
 import { settingsRouter } from "../modules/settings/settings.routes.js";
 import { studentsRouter } from "../modules/students/students.routes.js";
+import { superAdminRouter } from "../modules/superAdmin/superAdmin.routes.js";
 import { tenantSetupRouter } from "../modules/tenantSetup/tenantSetup.routes.js";
 import { usersRouter } from "../modules/users/users.routes.js";
 import { whatsappRouter } from "../modules/whatsapp/whatsapp.routes.js";
@@ -24,6 +25,7 @@ export const apiRouter = Router();
 apiRouter.get("/health", apiHealthHandler);
 apiRouter.get("/health/db", dbHealthHandler);
 apiRouter.use("/onboarding", onboardingRouter);
+apiRouter.use("/super-admin", superAdminRouter);
 apiRouter.use("/tenant-setup", tenantSetupRouter);
 
 apiRouter.use("/auth", authRouter);
