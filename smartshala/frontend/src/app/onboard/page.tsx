@@ -89,6 +89,7 @@ export default function OnboardPage() {
           numberOfStudents: Number(form.numberOfStudents),
           numberOfStaff: Number(form.numberOfStaff),
           planType,
+          termsAccepted: form.termsAccepted,
           couponCode: couponCode.trim() || undefined
         })
       });
