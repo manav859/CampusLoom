@@ -43,6 +43,11 @@ async function verifyCurrentUserPassword(userId: string, password: string) {
   }
 }
 
+export async function verifyTenantDeletionPassword(input: { userId: string; password: string }) {
+  await verifyCurrentUserPassword(input.userId, input.password);
+  return { verified: true };
+}
+
 export async function getTenantDeletionStatus(schoolId: string) {
   assertTenantDeletionConfigured();
   const school = await masterPrisma.school.findUnique({

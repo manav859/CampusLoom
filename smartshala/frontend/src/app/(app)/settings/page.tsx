@@ -36,6 +36,7 @@ export default function SettingsPage() {
   const [notice, setNotice] = useState("");
   const [deletionStatus, setDeletionStatus] = useState<DatabaseDeletionStatus | null>(null);
   const [deletionPassword, setDeletionPassword] = useState("");
+  const [deletionPasswordVerified, setDeletionPasswordVerified] = useState(false);
   const [deletionBusy, setDeletionBusy] = useState(false);
 
   useEffect(() => {
@@ -124,9 +125,26 @@ export default function SettingsPage() {
       const status = await settingsApi.requestDatabaseDeletion(deletionPassword);
       setDeletionStatus(status);
       setDeletionPassword("");
+      setDeletionPasswordVerified(false);
       setNotice("Database deletion scheduled. You can cancel it before the scheduled date.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to schedule database deletion");
+    } finally {
+      setDeletionBusy(false);
+    }
+  }
+
+  async function verifyDeletionPassword() {
+    setDeletionBusy(true);
+    setError("");
+    setNotice("");
+    setDeletionPasswordVerified(false);
+    try {
+      await settingsApi.verifyDatabaseDeletionPassword(deletionPassword);
+      setDeletionPasswordVerified(true);
+      setNotice("Password verified. Confirm below to schedule deletion.");
+    } catch {
+      setError("Password incorrect.");
     } finally {
       setDeletionBusy(false);
     }
@@ -140,6 +158,7 @@ export default function SettingsPage() {
       const status = await settingsApi.cancelDatabaseDeletion(deletionPassword);
       setDeletionStatus(status);
       setDeletionPassword("");
+      setDeletionPasswordVerified(false);
       setNotice("Database deletion cancelled.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to cancel database deletion");
@@ -278,7 +297,10 @@ export default function SettingsPage() {
             <input
               className="glass-input mt-2"
               disabled={deletionBusy}
-              onChange={(event) => setDeletionPassword(event.target.value)}
+              onChange={(event) => {
+                setDeletionPassword(event.target.value);
+                setDeletionPasswordVerified(false);
+              }}
               placeholder="Enter your password"
               type="password"
               value={deletionPassword}
@@ -293,6 +315,15 @@ export default function SettingsPage() {
                 >
                   {deletionBusy ? "Cancelling..." : "Cancel deletion"}
                 </button>
+              ) : !deletionPasswordVerified ? (
+                <button
+                  className="btn-primary min-h-11 flex-1 px-5 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={deletionBusy || deletionPassword.length < 8}
+                  onClick={verifyDeletionPassword}
+                  type="button"
+                >
+                  {deletionBusy ? "Checking..." : "Verify password"}
+                </button>
               ) : (
                 <button
                   className="min-h-11 flex-1 rounded-xl bg-[#ff3b30] px-5 text-[13px] font-semibold text-white transition hover:bg-[#d70015] disabled:cursor-not-allowed disabled:opacity-50"
@@ -300,10 +331,15 @@ export default function SettingsPage() {
                   onClick={requestDeletion}
                   type="button"
                 >
-                  {deletionBusy ? "Scheduling..." : "Schedule deletion"}
+                  {deletionBusy ? "Scheduling..." : "Confirm deletion in 3 days"}
                 </button>
               )}
             </div>
+            {!deletionPending && deletionPasswordVerified ? (
+              <p className="mt-3 text-[12px] font-semibold text-[#d70015]">
+                Confirmation required. This will schedule database deletion after 3 days.
+              </p>
+            ) : null}
           </div>
         </div>
       </section>
