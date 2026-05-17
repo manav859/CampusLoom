@@ -256,32 +256,130 @@ async function loginWithClient(client: PrismaClient, identifier: string, passwor
 
 export async function forgotPassword(identifier: string) {
   const normalizedIdentifier = identifier.trim();
-  const user = await prisma.user.findFirst({
+
+  const tenantContext = getTenantContext();
+  if (tenantContext) {
+    const user = await recordPasswordResetRequestForClient(prisma, tenantContext.schoolId, normalizedIdentifier);
+    if (user) await queueTenantPasswordResetNotification(user);
+    return passwordResetResponse();
+  }
+
+  const found = await findUserForPublicPasswordReset(normalizedIdentifier);
+  if (found) {
+    await recordPasswordResetRequest(found, normalizedIdentifier);
+  }
+
+  return passwordResetResponse();
+}
+
+function passwordResetResponse() {
+  return {
+    message: "If this account exists, a password reset request has been recorded. SmartShala support will verify and contact the school administrator.",
+    supportPhone: "+91-98765-43210",
+    supportEmail: "support@smartshala.in"
+  };
+}
+
+async function queueTenantPasswordResetNotification(user: {
+  schoolId: string;
+  fullName: string;
+  phone: string;
+}) {
+  await prisma.notification.create({
+    data: {
+      schoolId: user.schoolId,
+      kind: NotificationKind.SCHOOL_ALERT,
+      recipientPhone: user.phone,
+      message: `Password reset requested for ${user.fullName}. SmartShala support will verify the requester before changing login credentials.`,
+      status: NotificationStatus.QUEUED
+    }
+  }).catch(() => undefined);
+}
+
+async function recordPasswordResetRequestForClient(client: PrismaClient, tenantSchoolId: string, identifier: string) {
+  const user = await client.user.findFirst({
     where: {
-      OR: [{ email: normalizedIdentifier }, { phone: normalizedIdentifier }],
+      OR: [{ email: identifier }, { phone: identifier }],
       status: UserStatus.ACTIVE,
       isActive: true
     },
     include: { school: true }
   });
 
-  if (user) {
-    await prisma.notification.create({
-      data: {
-        schoolId: user.schoolId,
-        kind: NotificationKind.SCHOOL_ALERT,
-        recipientPhone: user.phone,
-        message: `Password reset requested for ${user.fullName}. SmartShala support will verify the requester before changing login credentials.`,
-        status: NotificationStatus.QUEUED
+  if (!user) return null;
+  await recordPasswordResetRequest(
+    {
+      tenantSchoolId,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role
+      }
+    },
+    identifier
+  );
+  return user;
+}
+
+async function findUserForPublicPasswordReset(identifier: string) {
+  if (!isMasterDbConfigured()) return null;
+
+  const schools = await masterPrisma.school.findMany({
+    where: { isActive: true },
+    select: { schoolId: true, dbUrl: true }
+  });
+
+  for (const school of schools) {
+    const tenantPrisma = getTenantPrismaClient(school.dbUrl);
+    const user = await tenantPrisma.user.findFirst({
+      where: {
+        OR: [{ email: identifier }, { phone: identifier }],
+        status: UserStatus.ACTIVE,
+        isActive: true
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true
       }
     });
+
+    if (user) return { tenantSchoolId: school.schoolId, user };
   }
 
-  return {
-    message: "If this account exists, a password reset request has been recorded. SmartShala support will verify and contact the school administrator.",
-    supportPhone: "+91-98765-43210",
-    supportEmail: "support@smartshala.in"
-  };
+  return null;
+}
+
+async function recordPasswordResetRequest(
+  found: {
+    tenantSchoolId: string;
+    user: {
+      id: string;
+      fullName: string;
+      email: string | null;
+      phone: string;
+      role: UserRole;
+    };
+  } | null,
+  identifier: string
+) {
+  if (!found || !isMasterDbConfigured()) return;
+
+  await masterPrisma.passwordResetRequest.create({
+      data: {
+      schoolId: found.tenantSchoolId,
+      userId: found.user.id,
+      userName: found.user.fullName,
+      email: found.user.email,
+      phone: found.user.phone,
+      role: found.user.role,
+      identifier
+      }
+  });
 }
 
 export async function getCurrentUser(userId: string) {

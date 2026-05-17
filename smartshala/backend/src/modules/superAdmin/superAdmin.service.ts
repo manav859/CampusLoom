@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserStatus } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
+import { PasswordResetStatus } from "../../../node_modules/@smartshala/master-client/index.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
@@ -122,6 +123,24 @@ export async function listSchoolUsers(schoolId: string) {
   };
 }
 
+export async function listPasswordResetRequests() {
+  assertMasterConfigured();
+  return masterPrisma.passwordResetRequest.findMany({
+    where: { status: PasswordResetStatus.PENDING },
+    orderBy: { requestedAt: "desc" },
+    take: 100,
+    include: {
+      school: {
+        select: {
+          schoolName: true,
+          dbName: true,
+          isActive: true
+        }
+      }
+    }
+  });
+}
+
 export async function updateTenantUserStatus(schoolId: string, userId: string, isActive: boolean) {
   const school = await tenantSchoolOrThrow(schoolId);
   const tenantPrisma = getTenantPrismaClient(school.dbUrl);
@@ -165,6 +184,55 @@ export async function resetTenantUserPassword(schoolId: string, userId: string, 
       role: true,
       status: true,
       isActive: true
+    }
+  });
+}
+
+export async function completePasswordResetRequest(requestId: string, password: string, completedBy: string) {
+  assertMasterConfigured();
+  const request = await masterPrisma.passwordResetRequest.findUnique({ where: { id: requestId } });
+  if (!request) throw new AppError(404, "Password reset request not found", "PASSWORD_RESET_REQUEST_NOT_FOUND");
+  if (request.status !== PasswordResetStatus.PENDING) {
+    throw new AppError(409, "Password reset request is no longer pending", "PASSWORD_RESET_REQUEST_NOT_PENDING");
+  }
+
+  await resetTenantUserPassword(request.schoolId, request.userId, password);
+  return masterPrisma.passwordResetRequest.update({
+    where: { id: requestId },
+    data: {
+      status: PasswordResetStatus.COMPLETED,
+      completedAt: new Date(),
+      completedBy
+    },
+    include: {
+      school: {
+        select: {
+          schoolName: true,
+          dbName: true,
+          isActive: true
+        }
+      }
+    }
+  });
+}
+
+export async function dismissPasswordResetRequest(requestId: string, completedBy: string) {
+  assertMasterConfigured();
+  return masterPrisma.passwordResetRequest.update({
+    where: { id: requestId },
+    data: {
+      status: PasswordResetStatus.DISMISSED,
+      completedAt: new Date(),
+      completedBy
+    },
+    include: {
+      school: {
+        select: {
+          schoolName: true,
+          dbName: true,
+          isActive: true
+        }
+      }
     }
   });
 }

@@ -40,6 +40,24 @@ type UsersPayload = {
   users: TenantUser[];
 };
 
+type PasswordResetRequest = {
+  id: string;
+  schoolId: string;
+  userId: string;
+  userName: string;
+  email: string | null;
+  phone: string;
+  role: string;
+  identifier: string;
+  status: "PENDING" | "COMPLETED" | "DISMISSED";
+  requestedAt: string;
+  school: {
+    schoolName: string;
+    dbName: string;
+    isActive: boolean;
+  };
+};
+
 const roles: TenantUser["role"][] = ["PRINCIPAL", "ADMIN", "TEACHER", "ACCOUNTANT", "PARENT"];
 
 async function superAdminFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -70,8 +88,10 @@ export default function SuperAdminPage() {
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const [usersPayload, setUsersPayload] = useState<UsersPayload | null>(null);
+  const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
   const [query, setQuery] = useState("");
   const [resetPasswords, setResetPasswords] = useState<Record<string, string>>({});
+  const [requestPasswords, setRequestPasswords] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
@@ -129,8 +149,12 @@ export default function SuperAdminPage() {
     setLoading(true);
     setError("");
     try {
-      const rows = await superAdminFetch<SchoolRow[]>("/schools");
+      const [rows, requests] = await Promise.all([
+        superAdminFetch<SchoolRow[]>("/schools"),
+        superAdminFetch<PasswordResetRequest[]>("/password-reset-requests")
+      ]);
       setSchools(rows);
+      setResetRequests(requests);
       setSelectedSchoolId((current) => current || rows[0]?.schoolId || "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load schools");
@@ -229,6 +253,47 @@ export default function SuperAdminPage() {
     }
   }
 
+  async function completeResetRequest(request: PasswordResetRequest) {
+    const nextPassword = requestPasswords[request.id]?.trim();
+    if (!nextPassword || nextPassword.length < 8) {
+      setError("New password must be at least 8 characters.");
+      return;
+    }
+
+    setBusyId(request.id);
+    setError("");
+    setNotice("");
+    try {
+      await superAdminFetch(`/password-reset-requests/${request.id}/complete`, {
+        method: "PATCH",
+        body: JSON.stringify({ password: nextPassword })
+      });
+      setRequestPasswords((current) => ({ ...current, [request.id]: "" }));
+      await loadSchools();
+      if (selectedSchoolId === request.schoolId) await loadUsers(selectedSchoolId);
+      setNotice(`${request.userName} password changed and request completed.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to complete password reset");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function dismissResetRequest(request: PasswordResetRequest) {
+    setBusyId(request.id);
+    setError("");
+    setNotice("");
+    try {
+      await superAdminFetch(`/password-reset-requests/${request.id}/dismiss`, { method: "PATCH" });
+      await loadSchools();
+      setNotice(`Password reset request for ${request.userName} dismissed.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to dismiss password reset request");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   function logout() {
     window.localStorage.removeItem("smartshala.superAdminToken");
     setToken(null);
@@ -281,6 +346,61 @@ export default function SuperAdminPage() {
 
         {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
         {notice ? <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{notice}</p> : null}
+
+        <section className="rounded-2xl border border-[#dce3ef] bg-white shadow-sm">
+          <div className="flex flex-col gap-2 border-b border-[#eef2f7] p-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Forgot password requests</h2>
+              <p className="text-sm text-[#64748b]">Set a new password for verified users, or dismiss old requests.</p>
+            </div>
+            <span className="rounded-full bg-[#fff7ed] px-3 py-1 text-xs font-bold text-[#c2410c]">{resetRequests.length} pending</span>
+          </div>
+          {resetRequests.length ? (
+            <div className="divide-y divide-[#eef2f7]">
+              {resetRequests.map((request) => (
+                <div className="grid gap-3 p-4 lg:grid-cols-[1fr_260px_auto] lg:items-center" key={request.id}>
+                  <div>
+                    <p className="font-semibold">{request.userName}</p>
+                    <p className="mt-1 text-sm text-[#64748b]">
+                      {request.school.schoolName} · {request.schoolId} · {request.role}
+                    </p>
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      Requested for {request.identifier} on {new Date(request.requestedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                    </p>
+                  </div>
+                  <input
+                    className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+                    disabled={busyId === request.id}
+                    onChange={(event) => setRequestPasswords((current) => ({ ...current, [request.id]: event.target.value }))}
+                    placeholder="New password"
+                    type="password"
+                    value={requestPasswords[request.id] ?? ""}
+                  />
+                  <div className="flex gap-2 lg:justify-end">
+                    <button
+                      className="min-h-10 rounded-lg bg-[#2456e6] px-4 text-xs font-bold text-white disabled:opacity-60"
+                      disabled={busyId === request.id}
+                      onClick={() => completeResetRequest(request)}
+                      type="button"
+                    >
+                      Set new password
+                    </button>
+                    <button
+                      className="min-h-10 rounded-lg border border-[#cbd5e1] px-4 text-xs font-bold disabled:opacity-60"
+                      disabled={busyId === request.id}
+                      onClick={() => dismissResetRequest(request)}
+                      type="button"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="p-4 text-sm font-semibold text-[#64748b]">No pending password reset requests.</p>
+          )}
+        </section>
 
         <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
           <aside className="rounded-2xl border border-[#dce3ef] bg-white p-4 shadow-sm">
@@ -389,7 +509,7 @@ export default function SuperAdminPage() {
                               onClick={() => resetUserPassword(user)}
                               type="button"
                             >
-                              Reset
+                              Save password
                             </button>
                             <button
                               className={`min-h-9 rounded-lg px-3 text-xs font-bold text-white disabled:opacity-60 ${user.isActive ? "bg-red-600" : "bg-green-600"}`}

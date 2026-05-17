@@ -22,6 +22,10 @@ export const resetUserPasswordSchema = z.object({
   password: z.string().min(8).max(72)
 });
 
+export const passwordResetRequestParamSchema = z.object({
+  requestId: z.string().uuid()
+});
+
 export const updateUserRoleSchema = z.object({
   role: z.nativeEnum(UserRole)
 });
