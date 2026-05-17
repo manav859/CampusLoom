@@ -1,4 +1,5 @@
 import { env } from "./env";
+import { tenantApiBase } from "./tenant";
 import type { SessionUser } from "@/types";
 
 type ApiOptions = RequestInit & {
@@ -50,7 +51,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetchWithRetry(`${env.apiBaseUrl}${path}`, {
+  const response = await fetchWithRetry(`${tenantApiBase(env.apiBaseUrl)}${path}`, {
     ...options,
     headers,
     cache: "no-store"
@@ -83,7 +84,7 @@ export async function apiFormFetch<T>(path: string, body: FormData, options: Api
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetchWithRetry(`${env.apiBaseUrl}${path}`, {
+  const response = await fetchWithRetry(`${tenantApiBase(env.apiBaseUrl)}${path}`, {
     ...options,
     method: options.method ?? "POST",
     headers,
@@ -935,7 +936,7 @@ export const feesApi = {
     }),
   receiptPdfBlob: async (receiptId: string) => {
     const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.accessToken") : null;
-    const response = await fetch(`${env.apiBaseUrl}/fees/receipts/${receiptId}/pdf`, {
+    const response = await fetch(`${tenantApiBase(env.apiBaseUrl)}/fees/receipts/${receiptId}/pdf`, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -990,7 +991,7 @@ export const studentsApi = {
   },
   downloadDocument: async (studentId: string, documentId: string, filename: string) => {
     const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.accessToken") : null;
-    const response = await fetch(`${env.apiBaseUrl}/students/${studentId}/documents/${documentId}/download`, {
+    const response = await fetch(`${tenantApiBase(env.apiBaseUrl)}/students/${studentId}/documents/${documentId}/download`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined
     });
     if (!response.ok) throw new Error("Failed to download document");

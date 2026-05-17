@@ -4,6 +4,7 @@ import { NotificationKind, NotificationStatus, UserRole, UserStatus } from "@pri
 import { env } from "../../config/env.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError } from "../../core/errors.js";
+import { getTenantContext } from "../../tenant/tenantContext.js";
 
 type TokenUser = {
   id: string;
@@ -13,6 +14,7 @@ type TokenUser = {
   phone: string;
   email: string | null;
   schoolName: string;
+  tenantSchoolId?: string;
 };
 
 type RegisterInput = {
@@ -36,7 +38,8 @@ function signAccessToken(user: TokenUser) {
       fullName: user.fullName,
       phone: user.phone,
       email: user.email,
-      schoolName: user.schoolName
+      schoolName: user.schoolName,
+      tenantSchoolId: user.tenantSchoolId
     },
     env.JWT_ACCESS_SECRET,
     options
@@ -65,7 +68,8 @@ function publicUser(user: {
     phone: user.phone,
     role: user.role,
     schoolId: user.schoolId,
-    schoolName: user.school.name
+    schoolName: user.school.name,
+    tenantSchoolId: getTenantContext()?.schoolId
   };
 }
 
@@ -137,7 +141,8 @@ export async function register(data: RegisterInput) {
     fullName: user.fullName,
     phone: user.phone,
     email: user.email,
-    schoolName: user.school.name
+    schoolName: user.school.name,
+    tenantSchoolId: getTenantContext()?.schoolId
   };
 
   const accessToken = signAccessToken(tokenUser);
@@ -180,7 +185,8 @@ export async function login(identifier: string, password: string) {
     fullName: user.fullName,
     phone: user.phone,
     email: user.email,
-    schoolName: user.school.name
+    schoolName: user.school.name,
+    tenantSchoolId: getTenantContext()?.schoolId
   };
   const accessToken = signAccessToken(tokenUser);
   const refreshToken = signRefreshToken(tokenUser);
@@ -273,7 +279,8 @@ export async function refresh(refreshToken: string) {
       fullName: user.fullName,
       phone: user.phone,
       email: user.email,
-      schoolName: user.school.name
+      schoolName: user.school.name,
+      tenantSchoolId: getTenantContext()?.schoolId
     })
   };
 }

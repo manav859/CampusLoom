@@ -11,6 +11,7 @@ import { homeworkRouter } from "../modules/homework/homework.routes.js";
 import { marksRouter } from "../modules/marks/marks.routes.js";
 import { analyticsRouter } from "../modules/analytics/analytics.routes.js";
 import { notificationsRouter } from "../modules/notifications/notifications.routes.js";
+import { onboardingRouter } from "../modules/onboarding/onboarding.routes.js";
 import { reportsRouter } from "../modules/reports/reports.routes.js";
 import { settingsRouter } from "../modules/settings/settings.routes.js";
 import { studentsRouter } from "../modules/students/students.routes.js";
@@ -21,6 +22,7 @@ export const apiRouter = Router();
 
 apiRouter.get("/health", apiHealthHandler);
 apiRouter.get("/health/db", dbHealthHandler);
+apiRouter.use("/onboarding", onboardingRouter);
 
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/users", usersRouter);

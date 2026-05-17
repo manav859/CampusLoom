@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
+import { getTenantContext } from "../tenant/tenantContext.js";
 
 const log = env.PRISMA_LOG_LEVEL.split(",").map((item) => item.trim()).filter(Boolean) as (
   | "query"
@@ -15,22 +16,35 @@ const globalForPrisma = globalThis as typeof globalThis & {
 
 // Centralized DB client entrypoint. Keep this isolated so a future tenant-aware
 // data layer can wrap Prisma without changing feature modules.
-export const prisma =
+const defaultPrisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log
   });
 
 if (env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+  globalForPrisma.prisma = defaultPrisma;
 }
 
+function activePrisma() {
+  return getTenantContext()?.prisma ?? defaultPrisma;
+}
+
+// Proxy preserves the old singleton import while allowing tenant routes to
+// transparently use the request-scoped tenant Prisma Client.
+export const prisma = new Proxy(defaultPrisma, {
+  get(_target, prop, receiver) {
+    const value = Reflect.get(activePrisma(), prop, receiver);
+    return typeof value === "function" ? value.bind(activePrisma()) : value;
+  }
+}) as PrismaClient;
+
 export async function connectDatabase() {
-  await prisma.$connect();
+  await defaultPrisma.$connect();
 }
 
 export async function disconnectDatabase() {
-  await prisma.$disconnect();
+  await defaultPrisma.$disconnect();
 }
 
 /**

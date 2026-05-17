@@ -67,6 +67,20 @@ async function deployMigrations() {
   }
 }
 
+async function deployMasterMigrations() {
+  if (!process.env.MASTER_DATABASE_URL) return;
+
+  console.log("Running Prisma master migrations...");
+  const result = await run(NPX, ["prisma", "migrate", "deploy", "--schema", "prisma/master/schema.prisma"], {
+    env: process.env
+  });
+
+  if (result.code !== 0) {
+    process.exit(result.code);
+  }
+}
+
+await deployMasterMigrations();
 await deployMigrations();
 const server = await run("node", ["dist/server.js"], { stdio: "inherit" });
 process.exit(server.code);

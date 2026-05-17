@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { SessionUser } from "@/types";
 import { clearCache } from "@/lib/prefetchCache";
+import { withSchoolPath } from "@/lib/tenant";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { NotificationPanel } from "./NotificationPanel";
 
@@ -93,7 +94,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
     window.localStorage.removeItem("smartshala.accessToken");
     window.localStorage.removeItem("smartshala.refreshToken");
     window.localStorage.removeItem("smartshala.user");
-    router.replace("/login");
+    router.replace(withSchoolPath("/login"));
   }, [router]);
 
   const notifCount = 3;

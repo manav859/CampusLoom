@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { Role, SessionUser } from "@/types";
 import { authApi } from "@/lib/api";
 import { clearCache, prefetchForRole } from "@/lib/prefetchCache";
+import { withSchoolPath } from "@/lib/tenant";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -86,7 +87,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     async function hydrateSession() {
       const token = window.localStorage.getItem("smartshala.accessToken");
       if (!token) {
-        router.replace("/login");
+        router.replace(withSchoolPath("/login", pathname));
         return;
       }
 
@@ -115,7 +116,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         window.localStorage.removeItem("smartshala.accessToken");
         window.localStorage.removeItem("smartshala.refreshToken");
         window.localStorage.removeItem("smartshala.user");
-        router.replace("/login");
+        router.replace(withSchoolPath("/login", pathname));
       }
     }
 
@@ -128,7 +129,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready || !user) return;
     if (isPathAllowedForRole(pathname, user.role)) return;
-    router.replace(roleHome(user.role));
+    router.replace(withSchoolPath(roleHome(user.role), pathname));
   }, [pathname, ready, router, user]);
 
   if (!ready || !user) {
