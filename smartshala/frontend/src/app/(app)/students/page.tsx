@@ -212,6 +212,28 @@ export default function StudentsPage() {
       .finally(() => setLoadingList(false));
   }, [search, classId, page, perPage, showInactive]);
 
+  useEffect(() => {
+    if (!openActionMenu) return;
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("[data-row-action-menu]") || target.closest("[data-row-action-button]")) return;
+      setOpenActionMenu(null);
+    };
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenActionMenu(null);
+    };
+
+    window.addEventListener("pointerdown", closeOnOutsideClick);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeOnOutsideClick);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openActionMenu]);
+
   // Client-side status filtering
   const filtered = statusFilter && canViewFees
     ? students.filter((s) => s.feeStatus === statusFilter)
@@ -546,6 +568,7 @@ export default function StudentsPage() {
                   sortedFiltered.map((student, idx) => {
                     const rowNum = (page - 1) * perPage + idx + 1;
                     const menuOpen = openActionMenu === student.id;
+                    const openUpward = sortedFiltered.length > 3 && idx >= sortedFiltered.length - 2;
 
                     return (
                       <tr key={student.id} className="group transition-colors duration-200 hover:bg-[#f5f5f7]/60">
@@ -620,13 +643,17 @@ export default function StudentsPage() {
                                   aria-expanded={menuOpen}
                                   aria-label={`More actions for ${student.fullName}`}
                                   className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#DCE1E8] bg-white text-[#5A6573] transition-colors hover:bg-[#F7F8FB]"
+                                  data-row-action-button
                                   onClick={() => setOpenActionMenu(menuOpen ? null : student.id)}
                                   type="button"
                                 >
                                   <span className="text-[16px] leading-none">...</span>
                                 </button>
                                 {menuOpen ? (
-                                  <div className="absolute right-0 top-8 z-20 min-w-[150px] overflow-hidden rounded-xl border border-[#DCE1E8] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(15,20,25,0.35)]">
+                                  <div
+                                    className={`absolute right-0 z-30 min-w-[150px] overflow-hidden rounded-xl border border-[#DCE1E8] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(15,20,25,0.35)] ${openUpward ? "bottom-8" : "top-8"}`}
+                                    data-row-action-menu
+                                  >
                                     {canViewFees && student.feeStatus && student.feeStatus !== "PAID" ? (
                                       <button
                                         className="block w-full px-3 py-2 text-left text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]"

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { apiHealthHandler, dbHealthHandler } from "./health.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
 import { attendanceRouter } from "../modules/attendance/attendance.routes.js";
 import { classesRouter } from "../modules/classes/classes.routes.js";
@@ -17,9 +18,8 @@ import { whatsappRouter } from "../modules/whatsapp/whatsapp.routes.js";
 
 export const apiRouter = Router();
 
-apiRouter.get("/health", (_req, res) => {
-  res.json({ status: "ok", service: "smartshala-api", version: "1.0.0" });
-});
+apiRouter.get("/health", apiHealthHandler);
+apiRouter.get("/health/db", dbHealthHandler);
 
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/users", usersRouter);

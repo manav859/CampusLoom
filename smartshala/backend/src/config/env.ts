@@ -5,6 +5,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
   DATABASE_URL: z.string().url(),
+  DIRECT_URL: z.string().url().optional(),
   JWT_ACCESS_SECRET: z.string().min(24),
   JWT_REFRESH_SECRET: z.string().min(24),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
@@ -27,4 +28,3 @@ if (!parsed.success) {
 }
 
 export const env = parsed.data;
-

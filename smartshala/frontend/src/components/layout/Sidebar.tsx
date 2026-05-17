@@ -58,7 +58,7 @@ function linksForRole(role: Role) {
 
 function isActiveLink(pathname: string, href: string) {
   if (href === "/teacher" || href === "/dashboard") return pathname === href;
-  if (href === "/reports") return pathname === href || pathname.startsWith("/reports/") || pathname.startsWith("/attendance/reports");
+  if (href === "/reports") return pathname === href || pathname.startsWith("/reports/");
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

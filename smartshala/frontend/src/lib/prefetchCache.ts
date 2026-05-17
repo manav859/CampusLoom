@@ -18,11 +18,10 @@ const queuedPrefetches = new Set<string>();
 const prefetchQueue: Array<() => void> = [];
 let activePrefetches = 0;
 
-const TTL_MS = 60_000;
 const MAX_BACKGROUND_PREFETCHES = 3;
 
 function isFresh(entry: CacheEntry<any>): boolean {
-  return Date.now() - entry.timestamp < TTL_MS;
+  return Boolean(entry);
 }
 
 function normalizeKeys(key: string | string[]) {
@@ -126,6 +125,12 @@ export function cachedFetchMany<T>(keys: string[], fetcher: () => Promise<T>): P
   keys.forEach((key) => cache.set(key, entry));
 
   return promise;
+}
+
+export function getCachedData<T>(key: string): T | null {
+  const entry = cache.get(key) as CacheEntry<T> | undefined;
+  if (!entry?.resolved) return null;
+  return entry.data;
 }
 
 export function invalidateCache(key: string) {

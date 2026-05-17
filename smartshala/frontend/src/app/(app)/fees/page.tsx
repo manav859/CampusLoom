@@ -168,7 +168,7 @@ export default function FeesDashboardPage() {
             <FeeCard label="Total collection" value={formatINR(data?.totalCollected ?? 0)} tone="good" />
             <FeeCard label="Outstanding" value={formatINR(data?.totalPending ?? 0)} tone="warn" />
             <FeeCard label="Total assigned" value={formatINR(data?.totalDue ?? 0)} />
-            <FeeCard label="Defaulters" value={data?.topDefaulters?.length ?? 0} tone="danger" helper="Top pending accounts" />
+            <FeeCard label="Defaulters" value={data?.defaulterCount ?? 0} tone="danger" helper="Pending active accounts" />
           </>
         )}
       </div>
