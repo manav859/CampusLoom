@@ -7,3 +7,5 @@ coverage/
 *.log
 *.tsbuildinfo
 prisma/dev.db
+backend/src/generated/
+frontend/.next/

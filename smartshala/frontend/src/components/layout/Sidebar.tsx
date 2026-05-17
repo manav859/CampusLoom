@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/types";
+import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
 
 type NavLink = {
   label: string;
@@ -57,9 +58,11 @@ function linksForRole(role: Role) {
 }
 
 function isActiveLink(pathname: string, href: string) {
-  if (href === "/teacher" || href === "/dashboard") return pathname === href;
-  if (href === "/reports") return pathname === href || pathname.startsWith("/reports/");
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const schoolId = schoolIdFromPath(pathname);
+  const normalized = schoolId ? pathname.replace(`/${schoolId}`, "") || "/" : pathname;
+  if (href === "/teacher" || href === "/dashboard") return normalized === href;
+  if (href === "/reports") return normalized === href || normalized.startsWith("/reports/");
+  return normalized === href || normalized.startsWith(`${href}/`);
 }
 
 function NavIcon({ icon, active }: { icon: NavLink["icon"]; active: boolean }) {
@@ -184,7 +187,7 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
             return (
               <Link
                 key={href}
-                href={href}
+                href={withSchoolPath(href, pathname)}
                 onClick={onClose}
                 className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
                   active

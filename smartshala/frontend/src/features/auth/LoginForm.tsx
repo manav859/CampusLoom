@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, Field, Modal, TextInput, Toast } from "@/components/ui";
 import { authApi } from "@/lib/api";
 import { clearCache } from "@/lib/prefetchCache";
+import { withSchoolPath } from "@/lib/tenant";
 
 export type LoginLanguage = "en" | "hi";
 
@@ -78,12 +79,12 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
       window.localStorage.setItem("smartshala.user", JSON.stringify(result.user));
       const target =
         result.user.role === "TEACHER"
-          ? "/teacher"
+          ? withSchoolPath("/teacher")
           : result.user.role === "ACCOUNTANT"
-            ? "/fees"
+            ? withSchoolPath("/fees")
             : result.user.role === "PARENT"
-              ? "/students"
-              : "/dashboard";
+              ? withSchoolPath("/students")
+              : withSchoolPath("/dashboard");
       router.replace(target);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

@@ -7,6 +7,7 @@ import { AppError } from "../core/errors.js";
 type AccessTokenPayload = {
   sub: string;
   schoolId: string;
+  tenantSchoolId?: string;
   role: UserRole;
   fullName: string;
   phone?: string;
@@ -25,9 +26,13 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
     if (!payload.sub) throw new Error("Missing subject");
+    if (req.tenant && payload.tenantSchoolId && payload.tenantSchoolId !== req.tenant.schoolId) {
+      throw new Error("Tenant mismatch");
+    }
     req.user = {
       id: payload.sub,
       schoolId: payload.schoolId,
+      tenantSchoolId: payload.tenantSchoolId,
       role: payload.role,
       fullName: payload.fullName,
       phone: payload.phone,

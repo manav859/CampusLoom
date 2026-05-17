@@ -5,6 +5,7 @@ declare global {
     interface UserContext {
       id: string;
       schoolId: string;
+      tenantSchoolId?: string;
       role: UserRole;
       fullName: string;
       phone?: string;
@@ -14,6 +15,11 @@ declare global {
 
     interface Request {
       user?: UserContext;
+      tenant?: {
+        schoolId: string;
+        schoolName: string;
+        dbName: string;
+      };
     }
   }
 }

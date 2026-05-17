@@ -9,6 +9,7 @@ import { logger } from "./config/logger.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { notFoundHandler } from "./middleware/notFound.js";
 import { dbWarmup } from "./middleware/dbWarmup.js";
+import { tenantMiddleware } from "./middleware/tenant.middleware.js";
 import { apiRouter } from "./routes/index.js";
 import { dbHealthHandler } from "./routes/health.js";
 
@@ -54,6 +55,8 @@ export function createApp() {
   app.use(dbWarmup());
 
   app.get("/health/db", dbHealthHandler);
+  app.use("/:schoolId/api", tenantMiddleware, apiRouter);
+  app.use("/:schoolId/api/v1", tenantMiddleware, apiRouter);
   app.use("/api", apiRouter);
   app.use("/api/v1", apiRouter);
   app.use(notFoundHandler);
