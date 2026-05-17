@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { settingsApi, type DatabaseDeletionStatus, type SchoolProfilePayload } from "@/lib/api";
 import { communicationTemplates, renderCommunicationTemplate } from "@/lib/communicationTemplates";
@@ -29,6 +30,7 @@ const emptyProfile: SchoolProfilePayload = {
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [profile, setProfile] = useState<SchoolProfilePayload>(emptyProfile);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -127,6 +129,10 @@ export default function SettingsPage() {
       setDeletionPassword("");
       setDeletionPasswordVerified(false);
       setNotice("Database deletion scheduled. You can cancel it before the scheduled date.");
+      window.localStorage.removeItem("smartshala.accessToken");
+      window.localStorage.removeItem("smartshala.refreshToken");
+      window.localStorage.removeItem("smartshala.user");
+      router.replace("/login");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to schedule database deletion");
     } finally {
