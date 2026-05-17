@@ -25,6 +25,12 @@ model School {
   isTrial          Boolean       @default(false)
   trialEndsAt      DateTime?
   isActive         Boolean       @default(true)
+  deletionStatus   TenantDeletionStatus @default(NONE)
+  deletionRequestedAt DateTime?
+  deletionScheduledAt DateTime?
+  deletionCancelledAt DateTime?
+  deletionExecutedAt DateTime?
+  deletionRequestedBy String?
   dbName           String        @unique
   dbUrl            String
   directDbUrl      String?
@@ -32,6 +38,7 @@ model School {
   updatedAt        DateTime      @updatedAt
 
   @@index([schoolId, isActive])
+  @@index([deletionStatus, deletionScheduledAt])
   @@index([email])
   @@map("schools")
 }
@@ -74,4 +81,12 @@ enum PaymentStatus {
 enum DiscountType {
   PERCENTAGE
   FIXED
+}
+
+enum TenantDeletionStatus {
+  NONE
+  PENDING
+  CANCELLED
+  DELETED
+  FAILED
 }

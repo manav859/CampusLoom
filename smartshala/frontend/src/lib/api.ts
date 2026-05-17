@@ -800,6 +800,16 @@ export type SchoolProfile = {
 
 export type SchoolProfilePayload = Pick<SchoolProfile, "name" | "city" | "state" | "phone" | "gstin" | "udiseNumber" | "affiliationBoard" | "logoUrl">;
 
+export type DatabaseDeletionStatus = {
+  schoolId: string;
+  dbName: string;
+  deletionStatus: "NONE" | "PENDING" | "CANCELLED" | "DELETED" | "FAILED";
+  deletionRequestedAt: string | null;
+  deletionScheduledAt: string | null;
+  deletionCancelledAt: string | null;
+  deletionExecutedAt: string | null;
+};
+
 export const classesApi = {
   list: () => apiFetch<ClassSummary[]>("/classes"),
   students: (classId: string) => apiFetch<ClassStudent[]>(`/classes/${classId}/students`)
@@ -871,6 +881,17 @@ export const settingsApi = {
     apiFetch<SchoolProfile>("/settings/school-profile", {
       method: "PATCH",
       body: JSON.stringify(payload)
+    }),
+  databaseDeletionStatus: () => apiFetch<DatabaseDeletionStatus>("/settings/database-deletion"),
+  requestDatabaseDeletion: (password: string) =>
+    apiFetch<DatabaseDeletionStatus>("/settings/database-deletion/request", {
+      method: "POST",
+      body: JSON.stringify({ password })
+    }),
+  cancelDatabaseDeletion: (password: string) =>
+    apiFetch<DatabaseDeletionStatus>("/settings/database-deletion/cancel", {
+      method: "POST",
+      body: JSON.stringify({ password })
     })
 };
 

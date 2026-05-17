@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { settingsApi, type SchoolProfilePayload } from "@/lib/api";
+import { settingsApi, type DatabaseDeletionStatus, type SchoolProfilePayload } from "@/lib/api";
 import { communicationTemplates, renderCommunicationTemplate } from "@/lib/communicationTemplates";
 
 const previewVariables = {
@@ -34,6 +34,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [deletionStatus, setDeletionStatus] = useState<DatabaseDeletionStatus | null>(null);
+  const [deletionPassword, setDeletionPassword] = useState("");
+  const [deletionBusy, setDeletionBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -42,7 +45,10 @@ export default function SettingsPage() {
       setLoading(true);
       setError("");
       try {
-        const row = await settingsApi.schoolProfile();
+        const [row, deletion] = await Promise.all([
+          settingsApi.schoolProfile(),
+          settingsApi.databaseDeletionStatus().catch(() => null)
+        ]);
         if (!active) return;
         setProfile({
           name: row.name,
@@ -54,6 +60,7 @@ export default function SettingsPage() {
           affiliationBoard: row.affiliationBoard ?? "CBSE",
           logoUrl: row.logoUrl ?? ""
         });
+        setDeletionStatus(deletion);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Unable to load school profile");
       } finally {
@@ -108,6 +115,43 @@ export default function SettingsPage() {
       setSaving(false);
     }
   }
+
+  async function requestDeletion() {
+    setDeletionBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const status = await settingsApi.requestDatabaseDeletion(deletionPassword);
+      setDeletionStatus(status);
+      setDeletionPassword("");
+      setNotice("Database deletion scheduled. You can cancel it before the scheduled date.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to schedule database deletion");
+    } finally {
+      setDeletionBusy(false);
+    }
+  }
+
+  async function cancelDeletion() {
+    setDeletionBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const status = await settingsApi.cancelDatabaseDeletion(deletionPassword);
+      setDeletionStatus(status);
+      setDeletionPassword("");
+      setNotice("Database deletion cancelled.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to cancel database deletion");
+    } finally {
+      setDeletionBusy(false);
+    }
+  }
+
+  const deletionPending = deletionStatus?.deletionStatus === "PENDING";
+  const scheduledDeletion = deletionStatus?.deletionScheduledAt
+    ? new Date(deletionStatus.deletionScheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+    : null;
 
   return (
     <div className="space-y-6">
@@ -203,6 +247,66 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-[#ff3b30]/20 bg-[#fff5f5] p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-[12px] font-bold uppercase tracking-[0.2em] text-[#d70015]">Danger zone</p>
+            <h2 className="mt-2 text-[20px] font-semibold text-[#1d1d1f]">Delete this school database</h2>
+            <p className="mt-2 text-[13px] leading-6 text-[#6e6e73]">
+              This schedules deletion of the current school's Neon database after 3 days. The school remains usable during the waiting period, and an admin can cancel before the scheduled time.
+            </p>
+            {deletionStatus ? (
+              <div className="mt-4 rounded-xl border border-[#ff3b30]/15 bg-white p-4 text-[13px] text-[#424245]">
+                <p>
+                  Status: <span className="font-semibold">{deletionStatus.deletionStatus}</span>
+                </p>
+                <p>
+                  Database: <span className="font-semibold">{deletionStatus.dbName}</span>
+                </p>
+                {scheduledDeletion ? (
+                  <p>
+                    Scheduled deletion: <span className="font-semibold">{scheduledDeletion}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="w-full max-w-sm rounded-2xl border border-[#ff3b30]/15 bg-white p-4">
+            <label className="text-[13px] font-semibold text-[#1d1d1f]">Admin password</label>
+            <input
+              className="glass-input mt-2"
+              disabled={deletionBusy}
+              onChange={(event) => setDeletionPassword(event.target.value)}
+              placeholder="Enter your password"
+              type="password"
+              value={deletionPassword}
+            />
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              {deletionPending ? (
+                <button
+                  className="btn-primary min-h-11 flex-1 px-5 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={deletionBusy || deletionPassword.length < 8}
+                  onClick={cancelDeletion}
+                  type="button"
+                >
+                  {deletionBusy ? "Cancelling..." : "Cancel deletion"}
+                </button>
+              ) : (
+                <button
+                  className="min-h-11 flex-1 rounded-xl bg-[#ff3b30] px-5 text-[13px] font-semibold text-white transition hover:bg-[#d70015] disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={deletionBusy || deletionPassword.length < 8}
+                  onClick={requestDeletion}
+                  type="button"
+                >
+                  {deletionBusy ? "Scheduling..." : "Schedule deletion"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
