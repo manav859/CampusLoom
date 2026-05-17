@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { LoginForm, type LoginLanguage } from "@/features/auth/LoginForm";
 
 export function LoginShell() {
@@ -53,6 +54,12 @@ export function LoginShell() {
           <p className="mt-3 text-[15px] leading-relaxed text-[#6e6e73]">
             {copy.intro}
           </p>
+          <Link
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-[#d2d2d7] bg-white px-5 text-[14px] font-semibold text-[#0071e3] shadow-sm transition hover:border-[#0071e3]/30 hover:bg-[#f5faff]"
+            href="/onboard"
+          >
+            Onboard your school
+          </Link>
           <LoginForm language={language} onLanguageChange={setLanguage} />
         </div>
       </section>
