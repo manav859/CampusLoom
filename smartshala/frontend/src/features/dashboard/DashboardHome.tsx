@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch, studentsApi, whatsappApi, type FeeDefaulter, type FeesDashboard } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
-import { cachedFetch } from "@/lib/prefetchCache";
+import { cachedFetch, getCachedData } from "@/lib/prefetchCache";
 
 type DashboardResponse = {
   role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
@@ -24,10 +24,12 @@ type DashboardResponse = {
 };
 
 export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
-  const [data, setData] = useState<DashboardResponse | null>(null);
-  const [fees, setFees] = useState<FeesDashboard | null>(null);
-  const [defaulters, setDefaulters] = useState<FeeDefaulter[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dashboardCacheKey = mode === "ADMIN" ? "dashboard" : "dashboard:teacher";
+  const cachedDashboard = getCachedData<DashboardResponse>(dashboardCacheKey);
+  const [data, setData] = useState<DashboardResponse | null>(cachedDashboard);
+  const [fees, setFees] = useState<FeesDashboard | null>(cachedDashboard?.feeSummary ?? null);
+  const [defaulters, setDefaulters] = useState<FeeDefaulter[]>(cachedDashboard?.defaulters ?? []);
+  const [loading, setLoading] = useState(!cachedDashboard);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sendingReminderId, setSendingReminderId] = useState("");
@@ -36,9 +38,9 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     let active = true;
 
     async function loadDashboard() {
-      setLoading(true);
+      setLoading(!getCachedData<DashboardResponse>(dashboardCacheKey));
       setError("");
-      const dashboardResult = await cachedFetch(mode === "ADMIN" ? "dashboard" : "dashboard:teacher", () => apiFetch<DashboardResponse>("/dashboard"))
+      const dashboardResult = await cachedFetch(dashboardCacheKey, () => apiFetch<DashboardResponse>("/dashboard"))
         .then((value) => ({ status: "fulfilled" as const, value }))
         .catch((reason) => ({ status: "rejected" as const, reason }));
 
@@ -61,16 +63,17 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     return () => {
       active = false;
     };
-  }, [mode]);
+  }, [dashboardCacheKey, mode]);
 
   /* ── KPI row ── */
   const kpis = data?.kpis ?? {};
   const totalClasses = kpis.totalClasses ?? kpis.assignedClasses ?? 0;
   const markedClasses = kpis.classesMarked ?? 0;
   const pendingClasses = kpis.classesPending ?? kpis.pendingAttendance ?? 0;
+  const defaulterCount = fees?.defaulterCount ?? defaulters.length ?? kpis.overdueInstallments ?? 0;
   const markedTodayPercentage = totalClasses ? Math.round((markedClasses / totalClasses) * 100) : 0;
   const pulseText = mode === "ADMIN"
-    ? `${markedClasses} of ${totalClasses} classes marked today, ${defaulters.length || kpis.overdueInstallments || 0} fee follow-ups pending.`
+    ? `${markedClasses} of ${totalClasses} classes marked today, ${defaulterCount} fee follow-ups pending.`
     : `${pendingClasses} attendance actions pending for your assigned classes.`;
 
   const adminKpis = [
@@ -100,7 +103,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         },
     {
       label: "Defaulters",
-      value: defaulters.length || kpis.overdueInstallments || 0,
+      value: defaulterCount,
       helper: "Active fee assignments",
       formula: "Students with pending or overdue fee balance.",
       href: "/fees/defaulters",
@@ -176,12 +179,13 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   ].slice(0, 6) : [];
 
   /* ── Fee chart segments ── */
-  const totalCollected = Number(fees?.totalCollected ?? 65);
-  const totalPending = Number(fees?.totalPending ?? 25);
-  const totalOverdue = defaulters.length > 0 ? 10 : 10;
+  const totalCollected = Number(fees?.totalCollected ?? 0);
+  const totalPending = Number(fees?.totalPending ?? 0);
+  const totalOverdue = Math.min(Number(fees?.totalOverdue ?? 0), totalPending);
+  const currentPending = Math.max(totalPending - totalOverdue, 0);
   const feeSegments = [
     { label: "Collected", value: totalCollected, color: "#34c759" },
-    { label: "Pending", value: totalPending, color: "#ff9500" },
+    { label: "Pending", value: currentPending, color: "#ff9500" },
     { label: "Overdue", value: totalOverdue, color: "#ff3b30" },
   ];
 
@@ -228,7 +232,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         ) : (
           <>
             <AttendanceChart
-              data={(data?.attendance ?? []).filter((a) => a.marked).map((a) => ({ label: a.className, value: a.attendancePercentage }))}
+              data={(data?.attendance ?? []).map((a) => ({ label: a.className, value: a.attendancePercentage, marked: a.marked }))}
               title={mode === "ADMIN" ? "Attendance in marked classes" : "Your class attendance"}
               classes={(data?.attendance ?? []).map((a) => a.className)}
             />

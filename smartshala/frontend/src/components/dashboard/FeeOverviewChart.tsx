@@ -18,25 +18,18 @@ export function FeeOverviewChart({ segments, title = "Fee overview" }: { segment
 
   const total = data.reduce((s, d) => s + d.value, 0);
   const r = 40, cx = 50, cy = 50, sw = 12;
+  const hasData = total > 0;
 
-  // Build donut arcs
-  let startAngle = -90;
-  const arcs = data.map((seg) => {
-    const angle = (seg.value / total) * 360;
-    const endAngle = startAngle + angle;
-    const largeArc = angle > 180 ? 1 : 0;
-    const sr = (startAngle * Math.PI) / 180;
-    const er = (endAngle * Math.PI) / 180;
-    const x1 = cx + r * Math.cos(sr);
-    const y1 = cy + r * Math.sin(sr);
-    const x2 = cx + r * Math.cos(er);
-    const y2 = cy + r * Math.sin(er);
-    const path = `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`;
-    startAngle = endAngle;
-    return { ...seg, path };
+  const circumference = 2 * Math.PI * r;
+  let strokeOffset = 0;
+  const arcs = data.filter((seg) => seg.value > 0).map((seg) => {
+    const length = (seg.value / total) * circumference;
+    const arc = { ...seg, length, offset: strokeOffset };
+    strokeOffset += length;
+    return arc;
   });
 
-  const primaryPct = data.length > 0 ? Math.round((data[0].value / total) * 100) : 0;
+  const primaryPct = hasData && data.length > 0 ? Math.round((data[0].value / total) * 100) : 0;
 
   return (
     <div className="glass-card-interactive p-5 h-full flex flex-col">
@@ -51,7 +44,12 @@ export function FeeOverviewChart({ segments, title = "Fee overview" }: { segment
         </div>
       </div>
       <div className="flex-1 flex flex-col justify-center min-h-0">
-        {mode === "donut" ? (
+        {!hasData ? (
+          <div className="flex h-full flex-col items-center justify-center rounded-xl bg-[#f5f5f7] px-4 text-center">
+            <p className="text-[14px] font-semibold text-[#1d1d1f]">No active fee assignments yet.</p>
+            <p className="mt-1 text-[12px] font-medium text-[#86868b]">Collection, pending, and overdue totals will appear after active fees are assigned.</p>
+          </div>
+        ) : mode === "donut" ? (
           <div className="flex items-center justify-center w-full h-full">
             <div className="relative w-full max-w-[160px] aspect-square">
               <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -59,13 +57,18 @@ export function FeeOverviewChart({ segments, title = "Fee overview" }: { segment
                 <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f5f5f7" strokeWidth={sw} />
                 {/* Arcs */}
                 {arcs.map((arc) => (
-                  <path
+                  <circle
                     key={arc.label}
-                    d={arc.path}
+                    cx={cx}
+                    cy={cy}
+                    r={r}
                     fill="none"
                     stroke={arc.color}
                     strokeWidth={sw}
-                    strokeLinecap="round"
+                    strokeLinecap="butt"
+                    strokeDasharray={`${arc.length} ${circumference}`}
+                    strokeDashoffset={-arc.offset}
+                    transform={`rotate(-90 ${cx} ${cy})`}
                     opacity={on ? 1 : 0}
                     style={{ transition: `opacity 0.6s ease 0.3s` }}
                   />
@@ -84,10 +87,10 @@ export function FeeOverviewChart({ segments, title = "Fee overview" }: { segment
               <div key={seg.label}>
                 <div className="flex justify-between text-[12px] font-medium text-[#424245] mb-1.5">
                   <span>{seg.label}</span>
-                  <span className="font-bold text-[#1d1d1f]">{Math.round((seg.value / total) * 100)}%</span>
+                  <span className="font-bold text-[#1d1d1f]">{hasData ? Math.round((seg.value / total) * 100) : 0}%</span>
                 </div>
                 <div className="h-2 w-full rounded-full bg-[#f5f5f7] overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: on ? `${(seg.value / total) * 100}%` : '0%', backgroundColor: seg.color, transition: `width 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.1}s` }} />
+                  <div className="h-full rounded-full" style={{ width: on && hasData ? `${(seg.value / total) * 100}%` : '0%', backgroundColor: seg.color, transition: `width 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.1}s` }} />
                 </div>
               </div>
             ))}

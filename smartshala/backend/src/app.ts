@@ -10,6 +10,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { notFoundHandler } from "./middleware/notFound.js";
 import { dbWarmup } from "./middleware/dbWarmup.js";
 import { apiRouter } from "./routes/index.js";
+import { dbHealthHandler } from "./routes/health.js";
 
 function buildAllowedOrigins() {
   const configuredOrigins = env.CORS_ORIGIN.split(",")
@@ -52,6 +53,7 @@ export function createApp() {
   app.use(pinoHttp({ logger }));
   app.use(dbWarmup());
 
+  app.get("/health/db", dbHealthHandler);
   app.use("/api", apiRouter);
   app.use("/api/v1", apiRouter);
   app.use(notFoundHandler);

@@ -225,24 +225,39 @@ async function generateReceiptNo(tx: Prisma.TransactionClient, schoolId: string,
 
 export async function dashboard(schoolId: string) {
   return withRetry(async () => {
-    const [assignmentAgg, paymentAgg, overdueCount, defaultersList] = await Promise.all([
+    const now = new Date();
+    const activeAssignmentWhere = {
+      schoolId,
+      feeStructure: { isActive: true }
+    } satisfies Prisma.StudentFeeAssignmentWhereInput;
+    const overdueAssignmentWhere = {
+      ...activeAssignmentWhere,
+      pendingAmount: { gt: new Prisma.Decimal(0) },
+      feeStructure: { isActive: true, installments: { some: { dueDate: { lt: now } } } }
+    } satisfies Prisma.StudentFeeAssignmentWhereInput;
+
+    const pendingAssignmentWhere = {
+      ...activeAssignmentWhere,
+      pendingAmount: { gt: new Prisma.Decimal(0) }
+    } satisfies Prisma.StudentFeeAssignmentWhereInput;
+
+    const [assignmentAgg, overdueAgg, overdueCount, defaulterCount, defaultersList] = await Promise.all([
       prisma.studentFeeAssignment.aggregate({
-        where: { schoolId },
+        where: activeAssignmentWhere,
         _sum: { totalAmount: true, paidAmount: true, pendingAmount: true }
       }),
-      prisma.payment.aggregate({
-        where: { schoolId },
-        _sum: { amount: true }
+      prisma.studentFeeAssignment.aggregate({
+        where: overdueAssignmentWhere,
+        _sum: { pendingAmount: true }
       }),
       prisma.studentFeeAssignment.count({
-        where: {
-          schoolId,
-          pendingAmount: { gt: new Prisma.Decimal(0) },
-          feeStructure: { installments: { some: { dueDate: { lt: new Date() } } } }
-        }
+        where: overdueAssignmentWhere
+      }),
+      prisma.studentFeeAssignment.count({
+        where: pendingAssignmentWhere
       }),
       prisma.studentFeeAssignment.findMany({
-        where: { schoolId, pendingAmount: { gt: new Prisma.Decimal(0) } },
+        where: pendingAssignmentWhere,
         include: {
           student: { include: { class: true } },
           feeStructure: { include: { installments: { orderBy: { dueDate: "asc" }, take: 1 } } }
@@ -254,9 +269,11 @@ export async function dashboard(schoolId: string) {
 
     return {
       totalDue: toNumber(assignmentAgg._sum.totalAmount),
-      totalCollected: toNumber(paymentAgg._sum.amount),
+      totalCollected: toNumber(assignmentAgg._sum.paidAmount),
       totalPending: toNumber(assignmentAgg._sum.pendingAmount),
+      totalOverdue: toNumber(overdueAgg._sum.pendingAmount),
       overdueInstallments: overdueCount,
+      defaulterCount,
       topDefaulters: defaultersList
     };
   }, { label: "feesDashboard" });
@@ -813,7 +830,11 @@ export async function defaulters(schoolId: string) {
   return withRetry(async () => {
     const today = new Date();
     const assignmentsList = await prisma.studentFeeAssignment.findMany({
-      where: { schoolId, pendingAmount: { gt: new Prisma.Decimal(0) } },
+      where: {
+        schoolId,
+        pendingAmount: { gt: new Prisma.Decimal(0) },
+        feeStructure: { isActive: true }
+      },
       include: {
         student: { include: { class: true } },
         feeStructure: { include: { installments: { orderBy: { dueDate: "asc" } } } }

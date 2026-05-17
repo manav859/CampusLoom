@@ -290,7 +290,9 @@ export type FeesDashboard = {
   totalDue: number;
   totalCollected: number;
   totalPending: number;
+  totalOverdue: number;
   overdueInstallments: number;
+  defaulterCount: number;
   topDefaulters: FeeAssignmentSummary[];
 };
 
@@ -310,6 +312,8 @@ export type FeeDefaulter = {
   studentId: string;
   name: string;
   class: string;
+  feeStructureId?: string;
+  feeStructure?: string;
   balance: number;
   balanceAmount: number;
   daysOverdue: number;

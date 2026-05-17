@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { TableRowSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
-import { cachedFetch } from "@/lib/prefetchCache";
+import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 
 type TeacherPeriod = {
   id: string;
@@ -100,11 +100,41 @@ export default function TeachersPage() {
       .finally(() => setLoading(false));
   }, [showInactive]);
 
+  useEffect(() => {
+    if (!openActionMenu) return;
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("[data-row-action-menu]") || target.closest("[data-row-action-button]")) return;
+      setOpenActionMenu(null);
+    };
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenActionMenu(null);
+    };
+
+    window.addEventListener("pointerdown", closeOnOutsideClick);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeOnOutsideClick);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openActionMenu]);
+
   async function openAssignments(teacherId: string) {
+    const teacher = teachers.find((item) => item.id === teacherId);
+    const periods = teacher?.periodAssignments ?? [];
+    setAssignmentContext({
+      teacher: { id: teacherId, fullName: teacher?.fullName ?? "Teacher" },
+      periods,
+      classes: []
+    });
+    setAssignmentDraft(Object.fromEntries(periods.map((period) => [period.periodNumber, { classId: period.classId ?? "", subjectId: period.subjectId ?? "" }])));
     setAssignmentLoading(true);
     setAssignmentError("");
     try {
-      const data = await apiFetch<TeacherAssignmentContext>(`/users/teachers/${teacherId}/assignments`);
+      const data = await cachedFetch(`teacher:${teacherId}:assignments`, () => apiFetch<TeacherAssignmentContext>(`/users/teachers/${teacherId}/assignments`));
       setAssignmentContext(data);
       setAssignmentDraft(Object.fromEntries(data.periods.map((period) => [period.periodNumber, { classId: period.classId ?? "", subjectId: period.subjectId ?? "" }])));
     } catch (err) {
@@ -132,6 +162,7 @@ export default function TeachersPage() {
         method: "PUT",
         body: JSON.stringify({ periods })
       });
+      invalidateCache(`teacher:${assignmentContext.teacher.id}:assignments`);
       setAssignmentContext(updated);
       setAssignmentDraft(Object.fromEntries(updated.periods.map((period) => [period.periodNumber, { classId: period.classId ?? "", subjectId: period.subjectId ?? "" }])));
       await refreshTeachers();
@@ -239,8 +270,9 @@ export default function TeachersPage() {
                 <td colSpan={7} className="px-5 py-12 text-center text-[#86868b]">No teachers found.</td>
               </tr>
             ) : (
-              filteredTeachers.map((teacher) => {
+              filteredTeachers.map((teacher, index) => {
                 const menuOpen = openActionMenu === teacher.id;
+                const openUpward = filteredTeachers.length > 3 && index >= filteredTeachers.length - 2;
 
                 return (
                 <tr key={teacher.id} className="table-row">
@@ -276,13 +308,17 @@ export default function TeachersPage() {
                             aria-expanded={menuOpen}
                             aria-label={`More actions for ${teacher.fullName}`}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#DCE1E8] bg-white text-[#5A6573] transition-colors hover:bg-[#F7F8FB]"
+                            data-row-action-button
                             onClick={() => setOpenActionMenu(menuOpen ? null : teacher.id)}
                             type="button"
                           >
                             <span className="text-[16px] leading-none">...</span>
                           </button>
                           {menuOpen ? (
-                            <div className="absolute right-0 top-8 z-20 min-w-[140px] overflow-hidden rounded-xl border border-[#DCE1E8] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(15,20,25,0.35)]">
+                            <div
+                              className={`absolute right-0 z-30 min-w-[140px] overflow-hidden rounded-xl border border-[#DCE1E8] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(15,20,25,0.35)] ${openUpward ? "bottom-8" : "top-8"}`}
+                              data-row-action-menu
+                            >
                               {teacher.status === "ACTIVE" ? (
                                 <button
                                   className="block w-full px-3 py-2 text-left text-[12px] font-semibold text-[#C8242C] hover:bg-[#FCE3E5]"
