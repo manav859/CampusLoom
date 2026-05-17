@@ -12,3 +12,7 @@ export const schoolProfileSchema = z.object({
   affiliationBoard: optionalText,
   logoUrl: z.string().trim().max(250_000).optional().nullable().transform((value) => value || null)
 });
+
+export const deletionPasswordSchema = z.object({
+  password: z.string().min(8).max(72)
+});
