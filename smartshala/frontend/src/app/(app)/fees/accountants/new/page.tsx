@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
 import { usersApi } from "@/lib/api";
 
@@ -55,8 +56,10 @@ export default function NewAccountantPage() {
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-1.5">
+      <form onInvalid={openInvalidFormSection} onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <FormSection title="Basic Details" defaultOpen>
+            <div className="space-y-1.5">
           <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Full name</label>
           <input
             className="glass-input w-full"
@@ -66,8 +69,11 @@ export default function NewAccountantPage() {
             required
             value={formData.fullName}
           />
-        </div>
+            </div>
+          </FormSection>
 
+          <FormSection title="Login Details">
+            <div className="space-y-5">
         <div className="space-y-1.5">
           <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Email address</label>
           <input
@@ -93,9 +99,14 @@ export default function NewAccountantPage() {
             value={formData.password}
           />
         </div>
+            </div>
+          </FormSection>
 
-        <div className="rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-3 text-[12px] font-medium leading-5 text-[#5A6573]">
+          <FormSection title="Access Details">
+            <div className="rounded-xl border border-[#DCE1E8] bg-white px-4 py-3 text-[12px] font-medium leading-5 text-[#5A6573]">
           Accountants can open fees, students list, search students, record payments, download receipts, and send receipt WhatsApp messages.
+            </div>
+          </FormSection>
         </div>
 
         <div className="flex items-center justify-end gap-3 border-t border-[rgba(0,0,0,0.06)] pt-4">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
 import { apiFetch, studentsApi } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
@@ -189,14 +190,10 @@ export default function NewStudentPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      <form onInvalid={openInvalidFormSection} onSubmit={handleSubmit} className="space-y-5">
         {/* Personal Details */}
-        <section className="space-y-5">
-          <h3 className="text-[15px] font-bold text-[#1d1d1f] flex items-center gap-2">
-            <span className="h-6 w-1 bg-[#0071e3] rounded-full" />
-            Personal Details
-          </h3>
-          
+        <div>
+        <FormSection title="Personal Details" defaultOpen>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Full Name <span className="text-[#ff3b30]">*</span></label>
@@ -295,15 +292,10 @@ export default function NewStudentPage() {
               </div>
             </div>
           </div>
-        </section>
+        </FormSection>
 
         {/* Academic & Fee Assignment */}
-        <section className="space-y-5">
-          <h3 className="text-[15px] font-bold text-[#1d1d1f] flex items-center gap-2">
-            <span className="h-6 w-1 bg-[#34c759] rounded-full" />
-            Academic & Fee Details
-          </h3>
-          
+        <FormSection title="Academic & Fee Details">
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class & Section <span className="text-[#ff3b30]">*</span></label>
@@ -355,15 +347,10 @@ export default function NewStudentPage() {
               </label>
             </div>
           </div>
-        </section>
+        </FormSection>
 
         {/* Parent Details */}
-        <section className="space-y-5">
-          <h3 className="text-[15px] font-bold text-[#1d1d1f] flex items-center gap-2">
-            <span className="h-6 w-1 bg-[#ff9500] rounded-full" />
-            Guardian Details
-          </h3>
-          
+        <FormSection title="Guardian Details">
           <div className="space-y-5">
             <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white/55 p-4">
               <div className="mb-3 flex items-center justify-between">
@@ -479,7 +466,8 @@ export default function NewStudentPage() {
               />
             </div>
           </div>
-        </section>
+        </FormSection>
+        </div>
 
         <div className="pt-4 flex items-center justify-end gap-3 border-t border-[rgba(0,0,0,0.06)]">
           <button

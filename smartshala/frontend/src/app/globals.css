@@ -207,6 +207,54 @@ summary {
   .btn-secondary:hover {
     background: #e8e8ed;
   }
+
+  .form-section {
+    overflow: hidden;
+    border: 1px solid #DCE1E8;
+    background: #ffffff;
+  }
+
+  .form-section + .form-section {
+    border-top-width: 0;
+  }
+
+  .form-section:first-of-type {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+  }
+
+  .form-section:last-of-type {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+
+  .form-section > summary {
+    display: flex;
+    min-height: 62px;
+    cursor: pointer;
+    list-style: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 24px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d1d1f;
+  }
+
+  .form-section > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .form-section[open] > summary svg {
+    transform: rotate(180deg);
+  }
+
+  .form-section-body {
+    border-top: 1px solid #DCE1E8;
+    background: #FAFBFC;
+    padding: 20px 24px 24px;
+  }
 }
 
 @keyframes progress {
