@@ -349,12 +349,12 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Create New Class Form
 
-- [ ] Make Class Teacher required.
-- [ ] Add Subjects multi-select.
-- [ ] Add Maximum strength.
-- [ ] Add Stream for higher classes.
-- [ ] Add Medium of instruction.
-- [ ] Allow academic year editing for archival use.
+- [x] Make Class Teacher required.
+- [x] Add Subjects multi-select.
+- [x] Add Maximum strength.
+- [x] Add Stream for higher classes.
+- [x] Add Medium of instruction.
+- [x] Allow academic year editing for archival use.
 
 ### Class Roster
 

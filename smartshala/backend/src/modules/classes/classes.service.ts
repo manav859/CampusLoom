@@ -40,6 +40,20 @@ async function ensureClassSubjects(schoolId: string, classId: string, teacherId?
   }
 }
 
+async function replaceClassSubjects(schoolId: string, classId: string, subjects: string[], teacherId?: string | null) {
+  const uniqueSubjects = Array.from(new Set(subjects.map((subject) => subject.trim()).filter(Boolean)));
+  await prisma.subject.deleteMany({ where: { schoolId, classId } });
+  await prisma.subject.createMany({
+    data: uniqueSubjects.map((name) => ({
+      schoolId,
+      classId,
+      teacherId: teacherId ?? null,
+      name
+    })),
+    skipDuplicates: true
+  });
+}
+
 export async function listClasses(user: Express.UserContext) {
   const parentClassIds =
     user.role === UserRole.PARENT
@@ -100,20 +114,35 @@ export async function listClasses(user: Express.UserContext) {
   return sortClassRecords(hydratedClasses);
 }
 
-export async function createClass(schoolId: string, data: { name: string; section: string; academicYear: string; classTeacherId?: string | null }) {
+export async function createClass(
+  schoolId: string,
+  data: {
+    name: string;
+    section: string;
+    academicYear: string;
+    classTeacherId: string;
+    maximumStrength?: number | null;
+    stream?: string | null;
+    mediumOfInstruction: string;
+    subjects: string[];
+  }
+) {
   if (data.classTeacherId) {
     const teacher = await prisma.user.findFirst({ where: { id: data.classTeacherId, schoolId, role: UserRole.TEACHER } });
     if (!teacher) throw new AppError(400, "Class teacher must be an active teacher in this school", "INVALID_TEACHER");
   }
-  const created = await prisma.class.create({ data: { schoolId, ...data } });
-  await ensureClassSubjects(schoolId, created.id, created.classTeacherId);
+  const { subjects, ...classData } = data;
+  const created = await prisma.class.create({ data: { schoolId, ...classData } });
+  await replaceClassSubjects(schoolId, created.id, subjects, created.classTeacherId);
   return created;
 }
 
 export async function updateClass(schoolId: string, id: string, data: Record<string, unknown>) {
   const existing = await prisma.class.findFirst({ where: { id, schoolId } });
   if (!existing) throw notFound("Class");
-  const updated = await prisma.class.update({ where: { id }, data });
+  const { subjects, ...classData } = data as { subjects?: string[] } & Record<string, unknown>;
+  const updated = await prisma.class.update({ where: { id }, data: classData });
+  if (subjects) await replaceClassSubjects(schoolId, updated.id, subjects, updated.classTeacherId);
   if ("classTeacherId" in data) await ensureClassSubjects(schoolId, updated.id, updated.classTeacherId);
   return updated;
 }
