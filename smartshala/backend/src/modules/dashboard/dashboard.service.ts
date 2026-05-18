@@ -149,7 +149,7 @@ async function principalDashboard(user: Express.UserContext) {
 
 async function teacherDashboard(user: Express.UserContext) {
   const today = startOfToday();
-  const [classes, attendance, absentToday] = await Promise.all([
+  const [classes, attendance, absentToday, pendingHomeworkSubmissions] = await Promise.all([
     prisma.class.findMany({
       where: { schoolId: user.schoolId, classTeacherId: user.id },
       include: { _count: { select: { students: true } } }
@@ -160,6 +160,19 @@ async function teacherDashboard(user: Express.UserContext) {
         schoolId: user.schoolId,
         status: AttendanceStatus.ABSENT,
         session: { date: today, class: { classTeacherId: user.id } }
+      }
+    }),
+    prisma.homeworkSubmission.count({
+      where: {
+        schoolId: user.schoolId,
+        status: { in: ["MISSING", "NOT_SUBMITTED"] },
+        assignment: {
+          OR: [
+            { assignedById: user.id },
+            { class: { classTeacherId: user.id } },
+            { subjectRef: { teacherId: user.id } }
+          ]
+        }
       }
     })
   ]);
@@ -178,11 +191,17 @@ async function teacherDashboard(user: Express.UserContext) {
       assignedClasses: classes.length,
       assignedStudents: classes.reduce((sum, classRecord) => sum + classRecord._count.students, 0),
       absentToday,
-      pendingAttendance: pending.length
+      pendingAttendance: pending.length,
+      pendingHomeworkSubmissions
     },
     classes,
     attendance,
-    alerts: pending.map((item) => ({ type: "ATTENDANCE_PENDING", message: `${item.className} attendance is not submitted yet.` }))
+    alerts: [
+      ...pending.map((item) => ({ type: "ATTENDANCE_PENDING", message: `${item.className} attendance is not submitted yet.`, severity: "MEDIUM" })),
+      ...(pendingHomeworkSubmissions > 0
+        ? [{ type: "HOMEWORK_PENDING", message: `${pendingHomeworkSubmissions} homework submissions need follow-up.`, severity: "MEDIUM" }]
+        : [])
+    ]
   };
 }
 

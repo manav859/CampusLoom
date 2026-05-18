@@ -391,6 +391,7 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false);
   const [canViewFees, setCanViewFees] = useState(false);
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; action: 'activate' | 'deactivate'; studentId: string | null; error?: string }>({ isOpen: false, action: 'deactivate', studentId: null });
@@ -420,6 +421,7 @@ export default function StudentsPage() {
       try {
         const u = JSON.parse(storedUser);
         setIsAdmin(u.role === "ADMIN" || u.role === "PRINCIPAL");
+        setIsTeacher(u.role === "TEACHER");
         setCanViewFees(roleCanViewFees(u.role));
       } catch (e) {
         console.error(e);
@@ -903,7 +905,7 @@ export default function StudentsPage() {
             </div>
           )}
           <div className="overflow-x-auto">
-            <table className={`w-full text-left text-[13px] ${canViewFees ? "min-w-[900px]" : "min-w-[640px]"}`}>
+            <table className={`w-full text-left text-[13px] ${canViewFees ? "min-w-[900px]" : "min-w-[780px]"}`}>
               <thead>
                 <tr className="bg-gradient-to-r from-[#1a3c4d] to-[#2a7a94]">
                   {tableHeaders.map((head, index) => (
@@ -1033,6 +1035,22 @@ export default function StudentsPage() {
                               >
                                 Edit
                               </Link>
+                            ) : null}
+                            {isTeacher ? (
+                              <>
+                                <Link
+                                  href={`/teacher/communication?studentId=${student.id}`}
+                                  className="inline-flex items-center rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#2A3340] transition-colors hover:bg-[#F7F8FB]"
+                                >
+                                  Message
+                                </Link>
+                                <Link
+                                  href="/attendance"
+                                  className="inline-flex items-center rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#2A3340] transition-colors hover:bg-[#F7F8FB]"
+                                >
+                                  Quick mark
+                                </Link>
+                              </>
                             ) : null}
                             {(isAdmin || (canViewFees && student.feeStatus && student.feeStatus !== "PAID")) ? (
                               <div className="relative">

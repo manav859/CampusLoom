@@ -60,7 +60,7 @@ export default function TeacherClassesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {classes.map((classRecord) => (
-            <Link className="glass-card-interactive block p-5 hover:no-underline" href={`/classes/${classRecord.id}`} key={classRecord.id}>
+            <div className="glass-card-interactive block p-5" key={classRecord.id}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Class</p>
@@ -78,7 +78,7 @@ export default function TeacherClassesPage() {
                     <span className="rounded-full bg-[#ff9500]/10 px-3 py-1 text-[12px] font-semibold text-[#c93400]">Subjects pending</span>
                   ) : (
                     classRecord.subjects?.map((subject) => (
-                      <span className="rounded-full bg-[#0071e3]/10 px-3 py-1 text-[12px] font-semibold text-[#0071e3]" key={subject.id}>
+                      <span className="rounded-md bg-[#F1F3F6] px-2.5 py-1 text-[12px] font-semibold text-[#2A3340]" key={subject.id}>
                         {subject.name}
                       </span>
                     ))
@@ -90,7 +90,19 @@ export default function TeacherClassesPage() {
                 <span className="font-medium text-[#6e6e73]">Academic year</span>
                 <span className="font-semibold text-[#1d1d1f]">{classRecord.academicYear}</span>
               </div>
-            </Link>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <Link className="rounded-lg bg-[#2456E6] px-3 py-2 text-center text-[12px] font-semibold text-white hover:bg-[#1B45BD]" href={`/attendance?classId=${classRecord.id}`}>
+                  Mark attendance
+                </Link>
+                <Link className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-center text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`/teacher/homework?classId=${classRecord.id}`}>
+                  Assign homework
+                </Link>
+                <Link className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-center text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`/classes/${classRecord.id}`}>
+                  View roster
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       )}
