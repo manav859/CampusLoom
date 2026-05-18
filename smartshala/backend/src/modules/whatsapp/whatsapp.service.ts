@@ -1,5 +1,6 @@
 import { NotificationKind, NotificationStatus } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
+import { notFound } from "../../core/errors.js";
 
 export type WhatsAppMessage = {
   phone: string;
@@ -89,4 +90,40 @@ export async function getLogs(schoolId: string) {
     orderBy: { createdAt: "desc" },
     take: 100
   });
+}
+
+export async function retryNotification(schoolId: string, notificationId: string) {
+  const notification = await prisma.notification.findFirst({
+    where: { id: notificationId, schoolId },
+    select: {
+      id: true,
+      studentId: true,
+      kind: true,
+      recipientPhone: true,
+      message: true,
+      status: true
+    }
+  });
+
+  if (!notification) throw notFound("Notification");
+
+  const result = await sendMessage(notification.recipientPhone, notification.message, {
+    schoolId,
+    studentId: notification.studentId ?? undefined,
+    kind: notification.kind
+  });
+
+  if (result.success) {
+    await prisma.notification.update({
+      where: { id: notification.id },
+      data: {
+        status: NotificationStatus.SENT,
+        sentAt: new Date(),
+        errorMessage: null,
+        providerMessageId: "mock-whatsapp-retry"
+      }
+    });
+  }
+
+  return result;
 }

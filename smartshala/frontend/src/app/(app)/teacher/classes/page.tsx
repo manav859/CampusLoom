@@ -19,10 +19,20 @@ type TeacherClass = {
 
 export default function TeacherClassesPage() {
   const [classes, setClasses] = useState<TeacherClass[]>([]);
+  const [currentTeacherId, setCurrentTeacherId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
+    if (storedUser) {
+      try {
+        setCurrentTeacherId(JSON.parse(storedUser).id ?? "");
+      } catch {
+        setCurrentTeacherId("");
+      }
+    }
+
     let active = true;
     setLoading(true);
     setError("");
@@ -59,7 +69,10 @@ export default function TeacherClassesPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {classes.map((classRecord) => (
+          {classes.map((classRecord) => {
+            const isMyClass = Boolean(currentTeacherId && classRecord.classTeacher?.id === currentTeacherId);
+
+            return (
             <div className="glass-card-interactive block p-5" key={classRecord.id}>
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -68,7 +81,10 @@ export default function TeacherClassesPage() {
                     {classRecord.name}-{classRecord.section}
                   </h2>
                 </div>
-                <StatusPill label={`${classRecord._count?.students ?? 0} students`} tone="good" />
+                <div className="flex flex-col items-end gap-2">
+                  {isMyClass ? <StatusPill label="My class" tone="good" /> : null}
+                  <StatusPill label={`${classRecord._count?.students ?? 0} students`} tone="neutral" />
+                </div>
               </div>
 
               <div className="mt-5">
@@ -92,9 +108,11 @@ export default function TeacherClassesPage() {
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                <Link className="rounded-lg bg-[#2456E6] px-3 py-2 text-center text-[12px] font-semibold text-white hover:bg-[#1B45BD]" href={`/attendance?classId=${classRecord.id}`}>
-                  Mark attendance
-                </Link>
+                {isMyClass ? (
+                  <Link className="rounded-lg bg-[#2456E6] px-3 py-2 text-center text-[12px] font-semibold text-white hover:bg-[#1B45BD]" href={`/attendance?classId=${classRecord.id}`}>
+                    Mark attendance
+                  </Link>
+                ) : null}
                 <Link className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-center text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`/teacher/homework?classId=${classRecord.id}`}>
                   Assign homework
                 </Link>
@@ -103,7 +121,8 @@ export default function TeacherClassesPage() {
                 </Link>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

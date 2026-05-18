@@ -252,6 +252,18 @@ export type ClassesTodayReportRow = {
   classTeacherName: string | null;
 };
 
+export type DailyAttendanceRow = {
+  classId: string;
+  className: string;
+  totalStudents: number;
+  marked: boolean;
+  present: number;
+  halfDay: number;
+  attended: number;
+  absent: number;
+  attendancePercentage: number;
+};
+
 export type NotificationLog = {
   id: string;
   kind: "ABSENCE" | "LOW_ATTENDANCE" | "FEE_REMINDER" | "OVERDUE_FEE" | "PAYMENT_RECEIPT" | "MONTHLY_REPORT" | "SCHOOL_ALERT";
@@ -821,7 +833,12 @@ export type DatabaseDeletionStatus = {
 };
 
 export const classesApi = {
-  list: () => apiFetch<ClassSummary[]>("/classes"),
+  list: (options?: { scope?: "classTeacher" }) => {
+    const params = new URLSearchParams();
+    if (options?.scope) params.set("scope", options.scope);
+    const query = params.toString();
+    return apiFetch<ClassSummary[]>(`/classes${query ? `?${query}` : ""}`);
+  },
   students: (classId: string) => apiFetch<ClassStudent[]>(`/classes/${classId}/students`)
 };
 
@@ -933,6 +950,7 @@ export const attendanceApi = {
     const query = params.toString();
     return apiFetch<ClassesTodayReportRow[]>(`/attendance/report/classes-today${query ? `?${query}` : ""}`);
   },
+  daily: () => apiFetch<DailyAttendanceRow[]>("/attendance/daily"),
   nudgePendingTeachers: (range?: { dateFrom?: string; dateTo?: string }) => {
     const params = new URLSearchParams();
     if (range?.dateFrom) params.set("dateFrom", range.dateFrom);
@@ -1021,7 +1039,8 @@ export const whatsappApi = {
     apiFetch<{ success: boolean }>("/wa/send", {
       method: "POST",
       body: JSON.stringify(payload)
-    })
+    }),
+  retry: (id: string) => apiFetch<{ success: boolean }>(`/wa/logs/${id}/retry`, { method: "POST" })
 };
 
 export const studentsApi = {

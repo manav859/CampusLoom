@@ -6,6 +6,8 @@ import {
   Gender,
   HomeworkSubmissionStatus,
   InstallmentStatus,
+  NotificationKind,
+  NotificationStatus,
   PaymentMode,
   Prisma,
   type Class,
@@ -579,6 +581,43 @@ export async function resetAndSeedDemoData(user: Express.UserContext, body: unkn
   await createManyInChunks(exams, (chunk) => prisma.exam.createMany({ data: chunk }), 500);
   await createManyInChunks(examResults, (chunk) => prisma.examResult.createMany({ data: chunk }), 1000);
 
+  const notificationKinds = [
+    NotificationKind.ABSENCE,
+    NotificationKind.LOW_ATTENDANCE,
+    NotificationKind.FEE_REMINDER,
+    NotificationKind.OVERDUE_FEE,
+    NotificationKind.PAYMENT_RECEIPT,
+    NotificationKind.MONTHLY_REPORT,
+    NotificationKind.SCHOOL_ALERT
+  ];
+  const notificationMessages: Record<NotificationKind, string> = {
+    ABSENCE: "Dear parent, your child was absent today. Please share the reason with the class teacher.",
+    LOW_ATTENDANCE: "Dear parent, attendance needs attention this month. Please connect with school.",
+    FEE_REMINDER: "Dear parent, fee installment is due. Kindly complete payment at the office or online.",
+    OVERDUE_FEE: "Dear parent, fee balance is overdue. Please clear the pending amount at the earliest.",
+    PAYMENT_RECEIPT: "Dear parent, payment receipt has been generated and shared for your records.",
+    MONTHLY_REPORT: "Dear parent, monthly progress summary is ready. Please review attendance and marks.",
+    SCHOOL_ALERT: "Dear parent, please note the latest school update shared by SmartShala."
+  };
+  const notifications = students.slice(0, 90).map((student, index) => {
+    const kind = notificationKinds[index % notificationKinds.length];
+    const status = index % 17 === 0 ? NotificationStatus.FAILED : index % 13 === 0 ? NotificationStatus.QUEUED : NotificationStatus.SENT;
+    const createdAt = daysAgo(index % 2);
+    return {
+      schoolId: user.schoolId,
+      studentId: student.id,
+      kind,
+      recipientPhone: student.parentPhone,
+      message: notificationMessages[kind],
+      status,
+      providerMessageId: status === NotificationStatus.SENT ? `wa_demo_${index + 1}` : null,
+      errorMessage: status === NotificationStatus.FAILED ? "Parent number not reachable" : null,
+      sentAt: status === NotificationStatus.SENT ? createdAt : null,
+      createdAt
+    };
+  });
+  await createManyInChunks(notifications, (chunk) => prisma.notification.createMany({ data: chunk }), 500);
+
   return {
     status: "seeded",
     login: {
@@ -598,7 +637,8 @@ export async function resetAndSeedDemoData(user: Express.UserContext, body: unkn
       homeworkAssignments: homeworkAssignments.length,
       homeworkSubmissions: homeworkSubmissions.length,
       exams: exams.length,
-      examResults: examResults.length
+      examResults: examResults.length,
+      notifications: notifications.length
     }
   };
 }

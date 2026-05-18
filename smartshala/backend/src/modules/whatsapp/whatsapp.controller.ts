@@ -31,3 +31,7 @@ export const sendBulk = asyncHandler<Request<Record<string, never>, unknown, Bul
 export const getLogs = asyncHandler(async (req: Request, res: Response) => {
   res.json(await whatsappService.getLogs(req.user!.schoolId));
 });
+
+export const retryNotification = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await whatsappService.retryNotification(req.user!.schoolId, req.params.id));
+});

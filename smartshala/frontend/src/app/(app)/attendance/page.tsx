@@ -8,7 +8,7 @@ import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
-import { attendanceApi, type ClassesTodayReportRow } from "@/lib/api";
+import { attendanceApi, type DailyAttendanceRow } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 
 function calendarDayClasses(input: { selected: boolean; marked: boolean; isHoliday: boolean }) {
@@ -28,7 +28,7 @@ function calendarDayClasses(input: { selected: boolean; marked: boolean; isHolid
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [todayRows, setTodayRows] = useState<ClassesTodayReportRow[]>([]);
+  const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
   const classLabel = attendance.selectedClass ? `${attendance.selectedClass.name}-${attendance.selectedClass.section}` : "Class";
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
@@ -45,7 +45,7 @@ export default function TeacherAttendancePage() {
 
   useEffect(() => {
     let active = true;
-    attendanceApi.classesTodayReport()
+    attendanceApi.daily()
       .then((rows) => {
         if (active) setTodayRows(rows);
       })
@@ -56,6 +56,14 @@ export default function TeacherAttendancePage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    const requestedClassId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("classId") : null;
+    if (!requestedClassId || attendance.loading || attendance.selectedClassId === requestedClassId) return;
+    if (attendance.classes.some((classItem) => classItem.id === requestedClassId)) {
+      void attendance.selectClass(requestedClassId);
+    }
+  }, [attendance]);
 
   useEffect(() => {
     if (!attendance.error && !attendance.success) return;

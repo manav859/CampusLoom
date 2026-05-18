@@ -3,7 +3,7 @@ import { asyncHandler } from "../../core/asyncHandler.js";
 import * as classesService from "./classes.service.js";
 
 export const listClasses = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await classesService.listClasses(req.user!));
+  res.json(await classesService.listClasses(req.user!, { scope: req.query.scope === "classTeacher" ? "classTeacher" : undefined }));
 });
 
 export const createClass = asyncHandler(async (req: Request, res: Response) => {
@@ -25,4 +25,3 @@ export const getClassStudents = asyncHandler(async (req: Request, res: Response)
 export const deleteClass = asyncHandler(async (req: Request, res: Response) => {
   res.status(204).json(await classesService.deleteClass(req.user!.schoolId, req.params.id));
 });
-
