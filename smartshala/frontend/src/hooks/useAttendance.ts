@@ -114,7 +114,7 @@ export function useAttendance() {
       setError("");
 
       try {
-        const classList = await classesApi.list();
+        const classList = await classesApi.list({ scope: "classTeacher" });
         if (cancelled) return;
         setClasses(classList);
 

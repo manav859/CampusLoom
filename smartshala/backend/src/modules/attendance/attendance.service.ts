@@ -88,12 +88,7 @@ function isUniqueConstraintError(error: unknown) {
 
 function teacherClassAccessWhere(user: AttendanceUser) {
   return user.role === UserRole.TEACHER
-    ? {
-        OR: [
-          { classTeacherId: user.id },
-          { teacherPeriodAssignments: { some: { teacherId: user.id } } }
-        ]
-      }
+    ? { classTeacherId: user.id }
     : {};
 }
 

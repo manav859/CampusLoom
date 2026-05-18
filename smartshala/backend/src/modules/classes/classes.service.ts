@@ -54,7 +54,7 @@ async function replaceClassSubjects(schoolId: string, classId: string, subjects:
   });
 }
 
-export async function listClasses(user: Express.UserContext) {
+export async function listClasses(user: Express.UserContext, options: { scope?: "classTeacher" } = {}) {
   const parentClassIds =
     user.role === UserRole.PARENT
       ? (
@@ -73,7 +73,9 @@ export async function listClasses(user: Express.UserContext) {
     where: {
       schoolId: user.schoolId,
       ...((user.role as string) === UserRole.TEACHER
-        ? { OR: [{ classTeacherId: user.id }, { teacherPeriodAssignments: { some: { teacherId: user.id } } }] }
+        ? options.scope === "classTeacher"
+          ? { classTeacherId: user.id }
+          : { OR: [{ classTeacherId: user.id }, { teacherPeriodAssignments: { some: { teacherId: user.id } } }] }
         : {}),
       ...(parentClassIds ? { id: { in: parentClassIds } } : {})
     },
@@ -100,7 +102,9 @@ export async function listClasses(user: Express.UserContext) {
     where: {
       schoolId: user.schoolId,
       ...((user.role as string) === UserRole.TEACHER
-        ? { OR: [{ classTeacherId: user.id }, { teacherPeriodAssignments: { some: { teacherId: user.id } } }] }
+        ? options.scope === "classTeacher"
+          ? { classTeacherId: user.id }
+          : { OR: [{ classTeacherId: user.id }, { teacherPeriodAssignments: { some: { teacherId: user.id } } }] }
         : {}),
       ...(parentClassIds ? { id: { in: parentClassIds } } : {})
     },

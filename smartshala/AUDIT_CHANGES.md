@@ -483,16 +483,16 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### WhatsApp Logs
 
-- [ ] Seed plausible message volume: 80-150 sends/day.
-- [ ] Use real statuses: Sent, Delivered, Read, Failed.
-- [ ] Show retry on Failed.
+- [x] Seed plausible message volume: 80-150 sends/day.
+- [x] Use real statuses: Sent, Delivered, Read, Failed.
+- [x] Show retry on Failed.
 - [x] Mask phone middle digits.
-- [ ] Add credits remaining tile.
+- [x] Add credits remaining tile.
 - [x] Truncate message previews at about 80 characters.
-- [ ] Add expand/full-message view.
-- [ ] Expand type filter to match actual data types.
+- [x] Add expand/full-message view.
+- [x] Expand type filter to match actual data types.
 - [x] Convert all-caps message types to sentence case.
-- [ ] Match filter dropdown widths.
+- [x] Match filter dropdown widths.
 
 ### Settings
 
