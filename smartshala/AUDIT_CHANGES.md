@@ -474,12 +474,12 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Analytics / Risk Insights
 
-- [ ] Add trend arrows and comparison, e.g. `8 up +2 vs last week`.
-- [ ] Add LOW severity tag and counts for all severity levels.
-- [ ] Make priority student rows actionable: Message parent, View profile, Mark resolved.
-- [ ] Add `Why is this student at risk?` explainer with data breakdown.
-- [ ] Add Export CSV.
-- [ ] Add bulk WhatsApp message to priority parents.
+- [x] Add trend arrows and comparison, e.g. `8 up +2 vs last week`.
+- [x] Add LOW severity tag and counts for all severity levels.
+- [x] Make priority student rows actionable: Message parent, View profile, Mark resolved.
+- [x] Add `Why is this student at risk?` explainer with data breakdown.
+- [x] Add Export CSV.
+- [x] Add bulk WhatsApp message to priority parents.
 
 ### WhatsApp Logs
 
