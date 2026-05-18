@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { SideModal } from "@/components/ui/SideModal";
 import { apiFetch, studentsApi } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
@@ -179,9 +179,7 @@ export default function NewStudentPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-12">
-      <PageHeader eyebrow="Students" title="Register new student" />
-      
+    <SideModal eyebrow="Students" onClose={() => router.back()} title="Register new student" width="lg">
       {errorMsg && (
         <div className="p-4 rounded-xl bg-[rgba(255,59,48,0.1)] border border-[rgba(255,59,48,0.2)] text-[#d70015] text-[13px] font-medium flex items-center gap-3">
           <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -191,7 +189,7 @@ export default function NewStudentPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="glass-card p-8 space-y-8">
+      <form onSubmit={handleSubmit} className="space-y-8">
         {/* Personal Details */}
         <section className="space-y-5">
           <h3 className="text-[15px] font-bold text-[#1d1d1f] flex items-center gap-2">
@@ -500,6 +498,6 @@ export default function NewStudentPage() {
           </button>
         </div>
       </form>
-    </div>
+    </SideModal>
   );
 }

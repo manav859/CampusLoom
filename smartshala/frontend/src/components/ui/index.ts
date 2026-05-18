@@ -7,6 +7,7 @@ export { InitialsAvatar } from "./InitialsAvatar";
 export { KpiCard } from "./KpiCard";
 export { Modal, ModalCloseButton } from "./Modal";
 export { PageHeader } from "./PageHeader";
+export { SideModal } from "./SideModal";
 export { SimpleBarChart } from "./SimpleBarChart";
 export { Skeleton } from "./Skeleton";
 export { StatusPill } from "./StatusPill";
