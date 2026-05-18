@@ -97,6 +97,9 @@ model Class {
   section                  String
   academicYear             String
   classTeacherId           String?                   @db.Uuid
+  maximumStrength          Int?
+  stream                   String?
+  mediumOfInstruction      String?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   attendanceSessions       AttendanceSession[]

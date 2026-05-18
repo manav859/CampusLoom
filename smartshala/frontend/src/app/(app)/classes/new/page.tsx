@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { cachedFetch } from "@/lib/prefetchCache";
 
 type Teacher = { id: string; fullName: string };
+const subjectOptions = ["English", "Hindi", "Mathematics", "Science", "Social Studies", "Computer Science", "Sanskrit", "General Knowledge"];
 
 export default function NewClassPage() {
   const router = useRouter();
@@ -19,7 +20,12 @@ export default function NewClassPage() {
     section: "",
     academicYear: new Date().getFullYear().toString() + "-" + (new Date().getFullYear() + 1).toString().slice(-2),
     classTeacherId: "",
+    maximumStrength: "",
+    stream: "",
+    mediumOfInstruction: "English",
   });
+  const [subjects, setSubjects] = useState<string[]>(["English", "Hindi", "Mathematics", "Science", "Social Studies"]);
+  const [customSubject, setCustomSubject] = useState("");
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
@@ -44,8 +50,12 @@ export default function NewClassPage() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
-    const payload: Record<string, any> = { ...formData };
-    if (!payload.classTeacherId) delete payload.classTeacherId;
+    const payload: Record<string, any> = {
+      ...formData,
+      maximumStrength: formData.maximumStrength ? Number(formData.maximumStrength) : undefined,
+      stream: formData.stream || undefined,
+      subjects
+    };
     try {
       await apiFetch("/classes", {
         method: "POST",
@@ -59,6 +69,17 @@ export default function NewClassPage() {
       setLoading(false);
     }
   };
+
+  function toggleSubject(subject: string) {
+    setSubjects((prev) => prev.includes(subject) ? prev.filter((item) => item !== subject) : [...prev, subject]);
+  }
+
+  function addCustomSubject() {
+    const value = customSubject.trim();
+    if (!value) return;
+    setSubjects((prev) => Array.from(new Set([...prev, value])));
+    setCustomSubject("");
+  }
 
   return (
     <SideModal eyebrow="Classes" onClose={() => router.back()} title="Create new class">
@@ -95,10 +116,22 @@ export default function NewClassPage() {
               onChange={(e) => setFormData({ ...formData, section: e.target.value })}
             />
           </div>
+          <div className="space-y-1.5">
+            <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Maximum Strength</label>
+            <input
+              min={1}
+              type="number"
+              className="glass-input w-full"
+              placeholder="e.g. 40"
+              value={formData.maximumStrength}
+              onChange={(e) => setFormData({ ...formData, maximumStrength: e.target.value })}
+            />
+          </div>
             </div>
           </FormSection>
 
           <FormSection title="Academic Details">
+            <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Academic Year</label>
               <input
@@ -109,12 +142,43 @@ export default function NewClassPage() {
                 onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
               />
             </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Medium of Instruction</label>
+              <select
+                required
+                className="glass-input w-full"
+                value={formData.mediumOfInstruction}
+                onChange={(e) => setFormData({ ...formData, mediumOfInstruction: e.target.value })}
+              >
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Gujarati">Gujarati</option>
+                <option value="Marathi">Marathi</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Stream for higher classes</label>
+              <select
+                className="glass-input w-full"
+                value={formData.stream}
+                onChange={(e) => setFormData({ ...formData, stream: e.target.value })}
+              >
+                <option value="">Not applicable</option>
+                <option value="Science">Science</option>
+                <option value="Commerce">Commerce</option>
+                <option value="Arts">Arts</option>
+                <option value="Vocational">Vocational</option>
+              </select>
+            </div>
+            </div>
           </FormSection>
 
           <FormSection title="Teacher Assignment">
             <div className="space-y-1.5">
-              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class Teacher (Optional)</label>
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class Teacher</label>
               <select
+                required
                 className="glass-input w-full"
                 value={formData.classTeacherId}
                 onChange={(e) => setFormData({ ...formData, classTeacherId: e.target.value })}
@@ -124,6 +188,46 @@ export default function NewClassPage() {
                   <option key={t.id} value={t.id}>{t.fullName}</option>
                 ))}
               </select>
+            </div>
+          </FormSection>
+
+          <FormSection title="Subjects">
+            <div className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {subjectOptions.map((subject) => (
+                  <label key={subject} className="flex items-center gap-3 rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[13px] font-semibold text-[#1d1d1f]">
+                    <input
+                      checked={subjects.includes(subject)}
+                      className="h-4 w-4 accent-[#2456E6]"
+                      onChange={() => toggleSubject(subject)}
+                      type="checkbox"
+                    />
+                    {subject}
+                  </label>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  className="glass-input w-full"
+                  placeholder="Add custom subject"
+                  value={customSubject}
+                  onChange={(e) => setCustomSubject(e.target.value)}
+                />
+                <button className="btn-secondary min-h-[44px] px-4" onClick={addCustomSubject} type="button">Add</button>
+              </div>
+              {subjects.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {subjects.map((subject) => (
+                    <span key={subject} className="inline-flex items-center gap-2 rounded-full bg-[#E2F0FB] px-3 py-1 text-[12px] font-semibold text-[#1F6FB8]">
+                      {subject}
+                      <button aria-label={`Remove ${subject}`} onClick={() => toggleSubject(subject)} type="button">x</button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg bg-[#FCE3E5] px-3 py-2 text-[12px] font-semibold text-[#C8242C]">Select at least one subject.</p>
+              )}
+              <input required className="sr-only" tabIndex={-1} value={subjects.length ? "selected" : ""} onChange={() => undefined} />
             </div>
           </FormSection>
         </div>
