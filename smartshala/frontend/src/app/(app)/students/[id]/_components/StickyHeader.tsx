@@ -7,7 +7,7 @@ type StickyHeaderProps = {
   attendancePercentage: number;
   currentRank: number | null;
   feeBalance: number;
-  daysSinceLastAbsent: number | null;
+  totalAbsentThisMonth: number;
   performanceRate: number | null;
   performanceClassification: PerformanceClassification;
   isPerformanceFallback: boolean;
@@ -33,13 +33,6 @@ function academicStatus(classification: PerformanceClassification): { label: str
 function feesStatus(feeBalance: number): { label: string; tone: PillTone } {
   if (feeBalance <= 0) return { label: "Fees: Clear", tone: "good" };
   return { label: "Fees: Pending", tone: "warn" };
-}
-
-function formatDaysSinceLastAbsent(days: number | null) {
-  if (days === null) return "No absences";
-  if (days === 0) return "Today";
-  if (days === 1) return "1 day";
-  return `${days} days`;
 }
 
 function whatsappLink(phone: string) {
@@ -152,7 +145,7 @@ export function StickyHeader({
   attendancePercentage,
   currentRank,
   feeBalance,
-  daysSinceLastAbsent,
+  totalAbsentThisMonth,
   performanceRate,
   performanceClassification,
   isPerformanceFallback,
@@ -167,7 +160,7 @@ export function StickyHeader({
   /* KPI tones */
   const attendanceTone: KpiTone = attendancePercentage >= 85 ? "good" : attendancePercentage >= 75 ? "warn" : "danger";
   const feeTone: KpiTone = feeBalance <= 0 ? "good" : "warn";
-  const absentTone: KpiTone = daysSinceLastAbsent === null ? "good" : daysSinceLastAbsent <= 2 ? "danger" : "neutral";
+  const absentTone: KpiTone = totalAbsentThisMonth === 0 ? "good" : totalAbsentThisMonth >= 3 ? "danger" : "warn";
   const canContactParent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN" || student.access?.role === "TEACHER";
   const canEditStudent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN";
   const parentShareMessage = encodeURIComponent(
@@ -271,7 +264,7 @@ export function StickyHeader({
           {canViewAttendance ? <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} /> : null}
           {canViewAcademic ? <MiniKpiCard label="Current rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" /> : null}
           {canViewFees ? <MiniKpiCard label="Fee balance" value={money(feeBalance)} tone={feeTone} /> : null}
-          {canViewAttendance ? <MiniKpiCard label="Days since absent" value={formatDaysSinceLastAbsent(daysSinceLastAbsent)} tone={absentTone} /> : null}
+          {canViewAttendance ? <MiniKpiCard label="Absent this month" value={String(totalAbsentThisMonth)} tone={absentTone} /> : null}
         </div>
       </section>
     </div>

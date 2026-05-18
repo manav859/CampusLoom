@@ -9,10 +9,9 @@ import { EditHistoryPanel } from "./EditHistoryPanel";
 import { StickyHeader } from "./StickyHeader";
 import { StudentProfileTabs } from "./StudentProfileTabs";
 import {
+  absentThisMonth,
   attendanceSummary,
-  daysSinceLastAbsent,
   fallbackPerformanceClassification,
-  latestAbsentDate,
   performanceClassification,
   performanceRate
 } from "./studentProfileUtils";
@@ -133,8 +132,7 @@ export function StudentProfilePage() {
     ? attendanceMetrics.attendancePercentage
     : student.attendancePercentage ?? attendance.percentage;
   const feeBalance = student.feeBalance ?? pendingFees;
-  const lastAbsentDate = student.lastAbsentDate ?? latestAbsentDate(student.attendanceRecords);
-  const daysAbsent = daysSinceLastAbsent(lastAbsentDate);
+  const monthlyAbsences = absentThisMonth(student.attendanceRecords);
   const performance = student.performanceRate ?? performanceRate(student.examAverage, student.homeworkCompletion, attendancePercentage);
   const classification =
     student.performanceClassification ??
@@ -154,7 +152,7 @@ export function StudentProfilePage() {
         attendancePercentage={attendancePercentage}
         currentRank={student.currentRank ?? null}
         feeBalance={feeBalance}
-        daysSinceLastAbsent={daysAbsent}
+        totalAbsentThisMonth={monthlyAbsences}
         performanceRate={performance}
         performanceClassification={classification}
         isPerformanceFallback={isPerformanceFallback}
