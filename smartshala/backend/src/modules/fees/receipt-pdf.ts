@@ -23,6 +23,7 @@ type ReceiptData = {
   payment: {
     amount: number;
     mode: string;
+    recordedByName?: string | null;
     upiTransactionId?: string | null;
     chequeNumber?: string | null;
     ddNumber?: string | null;
@@ -279,6 +280,7 @@ export function generateReceiptPdf(data: ReceiptData): Promise<Buffer> {
         ["Fee Structure", data.feeStructure.name],
         ["Academic Year", data.feeStructure.academicYear],
         ["Payment Mode", data.payment.mode.replace(/_/g, " ")],
+        ["Collected By", data.payment.recordedByName ?? "School office"],
         ["Payment Date", formatDate(data.payment.paidAt)],
         ...paymentReferenceRows(data.payment)
       ];

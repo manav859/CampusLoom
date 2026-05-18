@@ -64,6 +64,16 @@ export const receiptPdf = asyncHandler(async (req: Request, res: Response) => {
   res.send(pdfBuffer);
 });
 
+export const publicReceiptPdf = asyncHandler(async (req: Request, res: Response) => {
+  const pdfBuffer = await feesService.getPublicReceiptPdf(req.params.receiptId);
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `inline; filename="receipt-${req.params.receiptId}.pdf"`,
+    "Content-Length": pdfBuffer.length.toString()
+  });
+  res.send(pdfBuffer);
+});
+
 export const sendReceiptWhatsApp = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await feesService.sendReceiptWhatsApp(req.user!.schoolId, req.params.receiptId));
+  res.json(await feesService.sendReceiptWhatsApp(req.user!, req.params.receiptId));
 });

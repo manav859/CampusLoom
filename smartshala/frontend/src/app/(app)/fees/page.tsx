@@ -151,6 +151,7 @@ export default function FeesDashboardPage() {
         action={
           <>
             {isAdmin ? <a className="btn-secondary" href="#fee-structures">Manage fee structures</a> : null}
+            {isAdmin ? <Link className="btn-secondary" href="/fees/accountants/new">Add accountant</Link> : null}
             {isAdmin ? <Link className="btn-secondary" href="/fees/new">New structure</Link> : null}
             <Link className="btn-primary" href="/fees/defaulters">View defaulters</Link>
           </>
@@ -206,10 +207,12 @@ export default function FeesDashboardPage() {
                   Open defaulter follow-up queue
                   <span className="text-[#86868b]">-</span>
                 </Link>
-                <Link className="flex items-center justify-between rounded-xl bg-[rgba(0,0,0,0.02)] px-4 py-3.5 text-[13px] font-medium text-[#2456E6] transition-colors hover:bg-[rgba(0,0,0,0.04)]" href="/notifications" title="Receipt and WhatsApp delivery audit trail">
-                  Review WhatsApp receipts
-                  <span className="text-[#86868b]">-</span>
-                </Link>
+                {isAdmin ? (
+                  <Link className="flex items-center justify-between rounded-xl bg-[rgba(0,0,0,0.02)] px-4 py-3.5 text-[13px] font-medium text-[#2456E6] transition-colors hover:bg-[rgba(0,0,0,0.04)]" href="/notifications" title="Receipt and WhatsApp delivery audit trail">
+                    Review WhatsApp receipts
+                    <span className="text-[#86868b]">-</span>
+                  </Link>
+                ) : null}
               </div>
             </div>
           </>
@@ -220,9 +223,14 @@ export default function FeesDashboardPage() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Fee structures</h2>
-            <p className="text-[13px] text-[#86868b]">Edit active structures, duplicate drafts, or archive old plans.</p>
+            <p className="text-[13px] text-[#86868b]">Edit active structures, duplicate drafts, archive old plans, or add fee staff.</p>
           </div>
-          {isAdmin ? <Link className="btn-secondary min-h-10 px-4 text-[13px]" href="/fees/new">Create new</Link> : null}
+          {isAdmin ? (
+            <div className="flex flex-wrap gap-2">
+              <Link className="btn-secondary min-h-10 px-4 text-[13px]" href="/fees/accountants/new">Add accountant</Link>
+              <Link className="btn-secondary min-h-10 px-4 text-[13px]" href="/fees/new">Create new</Link>
+            </div>
+          ) : null}
         </div>
         <DataTable
           rows={structures}

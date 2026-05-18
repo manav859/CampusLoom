@@ -6,11 +6,18 @@ export const createTeacherSchema = z.object({
   email: z.string().email().trim().optional().or(z.literal("")),
   phone: z.string().trim().min(10),
   password: z.string().min(6),
-  role: z.nativeEnum(UserRole).default(UserRole.TEACHER)
+  role: z.literal(UserRole.TEACHER).optional().default(UserRole.TEACHER)
 }).transform((data) => ({
   ...data,
   email: data.email === "" ? undefined : data.email
 }));
+
+export const createAccountantSchema = z.object({
+  fullName: z.string().trim().min(2),
+  email: z.string().email().trim(),
+  password: z.string().min(6),
+  role: z.literal(UserRole.ACCOUNTANT).optional().default(UserRole.ACCOUNTANT)
+});
 
 export const updateUserSchema = z.object({
   fullName: z.string().min(2).optional(),

@@ -9,6 +9,7 @@ export const feesRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 const financeRoles = [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.ACCOUNTANT] as const;
 
+feesRouter.get("/public/receipts/:receiptId/pdf", controller.publicReceiptPdf);
 feesRouter.use(requireAuth);
 feesRouter.get("/dashboard", requireRole(financeRoles), controller.dashboard);
 feesRouter.get("/structure", requireRole(financeRoles), controller.listFeeStructures);
