@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { SideModal } from "@/components/ui/SideModal";
 import { apiFetch } from "@/lib/api";
 import { cachedFetch } from "@/lib/prefetchCache";
 
@@ -60,9 +60,7 @@ export default function NewClassPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <PageHeader eyebrow="Classes" title="Create new class" />
-      
+    <SideModal eyebrow="Classes" onClose={() => router.back()} title="Create new class">
       {errorMsg && (
         <div className="p-4 rounded-xl bg-[rgba(255,59,48,0.1)] border border-[rgba(255,59,48,0.2)] text-[#d70015] text-[13px] font-medium flex items-center gap-3">
           <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -72,7 +70,7 @@ export default function NewClassPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class Name</label>
@@ -138,6 +136,6 @@ export default function NewClassPage() {
           </button>
         </div>
       </form>
-    </div>
+    </SideModal>
   );
 }

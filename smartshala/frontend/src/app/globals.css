@@ -222,3 +222,21 @@ summary {
 @keyframes shimmer {
   100% { transform: translateX(100%); }
 }
+
+@keyframes side-modal-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes side-modal-panel-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.side-modal-overlay {
+  animation: side-modal-overlay-in 180ms ease-out both;
+}
+
+.side-modal-panel {
+  animation: side-modal-panel-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
