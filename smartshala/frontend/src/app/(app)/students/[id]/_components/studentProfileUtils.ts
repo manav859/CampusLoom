@@ -56,6 +56,18 @@ export function daysSinceLastAbsent(lastAbsentDate: string | null) {
   return Math.max(0, Math.floor(diff / 86_400_000));
 }
 
+export function absentThisMonth(records: StudentDetail["attendanceRecords"]) {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  return records.filter((record) => {
+    if (record.status !== "ABSENT") return false;
+    const recordDate = new Date(record.session.date);
+    return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
+  }).length;
+}
+
 export function performanceRate(examAverage: number | null, homeworkCompletion: number | null, attendancePercentage: number) {
   if (examAverage === null || homeworkCompletion === null) return null;
   return Math.round((examAverage * 0.6) + (homeworkCompletion * 0.2) + (attendancePercentage * 0.2));
