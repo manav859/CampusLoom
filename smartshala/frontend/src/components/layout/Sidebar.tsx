@@ -66,7 +66,7 @@ function isActiveLink(pathname: string, href: string) {
 }
 
 function NavIcon({ icon, active }: { icon: NavLink["icon"]; active: boolean }) {
-  const color = active ? "#0071e3" : "#86868b";
+  const color = active ? "#ffffff" : "#86868b";
 
   if (icon === "dashboard") {
     return (
@@ -189,10 +189,10 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
                 key={href}
                 href={withSchoolPath(href, pathname)}
                 onClick={onClose}
-                className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
+                className={`group flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
                   active
-                    ? "bg-[#0071e3] text-white shadow-md shadow-blue-500/20"
-                    : "text-[#424245] hover:bg-[#f5f5f7] hover:text-[#1d1d1f]"
+                    ? "border-[#0071e3] bg-[#0071e3] text-white shadow-md shadow-blue-500/20"
+                    : "border-transparent text-[#424245] hover:border-[#0071e3] hover:text-[#1d1d1f]"
                 }`}
               >
                 <NavIcon active={active} icon={icon} />

@@ -11,6 +11,10 @@ export const createTeacher = asyncHandler(async (req: Request, res: Response) =>
   res.status(201).json(await usersService.createUser(req.user!.schoolId, req.body));
 });
 
+export const createAccountant = asyncHandler(async (req: Request, res: Response) => {
+  res.status(201).json(await usersService.createUser(req.user!.schoolId, { ...req.body, role: UserRole.ACCOUNTANT }));
+});
+
 export const getTeacherAssignments = asyncHandler(async (req: Request, res: Response) => {
   res.json(await usersService.getTeacherAssignments(req.user!.schoolId, req.params.id));
 });

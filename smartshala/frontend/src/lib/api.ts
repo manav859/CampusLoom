@@ -1007,6 +1007,14 @@ export const feesApi = {
     })
 };
 
+export const usersApi = {
+  createAccountant: (payload: { fullName: string; email: string; password: string }) =>
+    apiFetch<{ id: string; fullName: string; email: string; role: "ACCOUNTANT"; status: "ACTIVE" | "INACTIVE" }>("/users/accountants", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+};
+
 export const whatsappApi = {
   logs: () => apiFetch<NotificationLog[]>("/wa/logs"),
   send: (payload: { phone: string; message: string }) =>

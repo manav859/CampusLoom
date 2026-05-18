@@ -1,5 +1,6 @@
 import { FeeAdjustmentType, InstallmentStatus, NotificationKind, PaymentMode, Prisma } from "@prisma/client";
 import { logger } from "../../config/logger.js";
+import { env } from "../../config/env.js";
 import { prisma, withRetry, isRetryableError } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { buildFeeReceiptMessage } from "../whatsapp/templates.js";
@@ -61,6 +62,11 @@ function formatDate(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function publicReceiptUrl(receiptId: string, tenantSchoolId?: string) {
+  const base = env.FRONTEND_URL.replace(/\/$/, "");
+  return tenantSchoolId ? `${base}/${tenantSchoolId}/receipt/${receiptId}` : `${base}/receipt/${receiptId}`;
 }
 
 function className(classRecord: { name: string; section: string }) {
@@ -594,6 +600,8 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
       result.assignment.student,
       data.amount,
       result.receipt.receiptNo,
+      result.receipt.id,
+      user.tenantSchoolId,
       paidAt,
       toNumber(result.assignment.pendingAmount),
       result.assignment.status
@@ -701,6 +709,8 @@ function queuePaymentReceiptWhatsApp(
   student: { id: string; fullName: string; parentPhone: string },
   amount: number,
   receiptNo: string,
+  receiptId: string,
+  tenantSchoolId: string | undefined,
   paidAt: Date,
   pendingAmount: number,
   status: string
@@ -709,7 +719,7 @@ function queuePaymentReceiptWhatsApp(
   if (!phone) return;
 
   setTimeout(() => {
-    const message = buildFeeReceiptMessage(student.fullName, amount, receiptNo, formatDate(paidAt), pendingAmount, status);
+    const message = buildFeeReceiptMessage(student.fullName, amount, receiptNo, formatDate(paidAt), pendingAmount, status, publicReceiptUrl(receiptId, tenantSchoolId));
     void sendWhatsAppMessage(phone, message, {
       schoolId,
       studentId: student.id,
@@ -720,9 +730,9 @@ function queuePaymentReceiptWhatsApp(
   }, 10_000);
 }
 
-export async function sendReceiptWhatsApp(schoolId: string, receiptId: string) {
+export async function sendReceiptWhatsApp(user: Express.UserContext, receiptId: string) {
   const receipt = await withRetry(() => prisma.receipt.findFirst({
-    where: { id: receiptId, schoolId },
+    where: { id: receiptId, schoolId: user.schoolId },
     include: {
       payment: {
         include: {
@@ -749,10 +759,11 @@ export async function sendReceiptWhatsApp(schoolId: string, receiptId: string) {
     receipt.receiptNo,
     formatDate(payment.paidAt),
     toNumber(payment.assignment.pendingAmount),
-    payment.assignment.status
+    payment.assignment.status,
+    publicReceiptUrl(receipt.id, user.tenantSchoolId)
   );
   const result = await sendWhatsAppMessage(phone, message, {
-    schoolId,
+    schoolId: user.schoolId,
     studentId: student.id,
     kind: NotificationKind.PAYMENT_RECEIPT
   });
@@ -863,76 +874,93 @@ export async function defaulters(schoolId: string) {
   }, { label: "defaulters" });
 }
 
-export async function getReceiptPdf(schoolId: string, receiptId: string) {
-  return withRetry(async () => {
-    const receipt = await prisma.receipt.findFirst({
-      where: { id: receiptId, schoolId },
-      include: {
-        payment: {
-          include: {
-            student: { include: { class: true } },
-            assignment: {
-              include: {
-                feeStructure: true
-              }
+async function buildReceiptPdfFromReceipt(receipt: NonNullable<Awaited<ReturnType<typeof findReceiptForPdf>>>) {
+  const payment = receipt.payment;
+  const student = payment.student;
+  const assignment = payment.assignment;
+  const feeStructure = assignment.feeStructure;
+
+  return generateReceiptPdf({
+    receiptNo: receipt.receiptNo,
+    issuedAt: receipt.issuedAt,
+    school: {
+      name: receipt.school.name,
+      city: receipt.school.city,
+      state: receipt.school.state,
+      phone: receipt.school.phone,
+      gstin: receipt.school.gstin,
+      udiseNumber: receipt.school.udiseNumber,
+      affiliationBoard: receipt.school.affiliationBoard,
+      logoUrl: receipt.school.logoUrl
+    },
+    student: {
+      fullName: student.fullName,
+      admissionNumber: student.admissionNumber,
+      class: `${student.class.name}-${student.class.section}`,
+      parentName: student.parentName,
+      parentPhone: student.parentPhone
+    },
+    payment: {
+      amount: toNumber(payment.amount),
+      mode: payment.mode,
+      recordedByName: payment.recordedBy.fullName,
+      upiTransactionId: payment.upiTransactionId,
+      chequeNumber: payment.chequeNumber,
+      ddNumber: payment.ddNumber,
+      gatewayTransactionId: payment.gatewayTransactionId,
+      bankReference: payment.bankReference,
+      paidAt: payment.paidAt,
+      notes: payment.notes
+    },
+    feeStructure: {
+      name: feeStructure.name,
+      academicYear: feeStructure.academicYear,
+      totalAmount: toNumber(feeStructure.totalAmount)
+    },
+    ledger: {
+      totalAmount: toNumber(assignment.totalAmount),
+      paidAmount: toNumber(assignment.paidAmount),
+      pendingAmount: toNumber(assignment.pendingAmount),
+      status: assignment.status
+    }
+  });
+}
+
+function findReceiptForPdf(where: Prisma.ReceiptWhereInput) {
+  return prisma.receipt.findFirst({
+    where,
+    include: {
+      payment: {
+        include: {
+          recordedBy: { select: { fullName: true } },
+          student: { include: { class: true } },
+          assignment: {
+            include: {
+              feeStructure: true
             }
           }
-        },
-        school: true
-      }
-    });
+        }
+      },
+      school: true
+    }
+  });
+}
+
+export async function getReceiptPdf(schoolId: string, receiptId: string) {
+  return withRetry(async () => {
+    const receipt = await findReceiptForPdf({ id: receiptId, schoolId });
 
     if (!receipt) throw notFound("Receipt");
-
-    const payment = receipt.payment;
-    const student = payment.student;
-    const assignment = payment.assignment;
-    const feeStructure = assignment.feeStructure;
-
-    return generateReceiptPdf({
-      receiptNo: receipt.receiptNo,
-      issuedAt: receipt.issuedAt,
-      school: {
-        name: receipt.school.name,
-        city: receipt.school.city,
-        state: receipt.school.state,
-        phone: receipt.school.phone,
-        gstin: receipt.school.gstin,
-        udiseNumber: receipt.school.udiseNumber,
-        affiliationBoard: receipt.school.affiliationBoard,
-        logoUrl: receipt.school.logoUrl
-      },
-      student: {
-        fullName: student.fullName,
-        admissionNumber: student.admissionNumber,
-        class: `${student.class.name}-${student.class.section}`,
-        parentName: student.parentName,
-        parentPhone: student.parentPhone
-      },
-      payment: {
-        amount: toNumber(payment.amount),
-        mode: payment.mode,
-        upiTransactionId: payment.upiTransactionId,
-        chequeNumber: payment.chequeNumber,
-        ddNumber: payment.ddNumber,
-        gatewayTransactionId: payment.gatewayTransactionId,
-        bankReference: payment.bankReference,
-        paidAt: payment.paidAt,
-        notes: payment.notes
-      },
-      feeStructure: {
-        name: feeStructure.name,
-        academicYear: feeStructure.academicYear,
-        totalAmount: toNumber(feeStructure.totalAmount)
-      },
-      ledger: {
-        totalAmount: toNumber(assignment.totalAmount),
-        paidAmount: toNumber(assignment.paidAmount),
-        pendingAmount: toNumber(assignment.pendingAmount),
-        status: assignment.status
-      }
-    });
+    return buildReceiptPdfFromReceipt(receipt);
   }, { label: "getReceiptPdf" });
+}
+
+export async function getPublicReceiptPdf(receiptId: string) {
+  return withRetry(async () => {
+    const receipt = await findReceiptForPdf({ id: receiptId });
+    if (!receipt) throw notFound("Receipt");
+    return buildReceiptPdfFromReceipt(receipt);
+  }, { label: "getPublicReceiptPdf" });
 }
 
 export async function getReceiptByPaymentId(schoolId: string, paymentId: string) {
