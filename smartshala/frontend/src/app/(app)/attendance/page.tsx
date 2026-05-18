@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { Button } from "@/components/ui/Button";
@@ -8,6 +8,7 @@ import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
+import { attendanceApi, type ClassesTodayReportRow } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 
 function calendarDayClasses(input: { selected: boolean; marked: boolean; isHoliday: boolean }) {
@@ -27,6 +28,8 @@ function calendarDayClasses(input: { selected: boolean; marked: boolean; isHolid
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [todayRows, setTodayRows] = useState<ClassesTodayReportRow[]>([]);
+  const [showFeedback, setShowFeedback] = useState(false);
   const classLabel = attendance.selectedClass ? `${attendance.selectedClass.name}-${attendance.selectedClass.section}` : "Class";
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
   const selectedDateLabel = formatDateShort(attendance.selectedDate);
@@ -38,6 +41,28 @@ export default function TeacherAttendancePage() {
     ...Array.from({ length: firstOfMonth.getDay() }, (_, index) => ({ key: `blank-${index}`, day: null as number | null })),
     ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
   ];
+  const currentPeriodLabel = "My current period";
+
+  useEffect(() => {
+    let active = true;
+    attendanceApi.classesTodayReport()
+      .then((rows) => {
+        if (active) setTodayRows(rows);
+      })
+      .catch(() => {
+        if (active) setTodayRows([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!attendance.error && !attendance.success) return;
+    setShowFeedback(true);
+    const timeout = window.setTimeout(() => setShowFeedback(false), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [attendance.error, attendance.success]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -96,6 +121,25 @@ export default function TeacherAttendancePage() {
             onChange={(event) => attendance.selectMonth(event.target.value)}
             disabled={attendance.loading || attendance.submitting}
           />
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className="rounded-full bg-[#2456E6]/10 px-3 py-1 text-[12px] font-semibold text-[#2456E6]">{currentPeriodLabel}</span>
+          {todayRows.length === 0 ? (
+            <span className="rounded-full bg-[#F1F3F6] px-3 py-1 text-[12px] font-semibold text-[#5A6573]">Today status loading</span>
+          ) : (
+            todayRows.slice(0, 6).map((row) => (
+              <button
+                className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
+                  row.marked ? "bg-[#E1F5EA] text-[#0F8A4A]" : "bg-[#FFF2DC] text-[#B95A00]"
+                }`}
+                key={row.classId}
+                onClick={() => attendance.selectClass(row.classId)}
+                type="button"
+              >
+                {row.className}: {row.marked ? "Marked" : "Unmarked"}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
@@ -181,10 +225,10 @@ export default function TeacherAttendancePage() {
         />
       )}
 
-      {attendance.error || attendance.success ? (
-        <div className="fixed inset-x-0 bottom-[88px] z-50 flex justify-center px-4 pointer-events-none" role="status" aria-live="polite">
+      {showFeedback && (attendance.error || attendance.success) ? (
+        <div className="fixed right-4 top-4 z-50 flex justify-end px-4 pointer-events-none" role="status" aria-live="polite">
           <div
-            className={`rounded-full px-5 py-2.5 text-[14px] font-semibold shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-5 duration-300 flex items-center gap-2 ${
+            className={`rounded-xl px-5 py-2.5 text-[14px] font-semibold shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300 flex items-center gap-2 ${
               attendance.error ? "bg-white/95 text-[#d70015] border border-[#ff3b30]/20" : "bg-[#34c759] text-white border border-[#34c759]/20"
             }`}
           >

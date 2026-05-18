@@ -38,6 +38,27 @@ function defaultMessage(type: CommunicationMessageType, language: TemplateLangua
   return renderCommunicationTemplate(template.variants[language], variables);
 }
 
+const teacherQuickTemplates = [
+  {
+    label: "Homework reminder",
+    type: "HOMEWORK_REMINDER" as CommunicationMessageType
+  },
+  {
+    label: "Class cancelled",
+    message: "Dear parent, today's class for Class {className} is cancelled. Please check the next school update for revised schedule."
+  },
+  {
+    label: "PTM invite",
+    type: "PTM_INVITE" as CommunicationMessageType
+  },
+  {
+    label: "Sick child sent home",
+    message: "Dear parent, {studentName} felt unwell today. Please contact {teacherName} and arrange pickup if needed."
+  }
+];
+
+type TeacherQuickTemplate = { label: string; type: CommunicationMessageType } | { label: string; message: string };
+
 export default function TeacherCommunicationPage() {
   const [context, setContext] = useState<CommunicationContext>({ classes: [] });
   const [logs, setLogs] = useState<TeacherCommunicationLog[]>([]);
@@ -51,6 +72,10 @@ export default function TeacherCommunicationPage() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [logTypeFilter, setLogTypeFilter] = useState<CommunicationMessageType | "ALL">("ALL");
+  const [logStatusFilter, setLogStatusFilter] = useState<TeacherCommunicationLog["status"] | "ALL">("ALL");
+  const [logPage, setLogPage] = useState(1);
+  const [expandedLog, setExpandedLog] = useState<TeacherCommunicationLog | null>(null);
 
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
   const students = selectedClass?.students ?? [];
@@ -69,6 +94,16 @@ export default function TeacherCommunicationPage() {
     teacherName: "Class teacher"
   }), [selectedClass, selectedStudent]);
   const selectedTemplate = templateForType(messageType);
+  const filteredLogs = useMemo(
+    () => logs.filter((log) =>
+      (logTypeFilter === "ALL" || log.type === logTypeFilter) &&
+      (logStatusFilter === "ALL" || log.status === logStatusFilter)
+    ),
+    [logs, logStatusFilter, logTypeFilter]
+  );
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
+  const visibleLogs = filteredLogs.slice((logPage - 1) * pageSize, logPage * pageSize);
 
   useEffect(() => {
     if (messageType !== "CUSTOM") {
@@ -126,6 +161,16 @@ export default function TeacherCommunicationPage() {
   function handleMessageTypeChange(nextType: CommunicationMessageType) {
     setMessageType(nextType);
     setMessage(defaultMessage(nextType, language, templateVariables));
+  }
+
+  function applyQuickTemplate(template: TeacherQuickTemplate) {
+    if ("type" in template && template.type) {
+      handleMessageTypeChange(template.type);
+      return;
+    }
+    if (!("message" in template)) return;
+    setMessageType("CUSTOM");
+    setMessage(renderCommunicationTemplate(template.message, templateVariables));
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -273,6 +318,22 @@ export default function TeacherCommunicationPage() {
               </div>
             ) : null}
 
+            <div>
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Teacher quick templates</span>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {teacherQuickTemplates.map((template) => (
+                  <button
+                    className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]"
+                    key={template.label}
+                    onClick={() => applyQuickTemplate(template)}
+                    type="button"
+                  >
+                    {template.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Message</span>
               <textarea
@@ -315,6 +376,17 @@ export default function TeacherCommunicationPage() {
             </div>
             {selectedClass ? <StatusPill label={`Class ${selectedClass.name}-${selectedClass.section}`} tone="neutral" /> : null}
           </div>
+          <div className="flex flex-wrap gap-2 border-b border-[rgba(0,0,0,0.06)] px-5 py-3">
+            <select className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340]" onChange={(event) => { setLogTypeFilter(event.target.value as CommunicationMessageType | "ALL"); setLogPage(1); }} value={logTypeFilter}>
+              <option value="ALL">All types</option>
+              {communicationTemplates.map((template) => <option key={template.type} value={template.type}>{template.label}</option>)}
+              <option value="CUSTOM">Custom message</option>
+            </select>
+            <select className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340]" onChange={(event) => { setLogStatusFilter(event.target.value as TeacherCommunicationLog["status"] | "ALL"); setLogPage(1); }} value={logStatusFilter}>
+              <option value="ALL">All statuses</option>
+              {["QUEUED", "SENT", "FAILED", "COMPLETED", "MISSED", "NOTE"].map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-left text-[13px]">
               <thead className="table-head">
@@ -333,14 +405,14 @@ export default function TeacherCommunicationPage() {
                       ))}
                     </tr>
                   ))
-                ) : logs.length === 0 ? (
+                ) : visibleLogs.length === 0 ? (
                   <tr>
                     <td className="px-5 py-8" colSpan={5}>
                       <EmptyState headline="No messages" description="No parent messages sent yet." />
                     </td>
                   </tr>
                 ) : (
-                  logs.map((log) => (
+                  visibleLogs.map((log) => (
                     <tr className="table-row" key={log.id}>
                       <td className="px-5 py-4">
                         <p className="font-semibold text-[#1d1d1f]">{log.studentName}</p>
@@ -349,6 +421,11 @@ export default function TeacherCommunicationPage() {
                       <td className="px-5 py-4 text-[#6e6e73]">{templateLabel(log.type)}</td>
                       <td className="px-5 py-4">
                         <p className="line-clamp-1 max-w-[360px] text-[#6e6e73]">{log.message}</p>
+                        {log.message.length > 80 ? (
+                          <button className="mt-1 text-[12px] font-semibold text-[#2456E6]" onClick={() => setExpandedLog(log)} type="button">
+                            View full
+                          </button>
+                        ) : null}
                       </td>
                       <td className="px-5 py-4"><StatusPill label={log.status} tone={statusTone(log.status)} /></td>
                       <td className="px-5 py-4 text-[#6e6e73]">{formatDateTimeShort(log.timestamp)}</td>
@@ -358,8 +435,32 @@ export default function TeacherCommunicationPage() {
               </tbody>
             </table>
           </div>
+          {!loading && filteredLogs.length > pageSize ? (
+            <div className="flex items-center justify-between border-t border-[rgba(0,0,0,0.06)] px-5 py-3 text-[12px] font-semibold text-[#5A6573]">
+              <span>Page {logPage} of {pageCount}</span>
+              <div className="flex gap-2">
+                <button className="rounded-lg border border-[#DCE1E8] px-3 py-1.5 disabled:opacity-50" disabled={logPage === 1} onClick={() => setLogPage((page) => Math.max(1, page - 1))} type="button">Previous</button>
+                <button className="rounded-lg border border-[#DCE1E8] px-3 py-1.5 disabled:opacity-50" disabled={logPage === pageCount} onClick={() => setLogPage((page) => Math.min(pageCount, page + 1))} type="button">Next</button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </section>
+      {expandedLog ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <button aria-label="Close message" className="absolute inset-0" onClick={() => setExpandedLog(null)} type="button" />
+          <div className="relative w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{templateLabel(expandedLog.type)}</h2>
+                <p className="mt-1 text-[13px] text-[#86868b]">{expandedLog.studentName} | {formatDateTimeShort(expandedLog.timestamp)}</p>
+              </div>
+              <button className="rounded-lg bg-[#F1F3F6] px-3 py-1.5 text-[12px] font-semibold text-[#2A3340]" onClick={() => setExpandedLog(null)} type="button">Close</button>
+            </div>
+            <p className="mt-4 whitespace-pre-wrap text-[14px] leading-6 text-[#2A3340]">{expandedLog.message}</p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

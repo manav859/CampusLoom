@@ -13,8 +13,6 @@ import {
 import { formatDateShort, formatDateTimeShort } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
-const generalSubjectId = "__GENERAL__";
-
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -41,7 +39,7 @@ export default function TeacherHomeworkPage() {
   const [context, setContext] = useState<HomeworkContext>({ classes: [] });
   const [assignments, setAssignments] = useState<HomeworkAssignment[]>([]);
   const [classId, setClassId] = useState("");
-  const [subjectId, setSubjectId] = useState(generalSubjectId);
+  const [subjectId, setSubjectId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignedDate, setAssignedDate] = useState(todayInputValue());
@@ -54,9 +52,18 @@ export default function TeacherHomeworkPage() {
   const [submissionDrafts, setSubmissionDrafts] = useState<Record<string, { marks: string; teacherNote: string }>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [attachmentNames, setAttachmentNames] = useState<string[]>([]);
 
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
   const subjectOptions = selectedClass?.subjects ?? [];
+  const selectedClassHasSubjects = subjectOptions.length > 0;
+  const selectedAssignmentAverage = useMemo(() => {
+    if (!selectedAssignment) return null;
+    const marks = selectedAssignment.submissions
+      .map((submission) => submission.marks)
+      .filter((mark): mark is number => typeof mark === "number");
+    return marks.length ? Math.round((marks.reduce((sum, mark) => sum + mark, 0) / marks.length) * 10) / 10 : null;
+  }, [selectedAssignment]);
 
   useEffect(() => {
     let active = true;
@@ -88,7 +95,7 @@ export default function TeacherHomeworkPage() {
   }, []);
 
   useEffect(() => {
-    setSubjectId(subjectOptions[0]?.id ?? generalSubjectId);
+    setSubjectId(subjectOptions[0]?.id ?? "");
   }, [classId, subjectOptions]);
 
   async function refreshAssignments(nextClassId = classId) {
@@ -140,6 +147,10 @@ export default function TeacherHomeworkPage() {
       setError("Title is required.");
       return;
     }
+    if (!subjectId) {
+      setError("Subject is required. Assign subjects before creating homework.");
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -147,9 +158,12 @@ export default function TeacherHomeworkPage() {
     try {
       const created = await homeworkApi.createAssignment({
         classId,
-        ...(subjectId === generalSubjectId ? { subject: "General" } : { subjectId }),
+        subjectId,
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: [
+          description.trim(),
+          attachmentNames.length ? `Attachments: ${attachmentNames.join(", ")}` : ""
+        ].filter(Boolean).join("\n") || undefined,
         assignedDate,
         dueDate
       });
@@ -159,6 +173,7 @@ export default function TeacherHomeworkPage() {
       setDescription("");
       setAssignedDate(todayInputValue());
       setDueDate(todayInputValue());
+      setAttachmentNames([]);
       setNotice("Homework assigned to the full class.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create homework");
@@ -216,6 +231,11 @@ export default function TeacherHomeworkPage() {
 
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
       {notice ? <div className="rounded-xl bg-[#34c759]/10 p-4 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
+      {!loading && selectedClass && !selectedClassHasSubjects ? (
+        <div className="rounded-xl border border-[#B95A00]/20 bg-[#FFF2DC] px-4 py-3 text-[13px] font-medium text-[#B95A00]">
+          No subjects are assigned for Class {selectedClass.name}-{selectedClass.section}. Add subjects before creating teacher homework.
+        </div>
+      ) : null}
 
       <section className="grid gap-4 xl:grid-cols-[390px_1fr]">
         <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple" onSubmit={handleSubmit}>
@@ -245,7 +265,7 @@ export default function TeacherHomeworkPage() {
                 onChange={(event) => setSubjectId(event.target.value)}
                 value={subjectId}
               >
-                {subjectOptions.length === 0 ? <option value={generalSubjectId}>General</option> : null}
+                {subjectOptions.length === 0 ? <option value="">No subjects assigned</option> : null}
                 {subjectOptions.map((subject) => (
                   <option key={subject.id} value={subject.id}>{subject.name}</option>
                 ))}
@@ -294,9 +314,22 @@ export default function TeacherHomeworkPage() {
               </label>
             </div>
 
+            <label className="block">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Attachments</span>
+              <input
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="mt-1.5 w-full rounded-xl border border-dashed border-[rgba(0,0,0,0.16)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
+                multiple
+                onChange={(event) => setAttachmentNames(Array.from(event.target.files ?? []).map((file) => file.name))}
+                type="file"
+              />
+              <p className="mt-1 text-[12px] font-medium text-[#86868b]">PDF, JPG, PNG up to 10MB each. Names save with assignment note.</p>
+              {attachmentNames.length ? <p className="mt-1 text-[12px] font-semibold text-[#1d1d1f]">{attachmentNames.join(", ")}</p> : null}
+            </label>
+
             <button
               className="w-full rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={saving || loading || !classId}
+              disabled={saving || loading || !classId || !subjectId}
               type="submit"
             >
               {saving ? "Assigning..." : "Assign to class"}
@@ -316,7 +349,7 @@ export default function TeacherHomeworkPage() {
             <table className="w-full min-w-[900px] text-left text-[13px]">
               <thead className="table-head">
                 <tr>
-                  {["Title", "Subject", "Assigned Date", "Due Date", "Status", "Submitted", "Late", "Not submitted", "Tracking"].map((head) => (
+                  {["Title", "Subject", "Assigned Date", "Due Date", "Status", "Submitted", "Late", "Not submitted", "Class avg", "Tracking"].map((head) => (
                     <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
                   ))}
                 </tr>
@@ -325,14 +358,14 @@ export default function TeacherHomeworkPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, index) => (
                     <tr key={index}>
-                      {Array.from({ length: 9 }).map((__, cell) => (
+                      {Array.from({ length: 10 }).map((__, cell) => (
                         <td className="px-5 py-4" key={cell}><Skeleton className="h-4 w-20 rounded-md" /></td>
                       ))}
                     </tr>
                   ))
                 ) : assignments.length === 0 ? (
                   <tr>
-                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={9}>No homework assignments created yet.</td>
+                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={10}>No homework assignments created yet.</td>
                   </tr>
                 ) : (
                   assignments.map((assignment) => (
@@ -348,9 +381,12 @@ export default function TeacherHomeworkPage() {
                       <td className="px-5 py-4 font-semibold text-[#248a3d]">{assignment.submittedCount}</td>
                       <td className="px-5 py-4 font-semibold text-[#cc7700]">{assignment.lateCount}</td>
                       <td className="px-5 py-4 font-semibold text-[#d70015]">{assignment.notSubmittedCount}</td>
+                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">
+                        {selectedAssignment?.id === assignment.id && selectedAssignmentAverage !== null ? `${selectedAssignmentAverage}/20` : "-"}
+                      </td>
                       <td className="px-5 py-4">
                         <button
-                          className="rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[12px] font-semibold text-[#0071e3] transition hover:bg-[#0071e3] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-50"
                           disabled={loadingDetail && selectedAssignment?.id === assignment.id}
                           onClick={() => openAssignment(assignment.id)}
                           type="button"
@@ -374,6 +410,17 @@ export default function TeacherHomeworkPage() {
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Submission tracking</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">
                 {selectedAssignment.title} | {selectedAssignment.className} | Due {formatDateShort(selectedAssignment.dueDate)}
+              </p>
+              <div className="mt-3 h-2 max-w-md overflow-hidden rounded-full bg-[#F1F3F6]">
+                <div
+                  className="h-full rounded-full bg-[#2456E6]"
+                  style={{
+                    width: `${selectedAssignment.totalStudents ? Math.round(((selectedAssignment.submittedCount + selectedAssignment.lateCount) / selectedAssignment.totalStudents) * 100) : 0}%`
+                  }}
+                />
+              </div>
+              <p className="mt-1 text-[12px] font-medium text-[#5A6573]">
+                {selectedAssignment.submittedCount + selectedAssignment.lateCount} of {selectedAssignment.totalStudents} submitted - {selectedAssignment.totalStudents ? Math.round(((selectedAssignment.submittedCount + selectedAssignment.lateCount) / selectedAssignment.totalStudents) * 100) : 0}% complete
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -435,13 +482,13 @@ export default function TeacherHomeworkPage() {
                         />
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex flex-wrap gap-2">
+                        <div className="inline-flex flex-wrap gap-1 rounded-xl bg-[#f5f5f7] p-1">
                           {(["ON_TIME", "LATE", "NOT_SUBMITTED"] as HomeworkSubmissionStatus[]).map((status) => (
                             <button
                               className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                 submission.status === status
-                                  ? "bg-[#1d1d1f] text-white"
-                                  : "bg-[rgba(0,0,0,0.04)] text-[#424245] hover:bg-[rgba(0,0,0,0.08)]"
+                                  ? "bg-white text-[#1d1d1f] shadow-apple-sm"
+                                  : "text-[#424245] hover:bg-white/70"
                               }`}
                               disabled={savingRow}
                               key={status}

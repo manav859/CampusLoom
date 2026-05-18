@@ -10,10 +10,11 @@ const defaultSegments: Segment[] = [
   { label: "Overdue", value: 10, color: "#ff3b30" },
 ];
 
-export function FeeOverviewChart({ segments, title = "Fee overview" }: { segments?: Segment[]; title?: string }) {
+export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "Finance" }: { segments?: Segment[]; title?: string; eyebrow?: string }) {
   const data = segments ?? defaultSegments;
   const [on, setOn] = useState(false);
   const [mode, setMode] = useState<"donut" | "bar">("donut");
+  const [windowLabel, setWindowLabel] = useState("This month");
   useEffect(() => { const t = setTimeout(() => setOn(true), 200); return () => clearTimeout(t); }, []);
 
   const total = data.reduce((s, d) => s + d.value, 0);
@@ -35,12 +36,24 @@ export function FeeOverviewChart({ segments, title = "Fee overview" }: { segment
     <div className="glass-card-interactive p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Finance</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">{eyebrow}</p>
           <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">{title}</h3>
+          <p className="mt-0.5 text-[11px] font-medium text-[#86868b]">{windowLabel}</p>
         </div>
-        <div className="flex bg-[#f5f5f7] rounded-md p-0.5 border border-[#e5e5ea]">
-          <button onClick={() => setMode("donut")} className={`px-2.5 py-0.5 text-[10px] rounded-[4px] font-medium transition-colors ${mode === "donut" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Donut</button>
-          <button onClick={() => setMode("bar")} className={`px-2.5 py-0.5 text-[10px] rounded-[4px] font-medium transition-colors ${mode === "bar" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Bar</button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <select
+            className="rounded-md border border-[#e5e5ea] bg-[#f5f5f7] px-2 py-1 text-[10px] font-bold text-[#5A6573] outline-none"
+            onChange={(event) => setWindowLabel(event.target.value)}
+            value={windowLabel}
+          >
+            <option>This week</option>
+            <option>This month</option>
+            <option>This term</option>
+          </select>
+          <div className="flex rounded-md border border-[#e5e5ea] bg-[#f5f5f7] p-0.5">
+            <button onClick={() => setMode("donut")} className={`px-2.5 py-0.5 text-[10px] rounded-[4px] font-medium transition-colors ${mode === "donut" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Donut</button>
+            <button onClick={() => setMode("bar")} className={`px-2.5 py-0.5 text-[10px] rounded-[4px] font-medium transition-colors ${mode === "bar" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Bar</button>
+          </div>
         </div>
       </div>
       <div className="flex-1 flex flex-col justify-center min-h-0">

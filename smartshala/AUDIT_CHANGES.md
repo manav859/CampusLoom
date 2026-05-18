@@ -508,35 +508,35 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Teacher Dashboard
 
-- [ ] Standardize all attendance charts to teacher dashboard version.
-- [ ] Replace teacher `Defaulters` tile with `Pending homework submissions` or `Unmarked attendance days`.
-- [ ] Add scope labels: `Your students` vs `School-wide`.
-- [ ] Add time window selector on donuts.
+- [x] Standardize all attendance charts to teacher dashboard version.
+- [x] Replace teacher `Defaulters` tile with `Pending homework submissions` or `Unmarked attendance days`.
+- [x] Add scope labels: `Your students` vs `School-wide`.
+- [x] Add time window selector on donuts.
 
 ### Teacher Today's Actions And Classes Grid
 
-- [ ] Keep orange severity pattern and extend it to other action types.
-- [ ] Style subject chips with subtle gray background and consistent shape.
-- [ ] Reconcile academic year mismatch.
-- [ ] Add class-card quick actions: Mark attendance, Assign homework, View roster.
+- [x] Keep orange severity pattern and extend it to other action types.
+- [x] Style subject chips with subtle gray background and consistent shape.
+- [x] Reconcile academic year mismatch.
+- [x] Add class-card quick actions: Mark attendance, Assign homework, View roster.
 
 ### Teacher Homework, Marks, Communication
 
-- [ ] Show clearer empty state when no subjects are assigned.
-- [ ] Apply homework file-upload and assignment fixes to teacher role.
-- [ ] Add inline analytics column with class-average marks per assignment.
-- [ ] Share same template library between principal and teacher communication.
-- [ ] Add pagination and filters to teacher communication log.
-- [ ] Add teacher quick templates: Homework reminder, Class cancelled, PTM invite, Sick child sent home.
+- [x] Show clearer empty state when no subjects are assigned.
+- [x] Apply homework file-upload and assignment fixes to teacher role.
+- [x] Add inline analytics column with class-average marks per assignment.
+- [x] Share same template library between principal and teacher communication.
+- [x] Add pagination and filters to teacher communication log.
+- [x] Add teacher quick templates: Homework reminder, Class cancelled, PTM invite, Sick child sent home.
 
 ### Teacher Attendance And Students
 
-- [ ] Apply attendance fixes to teacher attendance screens.
-- [ ] Add `My classes today` status strip showing marked/unmarked classes.
-- [ ] Move `Attendance loaded` toast to top-right and auto-dismiss after 3 seconds.
-- [ ] Populate teacher students Attendance column.
-- [ ] Add inline actions: View, Message, Quick mark.
-- [ ] Add `My current period` filter chip based on timetable.
+- [x] Apply attendance fixes to teacher attendance screens.
+- [x] Add `My classes today` status strip showing marked/unmarked classes.
+- [x] Move `Attendance loaded` toast to top-right and auto-dismiss after 3 seconds.
+- [x] Populate teacher students Attendance column.
+- [x] Add inline actions: View, Message, Quick mark.
+- [x] Add `My current period` filter chip based on timetable.
 
 ## Open Questions To Clarify
 

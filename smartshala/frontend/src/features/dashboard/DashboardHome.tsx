@@ -71,10 +71,11 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const markedClasses = kpis.classesMarked ?? 0;
   const pendingClasses = kpis.classesPending ?? kpis.pendingAttendance ?? 0;
   const defaulterCount = fees?.defaulterCount ?? defaulters.length ?? kpis.overdueInstallments ?? 0;
+  const teacherPendingHomework = kpis.pendingHomeworkSubmissions ?? data?.alerts?.filter((alert) => alert.type === "HOMEWORK_PENDING").length ?? 0;
   const markedTodayPercentage = totalClasses ? Math.round((markedClasses / totalClasses) * 100) : 0;
   const pulseText = mode === "ADMIN"
     ? `${markedClasses} of ${totalClasses} classes marked today, ${defaulterCount} fee follow-ups pending.`
-    : `${pendingClasses} attendance actions pending for your assigned classes.`;
+    : `${pendingClasses} attendance actions and ${teacherPendingHomework} homework submissions pending for your students.`;
 
   const adminKpis = [
     {
@@ -101,14 +102,23 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           href: "/attendance",
           tone: pendingClasses > 0 ? "amber" as const : "green" as const
         },
-    {
-      label: "Defaulters",
-      value: defaulterCount,
-      helper: "Active fee assignments",
-      formula: "Students with pending or overdue fee balance.",
-      href: "/fees/defaulters",
-      tone: "red" as const
-    },
+    mode === "ADMIN"
+      ? {
+          label: "Defaulters",
+          value: defaulterCount,
+          helper: "School-wide",
+          formula: "Students with pending or overdue fee balance.",
+          href: "/fees/defaulters",
+          tone: "red" as const
+        }
+      : {
+          label: "Pending homework",
+          value: teacherPendingHomework,
+          helper: "Your students",
+          formula: "Not submitted homework across classes assigned to you.",
+          href: "/teacher/homework",
+          tone: teacherPendingHomework > 0 ? "amber" as const : "green" as const
+        },
     {
       label: "Collected",
       value: mode === "ADMIN" ? formatINR(fees?.totalCollected ?? 0) : "Class view",
@@ -188,6 +198,11 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     { label: "Pending", value: currentPending, color: "#ff9500" },
     { label: "Overdue", value: totalOverdue, color: "#ff3b30" },
   ];
+  const teacherWorkSegments = [
+    { label: "Marked", value: markedClasses, color: "#34c759" },
+    { label: "Unmarked", value: pendingClasses, color: "#ff9500" },
+    { label: "Homework", value: teacherPendingHomework, color: "#7c3aed" }
+  ];
 
   return (
     <div className="space-y-5">
@@ -236,7 +251,11 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
               title={mode === "ADMIN" ? "Attendance in marked classes" : "Your class attendance"}
               classes={(data?.attendance ?? []).map((a) => a.className)}
             />
-            <FeeOverviewChart segments={feeSegments} title="Fee overview - active assignments" />
+            <FeeOverviewChart
+              eyebrow={mode === "ADMIN" ? "Finance" : "Teacher workload"}
+              segments={mode === "ADMIN" ? feeSegments : teacherWorkSegments}
+              title={mode === "ADMIN" ? "Fee overview - active assignments" : "Today's actions"}
+            />
           </>
         )}
       </section>
