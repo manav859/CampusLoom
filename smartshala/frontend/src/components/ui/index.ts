@@ -3,6 +3,7 @@ export { DataTable } from "./DataTable";
 export { DropdownItem, DropdownMenu } from "./DropdownMenu";
 export { EmptyState } from "./EmptyState";
 export { Field, Select, TextArea, TextInput } from "./FormControls";
+export { FormSection, openInvalidFormSection } from "./FormSection";
 export { InitialsAvatar } from "./InitialsAvatar";
 export { KpiCard } from "./KpiCard";
 export { Modal, ModalCloseButton } from "./Modal";

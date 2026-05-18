@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
 import { apiFetch } from "@/lib/api";
 
@@ -64,20 +65,24 @@ export default function NewTeacherPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Full Name</label>
-          <input
-            required
-            minLength={2}
-            className="glass-input w-full"
-            placeholder="e.g. John Doe"
-            value={formData.fullName}
-            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-          />
-        </div>
+      <form onInvalid={openInvalidFormSection} onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <FormSection title="Basic Details" defaultOpen>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Full Name</label>
+              <input
+                required
+                minLength={2}
+                className="glass-input w-full"
+                placeholder="e.g. John Doe"
+                value={formData.fullName}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+              />
+            </div>
+          </FormSection>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+          <FormSection title="Contact Details">
+            <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Email Address</label>
             <input
@@ -99,19 +104,23 @@ export default function NewTeacherPage() {
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
           </div>
-        </div>
+            </div>
+          </FormSection>
 
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Initial Password</label>
-          <input
-            required
-            minLength={6}
-            type="password"
-            className="glass-input w-full"
-            placeholder="Set a default password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-          />
+          <FormSection title="Login Details">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Initial Password</label>
+              <input
+                required
+                minLength={6}
+                type="password"
+                className="glass-input w-full"
+                placeholder="Set a default password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              />
+            </div>
+          </FormSection>
         </div>
 
         <div className="pt-2 flex items-center justify-end gap-3">

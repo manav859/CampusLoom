@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
 import { apiFetch } from "@/lib/api";
 import { cachedFetch } from "@/lib/prefetchCache";
@@ -70,8 +71,10 @@ export default function NewClassPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid gap-5 sm:grid-cols-2">
+      <form onInvalid={openInvalidFormSection} onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <FormSection title="Basic Details" defaultOpen>
+            <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class Name</label>
             <input
@@ -92,31 +95,37 @@ export default function NewClassPage() {
               onChange={(e) => setFormData({ ...formData, section: e.target.value })}
             />
           </div>
-        </div>
+            </div>
+          </FormSection>
 
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Academic Year</label>
-          <input
-            required
-            className="glass-input w-full"
-            placeholder="e.g. 2024-25"
-            value={formData.academicYear}
-            onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-          />
-        </div>
+          <FormSection title="Academic Details">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Academic Year</label>
+              <input
+                required
+                className="glass-input w-full"
+                placeholder="e.g. 2024-25"
+                value={formData.academicYear}
+                onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+              />
+            </div>
+          </FormSection>
 
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class Teacher (Optional)</label>
-          <select
-            className="glass-input w-full"
-            value={formData.classTeacherId}
-            onChange={(e) => setFormData({ ...formData, classTeacherId: e.target.value })}
-          >
-            <option value="">Select a teacher</option>
-            {teachers.map((t) => (
-              <option key={t.id} value={t.id}>{t.fullName}</option>
-            ))}
-          </select>
+          <FormSection title="Teacher Assignment">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class Teacher (Optional)</label>
+              <select
+                className="glass-input w-full"
+                value={formData.classTeacherId}
+                onChange={(e) => setFormData({ ...formData, classTeacherId: e.target.value })}
+              >
+                <option value="">Select a teacher</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>{t.fullName}</option>
+                ))}
+              </select>
+            </div>
+          </FormSection>
         </div>
 
         <div className="pt-2 flex items-center justify-end gap-3">

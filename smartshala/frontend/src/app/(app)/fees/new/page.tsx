@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
 import { apiFetch } from "@/lib/api";
 import { cachedFetch } from "@/lib/prefetchCache";
@@ -80,19 +81,23 @@ export default function NewFeeStructurePage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-1.5">
-          <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Structure Name</label>
-          <input
-            required
-            className="glass-input w-full"
-            placeholder="e.g. Annual Tuition Fee 2024-25"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          />
-        </div>
+      <form onInvalid={openInvalidFormSection} onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <FormSection title="Basic Details" defaultOpen>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Structure Name</label>
+              <input
+                required
+                className="glass-input w-full"
+                placeholder="e.g. Annual Tuition Fee 2024-25"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+          </FormSection>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+          <FormSection title="Academic Details">
+            <div className="grid gap-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Academic Year</label>
             <input
@@ -116,9 +121,11 @@ export default function NewFeeStructurePage() {
               ))}
             </select>
           </div>
-        </div>
+            </div>
+          </FormSection>
 
-        <div className="grid gap-5 sm:grid-cols-3">
+          <FormSection title="Fee Details">
+            <div className="grid gap-5 sm:grid-cols-3">
           <div className="space-y-1.5">
             <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Total amount (INR)</label>
             <input
@@ -156,6 +163,8 @@ export default function NewFeeStructurePage() {
               onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
             />
           </div>
+            </div>
+          </FormSection>
         </div>
 
         <div className="pt-2 flex items-center justify-end gap-3">
