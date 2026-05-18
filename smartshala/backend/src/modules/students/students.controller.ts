@@ -40,6 +40,10 @@ export const createStudent = asyncHandler(async (req: Request, res: Response) =>
   res.status(201).json(await studentsService.createStudent(req.user!, req.body));
 });
 
+export const importStudents = asyncHandler(async (req: Request, res: Response) => {
+  res.status(201).json(await studentsService.importStudents(req.user!, req.body.students));
+});
+
 export const updateStudent = asyncHandler(async (req: Request, res: Response) => {
   res.json(await studentsService.updateStudent(req.user!, req.params.id, req.body));
 });

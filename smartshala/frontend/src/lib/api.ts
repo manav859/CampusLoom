@@ -1026,6 +1026,11 @@ export const whatsappApi = {
 
 export const studentsApi = {
   get: (studentId: string) => apiFetch<StudentDetail>(`/students/${studentId}`),
+  importStudents: (students: Array<Record<string, unknown>>) =>
+    apiFetch<{ importedCount: number; students: StudentDetail[] }>("/students/import", {
+      method: "POST",
+      body: JSON.stringify({ students })
+    }),
   uploadDocument: (studentId: string, payload: StudentDocumentUploadPayload) => {
     const formData = new FormData();
     formData.append("type", payload.type);

@@ -30,6 +30,10 @@ export const studentSchema = z.object({
   feeStructureId: z.string().uuid().optional()
 });
 
+export const importStudentsSchema = z.object({
+  students: z.array(studentSchema).min(1).max(500)
+});
+
 export const behaviourRecordSchema = z.object({
   type: z.nativeEnum(BehaviourType),
   title: z.string().min(2).max(160),

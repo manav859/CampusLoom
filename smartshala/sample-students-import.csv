@@ -1,0 +1,11 @@
+fullName,className,classSection,parentName,parentPhone,gender,rollNumber,dateOfBirth,address,fatherName,fatherPhone,motherName,motherPhone
+Aarav Patel,10,A,Rajesh Patel,9876501001,MALE,1,2011-04-12,"12 Lake View Road, Ahmedabad",Rajesh Patel,9876501001,Meena Patel,9876501002
+Anaya Sharma,10,A,Vikram Sharma,9876501003,FEMALE,2,2011-07-21,"45 Nehru Nagar, Ahmedabad",Vikram Sharma,9876501003,Sunita Sharma,9876501004
+Kabir Mehta,10,A,Amit Mehta,9876501005,MALE,3,2011-01-09,"8 Green Park, Ahmedabad",Amit Mehta,9876501005,Nisha Mehta,9876501006
+Isha Verma,10,A,Sanjay Verma,9876501007,FEMALE,4,2011-09-16,"22 MG Road, Ahmedabad",Sanjay Verma,9876501007,Kavita Verma,9876501008
+Rohan Nair,10,A,Prakash Nair,9876501009,MALE,5,2011-02-25,"19 Riverfront Lane, Ahmedabad",Prakash Nair,9876501009,Anita Nair,9876501010
+Mira Joshi,10,A,Deepak Joshi,9876501011,FEMALE,6,2011-11-05,"31 Satellite Road, Ahmedabad",Deepak Joshi,9876501011,Rekha Joshi,9876501012
+Vivaan Rao,10,A,Suresh Rao,9876501013,MALE,7,2011-06-18,"6 Sunrise Colony, Ahmedabad",Suresh Rao,9876501013,Lata Rao,9876501014
+Diya Shah,10,A,Manish Shah,9876501015,FEMALE,8,2011-03-30,"77 Paldi, Ahmedabad",Manish Shah,9876501015,Pooja Shah,9876501016
+Arjun Kapoor,10,A,Nitin Kapoor,9876501017,MALE,9,2011-08-14,"14 University Road, Ahmedabad",Nitin Kapoor,9876501017,Seema Kapoor,9876501018
+Saanvi Singh,10,A,Rahul Singh,9876501019,FEMALE,10,2011-12-02,"50 Bopal, Ahmedabad",Rahul Singh,9876501019,Neha Singh,9876501020
