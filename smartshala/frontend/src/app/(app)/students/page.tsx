@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { apiFetch, communicationApi } from "@/lib/api";
+import { apiFetch, communicationApi, studentsApi } from "@/lib/api";
 import { formatDateShort, formatINR } from "@/lib/formatters";
-import { cachedFetch } from "@/lib/prefetchCache";
+import { cachedFetch, invalidateCachePrefix } from "@/lib/prefetchCache";
 
 /* ── Types ── */
 type StudentRow = {
@@ -41,6 +41,23 @@ type ApiStudentItem = {
 
 type SortKey = "name" | "class" | "feeStatus" | "pendingAmount" | "lastPayment" | "attendance";
 type SortDirection = "asc" | "desc";
+
+type ImportStudentRow = {
+  rowNumber: number;
+  fullName: string;
+  className: string;
+  classSection: string;
+  parentName: string;
+  parentPhone: string;
+  gender?: "MALE" | "FEMALE" | "OTHER";
+  rollNumber?: number;
+  dateOfBirth?: string;
+  address?: string;
+  fatherName?: string;
+  fatherPhone?: string;
+  motherName?: string;
+  motherPhone?: string;
+};
 
 /* ── Fallback seed data (shown when API has no students) ── */
 const fallbackStudents: StudentRow[] = [
@@ -76,6 +93,110 @@ function feeStatusTone(status: StudentRow["feeStatus"]) {
   if (status === "PENDING") return "warn";
   if (status === "OVERDUE") return "danger";
   return "neutral";
+}
+
+function splitCsvLine(line: string) {
+  const values: string[] = [];
+  let current = "";
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+
+    if (char === '"' && quoted && next === '"') {
+      current += '"';
+      index += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      quoted = !quoted;
+      continue;
+    }
+
+    if (char === "," && !quoted) {
+      values.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function normalizeHeader(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function csvValue(row: Record<string, string>, names: string[]) {
+  for (const name of names) {
+    const value = row[normalizeHeader(name)];
+    if (value) return value.trim();
+  }
+  return "";
+}
+
+function dateDisplayToIso(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+  if (!match) throw new Error("Date of birth must be yyyy-mm-dd or dd/mm/yyyy.");
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+function parseStudentsCsv(text: string): ImportStudentRow[] {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) throw new Error("CSV needs a header row and at least one student.");
+
+  const headers = splitCsvLine(lines[0]).map(normalizeHeader);
+  const rows: ImportStudentRow[] = [];
+
+  for (let index = 1; index < lines.length; index += 1) {
+    const cells = splitCsvLine(lines[index]);
+    const raw: Record<string, string> = {};
+    headers.forEach((header, cellIndex) => {
+      raw[header] = cells[cellIndex] ?? "";
+    });
+
+    const fullName = csvValue(raw, ["fullName", "studentName", "name"]);
+    const parentName = csvValue(raw, ["parentName", "guardianName"]);
+    const parentPhone = csvValue(raw, ["parentPhone", "guardianPhone", "phone"]);
+    const genderRaw = csvValue(raw, ["gender"]).toUpperCase();
+    const rollRaw = csvValue(raw, ["rollNumber", "roll"]);
+    const dobRaw = csvValue(raw, ["dateOfBirth", "dob"]);
+
+    if (!fullName || !parentName || !parentPhone) {
+      throw new Error(`Row ${index + 1}: fullName, parentName, and parentPhone are required.`);
+    }
+
+    rows.push({
+      rowNumber: index + 1,
+      fullName,
+      className: csvValue(raw, ["className", "class"]),
+      classSection: csvValue(raw, ["classSection", "section"]),
+      parentName,
+      parentPhone,
+      gender: ["MALE", "FEMALE", "OTHER"].includes(genderRaw) ? (genderRaw as ImportStudentRow["gender"]) : undefined,
+      rollNumber: rollRaw ? Number(rollRaw) : undefined,
+      dateOfBirth: dobRaw ? dateDisplayToIso(dobRaw) : undefined,
+      address: csvValue(raw, ["address"]) || undefined,
+      fatherName: csvValue(raw, ["fatherName"]) || undefined,
+      fatherPhone: csvValue(raw, ["fatherPhone"]) || undefined,
+      motherName: csvValue(raw, ["motherName"]) || undefined,
+      motherPhone: csvValue(raw, ["motherPhone"]) || undefined
+    });
+  }
+
+  return rows;
+}
+
+function classKey(name: string, section: string) {
+  return `${name.trim().toLowerCase()}::${section.trim().toLowerCase()}`;
 }
 
 function pendingAmountClass(amount: number | null) {
@@ -263,6 +384,7 @@ function compareStudents(left: StudentRow, right: StudentRow, key: SortKey, dire
 
 /* ── Component ── */
 export default function StudentsPage() {
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string; section: string }[]>([]);
   const [total, setTotal] = useState(0);
@@ -283,6 +405,14 @@ export default function StudentsPage() {
   }>({ isOpen: false, action: null, message: "", targetClassId: "" });
   const [notice, setNotice] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
+  const [importDialog, setImportDialog] = useState<{
+    isOpen: boolean;
+    fileName: string;
+    rows: ImportStudentRow[];
+    defaultClassId: string;
+    busy?: boolean;
+    error?: string;
+  }>({ isOpen: false, fileName: "", rows: [], defaultClassId: "" });
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
@@ -501,6 +631,97 @@ export default function StudentsPage() {
     setNotice(`Exported ${selectedCount} selected students as PDF.`);
   };
 
+  async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setImportDialog({ isOpen: true, fileName: file.name, rows: [], defaultClassId: classes[0]?.id ?? "", error: "Use a CSV file exported from Excel." });
+      return;
+    }
+
+    try {
+      const rows = parseStudentsCsv(await file.text());
+      setImportDialog({
+        isOpen: true,
+        fileName: file.name,
+        rows,
+        defaultClassId: classes[0]?.id ?? "",
+      });
+    } catch (error) {
+      setImportDialog({
+        isOpen: true,
+        fileName: file.name,
+        rows: [],
+        defaultClassId: classes[0]?.id ?? "",
+        error: error instanceof Error ? error.message : "Unable to read CSV file."
+      });
+    }
+  }
+
+  function closeImportDialog() {
+    if (importDialog.busy) return;
+    setImportDialog({ isOpen: false, fileName: "", rows: [], defaultClassId: "" });
+  }
+
+  async function submitImport() {
+    if (importDialog.rows.length === 0) return;
+
+    const classMap = new Map(classes.map((cls) => [classKey(cls.name, cls.section), cls.id]));
+    const payload = [];
+
+    for (const row of importDialog.rows) {
+      const classId = classMap.get(classKey(row.className, row.classSection)) ?? importDialog.defaultClassId;
+      if (!classId) {
+        setImportDialog((prev) => ({ ...prev, error: `Row ${row.rowNumber}: class not found. Add className/classSection in CSV or choose a default class.` }));
+        return;
+      }
+
+      payload.push({
+        classId,
+        fullName: row.fullName,
+        parentName: row.parentName,
+        parentPhone: row.parentPhone,
+        gender: row.gender,
+        rollNumber: row.rollNumber,
+        dateOfBirth: row.dateOfBirth,
+        address: row.address,
+        fatherName: row.fatherName,
+        fatherPhone: row.fatherPhone,
+        motherName: row.motherName,
+        motherPhone: row.motherPhone
+      });
+    }
+
+    setImportDialog((prev) => ({ ...prev, busy: true, error: undefined }));
+    try {
+      const result = await studentsApi.importStudents(payload);
+      invalidateCachePrefix("students:list");
+      setNotice(`Imported ${result.importedCount} students.`);
+      setImportDialog({ isOpen: false, fileName: "", rows: [], defaultClassId: "" });
+      setPage(1);
+      setSearch("");
+      setClassId("");
+      setLoadingList(true);
+      const params = new URLSearchParams({ limit: perPage.toString(), page: "1" });
+      const data = await apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`);
+      const items = data?.items ?? [];
+      setStudents(items.map((s) => ({
+        ...s,
+        feeStatus: null,
+        pendingAmount: null,
+        lastPayment: s.lastPayment ?? null,
+        attendancePercentage: s.attendancePercentage ?? null,
+      })));
+      setTotal(data?.total ?? 0);
+    } catch (error) {
+      setImportDialog((prev) => ({ ...prev, busy: false, error: error instanceof Error ? error.message : "Import failed" }));
+    } finally {
+      setLoadingList(false);
+    }
+  }
+
   const openBulkDialog = (action: "whatsapp" | "promote" | "inactive") => {
     setBulkDialog({
       isOpen: true,
@@ -579,10 +800,25 @@ export default function StudentsPage() {
           </div>
         </div>
         {isAdmin && (
-          <Link href="/students/new" className="btn-primary gap-1.5 text-[13px]">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            Add Student
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={importInputRef}
+              accept=".csv,text/csv"
+              className="sr-only"
+              onChange={handleImportFile}
+              type="file"
+            />
+            <button className="btn-secondary gap-1.5 text-[13px]" onClick={() => importInputRef.current?.click()} type="button">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+              </svg>
+              Import Students
+            </button>
+            <Link href="/students/new" className="btn-primary gap-1.5 text-[13px]">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              Add Student
+            </Link>
+          </div>
         )}
       </div>
 
@@ -920,6 +1156,79 @@ export default function StudentsPage() {
           </div>
         </div>
       </div>
+      {importDialog.isOpen && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" style={{ zIndex: 9999 }}>
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-[#DCE1E8] px-6 py-4">
+              <h3 className="text-[18px] font-semibold text-[#0F1419]">Import students</h3>
+              <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{importDialog.fileName || "CSV file"}</p>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-3 text-[12px] font-medium leading-5 text-[#5A6573]">
+                CSV columns: fullName, className, classSection, parentName, parentPhone, gender, rollNumber, dateOfBirth.
+              </div>
+              <label className="block">
+                <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Default class for unmatched rows</span>
+                <select
+                  className="mt-2 h-11 w-full rounded-xl border border-[#DCE1E8] bg-white px-3 text-[14px] outline-none focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+                  onChange={(event) => setImportDialog((prev) => ({ ...prev, defaultClassId: event.target.value }))}
+                  value={importDialog.defaultClassId}
+                >
+                  <option value="">No default class</option>
+                  {classes.map((cls) => (
+                    <option key={cls.id} value={cls.id}>{cls.name}-{cls.section}</option>
+                  ))}
+                </select>
+              </label>
+              {importDialog.error ? <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{importDialog.error}</div> : null}
+              {importDialog.rows.length > 0 ? (
+                <div className="overflow-hidden rounded-xl border border-[#DCE1E8]">
+                  <div className="border-b border-[#DCE1E8] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold text-[#5A6573]">
+                    Previewing {importDialog.rows.length} students
+                  </div>
+                  <div className="max-h-72 overflow-auto">
+                    <table className="w-full min-w-[640px] text-left text-[13px]">
+                      <thead className="sticky top-0 bg-white">
+                        <tr className="border-b border-[#DCE1E8] text-[11px] uppercase tracking-[0.06em] text-[#5A6573]">
+                          <th className="px-4 py-2">Row</th>
+                          <th className="px-4 py-2">Student</th>
+                          <th className="px-4 py-2">Class</th>
+                          <th className="px-4 py-2">Parent</th>
+                          <th className="px-4 py-2">Phone</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importDialog.rows.slice(0, 20).map((row) => (
+                          <tr className="border-b border-[#F0F2F5] last:border-0" key={`${row.rowNumber}-${row.fullName}`}>
+                            <td className="px-4 py-2 text-[#5A6573]">{row.rowNumber}</td>
+                            <td className="px-4 py-2 font-semibold text-[#0F1419]">{row.fullName}</td>
+                            <td className="px-4 py-2">{row.className && row.classSection ? `${row.className}-${row.classSection}` : "Default"}</td>
+                            <td className="px-4 py-2">{row.parentName}</td>
+                            <td className="px-4 py-2">{row.parentPhone}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {importDialog.rows.length > 20 ? <p className="border-t border-[#DCE1E8] bg-[#F7F8FB] px-4 py-2 text-[12px] font-medium text-[#5A6573]">Showing first 20 rows only.</p> : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[#DCE1E8] bg-[#F7F8FB] px-6 py-4">
+              <button className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" disabled={importDialog.busy} onClick={closeImportDialog} type="button">Cancel</button>
+              <button
+                className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD] disabled:bg-[#C2C9D4] disabled:text-[#7A8390]"
+                disabled={importDialog.busy || importDialog.rows.length === 0}
+                onClick={submitImport}
+                type="button"
+              >
+                {importDialog.busy ? "Importing..." : `Import ${importDialog.rows.length} students`}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
       {/* ── Custom Confirm Modal ── */}
       {confirmDialog.isOpen && typeof window !== "undefined" && createPortal(
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" style={{ zIndex: 9999 }}>

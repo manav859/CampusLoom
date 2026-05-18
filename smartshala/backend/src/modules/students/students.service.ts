@@ -1240,6 +1240,24 @@ export async function createStudent(user: Express.UserContext, data: Record<stri
   return student;
 }
 
+export async function importStudents(user: Express.UserContext, rows: Record<string, unknown>[]) {
+  const students = [];
+
+  for (let index = 0; index < rows.length; index += 1) {
+    try {
+      students.push(await createStudent(user, rows[index]));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to import student";
+      throw new AppError(400, `Row ${index + 2}: ${message}`, "STUDENT_IMPORT_ROW_FAILED");
+    }
+  }
+
+  return {
+    importedCount: students.length,
+    students
+  };
+}
+
 export async function updateStudent(user: Express.UserContext, id: string, data: Record<string, unknown>) {
   const schoolId = user.schoolId;
   const existing = await prisma.student.findFirst({ where: { id, schoolId } });
