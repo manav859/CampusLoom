@@ -60,6 +60,24 @@ type PasswordResetRequest = {
 
 const roles: TenantUser["role"][] = ["PRINCIPAL", "ADMIN", "TEACHER", "ACCOUNTANT", "PARENT"];
 
+function schoolStatusLabel(school: SchoolRow) {
+  if (school.deletionStatus === "PENDING") return "Scheduled for deletion";
+  if (school.deletionStatus === "DELETED") return "Deleted";
+  if (school.deletionStatus === "FAILED") return "Deletion failed";
+  return school.isActive ? "Active" : "Inactive";
+}
+
+function schoolStatusClass(school: SchoolRow) {
+  if (school.deletionStatus === "PENDING") return "bg-amber-50 text-amber-800";
+  if (school.deletionStatus === "DELETED" || school.deletionStatus === "FAILED") return "bg-red-50 text-red-700";
+  return school.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700";
+}
+
+function deletionTime(value: string | null) {
+  if (!value) return null;
+  return new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+}
+
 async function superAdminFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
@@ -119,7 +137,7 @@ export default function SuperAdminPage() {
     const text = query.trim().toLowerCase();
     if (!text) return schools;
     return schools.filter((school) =>
-      [school.schoolId, school.schoolName, school.ownerName, school.email, school.dbName]
+      [school.schoolId, school.schoolName, school.ownerName, school.email, school.dbName, schoolStatusLabel(school)]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(text))
     );
@@ -429,11 +447,16 @@ export default function SuperAdminPage() {
                       <p className="text-sm font-bold">{school.schoolName}</p>
                       <p className="mt-1 text-xs font-semibold text-[#64748b]">{school.schoolId} · {school.dbName}</p>
                     </div>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${school.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                      {school.isActive ? "Active" : "Inactive"}
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${schoolStatusClass(school)}`}>
+                      {schoolStatusLabel(school)}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-[#64748b]">{school.email}</p>
+                  {school.deletionStatus === "PENDING" ? (
+                    <p className="mt-1 text-xs font-semibold text-amber-800">
+                      Deletes {deletionTime(school.deletionScheduledAt) ?? "after cancellation window"}
+                    </p>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -550,10 +573,15 @@ function SchoolSummary({ school, busy, onToggle }: { school: SchoolRow | null; b
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#64748b]">{school.schoolId}</p>
           <h2 className="mt-1 text-2xl font-semibold">{school.schoolName}</h2>
           <p className="mt-2 text-sm text-[#64748b]">{school.ownerName} · {school.email} · {school.phone}</p>
+          {school.deletionStatus === "PENDING" ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+              Scheduled for deletion{deletionTime(school.deletionScheduledAt) ? ` on ${deletionTime(school.deletionScheduledAt)}` : ""}.
+            </div>
+          ) : null}
           <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
             <span className="rounded-full bg-[#f1f5f9] px-3 py-1">{school.planType}</span>
             <span className="rounded-full bg-[#f1f5f9] px-3 py-1">{school.paymentStatus}</span>
-            <span className="rounded-full bg-[#f1f5f9] px-3 py-1">{school.deletionStatus}</span>
+            <span className={`rounded-full px-3 py-1 ${schoolStatusClass(school)}`}>{schoolStatusLabel(school)}</span>
           </div>
         </div>
         <button
