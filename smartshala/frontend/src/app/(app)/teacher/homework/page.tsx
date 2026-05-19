@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
+  communicationApi,
   homeworkApi,
   type HomeworkAssignment,
   type HomeworkAssignmentDetail,
@@ -35,6 +36,33 @@ function submissionLabel(status: HomeworkSubmissionStatus) {
   return "Not submitted";
 }
 
+type AssignmentFilter = "ALL" | "OVERDUE" | "DUE_SOON" | "CLOSED";
+
+function daysUntil(date: string | Date) {
+  const due = new Date(date);
+  const today = new Date();
+  due.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((due.getTime() - today.getTime()) / 86400000);
+}
+
+function assignmentStatusLabel(assignment: HomeworkAssignment) {
+  const days = daysUntil(assignment.dueDate);
+  if (assignment.status === "OVERDUE") return `Overdue - ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"}`;
+  if (assignment.status === "COMPLETED") return "Closed";
+  if (days >= 0 && days <= 3) return days === 0 ? "Due today" : `Due soon - ${days} day${days === 1 ? "" : "s"}`;
+  return "Open";
+}
+
+function assignmentStatusTone(assignment: HomeworkAssignment) {
+  const days = daysUntil(assignment.dueDate);
+  if (assignment.status === "COMPLETED") return "good";
+  if (assignment.status === "OVERDUE" && Math.abs(days) >= 3) return "danger";
+  if (assignment.status === "OVERDUE") return "warn";
+  if (days >= 0 && days <= 3) return "warn";
+  return "neutral";
+}
+
 export default function TeacherHomeworkPage() {
   const [context, setContext] = useState<HomeworkContext>({ classes: [] });
   const [assignments, setAssignments] = useState<HomeworkAssignment[]>([]);
@@ -53,6 +81,9 @@ export default function TeacherHomeworkPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [attachmentNames, setAttachmentNames] = useState<string[]>([]);
+  const [rubricNames, setRubricNames] = useState<string[]>([]);
+  const [estimatedTime, setEstimatedTime] = useState("");
+  const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("ALL");
 
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
   const subjectOptions = selectedClass?.subjects ?? [];
@@ -64,6 +95,15 @@ export default function TeacherHomeworkPage() {
       .filter((mark): mark is number => typeof mark === "number");
     return marks.length ? Math.round((marks.reduce((sum, mark) => sum + mark, 0) / marks.length) * 10) / 10 : null;
   }, [selectedAssignment]);
+  const visibleAssignments = useMemo(() => assignments.filter((assignment) => {
+    if (assignmentFilter === "OVERDUE") return assignment.status === "OVERDUE";
+    if (assignmentFilter === "CLOSED") return assignment.status === "COMPLETED";
+    if (assignmentFilter === "DUE_SOON") {
+      const days = daysUntil(assignment.dueDate);
+      return assignment.status !== "COMPLETED" && days >= 0 && days <= 3;
+    }
+    return true;
+  }), [assignmentFilter, assignments]);
 
   useEffect(() => {
     let active = true;
@@ -162,7 +202,9 @@ export default function TeacherHomeworkPage() {
         title: title.trim(),
         description: [
           description.trim(),
-          attachmentNames.length ? `Attachments: ${attachmentNames.join(", ")}` : ""
+          estimatedTime.trim() ? `Estimated time: ${estimatedTime.trim()} minutes` : "",
+          attachmentNames.length ? `Attachments: ${attachmentNames.join(", ")}` : "",
+          rubricNames.length ? `Rubric/answer key: ${rubricNames.join(", ")}` : ""
         ].filter(Boolean).join("\n") || undefined,
         assignedDate,
         dueDate
@@ -174,6 +216,8 @@ export default function TeacherHomeworkPage() {
       setAssignedDate(todayInputValue());
       setDueDate(todayInputValue());
       setAttachmentNames([]);
+      setRubricNames([]);
+      setEstimatedTime("");
       setNotice("Homework assigned to the full class.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create homework");
@@ -182,7 +226,57 @@ export default function TeacherHomeworkPage() {
     }
   }
 
-  async function updateSubmission(studentId: string, status: HomeworkSubmissionStatus) {
+  function insertDescription(prefix: string, suffix = "") {
+    setDescription((current) => `${current}${current ? "\n" : ""}${prefix}${suffix}`);
+  }
+
+  function handleHomeworkFiles(files: FileList | null) {
+    const names: string[] = [];
+    for (const file of Array.from(files ?? [])) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError(`${file.name} is larger than 10MB.`);
+        return;
+      }
+      names.push(file.name);
+    }
+    setAttachmentNames(names);
+  }
+
+  function handleRubricFiles(files: FileList | null) {
+    const names: string[] = [];
+    for (const file of Array.from(files ?? [])) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError(`${file.name} is larger than 10MB.`);
+        return;
+      }
+      names.push(file.name);
+    }
+    setRubricNames(names);
+  }
+
+  async function nudgeNonSubmitters(assignment: HomeworkAssignment) {
+    setError("");
+    setNotice("");
+    try {
+      const detail = selectedAssignment?.id === assignment.id ? selectedAssignment : await homeworkApi.assignment(assignment.id);
+      const pending = detail.submissions.filter((submission) => submission.status !== "ON_TIME" && submission.status !== "LATE");
+      if (pending.length === 0) {
+        setNotice("No non-submitters to nudge.");
+        return;
+      }
+      await Promise.all(pending.map((submission) => communicationApi.sendMessage({
+        targetType: "STUDENT",
+        studentId: submission.studentId,
+        type: "HOMEWORK_REMINDER",
+        message: `Dear parent, ${submission.studentName} has not submitted "${assignment.title}" yet. Please help complete it by ${formatDateShort(assignment.dueDate)}.`
+      })));
+      setNotice(`Queued WhatsApp nudges for ${pending.length} non-submitters.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to nudge non-submitters");
+    }
+  }
+
+  async function updateSubmission(studentId: string, status: HomeworkSubmissionStatus, options: { announce?: boolean } = {}) {
     if (!selectedAssignment) return;
     const draft = submissionDrafts[studentId] ?? { marks: "", teacherNote: "" };
     const numericMarks = draft.marks.trim() ? Number(draft.marks) : null;
@@ -211,12 +305,22 @@ export default function TeacherHomeworkPage() {
           teacherNote: updated.teacherNote ?? ""
         }
       }));
-      setNotice(`${updated.studentName} marked as ${submissionLabel(updated.status).toLowerCase()}.`);
+      if (options.announce !== false) {
+        setNotice(`${updated.studentName} saved as ${submissionLabel(updated.status).toLowerCase()}.`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update submission");
     } finally {
       setSavingSubmissionId("");
     }
+  }
+
+  function autoSaveDraft(submission: HomeworkAssignmentDetail["submissions"][number]) {
+    const draft = submissionDrafts[submission.studentId] ?? { marks: "", teacherNote: "" };
+    const savedMarks = submission.marks === null ? "" : String(submission.marks);
+    const savedNote = submission.teacherNote ?? "";
+    if (draft.marks === savedMarks && draft.teacherNote === savedNote) return;
+    void updateSubmission(submission.studentId, submission.status, { announce: false });
   }
 
   return (
@@ -284,11 +388,28 @@ export default function TeacherHomeworkPage() {
 
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Description</span>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                <button className="rounded-lg border border-[#DCE1E8] px-2 py-1 text-[12px] font-semibold text-[#2A3340]" onClick={() => insertDescription("**Important:** ")} type="button">Bold</button>
+                <button className="rounded-lg border border-[#DCE1E8] px-2 py-1 text-[12px] font-semibold text-[#2A3340]" onClick={() => insertDescription("- ")} type="button">Bullet</button>
+                <button className="rounded-lg border border-[#DCE1E8] px-2 py-1 text-[12px] font-semibold text-[#2A3340]" onClick={() => insertDescription("Answer in notebook with steps shown.")} type="button">Instruction</button>
+              </div>
               <textarea
-                className="mt-1.5 min-h-[110px] w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none placeholder:text-[#86868b] focus:border-[#0071e3]"
+                className="mt-1.5 min-h-[150px] w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none placeholder:text-[#86868b] focus:border-[#0071e3]"
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Instructions, pages, or expected work"
                 value={description}
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Estimated time (minutes)</span>
+              <input
+                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
+                min={1}
+                onChange={(event) => setEstimatedTime(event.target.value)}
+                placeholder="30"
+                type="number"
+                value={estimatedTime}
               />
             </label>
 
@@ -320,11 +441,23 @@ export default function TeacherHomeworkPage() {
                 accept=".pdf,.jpg,.jpeg,.png"
                 className="mt-1.5 w-full rounded-xl border border-dashed border-[rgba(0,0,0,0.16)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
                 multiple
-                onChange={(event) => setAttachmentNames(Array.from(event.target.files ?? []).map((file) => file.name))}
+                onChange={(event) => handleHomeworkFiles(event.target.files)}
                 type="file"
               />
               <p className="mt-1 text-[12px] font-medium text-[#86868b]">PDF, JPG, PNG up to 10MB each. Names save with assignment note.</p>
               {attachmentNames.length ? <p className="mt-1 text-[12px] font-semibold text-[#1d1d1f]">{attachmentNames.join(", ")}</p> : null}
+            </label>
+
+            <label className="block">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Rubric / answer key attachment</span>
+              <input
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="mt-1.5 w-full rounded-xl border border-dashed border-[rgba(0,0,0,0.16)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
+                multiple
+                onChange={(event) => handleRubricFiles(event.target.files)}
+                type="file"
+              />
+              {rubricNames.length ? <p className="mt-1 text-[12px] font-semibold text-[#1d1d1f]">{rubricNames.join(", ")}</p> : null}
             </label>
 
             <button
@@ -343,7 +476,19 @@ export default function TeacherHomeworkPage() {
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Assignment list</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">Submission tracking updates from homework submission rows.</p>
             </div>
-            {selectedClass ? <StatusPill label={`Class ${selectedClass.name}-${selectedClass.section}`} tone="neutral" /> : null}
+            <div className="flex flex-wrap gap-2">
+              {(["ALL", "OVERDUE", "DUE_SOON", "CLOSED"] as AssignmentFilter[]).map((filter) => (
+                <button
+                  className={`rounded-lg border px-3 py-1.5 text-[12px] font-semibold ${assignmentFilter === filter ? "border-[#2456E6] bg-[#E2F0FB] text-[#1F6FB8]" : "border-[#DCE1E8] bg-white text-[#5A6573]"}`}
+                  key={filter}
+                  onClick={() => setAssignmentFilter(filter)}
+                  type="button"
+                >
+                  {filter === "ALL" ? "All" : filter === "OVERDUE" ? "Overdue" : filter === "DUE_SOON" ? "Due soon" : "Closed"}
+                </button>
+              ))}
+              {selectedClass ? <StatusPill label={`Class ${selectedClass.name}-${selectedClass.section}`} tone="neutral" /> : null}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-[13px]">
@@ -363,12 +508,12 @@ export default function TeacherHomeworkPage() {
                       ))}
                     </tr>
                   ))
-                ) : assignments.length === 0 ? (
+                ) : visibleAssignments.length === 0 ? (
                   <tr>
-                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={10}>No homework assignments created yet.</td>
+                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={10}>No homework assignments match this filter.</td>
                   </tr>
                 ) : (
-                  assignments.map((assignment) => (
+                  visibleAssignments.map((assignment) => (
                     <tr className="table-row" key={assignment.id}>
                       <td className="px-5 py-4">
                         <p className="font-semibold text-[#1d1d1f]">{assignment.title}</p>
@@ -377,7 +522,7 @@ export default function TeacherHomeworkPage() {
                       <td className="px-5 py-4 text-[#6e6e73]">{assignment.subject}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(assignment.assignedDate)}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(assignment.dueDate)}</td>
-                      <td className="px-5 py-4"><StatusPill label={assignment.status} tone={assignmentTone(assignment.status)} /></td>
+                      <td className="px-5 py-4"><StatusPill label={assignmentStatusLabel(assignment)} tone={assignmentStatusTone(assignment)} /></td>
                       <td className="px-5 py-4 font-semibold text-[#248a3d]">{assignment.submittedCount}</td>
                       <td className="px-5 py-4 font-semibold text-[#cc7700]">{assignment.lateCount}</td>
                       <td className="px-5 py-4 font-semibold text-[#d70015]">{assignment.notSubmittedCount}</td>
@@ -385,14 +530,25 @@ export default function TeacherHomeworkPage() {
                         {selectedAssignment?.id === assignment.id && selectedAssignmentAverage !== null ? `${selectedAssignmentAverage}/20` : "-"}
                       </td>
                       <td className="px-5 py-4">
-                        <button
-                          className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={loadingDetail && selectedAssignment?.id === assignment.id}
-                          onClick={() => openAssignment(assignment.id)}
-                          type="button"
-                        >
-                          {loadingDetail && selectedAssignment?.id === assignment.id ? "Loading..." : "View students"}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={loadingDetail && selectedAssignment?.id === assignment.id}
+                            onClick={() => openAssignment(assignment.id)}
+                            type="button"
+                          >
+                            {loadingDetail && selectedAssignment?.id === assignment.id ? "Loading..." : "View students"}
+                          </button>
+                          {assignment.notSubmittedCount > 0 ? (
+                            <button
+                              className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#B95A00] transition hover:bg-[#FFF2DC]"
+                              onClick={() => nudgeNonSubmitters(assignment)}
+                              type="button"
+                            >
+                              Nudge non-submitters
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -409,7 +565,7 @@ export default function TeacherHomeworkPage() {
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Submission tracking</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">
-                {selectedAssignment.title} | {selectedAssignment.className} | Due {formatDateShort(selectedAssignment.dueDate)}
+                {selectedAssignment.title} | Due {formatDateShort(selectedAssignment.dueDate)}
               </p>
               <div className="mt-3 h-2 max-w-md overflow-hidden rounded-full bg-[#F1F3F6]">
                 <div
@@ -427,13 +583,14 @@ export default function TeacherHomeworkPage() {
               <StatusPill label={`${selectedAssignment.submittedCount} completed`} tone="good" />
               <StatusPill label={`${selectedAssignment.lateCount} late`} tone="warn" />
               <StatusPill label={`${selectedAssignment.notSubmittedCount} not submitted`} tone="danger" />
+              <StatusPill label={selectedAssignmentAverage !== null ? `Class avg ${selectedAssignmentAverage}/20` : "Class avg pending"} tone={selectedAssignmentAverage !== null ? "good" : "neutral"} />
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left text-[13px]">
               <thead className="table-head">
                 <tr>
-                  {["Student", "Status", "Marks", "Teacher note", "Actions"].map((head) => (
+                  {["Student", "Status", "Marks", "Teacher note"].map((head) => (
                     <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
                   ))}
                 </tr>
@@ -449,7 +606,23 @@ export default function TeacherHomeworkPage() {
                         <p className="mt-1 text-[12px] text-[#86868b]">Roll {submission.rollNumber ?? "-"} | {submission.admissionNumber}</p>
                       </td>
                       <td className="px-5 py-4">
-                        <StatusPill label={submissionLabel(submission.status)} tone={submissionTone(submission.status)} />
+                        <div className="inline-flex rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] p-1">
+                          {(["ON_TIME", "LATE", "NOT_SUBMITTED"] as HomeworkSubmissionStatus[]).map((status) => (
+                            <button
+                              className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                submission.status === status
+                                  ? `${submissionTone(status) === "good" ? "bg-[#E1F5EA] text-[#0F8A4A]" : submissionTone(status) === "warn" ? "bg-[#FFF2DC] text-[#B95A00]" : "bg-[#FCE3E5] text-[#C8242C]"} shadow-sm`
+                                  : "text-[#5A6573] hover:bg-white"
+                              }`}
+                              disabled={savingRow}
+                              key={status}
+                              onClick={() => updateSubmission(submission.studentId, status)}
+                              type="button"
+                            >
+                              {savingRow ? "Saving..." : submissionLabel(status)}
+                            </button>
+                          ))}
+                        </div>
                         {submission.submittedAt ? <p className="mt-1 text-[11px] text-[#86868b]">{formatDateTimeShort(submission.submittedAt)}</p> : null}
                       </td>
                       <td className="px-5 py-4">
@@ -463,6 +636,7 @@ export default function TeacherHomeworkPage() {
                               [submission.studentId]: { ...draft, marks: event.target.value }
                             }))
                           }
+                          onBlur={() => autoSaveDraft(submission)}
                           placeholder="/20"
                           type="number"
                           value={draft.marks}
@@ -477,28 +651,10 @@ export default function TeacherHomeworkPage() {
                               [submission.studentId]: { ...draft, teacherNote: event.target.value }
                             }))
                           }
-                          placeholder="Optional note"
+                          onBlur={() => autoSaveDraft(submission)}
+                          placeholder={`Note for ${submission.studentName}`}
                           value={draft.teacherNote}
                         />
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="inline-flex flex-wrap gap-1 rounded-xl bg-[#f5f5f7] p-1">
-                          {(["ON_TIME", "LATE", "NOT_SUBMITTED"] as HomeworkSubmissionStatus[]).map((status) => (
-                            <button
-                              className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                submission.status === status
-                                  ? "bg-white text-[#1d1d1f] shadow-apple-sm"
-                                  : "text-[#424245] hover:bg-white/70"
-                              }`}
-                              disabled={savingRow}
-                              key={status}
-                              onClick={() => updateSubmission(submission.studentId, status)}
-                              type="button"
-                            >
-                              {savingRow ? "Saving..." : submissionLabel(status)}
-                            </button>
-                          ))}
-                        </div>
                       </td>
                     </tr>
                   );

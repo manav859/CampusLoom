@@ -8,7 +8,7 @@ import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
-import { attendanceApi, type DailyAttendanceRow } from "@/lib/api";
+import { attendanceApi, type ClassSummary, type DailyAttendanceRow } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 
 function calendarDayClasses(input: { selected: boolean; marked: boolean; isHoliday: boolean }) {
@@ -25,8 +25,28 @@ function calendarDayClasses(input: { selected: boolean; marked: boolean; isHolid
   return "border-[rgba(0,0,0,0.06)] bg-white/50";
 }
 
+function classGroupName(className: string) {
+  const grade = Number.parseInt(className, 10);
+  if (!Number.isFinite(grade)) return "Other";
+  if (grade <= 5) return "Primary";
+  if (grade <= 8) return "Middle";
+  return "Secondary";
+}
+
+function groupedClasses(classes: ClassSummary[]) {
+  const groups = new Map<string, ClassSummary[]>();
+  classes.forEach((classItem) => {
+    const group = classGroupName(classItem.name);
+    groups.set(group, [...(groups.get(group) ?? []), classItem]);
+  });
+  return ["Primary", "Middle", "Secondary", "Other"]
+    .map((group) => ({ group, classes: groups.get(group) ?? [] }))
+    .filter((item) => item.classes.length > 0);
+}
+
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
+  const [classSearch, setClassSearch] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -42,6 +62,9 @@ export default function TeacherAttendancePage() {
     ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
   ];
   const currentPeriodLabel = "My current period";
+  const filteredClassGroups = groupedClasses(
+    attendance.classes.filter((classItem) => `${classItem.name}-${classItem.section}`.toLowerCase().includes(classSearch.trim().toLowerCase()))
+  );
 
   useEffect(() => {
     let active = true;
@@ -102,19 +125,33 @@ export default function TeacherAttendancePage() {
       <div className="glass-card-interactive p-5">
         <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px_180px]">
-          <select
-            className="glass-input min-h-[48px] text-[15px] font-semibold"
-            value={attendance.selectedClassId}
-            onChange={(event) => attendance.selectClass(event.target.value)}
-            disabled={attendance.loading || attendance.submitting}
-          >
-            {attendance.classes.length === 0 ? <option value="">No assigned class</option> : null}
-            {attendance.classes.map((classItem) => (
-              <option key={classItem.id} value={classItem.id}>
-                {classItem.name}-{classItem.section}
-              </option>
-            ))}
-          </select>
+          <div className="rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white/70 p-2">
+            <input
+              className="mb-2 w-full rounded-xl border border-[#DCE1E8] bg-white px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#2456E6]"
+              disabled={attendance.loading || attendance.submitting}
+              onChange={(event) => setClassSearch(event.target.value)}
+              placeholder="Search class"
+              value={classSearch}
+            />
+            <select
+              className="w-full rounded-xl border border-transparent bg-white px-3 py-2.5 text-[15px] font-semibold text-[#1d1d1f] outline-none"
+              value={attendance.selectedClassId}
+              onChange={(event) => attendance.selectClass(event.target.value)}
+              disabled={attendance.loading || attendance.submitting}
+            >
+              {attendance.classes.length === 0 ? <option value="">No assigned class</option> : null}
+              {filteredClassGroups.map((item) => (
+                <optgroup key={item.group} label={item.group}>
+                  {item.classes.map((classItem) => (
+                    <option key={classItem.id} value={classItem.id}>
+                      {classItem.name}-{classItem.section}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <p className="mt-2 text-[11px] font-medium text-[#86868b]">Last selected class is remembered for this user.</p>
+          </div>
           <input
             className="glass-input min-h-[48px] text-[15px] font-semibold"
             type="date"

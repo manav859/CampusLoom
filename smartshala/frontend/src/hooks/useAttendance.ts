@@ -35,6 +35,16 @@ function attendanceValue(status: AttendanceMarkStatus) {
   return 1;
 }
 
+function attendanceClassStorageKey() {
+  if (typeof window === "undefined") return "smartshala.attendance.lastClass";
+  try {
+    const user = JSON.parse(window.localStorage.getItem("smartshala.user") || "{}") as { id?: string };
+    return user.id ? `smartshala.attendance.lastClass.${user.id}` : "smartshala.attendance.lastClass";
+  } catch {
+    return "smartshala.attendance.lastClass";
+  }
+}
+
 export function useAttendance() {
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [selectedClassId, setSelectedClassId] = useState("");
@@ -118,7 +128,8 @@ export function useAttendance() {
         if (cancelled) return;
         setClasses(classList);
 
-        const firstClassId = classList[0]?.id ?? "";
+        const rememberedClassId = window.localStorage.getItem(attendanceClassStorageKey());
+        const firstClassId = classList.some((classItem) => classItem.id === rememberedClassId) ? rememberedClassId! : classList[0]?.id ?? "";
         setSelectedClassId(firstClassId);
         if (firstClassId) {
           await Promise.all([loadClass(firstClassId, selectedDate), loadMonth(firstClassId, selectedMonth)]);
@@ -144,6 +155,7 @@ export function useAttendance() {
   const selectClass = useCallback(
     async (classId: string) => {
       setSelectedClassId(classId);
+      if (classId) window.localStorage.setItem(attendanceClassStorageKey(), classId);
       if (classId) await Promise.all([loadClass(classId, selectedDate), loadMonth(classId, selectedMonth)]);
       else {
         setStudents([]);

@@ -7,7 +7,7 @@ const defaultClassSubjects = ["English", "Hindi", "Mathematics", "Science", "Soc
 
 type CreateHomeworkAssignmentInput = {
   classId: string;
-  subjectId?: string;
+  subjectId: string;
   subject?: string;
   title: string;
   description?: string;
@@ -56,7 +56,7 @@ async function assertClassAccess(user: HomeworkUser, classId: string) {
 }
 
 async function subjectForAssignment(user: HomeworkUser, classId: string, subjectId?: string, subject?: string) {
-  if (!subjectId) return { subjectId: null, subject: subject?.trim() || "General" };
+  if (!subjectId) throw new AppError(400, "Subject is required", "HOMEWORK_SUBJECT_REQUIRED");
 
   const subjectRecord = await prisma.subject.findFirst({
     where: {

@@ -375,9 +375,9 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Attendance Class Selector
 
-- [ ] Add search inside class dropdown.
-- [ ] Group classes by Primary, Middle, Secondary.
-- [ ] Remember last selected class per teacher.
+- [x] Add search inside class dropdown.
+- [x] Group classes by Primary, Middle, Secondary.
+- [x] Remember last selected class per teacher.
 
 ### Attendance Per-Student Controls
 
@@ -390,31 +390,31 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Homework Create Assignment
 
-- [ ] Add multiple file upload for PDF/JPG/PNG up to 10MB each.
-- [ ] Make Subject required.
-- [ ] Remove `General` as lazy default.
-- [ ] Increase description textarea height.
-- [ ] Add basic formatting in description.
-- [ ] Add estimated time field.
-- [ ] Add rubric or answer key attachment field.
+- [x] Add multiple file upload for PDF/JPG/PNG up to 10MB each.
+- [x] Make Subject required.
+- [x] Remove `General` as lazy default.
+- [x] Increase description textarea height.
+- [x] Add basic formatting in description.
+- [x] Add estimated time field.
+- [x] Add rubric or answer key attachment field.
 
 ### Homework Assignment List
 
-- [ ] Show overdue age like `Overdue - 3 days`.
-- [ ] Vary overdue severity by age.
-- [ ] Add `Nudge non-submitters on WhatsApp`.
-- [ ] Make `View Students` secondary outlined button.
-- [ ] Add filters: Overdue, Due soon, Closed.
+- [x] Show overdue age like `Overdue - 3 days`.
+- [x] Vary overdue severity by age.
+- [x] Add `Nudge non-submitters on WhatsApp`.
+- [x] Make `View Students` secondary outlined button.
+- [x] Add filters: Overdue, Due soon, Closed.
 
 ### Homework Submission Tracking
 
-- [ ] Replace three solid status buttons with segmented control.
-- [ ] Remove duplicate status pill/action repetition.
-- [ ] Auto-save marks on blur or add one `Save all` button.
-- [ ] Use row-specific note placeholder.
-- [ ] Show class-average marks after saving.
-- [ ] Add progress bar like `1 of 31 submitted - 3% complete`.
-- [ ] Drop duplicate class info in tracking header.
+- [x] Replace three solid status buttons with segmented control.
+- [x] Remove duplicate status pill/action repetition.
+- [x] Auto-save marks on blur or add one `Save all` button.
+- [x] Use row-specific note placeholder.
+- [x] Show class-average marks after saving.
+- [x] Add progress bar like `1 of 31 submitted - 3% complete`.
+- [x] Drop duplicate class info in tracking header.
 
 ### Exam And Marks
 
