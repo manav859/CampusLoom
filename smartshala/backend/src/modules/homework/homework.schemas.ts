@@ -7,7 +7,7 @@ export const homeworkAssignmentQuerySchema = z.object({
 
 export const createHomeworkAssignmentSchema = z.object({
   classId: z.string().uuid(),
-  subjectId: z.string().uuid().optional(),
+  subjectId: z.string().uuid(),
   subject: z.string().trim().min(1).max(120).optional(),
   title: z.string().trim().min(2).max(180),
   description: z.string().trim().max(2000).optional(),
