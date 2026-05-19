@@ -165,6 +165,21 @@ export async function createUser(schoolId: string, data: { fullName: string; ema
   });
 }
 
+export async function getTeacher(schoolId: string, id: string) {
+  const teacher = await prisma.user.findFirst({
+    where: { id, schoolId, role: UserRole.TEACHER },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      status: true
+    }
+  });
+  if (!teacher) throw notFound("Teacher");
+  return teacher;
+}
+
 export async function updateUser(schoolId: string, id: string, data: Record<string, unknown>) {
   const exists = await prisma.user.findFirst({ where: { id, schoolId } });
   if (!exists) throw notFound("User");

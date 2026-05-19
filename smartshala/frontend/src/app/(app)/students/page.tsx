@@ -59,17 +59,6 @@ type ImportStudentRow = {
   motherPhone?: string;
 };
 
-/* ── Fallback seed data (shown when API has no students) ── */
-const fallbackStudents: StudentRow[] = [
-  { id: "1", admissionNumber: "ADM001", fullName: "Rohit Sharma", class: { name: "9", section: "A" }, parentPhone: "+919876543210", isActive: true, feeStatus: "OVERDUE", pendingAmount: 36000, lastPayment: null, attendancePercentage: 66 },
-  { id: "2", admissionNumber: "ADM002", fullName: "Priya Kulkarni", class: { name: "7", section: "B" }, parentPhone: "+919812345670", isActive: true, feeStatus: "OVERDUE", pendingAmount: 24000, lastPayment: null, attendancePercentage: 90 },
-  { id: "3", admissionNumber: "ADM003", fullName: "Arjun Mehta", class: { name: "6", section: "C" }, parentPhone: "+919845612307", isActive: true, feeStatus: "PENDING", pendingAmount: 18500, lastPayment: null, attendancePercentage: 78 },
-  { id: "4", admissionNumber: "ADM004", fullName: "Aarav Shah", class: { name: "8", section: "A" }, parentPhone: "+919845670123", isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-14", attendancePercentage: 95 },
-  { id: "5", admissionNumber: "ADM005", fullName: "Sneha Joshi", class: { name: "10", section: "B" }, parentPhone: "+919822334455", isActive: true, feeStatus: "PENDING", pendingAmount: 12000, lastPayment: null, attendancePercentage: 88 },
-  { id: "6", admissionNumber: "ADM006", fullName: "Veer Rao", class: { name: "8", section: "A" }, parentPhone: "+919833445566", isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-10", attendancePercentage: 92 },
-  { id: "7", admissionNumber: "ADM007", fullName: "Pooja Verma", class: { name: "6", section: "C" }, parentPhone: "+919811223344", isActive: true, feeStatus: "PAID", pendingAmount: 0, lastPayment: "2025-04-12", attendancePercentage: 72 },
-];
-
 /* ── Helpers ── */
 function timeAgo(date: string | null): string {
   if (!date) return "-";
@@ -480,13 +469,13 @@ export default function StudentsPage() {
           }));
           setTotal(data?.total || 0);
         } else {
-          setStudents(fallbackStudents);
-          setTotal(fallbackStudents.length);
+          setStudents([]);
+          setTotal(data?.total || 0);
         }
       })
       .catch(() => {
-        setStudents(fallbackStudents);
-        setTotal(fallbackStudents.length);
+        setStudents([]);
+        setTotal(0);
       })
       .finally(() => setLoadingList(false));
   }, [search, classId, page, perPage, showInactive]);
@@ -633,13 +622,22 @@ export default function StudentsPage() {
     setNotice(`Exported ${selectedCount} selected students as PDF.`);
   };
 
+  function openImportDialog() {
+    setImportDialog({
+      isOpen: true,
+      fileName: "",
+      rows: [],
+      defaultClassId: classes[0]?.id ?? ""
+    });
+  }
+
   async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      setImportDialog({ isOpen: true, fileName: file.name, rows: [], defaultClassId: classes[0]?.id ?? "", error: "Use a CSV file exported from Excel." });
+      setImportDialog((prev) => ({ ...prev, isOpen: true, fileName: file.name, rows: [], error: "Use a CSV file exported from Excel." }));
       return;
     }
 
@@ -649,16 +647,16 @@ export default function StudentsPage() {
         isOpen: true,
         fileName: file.name,
         rows,
-        defaultClassId: classes[0]?.id ?? "",
+        defaultClassId: importDialog.defaultClassId || classes[0]?.id || "",
       });
     } catch (error) {
-      setImportDialog({
+      setImportDialog((prev) => ({
+        ...prev,
         isOpen: true,
         fileName: file.name,
         rows: [],
-        defaultClassId: classes[0]?.id ?? "",
         error: error instanceof Error ? error.message : "Unable to read CSV file."
-      });
+      }));
     }
   }
 
@@ -810,7 +808,7 @@ export default function StudentsPage() {
               onChange={handleImportFile}
               type="file"
             />
-            <button className="btn-secondary gap-1.5 text-[13px]" onClick={() => importInputRef.current?.click()} type="button">
+            <button className="btn-secondary gap-1.5 text-[13px]" onClick={openImportDialog} type="button">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
               </svg>
@@ -1176,14 +1174,36 @@ export default function StudentsPage() {
       </div>
       {importDialog.isOpen && typeof window !== "undefined" && createPortal(
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" style={{ zIndex: 9999 }}>
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-[#DCE1E8] px-6 py-4">
               <h3 className="text-[18px] font-semibold text-[#0F1419]">Import students</h3>
-              <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{importDialog.fileName || "CSV file"}</p>
+              <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{importDialog.fileName || "Upload a CSV after checking the columns below."}</p>
             </div>
             <div className="space-y-4 px-6 py-5">
               <div className="rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-3 text-[12px] font-medium leading-5 text-[#5A6573]">
-                CSV columns: fullName, className, classSection, parentName, parentPhone, gender, rollNumber, dateOfBirth.
+                <p className="font-semibold text-[#2A3340]">Required columns</p>
+                <p>fullName, parentName, parentPhone</p>
+                <p className="mt-2 font-semibold text-[#2A3340]">Optional columns</p>
+                <p>className, classSection, gender, rollNumber, dateOfBirth, address, fatherName, fatherPhone, motherName, motherPhone</p>
+                <p className="mt-2 font-semibold text-[#2A3340]">Example header</p>
+                <code className="block overflow-x-auto whitespace-nowrap rounded-lg bg-white px-3 py-2 text-[11px] text-[#2A3340]">
+                  fullName,className,classSection,parentName,parentPhone,gender,rollNumber,dateOfBirth
+                </code>
+                <p className="mt-2">Date format: yyyy-mm-dd or dd/mm/yyyy. Gender: MALE, FEMALE, or OTHER.</p>
+              </div>
+              <div className="flex flex-col gap-2 rounded-xl border border-[#DCE1E8] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#0F1419]">{importDialog.fileName || "No file selected"}</p>
+                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">Choose a .csv file from this device.</p>
+                </div>
+                <button
+                  className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD] disabled:bg-[#C2C9D4]"
+                  disabled={importDialog.busy}
+                  onClick={() => importInputRef.current?.click()}
+                  type="button"
+                >
+                  Import students from CSV
+                </button>
               </div>
               <label className="block">
                 <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Default class for unmatched rows</span>
@@ -1240,7 +1260,7 @@ export default function StudentsPage() {
                 onClick={submitImport}
                 type="button"
               >
-                {importDialog.busy ? "Importing..." : `Import ${importDialog.rows.length} students`}
+                {importDialog.busy ? "Importing..." : `Save ${importDialog.rows.length} students`}
               </button>
             </div>
           </div>
