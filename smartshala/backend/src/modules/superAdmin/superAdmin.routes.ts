@@ -6,6 +6,7 @@ import { requireSuperAdmin } from "./superAdmin.middleware.js";
 import {
   completePasswordResetRequest,
   dismissPasswordResetRequest,
+  extendSchoolAccess,
   loginSuperAdmin,
   listPasswordResetRequests,
   listSchoolsForSuperAdmin,
@@ -17,6 +18,7 @@ import {
 } from "./superAdmin.service.js";
 import {
   passwordResetRequestParamSchema,
+  extendSchoolAccessSchema,
   resetUserPasswordSchema,
   schoolIdParamSchema,
   superAdminLoginSchema,
@@ -74,6 +76,14 @@ superAdminRouter.patch(
   validate({ params: schoolIdParamSchema, body: updateSchoolStatusSchema }),
   asyncHandler(async (req, res) => {
     res.json(await updateSchoolActiveStatus(req.params.schoolId, req.body.isActive));
+  })
+);
+
+superAdminRouter.patch(
+  "/schools/:schoolId/extend-access",
+  validate({ params: schoolIdParamSchema, body: extendSchoolAccessSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await extendSchoolAccess(req.params.schoolId, req.body.days));
   })
 );
 

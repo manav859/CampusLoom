@@ -13,6 +13,7 @@ import { tenantMiddleware } from "./middleware/tenant.middleware.js";
 import { apiRouter } from "./routes/index.js";
 import { dbHealthHandler } from "./routes/health.js";
 import { startDatabaseDeletionWorker } from "./services/databaseDeletion.service.js";
+import { startTrialExpiryWorker } from "./services/trial.service.js";
 
 function buildAllowedOrigins() {
   const configuredOrigins = env.CORS_ORIGIN.split(",")
@@ -63,6 +64,7 @@ export function createApp() {
   app.use(notFoundHandler);
   app.use(errorHandler);
   startDatabaseDeletionWorker();
+  startTrialExpiryWorker();
 
   return app;
 }

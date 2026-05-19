@@ -64,18 +64,26 @@ function schoolStatusLabel(school: SchoolRow) {
   if (school.deletionStatus === "PENDING") return "Scheduled for deletion";
   if (school.deletionStatus === "DELETED") return "Deleted";
   if (school.deletionStatus === "FAILED") return "Deletion failed";
+  if (!school.isActive && school.paymentStatus === "PENDING") return "Awaiting approval";
   return school.isActive ? "Active" : "Inactive";
 }
 
 function schoolStatusClass(school: SchoolRow) {
   if (school.deletionStatus === "PENDING") return "bg-amber-50 text-amber-800";
   if (school.deletionStatus === "DELETED" || school.deletionStatus === "FAILED") return "bg-red-50 text-red-700";
+  if (!school.isActive && school.paymentStatus === "PENDING") return "bg-blue-50 text-blue-700";
   return school.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700";
 }
 
 function deletionTime(value: string | null) {
   if (!value) return null;
   return new Date(value).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function trialText(school: SchoolRow) {
+  if (!school.isTrial) return null;
+  if (!school.trialEndsAt) return "Trial starts after approval";
+  return `Trial ends ${deletionTime(school.trialEndsAt)}`;
 }
 
 async function superAdminFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -200,9 +208,27 @@ export default function SuperAdminPage() {
         body: JSON.stringify({ isActive: !school.isActive })
       });
       await loadSchools();
-      setNotice(`${school.schoolName} ${school.isActive ? "deactivated" : "activated"}.`);
+      setNotice(`${school.schoolName} ${school.isActive ? "revoked" : "granted access"}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update school status");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function extendAccess(school: SchoolRow) {
+    setBusyId(school.schoolId);
+    setError("");
+    setNotice("");
+    try {
+      await superAdminFetch(`/schools/${school.schoolId}/extend-access`, {
+        method: "PATCH",
+        body: JSON.stringify({ days: 30 })
+      });
+      await loadSchools();
+      setNotice(`${school.schoolName} access extended by 30 days.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to extend school access");
     } finally {
       setBusyId("");
     }
@@ -457,6 +483,7 @@ export default function SuperAdminPage() {
                       Deletes {deletionTime(school.deletionScheduledAt) ?? "after cancellation window"}
                     </p>
                   ) : null}
+                  {trialText(school) ? <p className="mt-1 text-xs font-semibold text-[#64748b]">{trialText(school)}</p> : null}
                 </button>
               ))}
             </div>
@@ -466,6 +493,7 @@ export default function SuperAdminPage() {
             {selectedSchoolId ? (
               <SchoolSummary
                 busy={busyId === selectedSchoolId}
+                onExtend={extendAccess}
                 onToggle={updateSchoolStatus}
                 school={schools.find((row) => row.schoolId === selectedSchoolId) ?? null}
               />
@@ -557,7 +585,17 @@ export default function SuperAdminPage() {
   );
 }
 
-function SchoolSummary({ school, busy, onToggle }: { school: SchoolRow | null; busy: boolean; onToggle: (school: SchoolRow) => void }) {
+function SchoolSummary({
+  school,
+  busy,
+  onExtend,
+  onToggle
+}: {
+  school: SchoolRow | null;
+  busy: boolean;
+  onExtend: (school: SchoolRow) => void;
+  onToggle: (school: SchoolRow) => void;
+}) {
   if (!school) {
     return (
       <div className="rounded-2xl border border-[#dce3ef] bg-white p-5 shadow-sm">
@@ -578,20 +616,38 @@ function SchoolSummary({ school, busy, onToggle }: { school: SchoolRow | null; b
               Scheduled for deletion{deletionTime(school.deletionScheduledAt) ? ` on ${deletionTime(school.deletionScheduledAt)}` : ""}.
             </div>
           ) : null}
+          {!school.isActive && school.paymentStatus === "PENDING" ? (
+            <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
+              Waiting for super admin approval. Grant access to start the 30-day trial.
+            </div>
+          ) : null}
           <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
             <span className="rounded-full bg-[#f1f5f9] px-3 py-1">{school.planType}</span>
             <span className="rounded-full bg-[#f1f5f9] px-3 py-1">{school.paymentStatus}</span>
             <span className={`rounded-full px-3 py-1 ${schoolStatusClass(school)}`}>{schoolStatusLabel(school)}</span>
+            {trialText(school) ? <span className="rounded-full bg-[#f1f5f9] px-3 py-1">{trialText(school)}</span> : null}
           </div>
         </div>
-        <button
-          className={`min-h-10 rounded-lg px-4 text-sm font-bold text-white disabled:opacity-60 ${school.isActive ? "bg-red-600" : "bg-green-600"}`}
-          disabled={busy}
-          onClick={() => onToggle(school)}
-          type="button"
-        >
-          {school.isActive ? "Deactivate school" : "Activate school"}
-        </button>
+        <div className="flex flex-wrap gap-2 md:justify-end">
+          {!school.isActive ? (
+            <button
+              className="min-h-10 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white disabled:opacity-60"
+              disabled={busy}
+              onClick={() => onExtend(school)}
+              type="button"
+            >
+              Extend 30 days
+            </button>
+          ) : null}
+          <button
+            className={`min-h-10 rounded-lg px-4 text-sm font-bold text-white disabled:opacity-60 ${school.isActive ? "bg-red-600" : "bg-green-600"}`}
+            disabled={busy}
+            onClick={() => onToggle(school)}
+            type="button"
+          >
+            {school.isActive ? "Revoke access" : "Grant access"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -2,11 +2,12 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserStatus } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
-import { PasswordResetStatus } from "../../../node_modules/@smartshala/master-client/index.js";
+import { PasswordResetStatus, PaymentStatus } from "../../../node_modules/@smartshala/master-client/index.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
+import { expireTrials, trialEndsFrom } from "../../services/trial.service.js";
 
 function assertSuperAdminConfigured() {
   if (!env.SUPER_ADMIN_EMAIL || (!env.SUPER_ADMIN_PASSWORD && !env.SUPER_ADMIN_PASSWORD_HASH)) {
@@ -64,6 +65,7 @@ export async function loginSuperAdmin(email: string, password: string) {
 
 export async function listSchoolsForSuperAdmin() {
   assertMasterConfigured();
+  await expireTrials();
   const schools = await masterPrisma.school.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -258,14 +260,56 @@ export async function updateTenantUserRole(schoolId: string, userId: string, rol
 
 export async function updateSchoolActiveStatus(schoolId: string, isActive: boolean) {
   assertMasterConfigured();
+  const school = await masterPrisma.school.findUnique({ where: { schoolId } });
+  if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
+
+  const now = new Date();
+  const startsTrial = isActive && school.isTrial && (!school.trialEndsAt || school.trialEndsAt <= now);
+
   return masterPrisma.school.update({
     where: { schoolId },
-    data: { isActive },
+    data: {
+      isActive,
+      ...(startsTrial ? { trialEndsAt: trialEndsFrom(now), paymentStatus: PaymentStatus.TRIAL } : {}),
+      ...(!isActive ? { deletionStatus: school.deletionStatus } : {})
+    },
     select: {
       schoolId: true,
       schoolName: true,
       isActive: true,
-      dbName: true
+      dbName: true,
+      paymentStatus: true,
+      isTrial: true,
+      trialEndsAt: true
+    }
+  });
+}
+
+export async function extendSchoolAccess(schoolId: string, days: number) {
+  assertMasterConfigured();
+  const school = await masterPrisma.school.findUnique({ where: { schoolId } });
+  if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
+
+  const now = new Date();
+  const base = school.trialEndsAt && school.trialEndsAt > now ? school.trialEndsAt : now;
+  const trialEndsAt = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+
+  return masterPrisma.school.update({
+    where: { schoolId },
+    data: {
+      isActive: true,
+      isTrial: true,
+      paymentStatus: PaymentStatus.TRIAL,
+      trialEndsAt
+    },
+    select: {
+      schoolId: true,
+      schoolName: true,
+      isActive: true,
+      dbName: true,
+      paymentStatus: true,
+      isTrial: true,
+      trialEndsAt: true
     }
   });
 }

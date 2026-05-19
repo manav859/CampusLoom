@@ -14,6 +14,16 @@ type LoginFormProps = {
   onLanguageChange: (language: LoginLanguage) => void;
 };
 
+function tenantSchoolIdFromToken(token: string) {
+  try {
+    const base64 = (token.split(".")[1] ?? "").replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(window.atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+    return typeof payload.tenantSchoolId === "string" ? payload.tenantSchoolId : null;
+  } catch {
+    return null;
+  }
+}
+
 export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -76,14 +86,15 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
       const result = await authApi.login(identifier, password);
       window.localStorage.setItem("smartshala.accessToken", result.accessToken);
       window.localStorage.setItem("smartshala.refreshToken", result.refreshToken);
-      window.localStorage.setItem("smartshala.user", JSON.stringify(result.user));
-      const tenantSchoolId = result.user.tenantSchoolId;
+      const tenantSchoolId = result.user.tenantSchoolId ?? tenantSchoolIdFromToken(result.accessToken);
+      const user = { ...result.user, tenantSchoolId: tenantSchoolId ?? result.user.tenantSchoolId };
+      window.localStorage.setItem("smartshala.user", JSON.stringify(user));
       const target =
-        result.user.role === "TEACHER"
+        user.role === "TEACHER"
           ? withResolvedSchoolPath("/teacher", tenantSchoolId)
-          : result.user.role === "ACCOUNTANT"
+          : user.role === "ACCOUNTANT"
             ? withResolvedSchoolPath("/fees", tenantSchoolId)
-            : result.user.role === "PARENT"
+            : user.role === "PARENT"
               ? withResolvedSchoolPath("/students", tenantSchoolId)
               : withResolvedSchoolPath("/dashboard", tenantSchoolId);
       router.replace(target);
