@@ -6,7 +6,6 @@ import { masterPrisma } from "../../master-db/masterPrisma.js";
 import { createSchoolDatabase } from "../../services/createSchoolDatabase.js";
 import { decimalAmount, previewCoupon } from "../../services/coupon.service.js";
 import { simulatePayment } from "../../services/payment.service.js";
-import { trialEndsFrom } from "../../services/trial.service.js";
 import { generateUniqueSchoolId } from "../../utils/generateSchoolId.js";
 
 type OnboardingInput = {
@@ -69,12 +68,12 @@ export async function onboardSchool(input: OnboardingInput) {
         numberOfStudents: input.numberOfStudents,
         numberOfStaff: input.numberOfStaff,
         planType: isTrial ? PlanType.TRIAL : PlanType.STANDARD,
-        paymentStatus: payment.status as PaymentStatus,
+        paymentStatus: PaymentStatus.PENDING,
         amountPaid: decimalAmount(payment.amountPaid),
         couponCode: coupon.couponCode,
         isTrial,
-        trialEndsAt: isTrial ? trialEndsFrom() : null,
-        isActive: true,
+        trialEndsAt: null,
+        isActive: false,
         dbName: db.dbName,
         dbUrl: db.dbUrl,
         directDbUrl: db.directDbUrl
@@ -84,18 +83,19 @@ export async function onboardSchool(input: OnboardingInput) {
     await masterPrisma.onboardingLog.create({
       data: {
         schoolId,
-        status: "ACTIVE",
-        message: `School activated with database ${db.dbName}`
+        status: "PENDING_APPROVAL",
+        message: `School database ${db.dbName} created and waiting for super admin approval`
       }
     });
 
-    logger.info({ schoolId, dbName }, "School onboarding completed");
+    logger.info({ schoolId, dbName }, "School onboarding pending super admin approval");
 
     return {
       schoolId: school.schoolId,
       schoolName: school.schoolName,
       loginPath: `/${school.schoolId}/login`,
       apiBasePath: `/${school.schoolId}/api`,
+      status: "PENDING_APPROVAL",
       paymentStatus: school.paymentStatus,
       trialEndsAt: school.trialEndsAt,
       amountPaid: Number(school.amountPaid),

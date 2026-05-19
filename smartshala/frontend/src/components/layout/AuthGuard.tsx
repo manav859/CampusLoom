@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { Role, SessionUser } from "@/types";
 import { authApi } from "@/lib/api";
 import { clearCache, prefetchForRole } from "@/lib/prefetchCache";
-import { withSchoolPath } from "@/lib/tenant";
+import { schoolIdFromPath, withResolvedSchoolPath, withSchoolPath } from "@/lib/tenant";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -26,6 +26,13 @@ function roleHome(role: Role) {
 
 function matchesPrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
+function withoutSchoolPath(pathname: string) {
+  const schoolId = schoolIdFromPath(pathname);
+  if (!schoolId) return pathname;
+  const withoutId = pathname.replace(`/${schoolId}`, "");
+  return withoutId || "/";
 }
 
 function isPathAllowedForRole(pathname: string, role: Role) {
@@ -128,15 +135,23 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!ready || !user) return;
-    if (isPathAllowedForRole(pathname, user.role)) return;
-    router.replace(withSchoolPath(roleHome(user.role), pathname));
+    const normalizedPathname = withoutSchoolPath(pathname);
+    const pathSchoolId = schoolIdFromPath(pathname);
+
+    if (!pathSchoolId && user.tenantSchoolId) {
+      router.replace(withResolvedSchoolPath(normalizedPathname, user.tenantSchoolId));
+      return;
+    }
+
+    if (isPathAllowedForRole(normalizedPathname, user.role)) return;
+    router.replace(withResolvedSchoolPath(roleHome(user.role), user.tenantSchoolId ?? pathSchoolId));
   }, [pathname, ready, router, user]);
 
   if (!ready || !user) {
     return <WorkspaceSkeleton />;
   }
 
-  if (!isPathAllowedForRole(pathname, user.role)) {
+  if (!isPathAllowedForRole(withoutSchoolPath(pathname), user.role)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-4">
         <div className="glass-card w-full max-w-sm p-8 text-center">

@@ -33,3 +33,7 @@ export const updateUserRoleSchema = z.object({
 export const updateSchoolStatusSchema = z.object({
   isActive: z.boolean()
 });
+
+export const extendSchoolAccessSchema = z.object({
+  days: z.coerce.number().int().min(1).max(365).default(30)
+});
