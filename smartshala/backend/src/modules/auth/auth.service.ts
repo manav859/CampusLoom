@@ -6,6 +6,7 @@ import { env } from "../../config/env.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError } from "../../core/errors.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
+import { legacyTenantSchoolId } from "../../tenant/legacyTenant.js";
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
 import { getTenantContext } from "../../tenant/tenantContext.js";
 
@@ -61,7 +62,7 @@ function publicUser(user: {
   phone: string;
   role: UserRole;
   schoolId: string;
-  school: { name: string };
+  school: { id: string; name: string; code?: string | null };
 }, tenantSchoolId = getTenantContext()?.schoolId) {
   return {
     id: user.id,
@@ -72,7 +73,7 @@ function publicUser(user: {
     role: user.role,
     schoolId: user.schoolId,
     schoolName: user.school.name,
-    tenantSchoolId
+    tenantSchoolId: tenantSchoolId ?? legacyTenantSchoolId(user.school)
   };
 }
 
@@ -146,7 +147,7 @@ export async function register(data: RegisterInput) {
     phone: user.phone,
     email: user.email,
     schoolName: user.school.name,
-    tenantSchoolId: getTenantContext()?.schoolId
+    tenantSchoolId: getTenantContext()?.schoolId ?? legacyTenantSchoolId(user.school)
   };
 
   const accessToken = signAccessToken(tokenUser);
@@ -199,14 +200,44 @@ async function tenantForPublicLogin(identifier: string) {
     }
   });
 
-  if (!school) return null;
+  const matchedSchool = school ?? await tenantForLoginUser(identifier);
 
-  const trialExpired = Boolean(school.isTrial && school.trialEndsAt && school.trialEndsAt <= new Date());
+  if (!matchedSchool) return null;
+
+  const trialExpired = Boolean(matchedSchool.isTrial && matchedSchool.trialEndsAt && matchedSchool.trialEndsAt <= new Date());
   if (trialExpired) {
     throw new AppError(402, "School subscription is inactive or expired", "SCHOOL_INACTIVE");
   }
 
-  return school;
+  return matchedSchool;
+}
+
+async function tenantForLoginUser(identifier: string) {
+  const schools = await masterPrisma.school.findMany({
+    where: { isActive: true },
+    select: {
+      schoolId: true,
+      dbUrl: true,
+      isTrial: true,
+      trialEndsAt: true
+    }
+  });
+
+  for (const school of schools) {
+    const tenantPrisma = getTenantPrismaClient(school.dbUrl);
+    const user = await tenantPrisma.user.findFirst({
+      where: {
+        OR: [{ email: identifier }, { phone: identifier }],
+        status: UserStatus.ACTIVE,
+        isActive: true
+      },
+      select: { id: true }
+    });
+
+    if (user) return school;
+  }
+
+  return null;
 }
 
 async function loginWithClient(client: PrismaClient, identifier: string, password: string, tenantSchoolId?: string) {
@@ -224,6 +255,10 @@ async function loginWithClient(client: PrismaClient, identifier: string, passwor
   const validPassword = await bcrypt.compare(password, user.passwordHash);
   if (!validPassword) throw new AppError(401, "Invalid credentials", "INVALID_CREDENTIALS");
 
+  const effectiveTenantSchoolId = getTenantContext()?.schoolId
+    ?? tenantSchoolId
+    ?? legacyTenantSchoolId(user.school);
+
   const tokenUser: TokenUser = {
     id: user.id,
     schoolId: user.schoolId,
@@ -232,8 +267,7 @@ async function loginWithClient(client: PrismaClient, identifier: string, passwor
     phone: user.phone,
     email: user.email,
     schoolName: user.school.name,
-    tenantSchoolId: getTenantContext()?.schoolId
-      ?? tenantSchoolId
+    tenantSchoolId: effectiveTenantSchoolId
   };
   const accessToken = signAccessToken(tokenUser);
   const refreshToken = signRefreshToken(tokenUser);
@@ -250,7 +284,7 @@ async function loginWithClient(client: PrismaClient, identifier: string, passwor
   return {
     accessToken,
     refreshToken,
-    user: publicUser(user, tenantSchoolId)
+    user: publicUser(user, effectiveTenantSchoolId)
   };
 }
 
@@ -425,7 +459,7 @@ export async function refresh(refreshToken: string) {
       phone: user.phone,
       email: user.email,
       schoolName: user.school.name,
-      tenantSchoolId: getTenantContext()?.schoolId
+      tenantSchoolId: getTenantContext()?.schoolId ?? legacyTenantSchoolId(user.school)
     })
   };
 }

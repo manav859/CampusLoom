@@ -15,16 +15,12 @@ type TeacherData = {
 };
 
 async function findTeacher(id: string) {
-  const active = await apiFetch<{ items: TeacherData[] }>("/users/teachers?limit=200");
-  const activeTeacher = active.items.find((teacher) => teacher.id === id);
-  if (activeTeacher) return activeTeacher;
-
-  const inactive = await apiFetch<{ items: TeacherData[] }>("/users/teachers?limit=200&showInactive=true");
-  return inactive.items.find((teacher) => teacher.id === id) ?? null;
+  return apiFetch<TeacherData>(`/users/teachers/${id}`);
 }
 
 export default function EditTeacherPage() {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id: string | string[] }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,8 +46,16 @@ export default function EditTeacherPage() {
       }
     }
 
+    if (!id) {
+      setErrorMsg("Teacher not found.");
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
     findTeacher(id)
       .then((teacher) => {
+        if (!active) return;
         if (!teacher) {
           setErrorMsg("Teacher not found.");
           return;
@@ -63,8 +67,16 @@ export default function EditTeacherPage() {
           status: teacher.status
         });
       })
-      .catch((error) => setErrorMsg(error instanceof Error ? error.message : "Unable to load teacher"))
-      .finally(() => setLoading(false));
+      .catch((error) => {
+        if (active) setErrorMsg(error instanceof Error ? error.message : "Unable to load teacher");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [id, router]);
 
   async function handleSubmit(event: FormEvent) {

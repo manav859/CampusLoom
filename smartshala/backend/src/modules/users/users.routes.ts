@@ -12,6 +12,7 @@ usersRouter.use(requireAuth);
 usersRouter.get("/teachers", requireRole(adminRoles), controller.listTeachers);
 usersRouter.post("/teachers", requireRole(adminRoles), validate({ body: createTeacherSchema }), controller.createTeacher);
 usersRouter.post("/accountants", requireRole(adminRoles), validate({ body: createAccountantSchema }), controller.createAccountant);
+usersRouter.get("/teachers/:id", requireRole(adminRoles), validate({ params: teacherAssignmentParamsSchema }), controller.getTeacher);
 usersRouter.get("/teachers/:id/assignments", requireRole(adminRoles), validate({ params: teacherAssignmentParamsSchema }), controller.getTeacherAssignments);
 usersRouter.put(
   "/teachers/:id/assignments",
