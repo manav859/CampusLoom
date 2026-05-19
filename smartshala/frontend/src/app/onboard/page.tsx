@@ -1,35 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { env } from "@/lib/env";
 
 type PlanType = "TRIAL" | "STANDARD";
 
-type CouponPreview = {
-  baseAmount: number;
-  discountAmount: number;
-  finalAmount: number;
-  couponCode: string | null;
-  valid: boolean;
-  message: string;
-};
-
-const initialPreview: CouponPreview = {
-  baseAmount: 20000,
-  discountAmount: 0,
-  finalAmount: 20000,
-  couponCode: null,
-  valid: true,
-  message: "No coupon applied"
-};
-
 export default function OnboardPage() {
   const router = useRouter();
-  const [planType, setPlanType] = useState<PlanType>("TRIAL");
-  const [couponCode, setCouponCode] = useState("");
-  const [preview, setPreview] = useState<CouponPreview>(initialPreview);
+  const planType: PlanType = "TRIAL";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -44,27 +24,6 @@ export default function OnboardPage() {
     numberOfStaff: "35",
     termsAccepted: false
   });
-
-  const finalAmount = planType === "TRIAL" ? 0 : preview.finalAmount;
-
-  useEffect(() => {
-    const timer = window.setTimeout(async () => {
-      if (!couponCode.trim()) {
-        setPreview(initialPreview);
-        return;
-      }
-
-      const response = await fetch(`${env.apiBaseUrl}/onboarding/coupon-preview?code=${encodeURIComponent(couponCode.trim())}`);
-      if (response.ok) setPreview(await response.json());
-    }, 300);
-
-    return () => window.clearTimeout(timer);
-  }, [couponCode]);
-
-  const priceLine = useMemo(() => {
-    if (planType === "TRIAL") return "30 days free";
-    return `Rs. ${finalAmount.toLocaleString("en-IN")}`;
-  }, [finalAmount, planType]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -89,8 +48,7 @@ export default function OnboardPage() {
           numberOfStudents: Number(form.numberOfStudents),
           numberOfStaff: Number(form.numberOfStaff),
           planType,
-          termsAccepted: form.termsAccepted,
-          couponCode: couponCode.trim() || undefined
+          termsAccepted: form.termsAccepted
         })
       });
       const payload = await response.json();
@@ -146,7 +104,7 @@ export default function OnboardPage() {
             </div>
             <div className="rounded-2xl bg-[#1d1d1f] px-4 py-3 text-right text-white">
               <p className="text-xs text-white/60">Today</p>
-              <p className="text-lg font-semibold">{priceLine}</p>
+              <p className="text-lg font-semibold">30 days free</p>
             </div>
           </div>
 
@@ -172,17 +130,9 @@ export default function OnboardPage() {
               />
             </label>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <PlanButton active={planType === "TRIAL"} label="Start 1 Month Free Trial" onClick={() => setPlanType("TRIAL")} />
-              <PlanButton active={planType === "STANDARD"} label="Purchase Now Rs. 20,000" onClick={() => setPlanType("STANDARD")} />
+            <div className="rounded-2xl border border-[#0071e3] bg-[#e7f1ff] px-4 py-3 text-sm font-bold text-[#0057b8]">
+              Start 1 Month Free Trial
             </div>
-
-            <Input label="Coupon Code" onChange={setCouponCode} required={false} value={couponCode} />
-            {couponCode ? (
-              <p className={`text-sm font-semibold ${preview.valid ? "text-[#0f8a4a]" : "text-[#c8242c]"}`}>
-                {preview.message}
-              </p>
-            ) : null}
 
             <label className="flex items-start gap-3 text-sm font-semibold text-[#424245]">
               <input
@@ -202,7 +152,7 @@ export default function OnboardPage() {
               disabled={loading}
               type="submit"
             >
-              {loading ? "Creating workspace..." : planType === "TRIAL" ? "Start 1 Month Free Trial" : "Purchase Now Rs. 20,000"}
+              {loading ? "Creating workspace..." : "Start 1 Month Free Trial"}
             </button>
           </form>
         </motion.section>
@@ -235,19 +185,5 @@ function Input({
         value={value}
       />
     </label>
-  );
-}
-
-function PlanButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button
-      className={`min-h-14 rounded-2xl border px-4 text-left text-sm font-bold transition ${
-        active ? "border-[#0071e3] bg-[#e7f1ff] text-[#0057b8]" : "border-black/10 bg-white/70 text-[#424245] hover:bg-white"
-      }`}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
   );
 }
