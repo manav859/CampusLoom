@@ -371,6 +371,27 @@ function compareStudents(left: StudentRow, right: StudentRow, key: SortKey, dire
   return String(leftValue).localeCompare(String(rightValue), "en-IN", { numeric: true, sensitivity: "base" }) * multiplier;
 }
 
+function toStudentRows(items: ApiStudentItem[]): StudentRow[] {
+  return items.map((s) => {
+    const hasFeeData = Array.isArray(s.feeAssignments);
+    const assignments = s.feeAssignments ?? [];
+    const pending = hasFeeData ? assignments.reduce((acc, a) => acc + Number(a.pendingAmount || 0), 0) : null;
+    const status: StudentRow["feeStatus"] = !hasFeeData
+      ? null
+      : assignments.some(a => a.status === "OVERDUE")
+        ? "OVERDUE"
+        : (pending ?? 0) > 0 ? "PENDING" : "PAID";
+
+    return {
+      ...s,
+      feeStatus: status,
+      pendingAmount: pending,
+      lastPayment: s.lastPayment ?? null,
+      attendancePercentage: s.attendancePercentage ?? null,
+    };
+  });
+}
+
 /* ── Component ── */
 export default function StudentsPage() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -385,6 +406,7 @@ export default function StudentsPage() {
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; action: 'activate' | 'deactivate'; studentId: string | null; error?: string }>({ isOpen: false, action: 'deactivate', studentId: null });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedRows, setSelectedRows] = useState<Record<string, StudentRow>>({});
   const [bulkDialog, setBulkDialog] = useState<{
     isOpen: boolean;
     action: "whatsapp" | "promote" | "inactive" | null;
@@ -449,24 +471,15 @@ export default function StudentsPage() {
       .then((data) => {
         const items = data?.items || [];
         if (items.length > 0) {
-          setStudents(items.map((s) => {
-            const hasFeeData = Array.isArray(s.feeAssignments);
-            const assignments = s.feeAssignments ?? [];
-            const pending = hasFeeData ? assignments.reduce((acc, a) => acc + Number(a.pendingAmount || 0), 0) : null;
-            const status = !hasFeeData
-              ? null
-              : assignments.some(a => a.status === "OVERDUE")
-                ? "OVERDUE"
-                : (pending ?? 0) > 0 ? "PENDING" : "PAID";
-
-            return {
-              ...s,
-              feeStatus: status,
-              pendingAmount: pending,
-              lastPayment: s.lastPayment ?? null,
-              attendancePercentage: s.attendancePercentage ?? null,
-            };
-          }));
+          const rows = toStudentRows(items);
+          setStudents(rows);
+          setSelectedRows((prev) => {
+            const next = { ...prev };
+            rows.forEach((row) => {
+              if (selectedIds.includes(row.id)) next[row.id] = row;
+            });
+            return next;
+          });
           setTotal(data?.total || 0);
         } else {
           setStudents([]);
@@ -533,11 +546,13 @@ export default function StudentsPage() {
         { label: "Actions" }
       ];
   const selectedStudents = selectedIds
-    .map((id) => students.find((student) => student.id === id))
+    .map((id) => selectedRows[id])
     .filter((student): student is StudentRow => Boolean(student));
   const visibleIds = sortedFiltered.map((student) => student.id);
   const visibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
-  const selectedCount = selectedStudents.length;
+  const allFilteredSelected = total > 0 && selectedIds.length >= total;
+  const selectedCount = selectedIds.length;
+  const selectAllLabel = statusFilter && canViewFees ? "Select all matching students" : `Select all ${total} students`;
 
   const handleDelete = (id: string) => {
     setConfirmDialog({ isOpen: true, action: 'deactivate', studentId: id });
@@ -553,6 +568,30 @@ export default function StudentsPage() {
       direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
     }));
   };
+
+  function studentListParams(pageNumber: number, limitNumber: number) {
+    const params = new URLSearchParams();
+    params.set("limit", limitNumber.toString());
+    params.set("page", pageNumber.toString());
+    if (search) params.set("search", search);
+    if (classId) params.set("classId", classId);
+    if (showInactive) params.set("showInactive", "true");
+    return params;
+  }
+
+  async function fetchAllMatchingStudents() {
+    const firstParams = studentListParams(1, 100);
+    const first = await apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${firstParams.toString()}`);
+    const pages = Math.ceil((first.total || 0) / 100);
+    const rest = await Promise.all(
+      Array.from({ length: Math.max(0, pages - 1) }, (_, index) => {
+        const params = studentListParams(index + 2, 100);
+        return apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`);
+      })
+    );
+    const rows = toStudentRows([...(first.items || []), ...rest.flatMap((page) => page.items || [])]);
+    return statusFilter && canViewFees ? rows.filter((row) => row.feeStatus === statusFilter) : rows;
+  }
 
   const handleConfirmAction = async () => {
     const { studentId, action } = confirmDialog;
@@ -574,13 +613,58 @@ export default function StudentsPage() {
 
   const toggleVisibleSelection = () => {
     setSelectedIds((prev) => {
-      if (visibleSelected) return prev.filter((id) => !visibleIds.includes(id));
+      if (visibleSelected) {
+        setSelectedRows((rows) => {
+          const next = { ...rows };
+          visibleIds.forEach((id) => delete next[id]);
+          return next;
+        });
+        return prev.filter((id) => !visibleIds.includes(id));
+      }
+      setSelectedRows((rows) => {
+        const next = { ...rows };
+        sortedFiltered.forEach((student) => {
+          next[student.id] = student;
+        });
+        return next;
+      });
       return Array.from(new Set([...prev, ...visibleIds]));
     });
   };
 
-  const toggleStudentSelection = (id: string) => {
-    setSelectedIds((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
+  const toggleAllPagesSelection = async () => {
+    if (allFilteredSelected) {
+      setSelectedIds([]);
+      setSelectedRows({});
+      return;
+    }
+
+    setLoadingList(true);
+    try {
+      const rows = await fetchAllMatchingStudents();
+      setSelectedIds(rows.map((student) => student.id));
+      setSelectedRows(Object.fromEntries(rows.map((student) => [student.id, student])));
+      setNotice(`Selected ${rows.length} students across all pages.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Unable to select all students.");
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  const toggleStudentSelection = (student: StudentRow) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(student.id)) {
+        setSelectedRows((rows) => {
+          const next = { ...rows };
+          delete next[student.id];
+          return next;
+        });
+        return prev.filter((item) => item !== student.id);
+      }
+      setSelectedRows((rows) => ({ ...rows, [student.id]: student }));
+      return [...prev, student.id];
+    });
   };
 
   const exportSelectedCsv = () => {
@@ -707,13 +791,7 @@ export default function StudentsPage() {
       const params = new URLSearchParams({ limit: perPage.toString(), page: "1" });
       const data = await apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`);
       const items = data?.items ?? [];
-      setStudents(items.map((s) => ({
-        ...s,
-        feeStatus: null,
-        pendingAmount: null,
-        lastPayment: s.lastPayment ?? null,
-        attendancePercentage: s.attendancePercentage ?? null,
-      })));
+      setStudents(toStudentRows(items));
       setTotal(data?.total ?? 0);
     } catch (error) {
       setImportDialog((prev) => ({ ...prev, busy: false, error: error instanceof Error ? error.message : "Import failed" }));
@@ -779,6 +857,7 @@ export default function StudentsPage() {
       }
 
       setSelectedIds([]);
+      setSelectedRows({});
       closeBulkDialog();
     } catch (e: any) {
       setBulkDialog((prev) => ({ ...prev, busy: false, error: e?.message || "Bulk action failed" }));
@@ -881,18 +960,27 @@ export default function StudentsPage() {
         <div className="flex flex-col gap-3 rounded-xl border border-[#DCE1E8] bg-white px-4 py-3 shadow-[0_8px_22px_-16px_rgba(15,20,25,0.35)] sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[13px] font-semibold text-[#0F1419]">{selectedCount} selected</p>
-            <p className="text-[12px] font-medium text-[#5A6573]">Bulk actions apply to visible selected student rows.</p>
+            <p className="text-[12px] font-medium text-[#5A6573]">Bulk actions apply to all selected students across pages.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" disabled={loadingList} onClick={toggleAllPagesSelection} type="button">
+              {allFilteredSelected ? "Clear all pages" : selectAllLabel}
+            </button>
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("whatsapp")} type="button">Send WhatsApp</button>
             {isAdmin ? <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("promote")} type="button">Promote class</button> : null}
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={exportSelectedCsv} type="button">Export CSV</button>
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={exportSelectedPdf} type="button">Export PDF</button>
             {isAdmin ? <button className="rounded-lg bg-[#C8242C] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#a51d24]" onClick={() => openBulkDialog("inactive")} type="button">Mark inactive</button> : null}
-            <button className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setSelectedIds([])} type="button">Clear</button>
+            <button className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => { setSelectedIds([]); setSelectedRows({}); }} type="button">Clear</button>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="flex justify-end">
+          <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB] disabled:opacity-60" disabled={loadingList || total === 0} onClick={toggleAllPagesSelection} type="button">
+            {selectAllLabel}
+          </button>
+        </div>
+      )}
 
       {/* ── Table ── */}
       <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.06)] shadow-[0_2px_20px_-4px_rgba(0,0,0,0.04)] backdrop-blur-xl bg-white/80">
@@ -974,7 +1062,7 @@ export default function StudentsPage() {
                             aria-label={`Select ${student.fullName}`}
                             checked={selectedIds.includes(student.id)}
                             className="h-4 w-4 rounded border-[#C2C9D4]"
-                            onChange={() => toggleStudentSelection(student.id)}
+                            onChange={() => toggleStudentSelection(student)}
                             type="checkbox"
                           />
                         </td>
