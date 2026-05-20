@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { SessionUser } from "@/types";
 import { clearCache } from "@/lib/prefetchCache";
+import { whatsappApi, type NotificationLog } from "@/lib/api";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { NotificationPanel } from "./NotificationPanel";
 
@@ -53,6 +54,8 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
   const router = useRouter();
   const [searchFocused, setSearchFocused] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifLogs, setNotifLogs] = useState<NotificationLog[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -96,7 +99,24 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
     router.replace("/login");
   }, [router]);
 
-  const notifCount = 3;
+  const loadNotifications = useCallback(async () => {
+    setNotifLoading(true);
+    try {
+      setNotifLogs(await whatsappApi.logs());
+    } catch {
+      setNotifLogs([]);
+    } finally {
+      setNotifLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const notifCount = notifLogs.filter((log) => new Date(log.createdAt).getTime() >= today.getTime()).length;
 
   return (
     <>
@@ -159,7 +179,10 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
             <button
               className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors"
               type="button"
-              onClick={() => setNotifOpen(true)}
+              onClick={() => {
+                setNotifOpen(true);
+                loadNotifications();
+              }}
             >
               <svg className="h-[18px] w-[18px] text-[#424245]" fill="none" viewBox="0 0 24 24">
                 <path d="M12 5a4.5 4.5 0 00-4.5 4.5v3L5 16h14l-2.5-3.5v-3A4.5 4.5 0 0012 5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -244,7 +267,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
       </header>
 
       {/* Notification Slide-out Panel */}
-      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} logs={notifLogs} loading={notifLoading} />
     </>
   );
 }

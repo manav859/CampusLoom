@@ -5,11 +5,11 @@ import Link from "next/link";
 import { AlertPanel } from "@/components/dashboard/AlertPanel";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { FeeOverviewChart } from "@/components/dashboard/FeeOverviewChart";
-import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { ActivityFeed, type ActivityEvent } from "@/components/dashboard/ActivityFeed";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
-import { apiFetch, studentsApi, whatsappApi, type FeeDefaulter, type FeesDashboard } from "@/lib/api";
+import { apiFetch, studentsApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
 import { cachedFetch, getCachedData } from "@/lib/prefetchCache";
 
@@ -23,6 +23,62 @@ type DashboardResponse = {
   feeSummary?: FeesDashboard;
 };
 
+function relativeTime(value?: string | Date | null) {
+  if (!value) return "";
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return "";
+  const seconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
+  if (seconds < 60) return "Just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+function notificationType(kind: NotificationLog["kind"]): ActivityEvent["type"] {
+  if (kind === "PAYMENT_RECEIPT") return "fee";
+  if (kind === "ABSENCE" || kind === "LOW_ATTENDANCE") return "attendance";
+  if (kind === "FEE_REMINDER" || kind === "OVERDUE_FEE") return "alert";
+  return "message";
+}
+
+function buildActivityEvents(data: DashboardResponse | null, logs: NotificationLog[]): ActivityEvent[] {
+  const notificationEvents = logs.slice(0, 8).map((log) => ({
+    id: `notification-${log.id}`,
+    text: log.student?.fullName ? `${log.student.fullName}: ${log.message}` : log.message,
+    time: relativeTime(log.sentAt ?? log.createdAt),
+    type: notificationType(log.kind)
+  }));
+
+  const alertEvents = (data?.alerts ?? []).slice(0, 4).map((alert, index) => ({
+    id: `alert-${alert.studentId ?? index}`,
+    text: alert.studentName && alert.message ? `${alert.studentName}: ${alert.message}` : alert.message ?? "Dashboard alert",
+    time: "Current",
+    type: "alert" as const
+  }));
+
+  const attendanceEvents = (data?.attendance ?? [])
+    .filter((item) => item.marked)
+    .slice(0, 4)
+    .map((item) => ({
+      id: `attendance-${item.className}`,
+      text: `${item.className} attendance marked (${item.attendancePercentage}%)`,
+      time: "Today",
+      type: item.attendancePercentage < 75 ? "alert" as const : "attendance" as const
+    }));
+
+  const feeEvents = (data?.defaulters ?? []).slice(0, 3).map((item) => ({
+    id: `fee-${item.studentId}`,
+    text: `${item.name} has ${formatINR(item.balance, { compact: false })} pending`,
+    time: item.daysOverdue > 0 ? `${item.daysOverdue} days overdue` : "Pending",
+    type: "fee" as const
+  }));
+
+  return [...notificationEvents, ...alertEvents, ...attendanceEvents, ...feeEvents].slice(0, 8);
+}
+
 export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const dashboardCacheKey = mode === "ADMIN" ? "dashboard" : "dashboard:teacher";
   const cachedDashboard = getCachedData<DashboardResponse>(dashboardCacheKey);
@@ -33,6 +89,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sendingReminderId, setSendingReminderId] = useState("");
+  const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -64,6 +121,22 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       active = false;
     };
   }, [dashboardCacheKey, mode]);
+
+  useEffect(() => {
+    let active = true;
+
+    cachedFetch("notifications:logs", () => whatsappApi.logs())
+      .then((logs) => {
+        if (active) setNotificationLogs(logs);
+      })
+      .catch(() => {
+        if (active) setNotificationLogs([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   /* ── KPI row ── */
   const kpis = data?.kpis ?? {};
@@ -203,6 +276,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     { label: "Unmarked", value: pendingClasses, color: "#ff9500" },
     { label: "Homework", value: teacherPendingHomework, color: "#7c3aed" }
   ];
+  const activityEvents = buildActivityEvents(data, notificationLogs);
 
   return (
     <div className="space-y-5">
@@ -270,7 +344,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         ) : (
           <>
             <AlertPanel alerts={actionAlerts} loading={false} />
-            <ActivityFeed />
+            <ActivityFeed events={activityEvents} />
           </>
         )}
       </section>
