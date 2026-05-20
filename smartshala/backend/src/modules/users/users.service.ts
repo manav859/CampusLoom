@@ -6,16 +6,34 @@ import { getPagination } from "../../core/pagination.js";
 import { AppError, notFound } from "../../core/errors.js";
 
 type TeacherPeriodInput = {
+  dayOfWeek?: string;
   periodNumber: number;
   classId?: string | null;
   subjectId?: string | null;
 };
 
-async function ensureTeacherPeriods(schoolId: string, teacherId: string) {
+const timetableDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"] as const;
+const timetableDayLabels: Record<(typeof timetableDays)[number], string> = {
+  MONDAY: "Monday",
+  TUESDAY: "Tuesday",
+  WEDNESDAY: "Wednesday",
+  THURSDAY: "Thursday",
+  FRIDAY: "Friday"
+};
+
+async function getTimetablePeriodCount(schoolId: string) {
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { timetablePeriodCount: true }
+  });
+  return Math.max(1, Math.min(12, school?.timetablePeriodCount ?? 8));
+}
+
+async function ensureTeacherPeriods(schoolId: string, teacherId: string, periodCount: number) {
   const [existing, available, teachers] = await Promise.all([
     prisma.teacherPeriodAssignment.findMany({
       where: { schoolId, teacherId },
-      select: { periodNumber: true }
+      select: { dayOfWeek: true, periodNumber: true }
     }),
     prisma.subject.findMany({
       where: { schoolId, classId: { not: null } },
@@ -27,8 +45,11 @@ async function ensureTeacherPeriods(schoolId: string, teacherId: string) {
       orderBy: [{ fullName: "asc" }, { id: "asc" }]
     })
   ]);
-  const existingPeriods = new Set(existing.map((period) => period.periodNumber));
-  const missing = Array.from({ length: 8 }, (_, index) => index + 1).filter((periodNumber) => !existingPeriods.has(periodNumber));
+  const existingPeriods = new Set(existing.map((period) => `${period.dayOfWeek}:${period.periodNumber}`));
+  const slots = timetableDays.flatMap((dayOfWeek) =>
+    Array.from({ length: periodCount }, (_, index) => ({ dayOfWeek, periodNumber: index + 1 }))
+  );
+  const missing = slots.filter((slot) => !existingPeriods.has(`${slot.dayOfWeek}:${slot.periodNumber}`));
   if (missing.length === 0) return;
 
   const sortedAvailable = available.sort((a, b) => {
@@ -39,11 +60,15 @@ async function ensureTeacherPeriods(schoolId: string, teacherId: string) {
   const offset = sortedAvailable.length > 0 ? (teacherIndex * 7) % sortedAvailable.length : 0;
 
   await prisma.teacherPeriodAssignment.createMany({
-    data: missing.map((periodNumber) => {
-      const assignment = periodNumber === 8 || sortedAvailable.length === 0 ? null : sortedAvailable[(offset + periodNumber - 1) % sortedAvailable.length];
+    data: missing.map(({ dayOfWeek, periodNumber }) => {
+      const dayOffset = timetableDays.indexOf(dayOfWeek) * periodCount;
+      const assignment = periodNumber === periodCount || sortedAvailable.length === 0
+        ? null
+        : sortedAvailable[(offset + dayOffset + periodNumber - 1) % sortedAvailable.length];
       return {
         schoolId,
         teacherId,
+        dayOfWeek,
         periodNumber,
         classId: assignment?.classId ?? null,
         subjectId: assignment?.id ?? null
@@ -55,6 +80,7 @@ async function ensureTeacherPeriods(schoolId: string, teacherId: string) {
 
 function mapPeriod(period: {
   id: string;
+  dayOfWeek: string;
   periodNumber: number;
   classId: string | null;
   subjectId: string | null;
@@ -63,6 +89,7 @@ function mapPeriod(period: {
 }) {
   return {
     id: period.id,
+    dayOfWeek: period.dayOfWeek,
     periodNumber: period.periodNumber,
     classId: period.classId,
     subjectId: period.subjectId,
@@ -75,6 +102,7 @@ function mapPeriod(period: {
 
 export async function listUsers(schoolId: string, query: unknown, role?: UserRole) {
   const pagination = getPagination(query);
+  const periodCount = await getTimetablePeriodCount(schoolId);
   const where = {
     schoolId,
     ...(role ? { role } : {}),
@@ -105,7 +133,7 @@ export async function listUsers(schoolId: string, query: unknown, role?: UserRol
         status: true,
         createdAt: true,
         periodAssignments: {
-          orderBy: { periodNumber: "asc" },
+          orderBy: [{ dayOfWeek: "asc" }, { periodNumber: "asc" }],
           include: {
             class: { select: { id: true, name: true, section: true, academicYear: true } },
             subject: { select: { id: true, name: true } }
@@ -117,8 +145,9 @@ export async function listUsers(schoolId: string, query: unknown, role?: UserRol
     prisma.user.count({ where })
   ]);
 
-  const teachersMissingPeriods = items.filter((item) => item.role === UserRole.TEACHER && item.periodAssignments.length < 8);
-  await Promise.all(teachersMissingPeriods.map((item) => ensureTeacherPeriods(schoolId, item.id)));
+  const expectedPeriodRows = timetableDays.length * periodCount;
+  const teachersMissingPeriods = items.filter((item) => item.role === UserRole.TEACHER && item.periodAssignments.length < expectedPeriodRows);
+  await Promise.all(teachersMissingPeriods.map((item) => ensureTeacherPeriods(schoolId, item.id, periodCount)));
   const hydratedItems = role === UserRole.TEACHER && teachersMissingPeriods.length > 0
     ? await prisma.user.findMany({
         where,
@@ -134,7 +163,7 @@ export async function listUsers(schoolId: string, query: unknown, role?: UserRol
           status: true,
           createdAt: true,
           periodAssignments: {
-            orderBy: { periodNumber: "asc" },
+            orderBy: [{ dayOfWeek: "asc" }, { periodNumber: "asc" }],
             include: {
               class: { select: { id: true, name: true, section: true, academicYear: true } },
               subject: { select: { id: true, name: true } }
@@ -148,7 +177,8 @@ export async function listUsers(schoolId: string, query: unknown, role?: UserRol
   return {
     items: hydratedItems.map((item) => ({
       ...item,
-      periodAssignments: "periodAssignments" in item ? item.periodAssignments.map(mapPeriod) : []
+      periodAssignments: "periodAssignments" in item ? item.periodAssignments.map(mapPeriod) : [],
+      timetablePeriodCount: periodCount
     })),
     total,
     page: pagination.page,
@@ -213,18 +243,19 @@ export async function activateUser(schoolId: string, id: string) {
 }
 
 export async function getTeacherAssignments(schoolId: string, teacherId: string) {
+  const periodCount = await getTimetablePeriodCount(schoolId);
   const teacher = await prisma.user.findFirst({
     where: { id: teacherId, schoolId, role: UserRole.TEACHER },
     select: { id: true, fullName: true, email: true, phone: true }
   });
   if (!teacher) throw notFound("Teacher");
 
-  await ensureTeacherPeriods(schoolId, teacherId);
+  await ensureTeacherPeriods(schoolId, teacherId, periodCount);
 
   const [periods, classes] = await Promise.all([
     prisma.teacherPeriodAssignment.findMany({
       where: { schoolId, teacherId },
-      orderBy: { periodNumber: "asc" },
+      orderBy: [{ dayOfWeek: "asc" }, { periodNumber: "asc" }],
       include: {
         class: { select: { id: true, name: true, section: true, academicYear: true } },
         subject: { select: { id: true, name: true } }
@@ -239,6 +270,8 @@ export async function getTeacherAssignments(schoolId: string, teacherId: string)
 
   return {
     teacher,
+    days: timetableDays.map((id) => ({ id, label: timetableDayLabels[id] })),
+    periodCount,
     periods: periods.map(mapPeriod),
     classes: classes.map((classRecord) => ({
       id: classRecord.id,
@@ -253,14 +286,26 @@ export async function getTeacherAssignments(schoolId: string, teacherId: string)
 export async function updateTeacherAssignments(schoolId: string, teacherId: string, periods: TeacherPeriodInput[]) {
   const teacher = await prisma.user.findFirst({ where: { id: teacherId, schoolId, role: UserRole.TEACHER }, select: { id: true } });
   if (!teacher) throw notFound("Teacher");
+  const periodCount = await getTimetablePeriodCount(schoolId);
 
   const normalized = periods.map((period) => ({
+    dayOfWeek: period.dayOfWeek || "MONDAY",
     periodNumber: period.periodNumber,
     classId: period.classId || null,
     subjectId: period.subjectId || null
   }));
+  const expectedSlots = timetableDays.flatMap((dayOfWeek) =>
+    Array.from({ length: periodCount }, (_, index) => `${dayOfWeek}:${index + 1}`)
+  );
+  const receivedSlots = new Set(normalized.map((period) => `${period.dayOfWeek}:${period.periodNumber}`));
+  if (receivedSlots.size !== expectedSlots.length || expectedSlots.some((slot) => !receivedSlots.has(slot))) {
+    throw new AppError(400, `Provide ${periodCount} periods for each weekday`, "INVALID_TEACHER_TIMETABLE");
+  }
 
   for (const period of normalized) {
+    if (!timetableDays.includes(period.dayOfWeek as (typeof timetableDays)[number]) || period.periodNumber < 1 || period.periodNumber > periodCount) {
+      throw new AppError(400, "Period is outside the configured timetable", "INVALID_TEACHER_PERIOD");
+    }
     if (!period.classId && period.subjectId) {
       throw new AppError(400, "Subject cannot be assigned without a class", "INVALID_TEACHER_PERIOD");
     }
@@ -273,12 +318,54 @@ export async function updateTeacherAssignments(schoolId: string, teacherId: stri
     }
   }
 
+  const occupiedClassSlots = normalized.filter((period) => period.classId);
+  if (occupiedClassSlots.length > 0) {
+    const conflicts = await prisma.teacherPeriodAssignment.findMany({
+      where: {
+        schoolId,
+        teacherId: { not: teacherId },
+        OR: occupiedClassSlots.map((period) => ({
+          dayOfWeek: period.dayOfWeek,
+          periodNumber: period.periodNumber,
+          classId: period.classId
+        }))
+      },
+      include: {
+        teacher: { select: { fullName: true } },
+        class: { select: { name: true, section: true } }
+      },
+      take: 1
+    });
+
+    const conflict = conflicts[0];
+    if (conflict) {
+      const className = conflict.class ? `${conflict.class.name}-${conflict.class.section}` : "This class";
+      const dayName = timetableDayLabels[conflict.dayOfWeek as (typeof timetableDays)[number]] ?? conflict.dayOfWeek;
+      throw new AppError(
+        409,
+        `${className} is already assigned to ${conflict.teacher.fullName} on ${dayName}, period ${conflict.periodNumber}`,
+        "TEACHER_TIMETABLE_CONFLICT"
+      );
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
+    await tx.teacherPeriodAssignment.deleteMany({
+      where: {
+        schoolId,
+        teacherId,
+        OR: [
+          { dayOfWeek: { notIn: [...timetableDays] } },
+          { periodNumber: { gt: periodCount } }
+        ]
+      }
+    });
+
     for (const period of normalized) {
       await tx.teacherPeriodAssignment.upsert({
-        where: { teacherId_periodNumber: { teacherId, periodNumber: period.periodNumber } },
+        where: { teacherId_dayOfWeek_periodNumber: { teacherId, dayOfWeek: period.dayOfWeek, periodNumber: period.periodNumber } },
         update: { classId: period.classId, subjectId: period.subjectId },
-        create: { schoolId, teacherId, periodNumber: period.periodNumber, classId: period.classId, subjectId: period.subjectId }
+        create: { schoolId, teacherId, dayOfWeek: period.dayOfWeek, periodNumber: period.periodNumber, classId: period.classId, subjectId: period.subjectId }
       });
 
       if (period.subjectId) {

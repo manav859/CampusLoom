@@ -33,12 +33,13 @@ export const teacherAssignmentParamsSchema = z.object({
 export const teacherPeriodAssignmentsSchema = z.object({
   periods: z.array(
     z.object({
-      periodNumber: z.coerce.number().int().min(1).max(8),
+      dayOfWeek: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]).optional().default("MONDAY"),
+      periodNumber: z.coerce.number().int().min(1).max(12),
       classId: z.string().uuid().nullable().optional(),
       subjectId: z.string().uuid().nullable().optional()
     })
-  ).length(8)
-}).refine((data) => new Set(data.periods.map((period) => period.periodNumber)).size === 8, {
-  message: "Each period number from 1 to 8 must be unique",
+  ).min(1).max(60)
+}).refine((data) => new Set(data.periods.map((period) => `${period.dayOfWeek}:${period.periodNumber}`)).size === data.periods.length, {
+  message: "Each weekday and period combination must be unique",
   path: ["periods"]
 });

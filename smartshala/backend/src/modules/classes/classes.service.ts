@@ -191,6 +191,63 @@ export async function getClassStudents(user: Express.UserContext, classId: strin
     orderBy: [{ rollNumber: "asc" }, { fullName: "asc" }]
   });
 }
+
+export async function getClassStats(user: Express.UserContext, classId: string) {
+  const classRecord = await prisma.class.findFirst({
+    where: {
+      id: classId,
+      schoolId: user.schoolId,
+      ...(user.role === UserRole.TEACHER
+        ? { OR: [{ classTeacherId: user.id }, { teacherPeriodAssignments: { some: { teacherId: user.id } } }] }
+        : {})
+    },
+    select: { id: true }
+  });
+  if (!classRecord) throw notFound("Class");
+
+  const since = new Date();
+  since.setDate(since.getDate() - 30);
+  since.setHours(0, 0, 0, 0);
+
+  const [attendance, marks, fees] = await Promise.all([
+    prisma.attendanceRecord.aggregate({
+      where: {
+        schoolId: user.schoolId,
+        session: { classId, date: { gte: since } }
+      },
+      _count: { _all: true },
+      _sum: { attendanceValue: true }
+    }),
+    prisma.examResult.aggregate({
+      where: {
+        schoolId: user.schoolId,
+        percentage: { not: null },
+        student: { classId, isActive: true }
+      },
+      _avg: { percentage: true }
+    }),
+    prisma.studentFeeAssignment.aggregate({
+      where: {
+        schoolId: user.schoolId,
+        student: { classId, isActive: true }
+      },
+      _sum: { totalAmount: true, paidAmount: true }
+    })
+  ]);
+
+  const attendanceCount = attendance._count._all;
+  const attended = Number(attendance._sum.attendanceValue ?? 0);
+  const totalFees = Number(fees._sum.totalAmount ?? 0);
+  const paidFees = Number(fees._sum.paidAmount ?? 0);
+
+  return {
+    attendancePercent: attendanceCount > 0 ? Math.round((attended / attendanceCount) * 100) : null,
+    marksAveragePercent: marks._avg.percentage === null ? null : Math.round(Number(marks._avg.percentage)),
+    feeCollectionPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : null,
+    attendanceWindowDays: 30
+  };
+}
+
 export async function deleteClass(schoolId: string, id: string) {
   const existing = await prisma.class.findFirst({ where: { id, schoolId } });
   if (!existing) throw notFound("Class");

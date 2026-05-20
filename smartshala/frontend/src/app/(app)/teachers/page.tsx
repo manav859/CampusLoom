@@ -12,6 +12,7 @@ import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 
 type TeacherPeriod = {
   id: string;
+  dayOfWeek: Weekday;
   periodNumber: number;
   classId: string | null;
   subjectId: string | null;
@@ -25,12 +26,15 @@ type TeacherData = {
   email: string | null;
   phone: string;
   status: string;
+  timetablePeriodCount?: number;
   periodAssignments?: TeacherPeriod[];
   classTeacherFor?: { id: string; name: string; section: string }[];
 };
 
 type TeacherAssignmentContext = {
   teacher: { id: string; fullName: string };
+  days?: { id: Weekday; label: string }[];
+  periodCount?: number;
   periods: TeacherPeriod[];
   classes: {
     id: string;
@@ -41,6 +45,24 @@ type TeacherAssignmentContext = {
   }[];
 };
 
+type Weekday = "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY";
+type AssignmentDraft = Record<Weekday, Record<number, { classId: string; subjectId: string }>>;
+type AssignmentConflict = {
+  key: string;
+  day: string;
+  periodNumber: number;
+  className: string;
+  teacherName: string;
+};
+
+const timetableDays: { id: Weekday; label: string; short: string }[] = [
+  { id: "MONDAY", label: "Monday", short: "Mon" },
+  { id: "TUESDAY", label: "Tuesday", short: "Tue" },
+  { id: "WEDNESDAY", label: "Wednesday", short: "Wed" },
+  { id: "THURSDAY", label: "Thursday", short: "Thu" },
+  { id: "FRIDAY", label: "Friday", short: "Fri" }
+];
+
 function classLabel(classRecord: TeacherAssignmentContext["classes"][number]) {
   return `${classRecord.name}-${classRecord.section}`;
 }
@@ -50,8 +72,32 @@ function classTeacherLabel(teacher: TeacherData) {
   return classes.length ? classes.map((item) => `${item.name}-${item.section}`).join(", ") : "None";
 }
 
-function assignedPeriodCount(teacher: TeacherData) {
-  return (teacher.periodAssignments ?? []).filter((period) => period.classId).length;
+function assignedPeriodCount(teacher: TeacherData, periodCount = teacher.timetablePeriodCount ?? 8) {
+  const validDays = new Set(timetableDays.map((day) => day.id));
+  return (teacher.periodAssignments ?? []).filter((period) => period.classId && validDays.has(period.dayOfWeek) && period.periodNumber <= periodCount).length;
+}
+
+function totalTimetableSlots(periodCount: number) {
+  return timetableDays.length * periodCount;
+}
+
+function emptyAssignmentDraft(periodCount: number): AssignmentDraft {
+  return Object.fromEntries(
+    timetableDays.map((day) => [
+      day.id,
+      Object.fromEntries(Array.from({ length: periodCount }, (_, index) => [index + 1, { classId: "", subjectId: "" }]))
+    ])
+  ) as AssignmentDraft;
+}
+
+function draftFromPeriods(periods: TeacherPeriod[], periodCount: number): AssignmentDraft {
+  const draft = emptyAssignmentDraft(periodCount);
+  periods.forEach((period) => {
+    const day = period.dayOfWeek || "MONDAY";
+    if (!draft[day]?.[period.periodNumber]) return;
+    draft[day][period.periodNumber] = { classId: period.classId ?? "", subjectId: period.subjectId ?? "" };
+  });
+  return draft;
 }
 
 export default function TeachersPage() {
@@ -64,7 +110,9 @@ export default function TeachersPage() {
   const [subjectFilter, setSubjectFilter] = useState("");
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
   const [assignmentContext, setAssignmentContext] = useState<TeacherAssignmentContext | null>(null);
-  const [assignmentDraft, setAssignmentDraft] = useState<Record<number, { classId: string; subjectId: string }>>({});
+  const [assignmentDraft, setAssignmentDraft] = useState<AssignmentDraft>(() => emptyAssignmentDraft(8));
+  const [activeAssignmentDay, setActiveAssignmentDay] = useState<Weekday>("MONDAY");
+  const [copySourceDay, setCopySourceDay] = useState<Weekday>("MONDAY");
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [assignmentError, setAssignmentError] = useState("");
@@ -125,18 +173,23 @@ export default function TeachersPage() {
   async function openAssignments(teacherId: string) {
     const teacher = teachers.find((item) => item.id === teacherId);
     const periods = teacher?.periodAssignments ?? [];
+    const periodCount = teacher?.timetablePeriodCount ?? 8;
+    setActiveAssignmentDay("MONDAY");
+    setCopySourceDay("MONDAY");
     setAssignmentContext({
       teacher: { id: teacherId, fullName: teacher?.fullName ?? "Teacher" },
+      days: timetableDays.map(({ id, label }) => ({ id, label })),
+      periodCount,
       periods,
       classes: []
     });
-    setAssignmentDraft(Object.fromEntries(periods.map((period) => [period.periodNumber, { classId: period.classId ?? "", subjectId: period.subjectId ?? "" }])));
+    setAssignmentDraft(draftFromPeriods(periods, periodCount));
     setAssignmentLoading(true);
     setAssignmentError("");
     try {
       const data = await cachedFetch(`teacher:${teacherId}:assignments`, () => apiFetch<TeacherAssignmentContext>(`/users/teachers/${teacherId}/assignments`));
       setAssignmentContext(data);
-      setAssignmentDraft(Object.fromEntries(data.periods.map((period) => [period.periodNumber, { classId: period.classId ?? "", subjectId: period.subjectId ?? "" }])));
+      setAssignmentDraft(draftFromPeriods(data.periods, data.periodCount ?? 8));
     } catch (err) {
       setAssignmentError(err instanceof Error ? err.message : "Unable to load teacher assignments");
     } finally {
@@ -146,25 +199,29 @@ export default function TeachersPage() {
 
   async function saveAssignments() {
     if (!assignmentContext) return;
+    const periodCount = assignmentContext.periodCount ?? 8;
     setAssignmentSaving(true);
     setAssignmentError("");
     try {
-      const periods = Array.from({ length: 8 }, (_, index) => {
-        const periodNumber = index + 1;
-        const draft = assignmentDraft[periodNumber] ?? { classId: "", subjectId: "" };
-        return {
-          periodNumber,
-          classId: draft.classId || null,
-          subjectId: draft.classId ? draft.subjectId || null : null
-        };
-      });
+      const periods = timetableDays.flatMap((day) =>
+        Array.from({ length: periodCount }, (_, index) => {
+          const periodNumber = index + 1;
+          const draft = assignmentDraft[day.id]?.[periodNumber] ?? { classId: "", subjectId: "" };
+          return {
+            dayOfWeek: day.id,
+            periodNumber,
+            classId: draft.classId || null,
+            subjectId: draft.classId ? draft.subjectId || null : null
+          };
+        })
+      );
       const updated = await apiFetch<TeacherAssignmentContext>(`/users/teachers/${assignmentContext.teacher.id}/assignments`, {
         method: "PUT",
         body: JSON.stringify({ periods })
       });
       invalidateCache(`teacher:${assignmentContext.teacher.id}:assignments`);
       setAssignmentContext(updated);
-      setAssignmentDraft(Object.fromEntries(updated.periods.map((period) => [period.periodNumber, { classId: period.classId ?? "", subjectId: period.subjectId ?? "" }])));
+      setAssignmentDraft(draftFromPeriods(updated.periods, updated.periodCount ?? periodCount));
       await refreshTeachers();
     } catch (err) {
       setAssignmentError(err instanceof Error ? err.message : "Unable to save teacher assignments");
@@ -217,6 +274,69 @@ export default function TeachersPage() {
     const subjectMatches = !subjectFilter || (teacher.periodAssignments ?? []).some((period) => period.subjectName === subjectFilter);
     return statusMatches && classTeacherMatches && subjectMatches;
   });
+
+  const activeDayLabel = timetableDays.find((day) => day.id === activeAssignmentDay)?.label ?? "Monday";
+  const assignmentPeriodCount = assignmentContext?.periodCount ?? 8;
+  const assignmentConflicts: AssignmentConflict[] = assignmentContext
+    ? timetableDays.flatMap((day) =>
+        Array.from({ length: assignmentPeriodCount }, (_, index) => {
+          const periodNumber = index + 1;
+          const draft = assignmentDraft[day.id]?.[periodNumber];
+          if (!draft?.classId) return null;
+          const conflictTeacher = teachers.find((teacher) =>
+            teacher.id !== assignmentContext.teacher.id &&
+            (teacher.periodAssignments ?? []).some((period) =>
+              period.dayOfWeek === day.id &&
+              period.periodNumber === periodNumber &&
+              period.classId === draft.classId
+            )
+          );
+          if (!conflictTeacher) return null;
+          const selectedClass = assignmentContext.classes.find((item) => item.id === draft.classId);
+          return {
+            key: `${day.id}:${periodNumber}`,
+            day: day.label,
+            periodNumber,
+            className: selectedClass ? classLabel(selectedClass) : "Selected class",
+            teacherName: conflictTeacher.fullName
+          };
+        }).filter((item): item is AssignmentConflict => Boolean(item))
+      )
+    : [];
+  const hasAssignmentConflicts = assignmentConflicts.length > 0;
+
+  function copyAssignmentsFromDay() {
+    if (!assignmentContext || copySourceDay === activeAssignmentDay) return;
+    setAssignmentDraft((current) => ({
+      ...current,
+      [activeAssignmentDay]: Object.fromEntries(
+        Array.from({ length: assignmentPeriodCount }, (_, index) => {
+          const periodNumber = index + 1;
+          const source = current[copySourceDay]?.[periodNumber] ?? { classId: "", subjectId: "" };
+          return [periodNumber, { ...source }];
+        })
+      ) as AssignmentDraft[Weekday]
+    }));
+  }
+
+  function repeatActiveDayForWeekdays() {
+    if (!assignmentContext) return;
+    setAssignmentDraft((current) => {
+      const sourceDay = current[activeAssignmentDay] ?? {};
+      return Object.fromEntries(
+        timetableDays.map((day) => [
+          day.id,
+          Object.fromEntries(
+            Array.from({ length: assignmentPeriodCount }, (_, index) => {
+              const periodNumber = index + 1;
+              const source = sourceDay[periodNumber] ?? { classId: "", subjectId: "" };
+              return [periodNumber, { ...source }];
+            })
+          )
+        ])
+      ) as AssignmentDraft;
+    });
+  }
 
   return (
     <div className="space-y-5">
@@ -281,7 +401,9 @@ export default function TeachersPage() {
                       <InitialsAvatar name={teacher.fullName} size="sm" />
                       <div>
                         <p className="font-semibold text-[#1d1d1f]">{teacher.fullName}</p>
-                        <p className="mt-0.5 text-[11px] font-medium text-[#86868b]">{assignedPeriodCount(teacher)}/8 periods assigned</p>
+                        <p className="mt-0.5 text-[11px] font-medium text-[#86868b]">
+                          {assignedPeriodCount(teacher)}/{totalTimetableSlots(teacher.timetablePeriodCount ?? 8)} weekly periods assigned
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -291,7 +413,7 @@ export default function TeachersPage() {
                     {classTeacherLabel(teacher)}
                   </td>
                   <td className="px-5 py-4 text-[#6e6e73]">
-                    {assignedPeriodCount(teacher)}/8 assigned
+                    {assignedPeriodCount(teacher)}/{totalTimetableSlots(teacher.timetablePeriodCount ?? 8)} assigned
                   </td>
                   <td className="px-5 py-4"><StatusPill label={teacher.status} tone={teacher.status === "ACTIVE" ? "good" : "warn"} /></td>
                   <td className="px-5 py-4 text-right">
@@ -362,7 +484,9 @@ export default function TeachersPage() {
             <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
               <div>
                 <h2 className="text-[18px] font-semibold text-[#1d1d1f]">Manage classes and subjects</h2>
-                <p className="mt-0.5 text-[13px] text-[#86868b]">{assignmentContext.teacher.fullName} gets 8 periods. Leave a row empty for free period.</p>
+                <p className="mt-0.5 text-[13px] text-[#86868b]">
+                  {assignmentContext.teacher.fullName} gets {assignmentPeriodCount} periods per day. Leave class as free period when unassigned.
+                </p>
               </div>
               <button className="rounded-full px-3 py-1 text-[13px] font-semibold text-[#6e6e73] hover:bg-[#f5f5f7]" onClick={() => setAssignmentContext(null)} type="button">Close</button>
             </div>
@@ -373,14 +497,64 @@ export default function TeachersPage() {
                 <p className="py-10 text-center text-[13px] text-[#86868b]">Loading assignments...</p>
               ) : (
                 <div className="space-y-3">
-                  {Array.from({ length: 8 }, (_, index) => {
+                  <div className="flex flex-wrap gap-2">
+                    {timetableDays.map((day) => (
+                      <button
+                        className={`rounded-xl px-3 py-2 text-[12px] font-bold transition-colors ${
+                          activeAssignmentDay === day.id ? "bg-[#1d1d1f] text-white" : "border border-[#DCE1E8] bg-white text-[#5A6573] hover:bg-[#F7F8FB]"
+                        }`}
+                        key={day.id}
+                        onClick={() => setActiveAssignmentDay(day.id)}
+                        type="button"
+                      >
+                        {day.short}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col gap-2 rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#1d1d1f]">{activeDayLabel} timetable</p>
+                      <p className="text-[12px] font-medium text-[#86868b]">Copy a known day or repeat this day across weekdays.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        className="rounded-xl border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] font-semibold text-[#1d1d1f] outline-none"
+                        onChange={(event) => setCopySourceDay(event.target.value as Weekday)}
+                        value={copySourceDay}
+                      >
+                        {timetableDays.map((day) => (
+                          <option key={day.id} value={day.id}>{day.label}</option>
+                        ))}
+                      </select>
+                      <button className="rounded-xl border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] font-bold text-[#1d1d1f] hover:bg-[#F1F3F6]" onClick={copyAssignmentsFromDay} type="button">
+                        Copy to {activeDayLabel}
+                      </button>
+                      <button className="rounded-xl bg-[#E2F0FB] px-3 py-2 text-[12px] font-bold text-[#1F6FB8] hover:bg-[#d4e9fb]" onClick={repeatActiveDayForWeekdays} type="button">
+                        Repeat for weekdays
+                      </button>
+                    </div>
+                  </div>
+
+                  {hasAssignmentConflicts ? (
+                    <div className="rounded-xl bg-[#ff9500]/10 p-3 text-[13px] font-semibold text-[#9A4D00]">
+                      {assignmentConflicts.slice(0, 3).map((conflict) => (
+                        <p key={conflict.key}>
+                          Class {conflict.className} already has {conflict.teacherName} on {conflict.day}, period {conflict.periodNumber}.
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {Array.from({ length: assignmentPeriodCount }, (_, index) => {
                     const periodNumber = index + 1;
-                    const draft = assignmentDraft[periodNumber] ?? { classId: "", subjectId: "" };
+                    const draft = assignmentDraft[activeAssignmentDay]?.[periodNumber] ?? { classId: "", subjectId: "" };
                     const selectedClass = assignmentContext.classes.find((item) => item.id === draft.classId);
                     const subjects = selectedClass?.subjects ?? [];
+                    const conflict = assignmentConflicts.find((item) => item.key === `${activeAssignmentDay}:${periodNumber}`);
 
                     return (
-                      <div className="grid gap-3 rounded-xl border border-[rgba(0,0,0,0.06)] p-3 sm:grid-cols-[80px_1fr_1fr]" key={periodNumber}>
+                      <div className={`grid gap-3 rounded-xl border p-3 sm:grid-cols-[80px_1fr_1fr] ${conflict ? "border-[#ff9500] bg-[#ff9500]/[0.04]" : "border-[rgba(0,0,0,0.06)]"}`} key={periodNumber}>
                         <div className="flex items-center text-[13px] font-semibold text-[#1d1d1f]">Period {periodNumber}</div>
                         <select
                           className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2 text-[13px] font-medium outline-none focus:border-[#0071e3]"
@@ -388,7 +562,10 @@ export default function TeachersPage() {
                           onChange={(event) =>
                             setAssignmentDraft((current) => ({
                               ...current,
-                              [periodNumber]: { classId: event.target.value, subjectId: "" }
+                              [activeAssignmentDay]: {
+                                ...current[activeAssignmentDay],
+                                [periodNumber]: { classId: event.target.value, subjectId: "" }
+                              }
                             }))
                           }
                         >
@@ -397,22 +574,35 @@ export default function TeachersPage() {
                             <option key={classRecord.id} value={classRecord.id}>Class {classLabel(classRecord)}</option>
                           ))}
                         </select>
-                        <select
-                          className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2 text-[13px] font-medium outline-none focus:border-[#0071e3]"
-                          disabled={!draft.classId}
-                          value={draft.subjectId}
-                          onChange={(event) =>
-                            setAssignmentDraft((current) => ({
-                              ...current,
-                              [periodNumber]: { ...draft, subjectId: event.target.value }
-                            }))
-                          }
-                        >
-                          <option value="">Select subject</option>
-                          {subjects.map((subject) => (
-                            <option key={subject.id} value={subject.id}>{subject.name}</option>
-                          ))}
-                        </select>
+                        {draft.classId ? (
+                          <select
+                            className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2 text-[13px] font-medium outline-none focus:border-[#0071e3]"
+                            value={draft.subjectId}
+                            onChange={(event) =>
+                              setAssignmentDraft((current) => ({
+                                ...current,
+                                [activeAssignmentDay]: {
+                                  ...current[activeAssignmentDay],
+                                  [periodNumber]: { ...draft, subjectId: event.target.value }
+                                }
+                              }))
+                            }
+                          >
+                            <option value="">Select subject</option>
+                            {subjects.map((subject) => (
+                              <option key={subject.id} value={subject.id}>{subject.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="flex items-center rounded-xl bg-[#F7F8FB] px-3 py-2 text-[13px] font-semibold text-[#86868b]">
+                            Free period - no subject needed
+                          </div>
+                        )}
+                        {conflict ? (
+                          <p className="sm:col-start-2 sm:col-span-2 text-[12px] font-semibold text-[#9A4D00]">
+                            Conflict with {conflict.teacherName}.
+                          </p>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -422,7 +612,7 @@ export default function TeachersPage() {
 
             <div className="flex justify-end gap-2 border-t border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/60 px-5 py-4">
               <button className="rounded-xl px-4 py-2 text-[13px] font-semibold text-[#1d1d1f] hover:bg-white" onClick={() => setAssignmentContext(null)} type="button">Cancel</button>
-              <button className="rounded-xl bg-[#1d1d1f] px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={assignmentSaving} onClick={saveAssignments} type="button">
+              <button className="rounded-xl bg-[#1d1d1f] px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={assignmentSaving || hasAssignmentConflicts} onClick={saveAssignments} type="button">
                 {assignmentSaving ? "Saving..." : "Save periods"}
               </button>
             </div>

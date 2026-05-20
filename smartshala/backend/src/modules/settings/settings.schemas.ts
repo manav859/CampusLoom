@@ -10,7 +10,8 @@ export const schoolProfileSchema = z.object({
   gstin: optionalText,
   udiseNumber: optionalText,
   affiliationBoard: optionalText,
-  logoUrl: z.string().trim().max(250_000).optional().nullable().transform((value) => value || null)
+  logoUrl: z.string().trim().max(250_000).optional().nullable().transform((value) => value || null),
+  timetablePeriodCount: z.coerce.number().int().min(1).max(12).optional().default(8)
 });
 
 export const deletionPasswordSchema = z.object({

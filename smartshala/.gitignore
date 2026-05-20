@@ -9,3 +9,4 @@ coverage/
 prisma/dev.db
 backend/src/generated/
 frontend/.next/
+19-5.md

@@ -19,6 +19,7 @@ model School {
   udiseNumber              String?
   affiliationBoard         String?
   logoUrl                  String?
+  timetablePeriodCount     Int                       @default(8)
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   attendanceSessions       AttendanceSession[]
@@ -279,6 +280,7 @@ model TeacherPeriodAssignment {
   id           String   @id @default(uuid()) @db.Uuid
   schoolId     String   @db.Uuid
   teacherId    String   @db.Uuid
+  dayOfWeek    String   @default("MONDAY")
   periodNumber Int
   classId      String?  @db.Uuid
   subjectId    String?  @db.Uuid
@@ -289,10 +291,11 @@ model TeacherPeriodAssignment {
   subject      Subject? @relation(fields: [subjectId], references: [id])
   teacher      User     @relation("TeacherPeriodAssignmentTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
 
-  @@unique([teacherId, periodNumber])
+  @@unique([teacherId, dayOfWeek, periodNumber])
   @@index([schoolId, teacherId])
   @@index([schoolId, classId])
   @@index([schoolId, subjectId])
+  @@index([schoolId, dayOfWeek, periodNumber, classId])
   @@map("teacher_period_assignments")
 }
 

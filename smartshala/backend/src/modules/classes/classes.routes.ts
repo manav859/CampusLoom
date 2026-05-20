@@ -12,6 +12,7 @@ classesRouter.use(requireAuth);
 classesRouter.get("/", controller.listClasses);
 classesRouter.get("/:id", controller.getClass);
 classesRouter.get("/:id/students", controller.getClassStudents);
+classesRouter.get("/:id/stats", controller.getClassStats);
 classesRouter.post("/", requireRole(adminRoles), validate({ body: classSchema }), controller.createClass);
 classesRouter.patch("/:id", requireRole(adminRoles), validate({ body: classSchema.partial() }), controller.updateClass);
 classesRouter.delete("/:id", requireRole(adminRoles), controller.deleteClass);

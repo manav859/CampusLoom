@@ -76,6 +76,7 @@ export default function TeacherCommunicationPage() {
   const [logStatusFilter, setLogStatusFilter] = useState<TeacherCommunicationLog["status"] | "ALL">("ALL");
   const [logPage, setLogPage] = useState(1);
   const [expandedLog, setExpandedLog] = useState<TeacherCommunicationLog | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
   const students = selectedClass?.students ?? [];
@@ -126,8 +127,16 @@ export default function TeacherCommunicationPage() {
         setContext(communicationContext);
         setLogs(messageLogs);
         const firstClass = communicationContext.classes[0];
-        setClassId(firstClass?.id ?? "");
-        setStudentId(firstClass?.students[0]?.id ?? "");
+        const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+        const requestedClass = params?.get("classId");
+        const requestedStudent = params?.get("studentId");
+        const initialClass = communicationContext.classes.find((classRecord) => classRecord.id === requestedClass) ?? firstClass;
+        setClassId(initialClass?.id ?? "");
+        setStudentId(
+          initialClass?.students.find((student) => student.id === requestedStudent)?.id ??
+          initialClass?.students[0]?.id ??
+          ""
+        );
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Unable to load communication module");
       } finally {
@@ -331,7 +340,32 @@ export default function TeacherCommunicationPage() {
                     {template.label}
                   </button>
                 ))}
+                <button
+                  className="rounded-lg border border-[#C2C9D4] bg-[#F7F8FB] px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] hover:bg-white"
+                  onClick={() => setLibraryOpen((open) => !open)}
+                  type="button"
+                >
+                  Template library
+                </button>
               </div>
+              {libraryOpen ? (
+                <div className="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-[#DCE1E8] bg-white p-3">
+                  {communicationTemplates.map((template) => (
+                    <button
+                      className="w-full rounded-lg border border-[#DCE1E8] px-3 py-2 text-left hover:bg-[#F7F8FB]"
+                      key={template.type}
+                      onClick={() => {
+                        handleMessageTypeChange(template.type);
+                        setLibraryOpen(false);
+                      }}
+                      type="button"
+                    >
+                      <span className="block text-[12px] font-semibold text-[#1d1d1f]">{template.label}</span>
+                      <span className="mt-0.5 block text-[11px] font-medium text-[#86868b]">{template.description}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <label className="block">
@@ -421,11 +455,9 @@ export default function TeacherCommunicationPage() {
                       <td className="px-5 py-4 text-[#6e6e73]">{templateLabel(log.type)}</td>
                       <td className="px-5 py-4">
                         <p className="line-clamp-1 max-w-[360px] text-[#6e6e73]">{log.message}</p>
-                        {log.message.length > 80 ? (
-                          <button className="mt-1 text-[12px] font-semibold text-[#2456E6]" onClick={() => setExpandedLog(log)} type="button">
-                            View full
-                          </button>
-                        ) : null}
+                        <button className="mt-1 text-[12px] font-semibold text-[#2456E6]" onClick={() => setExpandedLog(log)} type="button">
+                          View full
+                        </button>
                       </td>
                       <td className="px-5 py-4"><StatusPill label={log.status} tone={statusTone(log.status)} /></td>
                       <td className="px-5 py-4 text-[#6e6e73]">{formatDateTimeShort(log.timestamp)}</td>

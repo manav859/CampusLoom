@@ -9,6 +9,7 @@ export type SchoolProfileInput = {
   udiseNumber?: string | null;
   affiliationBoard?: string | null;
   logoUrl?: string | null;
+  timetablePeriodCount?: number;
 };
 
 const schoolProfileSelect = {
@@ -21,7 +22,8 @@ const schoolProfileSelect = {
   gstin: true,
   udiseNumber: true,
   affiliationBoard: true,
-  logoUrl: true
+  logoUrl: true,
+  timetablePeriodCount: true
 } as const;
 
 export async function getSchoolProfile(schoolId: string) {

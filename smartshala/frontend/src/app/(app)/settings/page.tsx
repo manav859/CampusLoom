@@ -26,8 +26,22 @@ const emptyProfile: SchoolProfilePayload = {
   gstin: "",
   udiseNumber: "",
   affiliationBoard: "CBSE",
-  logoUrl: ""
+  logoUrl: "",
+  timetablePeriodCount: 8
 };
+
+const settingsSections = [
+  "School profile",
+  "Academic year",
+  "Holiday calendar",
+  "Grading bands",
+  "Fee categories",
+  "User roles",
+  "WhatsApp templates",
+  "Branding",
+  "Integrations",
+  "Backup"
+];
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -63,7 +77,8 @@ export default function SettingsPage() {
           gstin: row.gstin ?? "",
           udiseNumber: row.udiseNumber ?? "",
           affiliationBoard: row.affiliationBoard ?? "CBSE",
-          logoUrl: row.logoUrl ?? ""
+          logoUrl: row.logoUrl ?? "",
+          timetablePeriodCount: row.timetablePeriodCount ?? 8
         });
         setDeletionStatus(deletion);
       } catch (err) {
@@ -111,7 +126,8 @@ export default function SettingsPage() {
         gstin: saved.gstin ?? "",
         udiseNumber: saved.udiseNumber ?? "",
         affiliationBoard: saved.affiliationBoard ?? "CBSE",
-        logoUrl: saved.logoUrl ?? ""
+        logoUrl: saved.logoUrl ?? "",
+        timetablePeriodCount: saved.timetablePeriodCount ?? 8
       });
       setNotice("School profile saved.");
     } catch (err) {
@@ -186,6 +202,17 @@ export default function SettingsPage() {
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
       {notice ? <div className="rounded-xl bg-[#34c759]/10 p-4 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
+      <section className="glass-card-interactive p-5">
+        <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Settings IA</h2>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {settingsSections.map((section) => (
+            <span className="rounded-xl border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340]" key={section}>
+              {section}
+            </span>
+          ))}
+        </div>
+      </section>
+
       <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
         <form className="glass-card-interactive space-y-5 p-6" onSubmit={saveProfile}>
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">School profile</h2>
@@ -241,6 +268,20 @@ export default function SettingsPage() {
               <option value="IB">IB</option>
               <option value="Cambridge">Cambridge</option>
             </select>
+          </div>
+
+          <div>
+            <label className="text-[13px] font-semibold text-[#1d1d1f]">Periods per day</label>
+            <input
+              className="glass-input mt-2"
+              disabled={loading || saving}
+              max={12}
+              min={1}
+              onChange={(event) => updateField("timetablePeriodCount", Number(event.target.value))}
+              type="number"
+              value={profile.timetablePeriodCount ?? 8}
+            />
+            <p className="mt-1 text-[12px] font-medium text-[#86868b]">Used by teacher timetable assignment and free-period planning.</p>
           </div>
 
           <button className="btn-primary min-h-11 px-5 disabled:cursor-not-allowed disabled:opacity-50" disabled={loading || saving} type="submit">

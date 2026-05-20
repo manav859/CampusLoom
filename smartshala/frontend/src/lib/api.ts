@@ -169,6 +169,13 @@ export type ClassStudent = {
   rollNumber: number | null;
 };
 
+export type ClassStats = {
+  attendancePercent: number | null;
+  marksAveragePercent: number | null;
+  feeCollectionPercent: number | null;
+  attendanceWindowDays: number;
+};
+
 export type ClassTodayAttendance = {
   classId: string;
   date: string;
@@ -818,9 +825,10 @@ export type SchoolProfile = {
   udiseNumber: string | null;
   affiliationBoard: string | null;
   logoUrl: string | null;
+  timetablePeriodCount: number;
 };
 
-export type SchoolProfilePayload = Pick<SchoolProfile, "name" | "city" | "state" | "phone" | "gstin" | "udiseNumber" | "affiliationBoard" | "logoUrl">;
+export type SchoolProfilePayload = Pick<SchoolProfile, "name" | "city" | "state" | "phone" | "gstin" | "udiseNumber" | "affiliationBoard" | "logoUrl" | "timetablePeriodCount">;
 
 export type DatabaseDeletionStatus = {
   schoolId: string;
@@ -839,7 +847,8 @@ export const classesApi = {
     const query = params.toString();
     return apiFetch<ClassSummary[]>(`/classes${query ? `?${query}` : ""}`);
   },
-  students: (classId: string) => apiFetch<ClassStudent[]>(`/classes/${classId}/students`)
+  students: (classId: string) => apiFetch<ClassStudent[]>(`/classes/${classId}/students`),
+  stats: (classId: string) => apiFetch<ClassStats>(`/classes/${classId}/stats`)
 };
 
 export const marksApi = {

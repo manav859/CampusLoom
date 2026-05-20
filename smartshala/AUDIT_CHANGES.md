@@ -331,12 +331,12 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Manage Classes And Subjects Modal
 
-- [ ] Hide or disable subject dropdown when `Free period` is selected.
-- [ ] Add day-of-week tabs.
-- [ ] Make period count configurable from Settings.
-- [ ] Add conflict detection for teacher/class/period collisions.
-- [ ] Add `Copy from another day`.
-- [ ] Add `Repeat for all weekdays`.
+- [x] Hide or disable subject dropdown when `Free period` is selected.
+- [x] Add day-of-week tabs.
+- [x] Make period count configurable from Settings.
+- [x] Add conflict detection for teacher/class/period collisions.
+- [x] Add `Copy from another day`.
+- [x] Add `Repeat for all weekdays`.
 
 ### Classes Grid
 
@@ -344,8 +344,8 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Move trash/delete into overflow menu.
 - [x] Add confirmation modal before class delete.
 - [x] Drop `Active` badge unless inactive/archived states exist.
-- [ ] Group cards by level or add colored stripe.
-- [ ] Add quick actions: Mark attendance, Send notice, View roster.
+- [x] Group cards by level or add colored stripe.
+- [x] Add quick actions: Mark attendance, Send notice, View roster.
 
 ### Create New Class Form
 
@@ -358,11 +358,11 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Class Roster
 
-- [ ] Fix header/list mismatch: 30 Students vs 29 listed.
-- [ ] Replace `View Profile` with row menu: View, Message, Mark attendance.
-- [ ] Add stats row: class attendance, marks average, fee collection percent.
-- [ ] Investigate roll numbers not starting at 1.
-- [ ] Add `Print class list with photos`.
+- [x] Fix header/list mismatch: 30 Students vs 29 listed.
+- [x] Replace `View Profile` with row menu: View, Message, Mark attendance.
+- [x] Add stats row: class attendance, marks average, fee collection percent.
+- [x] Investigate roll numbers not starting at 1.
+- [x] Add `Print class list with photos`.
 
 ### Reliable Attendance Main View
 
@@ -426,10 +426,10 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Communication / Parent Communication
 
-- [ ] Build unified template library.
+- [x] Build unified template library.
 - [x] Resolve template variables in preview pane.
 - [x] Truncate log previews to one line.
-- [ ] Add `View full` link for messages.
+- [x] Add `View full` link for messages.
 - [ ] Add scheduled send date/time picker.
 - [x] Add bilingual template variants.
 
@@ -499,7 +499,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Fix Pune vs Ahmedabad location mismatch.
 - [x] Add WhatsApp templates: Fee reminder, Exam announcement, PTM invite, Holiday notice, Generic notice, Birthday wish.
 - [x] Add bilingual template support.
-- [ ] Plan Settings IA: School profile, Academic year, Holiday calendar, Grading bands, Fee categories, User roles, WhatsApp templates, Branding, Integrations, Backup.
+- [x] Plan Settings IA: School profile, Academic year, Holiday calendar, Grading bands, Fee categories, User roles, WhatsApp templates, Branding, Integrations, Backup.
 - [x] Show success toast on save.
 - [x] Add school logo upload.
 - [x] Add GSTIN.

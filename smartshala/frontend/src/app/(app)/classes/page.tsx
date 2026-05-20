@@ -17,6 +17,14 @@ type ClassData = {
   _count?: { students: number };
 };
 
+function levelStripe(className: string) {
+  const grade = Number.parseInt(className, 10);
+  if (!Number.isFinite(grade)) return "from-[#86868b] to-[#6e6e73]";
+  if (grade <= 5) return "from-[#0F8A4A] to-[#1F6FB8]";
+  if (grade <= 8) return "from-[#2456E6] to-[#7C3AED]";
+  return "from-[#B95A00] to-[#C8242C]";
+}
+
 export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,9 +82,12 @@ export default function ClassesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {classes.map((cls) => (
-            <Link key={cls.id} href={`/classes/${cls.id}`} className="glass-card-interactive p-5 block hover:no-underline">
+            <article key={cls.id} className="glass-card-interactive p-5">
+              <div className={`mb-4 h-1.5 rounded-full bg-gradient-to-r ${levelStripe(cls.name)}`} />
               <div className="flex items-center justify-between">
-                <h2 className="text-[17px] font-semibold text-[#1d1d1f]">{cls.name}-{cls.section}</h2>
+                <Link href={`/classes/${cls.id}`} className="text-[17px] font-semibold text-[#1d1d1f] hover:text-[#2456E6]">
+                  {cls.name}-{cls.section}
+                </Link>
                 <div className="flex items-center gap-2">
                   {isAdmin && (
                     <button onClick={(e) => handleDelete(e, cls.id)} className="text-[#ff3b30] hover:text-[#d70015] p-1 rounded-lg transition-colors hover:bg-[rgba(255,59,48,0.1)]">
@@ -100,7 +111,12 @@ export default function ClassesPage() {
                   <span className="text-[#6e6e73]">{cls._count?.students || 0} students</span>
                 </div>
               </div>
-            </Link>
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-[rgba(0,0,0,0.06)] pt-4">
+                <Link href={`/classes/${cls.id}`} className="rounded-lg bg-[#F7F8FB] px-3 py-1.5 text-[12px] font-semibold text-[#2456E6]">View roster</Link>
+                <Link href={`/attendance?classId=${cls.id}`} className="rounded-lg bg-[#F7F8FB] px-3 py-1.5 text-[12px] font-semibold text-[#2A3340]">Mark attendance</Link>
+                <Link href={`/teacher/communication?classId=${cls.id}`} className="rounded-lg bg-[#F7F8FB] px-3 py-1.5 text-[12px] font-semibold text-[#2A3340]">Send notice</Link>
+              </div>
+            </article>
           ))}
         </div>
       )}
