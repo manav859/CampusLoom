@@ -335,7 +335,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       </section>
 
       {/* ═══ Row 3 — Bottom ═══ */}
-      <section className="grid gap-4 xl:grid-cols-[55fr_45fr]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(320px,3fr)]">
         {loading ? (
           <>
             <AlertSkeleton rows={4} />
