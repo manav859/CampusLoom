@@ -102,11 +102,6 @@ summary {
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2456E6]/40 focus-visible:ring-offset-2;
 }
 
-html:lang(hi) body,
-[data-platform-language="hi"] body {
-  font-family: var(--font-devanagari);
-}
-
 [data-script="devanagari"],
 .font-devanagari {
   font-family: var(--font-devanagari);

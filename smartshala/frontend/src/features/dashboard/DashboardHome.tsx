@@ -10,7 +10,7 @@ import { KpiCard } from "@/components/ui/KpiCard";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch, studentsApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
-import { cachedFetch, getCachedData } from "@/lib/prefetchCache";
+import { cachedFetch } from "@/lib/prefetchCache";
 
 type DashboardResponse = {
   role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
@@ -88,12 +88,10 @@ function buildActivityEvents(data: DashboardResponse | null, logs: NotificationL
 }
 
 export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
-  const dashboardCacheKey = mode === "ADMIN" ? "dashboard" : "dashboard:teacher";
-  const cachedDashboard = getCachedData<DashboardResponse>(dashboardCacheKey);
-  const [data, setData] = useState<DashboardResponse | null>(cachedDashboard);
-  const [fees, setFees] = useState<FeesDashboard | null>(cachedDashboard?.feeSummary ?? null);
-  const [defaulters, setDefaulters] = useState<FeeDefaulter[]>(cachedDashboard?.defaulters ?? []);
-  const [loading, setLoading] = useState(!cachedDashboard);
+  const [data, setData] = useState<DashboardResponse | null>(null);
+  const [fees, setFees] = useState<FeesDashboard | null>(null);
+  const [defaulters, setDefaulters] = useState<FeeDefaulter[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sendingReminderId, setSendingReminderId] = useState("");
@@ -103,9 +101,9 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     let active = true;
 
     async function loadDashboard() {
-      setLoading(!getCachedData<DashboardResponse>(dashboardCacheKey));
+      setLoading(true);
       setError("");
-      const dashboardResult = await cachedFetch(dashboardCacheKey, () => apiFetch<DashboardResponse>("/dashboard"))
+      const dashboardResult = await apiFetch<DashboardResponse>("/dashboard")
         .then((value) => ({ status: "fulfilled" as const, value }))
         .catch((reason) => ({ status: "rejected" as const, reason }));
 
@@ -128,7 +126,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     return () => {
       active = false;
     };
-  }, [dashboardCacheKey, mode]);
+  }, [mode]);
 
   useEffect(() => {
     let active = true;
@@ -288,7 +286,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-[14px] font-medium leading-6 text-[#5A6573]">{pulseText}</p>
+      {!loading && data ? <p className="text-[14px] font-medium leading-6 text-[#5A6573]">{pulseText}</p> : null}
 
       {error ? <div className="rounded-xl bg-[#ff9500]/10 px-4 py-3 text-[13px] font-medium text-[#c93400]">{error}</div> : null}
       {notice ? (

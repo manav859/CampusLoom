@@ -4,35 +4,20 @@ import { dailyReport } from "../attendance/attendance.service.js";
 import { dashboard as feesDashboard } from "../fees/fees.service.js";
 import { riskSummary } from "../analytics/analytics.service.js";
 
-const DASHBOARD_CACHE_TTL_MS = 15_000;
-const dashboardCache = new Map<string, { expiresAt: number; payload: unknown }>();
-
 function startOfToday() {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
   return date;
 }
 
-function cacheKey(user: Express.UserContext) {
-  return `${user.schoolId}:${user.role}:${user.id}`;
-}
-
 export async function getDashboard(user: Express.UserContext) {
-  const key = cacheKey(user);
-  const cached = dashboardCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.payload;
-
-  const payload =
-    user.role === UserRole.PRINCIPAL || user.role === UserRole.ADMIN
-      ? await principalDashboard(user)
-      : user.role === UserRole.TEACHER
-        ? await teacherDashboard(user)
-        : user.role === UserRole.ACCOUNTANT
-          ? await accountantDashboard(user)
-          : await parentDashboard(user);
-
-  dashboardCache.set(key, { expiresAt: Date.now() + DASHBOARD_CACHE_TTL_MS, payload });
-  return payload;
+  return user.role === UserRole.PRINCIPAL || user.role === UserRole.ADMIN
+    ? principalDashboard(user)
+    : user.role === UserRole.TEACHER
+      ? teacherDashboard(user)
+      : user.role === UserRole.ACCOUNTANT
+        ? accountantDashboard(user)
+        : parentDashboard(user);
 }
 
 async function accountantDashboard(user: Express.UserContext) {
