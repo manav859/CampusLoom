@@ -8,7 +8,8 @@ import {
   HomeworkSubmissionStatus,
   NotificationKind,
   StudentDocumentType,
-  UserRole
+  UserRole,
+  Prisma
 } from "@prisma/client";
 import { prisma, withRetry } from "../../core/prisma.js";
 import { getPagination } from "../../core/pagination.js";
@@ -794,14 +795,53 @@ async function currentRankForStudent(schoolId: string, classId: string, studentI
   return rank >= 0 ? rank + 1 : null;
 }
 
+function getFeeStatusFilter(feeStatus: string) {
+  switch (feeStatus) {
+    case "OVERDUE":
+      return {
+        feeAssignments: {
+          some: {
+            status: "OVERDUE" as const
+          }
+        }
+      };
+    case "PENDING":
+      return {
+        feeAssignments: {
+          some: {
+            pendingAmount: { gt: new Prisma.Decimal(0) }
+          },
+          none: {
+            status: "OVERDUE" as const
+          }
+        }
+      };
+    case "PAID":
+      return {
+        feeAssignments: {
+          none: {
+            OR: [
+              { status: "OVERDUE" as const },
+              { pendingAmount: { gt: new Prisma.Decimal(0) } }
+            ]
+          }
+        }
+      };
+    default:
+      return {};
+  }
+}
+
 export async function listStudents(user: Express.UserContext, query: unknown) {
   return withRetry(async () => {
     const pagination = getPagination(query);
     const accessFilter = await studentAccessFilter(user);
     const canViewFees = hasTab(allowedTabsForRole(user.role), "fees");
 
-    const { classId } = (query || {}) as { classId?: string };
+    const { classId, feeStatus } = (query || {}) as { classId?: string; feeStatus?: string };
     const canViewAttendance = hasTab(allowedTabsForRole(user.role), "attendance");
+
+    const feeFilter = (canViewFees && feeStatus) ? getFeeStatusFilter(feeStatus) : {};
 
     const where = {
       schoolId: user.schoolId,
@@ -816,7 +856,8 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
             ]
           }
         : {}),
-      ...((query as any).showInactive === "true" || (query as any).showInactive === true ? { isActive: false } : { isActive: true })
+      ...((query as any).showInactive === "true" || (query as any).showInactive === true ? { isActive: false } : { isActive: true }),
+      ...feeFilter
     };
 
     const [records, total] = await Promise.all([

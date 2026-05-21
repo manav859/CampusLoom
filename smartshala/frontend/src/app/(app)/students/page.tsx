@@ -465,6 +465,7 @@ export default function StudentsPage() {
     if (search) params.set("search", search);
     if (classId) params.set("classId", classId);
     if (showInactive) params.set("showInactive", "true");
+    if (statusFilter && canViewFees) params.set("feeStatus", statusFilter);
 
     const cacheKey = `students:list:${params.toString()}`;
     cachedFetch(cacheKey, () => apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`))
@@ -491,7 +492,7 @@ export default function StudentsPage() {
         setTotal(0);
       })
       .finally(() => setLoadingList(false));
-  }, [search, classId, page, perPage, showInactive]);
+  }, [search, classId, page, perPage, showInactive, statusFilter, canViewFees]);
 
   useEffect(() => {
     if (!openActionMenu) return;
@@ -576,6 +577,7 @@ export default function StudentsPage() {
     if (search) params.set("search", search);
     if (classId) params.set("classId", classId);
     if (showInactive) params.set("showInactive", "true");
+    if (statusFilter && canViewFees) params.set("feeStatus", statusFilter);
     return params;
   }
 
