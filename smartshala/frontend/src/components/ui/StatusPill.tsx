@@ -21,7 +21,7 @@ const symbols = {
 
 export function StatusPill({ label, tone = "neutral" }: Props) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-semibold leading-4 transition-all duration-200 ease-apple ${styles[tone]}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-caption font-semibold transition-all duration-200 ease-apple ${styles[tone]}`}>
       <span aria-hidden="true" className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white/70 text-[10px] leading-none">
         {symbols[tone]}
       </span>

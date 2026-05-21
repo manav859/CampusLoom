@@ -29,12 +29,12 @@ export function KpiCard({ label, value, helper, formula, href, tone = "neutral" 
       ) : null}
       
       {/* Value */}
-      <p className={`pr-7 text-[var(--type-kpi)] font-bold leading-[var(--leading-kpi)] tracking-normal tabular-nums ${styles.value}`}>{value}</p>
+      <p className={`type-kpi pr-7 ${styles.value}`}>{value}</p>
       
       {/* Label */}
       <div>
-        <p className="text-[11px] font-semibold uppercase leading-[14px] tracking-[0.06em] text-[#1d1d1f]/70">{label}</p>
-        {helper ? <p className="mt-0.5 truncate text-[11px] font-medium text-[#5A6573]">{helper}</p> : null}
+        <p className="type-kpi-label text-[#1d1d1f]/70">{label}</p>
+        {helper ? <p className="mt-0.5 truncate text-caption text-[#5A6573]">{helper}</p> : null}
       </div>
     </div>
   );

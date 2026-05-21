@@ -87,7 +87,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
     (student.homeworkCompletion ?? 0) > 0 && (student.homeworkCompletion ?? 0) < 60 ? `Homework completion low at ${student.homeworkCompletion}%` : null
   ].filter(Boolean) as string[];
   const profileRows: { label: string; value: ReactNode }[] = [
-    { label: "Admission no", value: student.admissionNumber },
+    { label: "Admission no", value: <span className="type-code">{student.admissionNumber}</span> },
     { label: "Roll no", value: student.rollNumber ?? "Not set" },
     { label: "Parent", value: student.parentName },
     { label: "Phone", value: student.parentPhone },

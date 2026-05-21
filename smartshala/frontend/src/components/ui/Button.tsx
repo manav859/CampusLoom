@@ -19,9 +19,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "min-h-8 px-3 text-[12px]",
-  md: "min-h-10 px-4 text-[13px]",
-  lg: "min-h-12 px-5 text-[15px]"
+  sm: "min-h-8 px-3 text-caption",
+  md: "min-h-10 px-4 text-body-strong",
+  lg: "min-h-12 px-5 text-body-strong"
 };
 
 function cx(...classes: Array<string | false | null | undefined>) {

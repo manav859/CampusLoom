@@ -603,7 +603,7 @@ export default function TeacherHomeworkPage() {
                     <tr className="table-row" key={submission.studentId}>
                       <td className="px-5 py-4">
                         <p className="font-semibold text-[#1d1d1f]">{submission.studentName}</p>
-                        <p className="mt-1 text-[12px] text-[#86868b]">Roll {submission.rollNumber ?? "-"} | {submission.admissionNumber}</p>
+                        <p className="mt-1 text-[12px] text-[#86868b]">Roll {submission.rollNumber ?? "-"} | <span className="type-code">{submission.admissionNumber}</span></p>
                       </td>
                       <td className="px-5 py-4">
                         <div className="inline-flex rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] p-1">

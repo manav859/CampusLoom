@@ -465,7 +465,7 @@ export default function TeacherMarksPage() {
                   return (
                     <tr className="table-row" key={student.studentId}>
                       <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{student.fullName}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{student.admissionNumber}</td>
+                      <td className="px-5 py-4 type-code text-[#6e6e73]">{student.admissionNumber}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{student.rollNumber ?? "-"}</td>
                       <td className="px-5 py-4">
                         <input

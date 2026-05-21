@@ -24,11 +24,11 @@ export function DataTable<T>({ columns, empty, getRowKey, rows }: DataTableProps
   return (
     <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-200)] bg-white shadow-[var(--shadow-card)]">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-[13px]">
+        <table className="w-full min-w-[640px] text-left text-body">
           <thead>
             <tr className="bg-[var(--brand-secondary)]">
               {columns.map((column) => (
-                <th key={column.key} className={`px-5 py-3.5 text-[12px] font-semibold tracking-wide text-white ${alignClasses[column.align ?? "left"]}`}>
+                <th key={column.key} className={`px-5 py-3.5 text-caption font-semibold text-white ${alignClasses[column.align ?? "left"]}`}>
                   {column.header}
                 </th>
               ))}

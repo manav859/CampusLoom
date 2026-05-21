@@ -5,18 +5,20 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: [
-          '"Inter"',
-          '"SF Pro Display"',
-          '"SF Pro Text"',
-          '-apple-system',
-          'BlinkMacSystemFont',
-          '"Segoe UI"',
-          'Roboto',
-          '"Helvetica Neue"',
-          'Arial',
-          'sans-serif',
-        ],
+        sans: ["var(--font-primary)"],
+        devanagari: ["var(--font-devanagari)"],
+        code: ["var(--font-code)"],
+      },
+      fontSize: {
+        h1: ["24px", { fontWeight: "700", lineHeight: "32px" }],
+        h2: ["20px", { fontWeight: "600", lineHeight: "28px" }],
+        h3: ["16px", { fontWeight: "600", lineHeight: "24px" }],
+        body: ["14px", { fontWeight: "400", lineHeight: "22px" }],
+        "body-strong": ["14px", { fontWeight: "600", lineHeight: "22px" }],
+        caption: ["12px", { fontWeight: "500", lineHeight: "16px" }],
+        kpi: ["28px", { fontWeight: "700", lineHeight: "32px" }],
+        "kpi-label": ["11px", { fontWeight: "600", letterSpacing: "0.06em", lineHeight: "14px" }],
+        code: ["13px", { fontWeight: "500", lineHeight: "18px" }],
       },
       colors: {
         // Apple palette

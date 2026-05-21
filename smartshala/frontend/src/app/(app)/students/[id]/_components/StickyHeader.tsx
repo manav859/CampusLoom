@@ -185,7 +185,7 @@ export function StickyHeader({
               <div className="flex items-center gap-2">
                 <h1 className="truncate text-[20px] font-semibold tracking-tight text-[#1d1d1f] sm:text-[22px]">{student.fullName}</h1>
                 <span className="hidden sm:inline text-[12px] font-medium text-[#86868b]">
-                  {classLabel(student)} · {student.admissionNumber}
+                  {classLabel(student)} · <span className="type-code">{student.admissionNumber}</span>
                 </span>
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-[6px]">

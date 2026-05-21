@@ -63,18 +63,18 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Typography
 
-- [ ] Use Inter as the primary family.
-- [ ] Pair Hindi/Devanagari text with Hind, Mukta, or Tiro Devanagari Hindi.
-- [ ] Give Devanagari about 10% more vertical breathing room.
-- [ ] H1 page title: 24 / 32, weight 700.
-- [ ] H2 section: 20 / 28, weight 600.
-- [ ] H3 subhead: 16 / 24, weight 600.
-- [ ] Body: 14 / 22, weight 400.
-- [ ] Body strong: 14 / 22, weight 600.
-- [ ] Caption: 12 / 16, weight 500.
-- [ ] KPI number: 28 / 32, weight 700, tabular numbers.
-- [ ] KPI label: 11 / 14, weight 600, uppercase, letter spacing 0.06em.
-- [ ] Code / ID: 13 / 18, weight 500, mono for receipt IDs and admission numbers.
+- [x] Use Inter as the primary family.
+- [x] Pair Hindi/Devanagari text with Hind, Mukta, or Tiro Devanagari Hindi.
+- [x] Give Devanagari about 10% more vertical breathing room.
+- [x] H1 page title: 24 / 32, weight 700.
+- [x] H2 section: 20 / 28, weight 600.
+- [x] H3 subhead: 16 / 24, weight 600.
+- [x] Body: 14 / 22, weight 400.
+- [x] Body strong: 14 / 22, weight 600.
+- [x] Caption: 12 / 16, weight 500.
+- [x] KPI number: 28 / 32, weight 700, tabular numbers.
+- [x] KPI label: 11 / 14, weight 600, uppercase, letter spacing 0.06em.
+- [x] Code / ID: 13 / 18, weight 500, mono for receipt IDs and admission numbers.
 
 ### Button States
 

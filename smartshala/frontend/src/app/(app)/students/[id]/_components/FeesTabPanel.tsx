@@ -155,7 +155,7 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                         <td className="px-5 py-4">
                           {receiptId ? (
                             <button
-                              className="font-semibold text-[#2456E6] underline-offset-2 hover:underline disabled:opacity-50"
+                              className="type-code text-[#2456E6] underline-offset-2 hover:underline disabled:opacity-50"
                               disabled={previewingId === receiptId}
                               onClick={() => handlePreviewReceipt(receiptId)}
                               type="button"

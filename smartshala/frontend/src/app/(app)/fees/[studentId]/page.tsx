@@ -185,7 +185,7 @@ export default function StudentFeeLedgerPage() {
                   <StatusPill label={humanizeConstant(ledger.status)} tone={statusTone(ledger.status)} />
                 </div>
                 <p className="mt-1 text-[13px] text-[#86868b]">
-                  {ledger.student.class.name}-{ledger.student.class.section} - Admission {ledger.student.admissionNumber}
+                  {ledger.student.class.name}-{ledger.student.class.section} - Admission <span className="type-code">{ledger.student.admissionNumber}</span>
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -211,7 +211,7 @@ export default function StudentFeeLedgerPage() {
           <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
             <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Assignments</h2>
-              <p className="mt-0.5 text-[13px] text-[#86868b]">{ledger.student.class.name}-{ledger.student.class.section} - Admission {ledger.student.admissionNumber}</p>
+              <p className="mt-0.5 text-[13px] text-[#86868b]">{ledger.student.class.name}-{ledger.student.class.section} - Admission <span className="type-code">{ledger.student.admissionNumber}</span></p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-[13px]">
@@ -300,7 +300,7 @@ export default function StudentFeeLedgerPage() {
                             <td className="px-5 py-4 font-semibold text-[#248a3d]">{formatINR(payment.amount)}</td>
                             <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
                             <td className="px-5 py-4 text-[#6e6e73]">{paymentReference(payment)}</td>
-                            <td className="px-5 py-4 font-medium text-[#6e6e73]">{receiptLabel(payment)}</td>
+                            <td className="px-5 py-4 type-code text-[#6e6e73]">{receiptLabel(payment)}</td>
                             <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(payment.balanceAfter)}</td>
                             <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName ?? "Fee"}</td>
                             <td className="px-5 py-4">

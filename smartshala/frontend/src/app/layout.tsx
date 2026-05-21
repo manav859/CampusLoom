@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="min-h-screen bg-[#f5f5f7] font-sans text-[#1d1d1f] antialiased">
+      <body className="min-h-screen bg-[var(--surface-50)] font-sans text-[var(--ink-900)] antialiased">
         {children}
       </body>
     </html>

@@ -21,9 +21,9 @@ export function EmptyState({ icon, headline, description, action }: EmptyStatePr
           </svg>
         </div>
       )}
-      <h3 className="text-[17px] font-semibold text-[#1d1d1f]">{headline}</h3>
+      <h3 className="type-h3 text-[#1d1d1f]">{headline}</h3>
       {description ? (
-        <p className="mt-2 max-w-[280px] text-[14px] leading-relaxed text-[#86868b]">{description}</p>
+        <p className="mt-2 max-w-[280px] text-body text-[#86868b]">{description}</p>
       ) : null}
       {action ? <div className="mt-5">{action}</div> : null}
     </div>

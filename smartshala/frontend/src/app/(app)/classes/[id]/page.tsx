@@ -169,7 +169,7 @@ export default function ClassDetailPage() {
                     <td className="px-5 py-4 font-semibold tabular-nums text-[#1d1d1f]">{index + 1}</td>
                     <td className="px-5 py-4 font-medium tabular-nums text-[#86868b]">{student.rollNumber || "-"}</td>
                     <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{student.fullName}</td>
-                    <td className="px-5 py-4 font-medium text-[#6e6e73]">{student.admissionNumber}</td>
+                    <td className="px-5 py-4 type-code text-[#6e6e73]">{student.admissionNumber}</td>
                     <td className="px-5 py-4 text-[#6e6e73]">{student.parentPhone}</td>
                     <td className="px-5 py-4 text-right print:hidden">
                       <details className="relative inline-block">

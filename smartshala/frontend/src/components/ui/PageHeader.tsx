@@ -54,7 +54,7 @@ export function PageHeader({ title, eyebrow, action, breadcrumbs }: PageHeaderPr
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 space-y-1">
         {crumbs.length > 1 ? (
-          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-[12px] font-semibold text-[#5A6573]">
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-caption font-semibold text-[#5A6573]">
             {crumbs.map((crumb, index) => (
               <span className="inline-flex items-center gap-1.5" key={`${crumb.label}-${index}`}>
                 {index > 0 ? <span className="text-[#A0A7B2]">/</span> : null}
@@ -69,8 +69,8 @@ export function PageHeader({ title, eyebrow, action, breadcrumbs }: PageHeaderPr
             ))}
           </nav>
         ) : null}
-        {eyebrow ? <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">{eyebrow}</p> : null}
-        {title ? <h1 className="text-[24px] font-bold leading-8 tracking-normal text-[#0F1419] sm:text-[28px]">{title}</h1> : null}
+        {eyebrow ? <p className="type-kpi-label text-[#86868b]">{eyebrow}</p> : null}
+        {title ? <h1 className="type-h1 text-[#0F1419]">{title}</h1> : null}
       </div>
       {action ? <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">{action}</div> : null}
     </div>

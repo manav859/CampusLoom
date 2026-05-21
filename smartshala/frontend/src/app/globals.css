@@ -1,9 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=Mukta:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ─── Apple-like Inter Font ─── */
-@import url('https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
 
 :root {
   color-scheme: light;
@@ -21,6 +22,7 @@
   --info-600: #1F6FB8;
   --info-100: #E2F0FB;
   --ink-900: #0F1419;
+  --ink-700: #2A3340;
   --ink-500: #5A6573;
   --surface-50: #F7F8FB;
   --border-200: #DCE1E8;
@@ -30,6 +32,7 @@
   --button-disabled-text: #7A8390;
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-devanagari: 'Hind', 'Mukta', 'Noto Sans Devanagari', var(--font-primary);
+  --font-code: 'SFMono-Regular', 'Cascadia Code', 'Roboto Mono', Consolas, 'Liberation Mono', monospace;
   --type-h1: 24px;
   --leading-h1: 32px;
   --type-h2: 20px;
@@ -42,6 +45,8 @@
   --leading-caption: 16px;
   --type-kpi: 28px;
   --leading-kpi: 32px;
+  --type-code: 13px;
+  --leading-code: 18px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
@@ -79,8 +84,11 @@ html {
 body {
   min-height: 100vh;
   font-family: var(--font-primary);
-  color: var(--apple-text);
-  background-color: var(--apple-bg);
+  font-size: var(--type-body);
+  font-weight: 400;
+  line-height: var(--leading-body);
+  color: var(--ink-900);
+  background-color: var(--surface-50);
   background-attachment: fixed;
   letter-spacing: 0;
 }
@@ -96,7 +104,23 @@ summary {
 
 :lang(hi) {
   font-family: var(--font-devanagari);
-  line-height: 1.1;
+  line-height: 1.72;
+}
+
+[data-script="devanagari"],
+.font-devanagari {
+  font-family: var(--font-devanagari);
+  line-height: 1.72;
+}
+
+code,
+kbd,
+samp,
+.font-code {
+  font-family: var(--font-code);
+  font-size: var(--type-code);
+  font-weight: 500;
+  line-height: var(--leading-code);
 }
 
 /* ─── Premium scrollbar ─── */
@@ -117,6 +141,27 @@ summary {
 }
 
 @layer base {
+  h1 {
+    font-size: var(--type-h1);
+    font-weight: 700;
+    line-height: var(--leading-h1);
+    letter-spacing: 0;
+  }
+
+  h2 {
+    font-size: var(--type-h2);
+    font-weight: 600;
+    line-height: var(--leading-h2);
+    letter-spacing: 0;
+  }
+
+  h3 {
+    font-size: var(--type-h3);
+    font-weight: 600;
+    line-height: var(--leading-h3);
+    letter-spacing: 0;
+  }
+
   ::selection {
     background: rgba(0, 113, 227, 0.2);
     color: inherit;
@@ -167,7 +212,8 @@ summary {
     border: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
     padding: 0 14px;
-    font-size: 15px;
+    font-size: var(--type-body);
+    line-height: var(--leading-body);
     color: #000000;
     outline: none;
     transition: all 0.2s ease-in-out;
@@ -186,7 +232,7 @@ summary {
 
   /* ─── Apple Buttons ─── */
   .btn-primary {
-    @apply inline-flex min-h-[44px] items-center justify-center rounded-full px-8 text-[14px] font-bold text-white;
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-full px-8 text-[14px] font-semibold leading-[22px] text-white;
     background: var(--apple-blue);
     transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
   }
@@ -197,7 +243,7 @@ summary {
   }
 
   .btn-secondary {
-    @apply inline-flex min-h-[44px] items-center justify-center rounded-full border px-6 text-[14px] font-bold;
+    @apply inline-flex min-h-[44px] items-center justify-center rounded-full border px-6 text-[14px] font-semibold leading-[22px];
     background: #f5f5f7;
     border-color: transparent;
     color: #000000;
@@ -237,8 +283,9 @@ summary {
     justify-content: space-between;
     gap: 16px;
     padding: 0 24px;
-    font-size: 16px;
+    font-size: var(--type-h3);
     font-weight: 600;
+    line-height: var(--leading-h3);
     color: #1d1d1f;
   }
 
@@ -254,6 +301,74 @@ summary {
     border-top: 1px solid #DCE1E8;
     background: #FAFBFC;
     padding: 20px 24px 24px;
+  }
+}
+
+@layer utilities {
+  .type-h1 {
+    font-size: var(--type-h1);
+    font-weight: 700;
+    line-height: var(--leading-h1);
+    letter-spacing: 0;
+  }
+
+  .type-h2 {
+    font-size: var(--type-h2);
+    font-weight: 600;
+    line-height: var(--leading-h2);
+    letter-spacing: 0;
+  }
+
+  .type-h3 {
+    font-size: var(--type-h3);
+    font-weight: 600;
+    line-height: var(--leading-h3);
+    letter-spacing: 0;
+  }
+
+  .type-body {
+    font-size: var(--type-body);
+    font-weight: 400;
+    line-height: var(--leading-body);
+    letter-spacing: 0;
+  }
+
+  .type-body-strong {
+    font-size: var(--type-body);
+    font-weight: 600;
+    line-height: var(--leading-body);
+    letter-spacing: 0;
+  }
+
+  .type-caption {
+    font-size: var(--type-caption);
+    font-weight: 500;
+    line-height: var(--leading-caption);
+    letter-spacing: 0;
+  }
+
+  .type-kpi {
+    font-size: var(--type-kpi);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: var(--leading-kpi);
+    letter-spacing: 0;
+  }
+
+  .type-kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 14px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .type-code {
+    font-family: var(--font-code);
+    font-size: var(--type-code);
+    font-weight: 500;
+    line-height: var(--leading-code);
+    letter-spacing: 0;
   }
 }
 
