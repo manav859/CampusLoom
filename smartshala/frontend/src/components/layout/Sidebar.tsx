@@ -143,12 +143,23 @@ function NavIcon({ icon, active }: { icon: NavLink["icon"]; active: boolean }) {
   );
 }
 
-export function Sidebar({ role, open = false, onClose }: { role: Role; open?: boolean; onClose?: () => void }) {
+export function Sidebar({
+  role,
+  open = false,
+  onClose,
+  isPinned,
+  setIsPinned
+}: {
+  role: Role;
+  open?: boolean;
+  onClose?: () => void;
+  isPinned: boolean;
+  setIsPinned: (pinned: boolean) => void;
+}) {
   const pathname = usePathname();
   const links = linksForRole(role);
 
   const [isHovered, setIsHovered] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
   const asideRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -160,7 +171,7 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
     };
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [isPinned]);
+  }, [isPinned, setIsPinned]);
 
   const isOpenDesktop = isHovered || isPinned;
 
@@ -182,17 +193,17 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
         ref={asideRef}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-white border-r border-[var(--apple-card-border)] transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen ${
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-white border-r border-[var(--apple-card-border)] transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen md:pt-16 ${
           open ? "w-[200px] translate-x-0" : "-translate-x-full md:translate-x-0"
         } ${
           isOpenDesktop ? "md:w-[200px]" : "md:w-[60px]"
         }`}
       >
         {/* Brand */}
-        <div className="flex items-center justify-between px-3.5 pt-5 pb-3">
+        <div className="flex items-center justify-between px-3.5 pt-5 pb-3 md:hidden">
           <div className="flex items-center">
             <div
-              onClick={() => setIsPinned((prev) => !prev)}
+              onClick={() => setIsPinned(!isPinned)}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#0071e3] shadow-lg shadow-blue-500/30 cursor-pointer"
             >
               <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

@@ -110,10 +110,10 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
       <header className="sticky top-0 z-[100] flex h-16 items-center bg-white shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
         <div className="flex w-full items-center justify-between gap-4 px-5">
 
-          {/* ── Left: Hamburger (mobile) + School Identity ── */}
+          {/* ── Left: Hamburger + School Identity ── */}
           <div className="flex min-w-0 items-center gap-3">
             <button
-              className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#f5f5f7] transition-colors md:hidden"
+              className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#f5f5f7] transition-colors"
               onClick={onMenuClick}
               type="button"
             >
@@ -122,10 +122,21 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
               </svg>
             </button>
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="text-[20px]" role="img" aria-label="School">🏫</span>
+              {/* PC View Brand Logo */}
+              <div className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#0071e3] shadow-lg shadow-blue-500/30">
+                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+
+              {/* Mobile View Icon */}
+              <span className="text-[20px] md:hidden" role="img" aria-label="School">🏫</span>
+
               <div className="min-w-0">
                 <p className="truncate text-[15px] font-semibold text-[#1d1d1f] tracking-tight leading-tight">
-                  SmartShala
+                  <span className="hidden md:inline font-bold">SmartShala</span>
+                  <span className="md:hidden">SmartShala</span>
                   {user.schoolName ? (
                     <>
                       {" "}
