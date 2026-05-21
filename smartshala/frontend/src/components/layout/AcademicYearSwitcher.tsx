@@ -36,12 +36,11 @@ export function AcademicYearSwitcher() {
   const readOnly = selected !== current;
 
   return (
-    <label className="hidden min-w-[168px] flex-col gap-1 md:flex">
-      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Academic year</span>
-      <span className="flex items-center gap-2">
+    <div className="hidden items-center md:flex">
+      <div className="flex items-center gap-2">
         <select
           aria-label="Academic year"
-          className="h-9 rounded-lg border border-[#DCE1E8] bg-white px-2 text-[12px] font-semibold text-[#1d1d1f] shadow-sm"
+          className="h-9 rounded-lg border border-[#DCE1E8] bg-white px-2 text-[12px] font-semibold text-[#1d1d1f] shadow-sm cursor-pointer"
           onChange={(event) => updateYear(event.target.value)}
           value={selected}
         >
@@ -54,7 +53,8 @@ export function AcademicYearSwitcher() {
         {readOnly ? (
           <span className="rounded-full bg-[#FFF2DC] px-2 py-1 text-[10px] font-bold text-[#B95A00]">Read-only</span>
         ) : null}
-      </span>
-    </label>
+      </div>
+    </div>
   );
+
 }

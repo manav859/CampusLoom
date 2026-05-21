@@ -53,12 +53,10 @@ function getAcademicYear(): string {
 /* ── Topbar ── */
 export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?: () => void }) {
   const router = useRouter();
-  const [searchFocused, setSearchFocused] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifLogs, setNotifLogs] = useState<NotificationLog[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const initials = user.fullName
@@ -67,18 +65,6 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
     .join("")
     .slice(0, 2)
     .toUpperCase();
-
-  // Ctrl+K / Cmd+K shortcut
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -139,42 +125,26 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
               <span className="text-[20px]" role="img" aria-label="School">🏫</span>
               <div className="min-w-0">
                 <p className="truncate text-[15px] font-semibold text-[#1d1d1f] tracking-tight leading-tight">
-                  {user.schoolName || "SmartShala"}{" "}
+                  SmartShala
+                  {user.schoolName ? (
+                    <>
+                      {" "}
+                      <span className="text-[#86868b] font-normal">·</span>{" "}
+                      <span className="text-[#424245]">{user.schoolName}</span>
+                    </>
+                  ) : null}
+                  {" "}
                   <span className="text-[#86868b] font-normal">·</span>{" "}
                   <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
                 </p>
                 <p className="text-[11px] font-medium text-[#86868b] leading-tight">
-                  Academic Year {getAcademicYear()}
+                  {getAcademicYear()}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* ── Center: Global Search ── */}
-          <div className="hidden sm:flex flex-1 max-w-[380px] mx-auto">
-            <div className={`relative w-full transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${searchFocused ? "w-[380px]" : "w-[280px]"}`}>
-              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#86868b]" fill="none" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-                <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder="Search students, reports, fees..."
-                className="w-full h-[36px] rounded-xl bg-[#f5f5f7] pl-10 pr-16 text-[13px] text-[#1d1d1f] placeholder-[#86868b]/70 outline-none border border-transparent transition-all duration-300 focus:bg-white focus:border-[#0071e3]/30 focus:shadow-[0_0_0_4px_rgba(0,113,227,0.06)]"
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-              />
-              {!searchFocused && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-0.5 pointer-events-none">
-                  <kbd className="rounded-[4px] border border-[#d2d2d7] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[#86868b] shadow-[0_1px_0_1px_rgba(0,0,0,0.04)]">⌘</kbd>
-                  <kbd className="rounded-[4px] border border-[#d2d2d7] bg-white px-1.5 py-0.5 text-[10px] font-semibold text-[#86868b] shadow-[0_1px_0_1px_rgba(0,0,0,0.04)]">K</kbd>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Right: Notifications + Chat + Clock + Avatar ── */}
+          {/* ── Right: Notifications + Clock + Avatar ── */}
           <div className="flex items-center gap-2.5">
             {/* Notification Bell */}
             <button
@@ -194,17 +164,6 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
                   {notifCount}
                 </span>
               )}
-            </button>
-
-            {/* Chat / Messages */}
-            <button
-              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors"
-              type="button"
-            >
-              <svg className="h-[18px] w-[18px] text-[#424245]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c5.385 0 9.75 4.365 9.75 9.75s-4.365 9.75-9.75 9.75a9.723 9.723 0 01-4.688-1.2L3 21.75l1.2-4.312A9.723 9.723 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25z" />
-              </svg>
             </button>
 
             <AcademicYearSwitcher />
