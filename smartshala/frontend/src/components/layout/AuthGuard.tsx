@@ -168,7 +168,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       <PlatformTranslator />
       <div className="relative flex min-h-screen">
         <Sidebar onClose={() => setSidebarOpen(false)} open={sidebarOpen} role={user.role} />
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col pl-0 md:pl-[60px] transition-all duration-300">
           <Topbar onMenuClick={() => setSidebarOpen(true)} user={user} />
           <main className="flex-1 px-4 pb-8 pt-3 sm:px-5 lg:px-6">{children}</main>
         </div>

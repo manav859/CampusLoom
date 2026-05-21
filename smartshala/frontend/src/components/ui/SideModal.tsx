@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 type SideModalProps = {
   children: ReactNode;
@@ -16,7 +17,10 @@ const widthClasses = {
 };
 
 export function SideModal({ children, eyebrow, onClose, title, width = "md" }: SideModalProps) {
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
+    setMounted(true);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -31,7 +35,9 @@ export function SideModal({ children, eyebrow, onClose, title, width = "md" }: S
     };
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex justify-end bg-black/35 backdrop-blur-[2px] side-modal-overlay" role="dialog" aria-modal="true">
       <button className="absolute inset-0 cursor-default" aria-label="Close panel" onClick={onClose} type="button" />
       <aside className={`relative flex h-full w-full ${widthClasses[width]} flex-col overflow-hidden bg-white shadow-[var(--shadow-modal)] side-modal-panel`}>
@@ -53,6 +59,7 @@ export function SideModal({ children, eyebrow, onClose, title, width = "md" }: S
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
       </aside>
-    </div>
+    </div>,
+    document.body
   );
 }

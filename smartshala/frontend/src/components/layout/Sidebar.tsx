@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
 import type { Role } from "@/types";
 import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
 
@@ -146,6 +147,27 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
   const pathname = usePathname();
   const links = linksForRole(role);
 
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const asideRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!isPinned) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (asideRef.current && !asideRef.current.contains(e.target as Node)) {
+        setIsPinned(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isPinned]);
+
+  const isOpenDesktop = isHovered || isPinned;
+
+  const labelClass = `transition-all duration-300 ease-in-out whitespace-nowrap truncate md:transition-all ${
+    isOpenDesktop ? "opacity-100 max-w-[150px] ml-2.5" : "opacity-100 max-w-[150px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
+  }`;
+
   return (
     <>
       {/* Mobile overlay */}
@@ -157,20 +179,28 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
 
       {/* Sidebar panel — 200px per wireframe */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[200px] flex-col bg-white border-r border-[var(--apple-card-border)] transition-transform duration-300 ease-apple md:sticky md:top-0 md:z-10 md:h-screen ${
-          open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        ref={asideRef}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-white border-r border-[var(--apple-card-border)] transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen ${
+          open ? "w-[200px] translate-x-0" : "-translate-x-full md:translate-x-0"
+        } ${
+          isOpenDesktop ? "md:w-[200px]" : "md:w-[60px]"
         }`}
       >
         {/* Brand */}
-        <div className="flex items-center justify-between px-4 pt-5 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0071e3] shadow-lg shadow-blue-500/30">
+        <div className="flex items-center justify-between px-3.5 pt-5 pb-3">
+          <div className="flex items-center">
+            <div
+              onClick={() => setIsPinned((prev) => !prev)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#0071e3] shadow-lg shadow-blue-500/30 cursor-pointer"
+            >
               <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                 <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                 <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <p className="text-[15px] font-bold text-[#1d1d1f] tracking-tight">SmartShala</p>
+            <p className={`text-[15px] font-bold text-[#1d1d1f] tracking-tight ${labelClass}`}>SmartShala</p>
           </div>
           <button className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-black/5 transition-colors md:hidden" onClick={onClose} type="button">
             <svg className="h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24">
@@ -180,7 +210,7 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
         </div>
 
         {/* Navigation */}
-        <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3">
+        <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-3">
           {links.map(({ label, href, icon }) => {
             const active = isActiveLink(pathname, href);
 
@@ -189,26 +219,28 @@ export function Sidebar({ role, open = false, onClose }: { role: Role; open?: bo
                 key={href}
                 href={withSchoolPath(href, pathname)}
                 onClick={onClose}
-                className={`group flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
+                className={`group flex items-center rounded-lg border px-3 py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
                   active
                     ? "border-[#0071e3] bg-[#0071e3] text-white shadow-md shadow-blue-500/20"
                     : "border-transparent text-[#424245] hover:border-[#0071e3] hover:text-[#1d1d1f]"
                 }`}
               >
                 <NavIcon active={active} icon={icon} />
-                <span className="truncate">{label}</span>
+                <span className={labelClass}>{label}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* User avatar section at bottom */}
-        <div className="border-t border-[#f5f5f7] px-4 py-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#0071e3] to-[#5ac8fa] text-[10px] font-bold text-white shadow-lg shadow-blue-500/20">
+        <div className="border-t border-[#f5f5f7] px-3.5 py-4">
+          <div className="flex items-center">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0071e3] to-[#5ac8fa] text-[10px] font-bold text-white shadow-lg shadow-blue-500/20">
               AD
             </div>
-            <div className="min-w-0">
+            <div className={`min-w-0 transition-all duration-300 ease-in-out ${
+              isOpenDesktop ? "opacity-100 max-w-[120px] ml-2.5" : "opacity-100 max-w-[120px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
+            }`}>
               <p className="truncate text-[12px] font-semibold text-[#1d1d1f]">Admin</p>
               <p className="truncate text-[10px] text-[#86868b]">Principal</p>
             </div>
