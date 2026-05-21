@@ -7,7 +7,6 @@ import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { FeeOverviewChart } from "@/components/dashboard/FeeOverviewChart";
 import { ActivityFeed, type ActivityEvent } from "@/components/dashboard/ActivityFeed";
 import { KpiCard } from "@/components/ui/KpiCard";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch, studentsApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
@@ -289,9 +288,6 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        eyebrow={mode === "ADMIN" ? "Principal dashboard" : "Teacher dashboard"}
-      />
       <p className="text-[14px] font-medium leading-6 text-[#5A6573]">{pulseText}</p>
 
       {error ? <div className="rounded-xl bg-[#ff9500]/10 px-4 py-3 text-[13px] font-medium text-[#c93400]">{error}</div> : null}

@@ -20,7 +20,7 @@ export function Skeleton({ className = "", style }: { className?: string; style?
 /* ── KPI Card skeleton ── */
 export function KpiCardSkeleton() {
   return (
-    <div className="glass-card-interactive p-5 space-y-3">
+    <div className="glass-card-interactive min-h-[96px] p-5 space-y-3">
       <Skeleton className="h-3 w-16 rounded-md" />
       <Skeleton className="h-7 w-24 rounded-md" />
     </div>

@@ -17,7 +17,7 @@ export function KpiCard({ label, value, helper, formula, href, tone = "neutral" 
   const styles = toneMap[tone];
   const content = (
     <div
-      className={`relative overflow-hidden rounded-[16px] h-[86px] pl-[22px] pr-5 py-3.5 flex flex-col justify-between backdrop-blur-2xl border transition-transform duration-300 ${href ? "cursor-pointer hover:-translate-y-[3px] hover:shadow-xl" : ""} ${styles.border} ${styles.bg} ${styles.shadow}`}
+      className={`relative overflow-hidden rounded-[16px] h-[96px] pl-[22px] pr-5 py-3.5 flex flex-col justify-between backdrop-blur-2xl border transition-transform duration-300 ${href ? "cursor-pointer hover:-translate-y-[3px] hover:shadow-xl" : ""} ${styles.border} ${styles.bg} ${styles.shadow}`}
       title={formula}
     >
       {/* Premium Gradient Left Bar */}
