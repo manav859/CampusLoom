@@ -41,6 +41,16 @@ function whatsappLink(phone: string) {
   return `https://wa.me/${normalized}`;
 }
 
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 /* ── Tone-styled KPI mini-cards (matching KpiCard aesthetics) ── */
 
 type KpiTone = "good" | "warn" | "danger" | "neutral";
@@ -145,7 +155,6 @@ export function StickyHeader({
   attendancePercentage,
   currentRank,
   feeBalance,
-  totalAbsentThisMonth,
   performanceRate,
   performanceClassification,
   isPerformanceFallback,
@@ -160,7 +169,8 @@ export function StickyHeader({
   /* KPI tones */
   const attendanceTone: KpiTone = attendancePercentage >= 85 ? "good" : attendancePercentage >= 75 ? "warn" : "danger";
   const feeTone: KpiTone = feeBalance <= 0 ? "good" : "warn";
-  const absentTone: KpiTone = totalAbsentThisMonth === 0 ? "good" : totalAbsentThisMonth >= 3 ? "danger" : "warn";
+  const performanceKpiTone = performanceTone(performanceClassification) as KpiTone;
+  const performanceValue = performanceRate === null ? "No data" : `${performanceRate}%`;
   const canContactParent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN" || student.access?.role === "TEACHER";
   const canEditStudent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN";
   const parentShareMessage = encodeURIComponent(
@@ -172,13 +182,10 @@ export function StickyHeader({
       <section className="overflow-hidden rounded-[14px] border border-white/60 bg-white/70 shadow-[0_2px_20px_rgba(0,0,0,0.06)] backdrop-blur-2xl">
         {/* ── Top row: Identity + Tags + Actions ── */}
         <div className="flex flex-col gap-3 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
-          {/* Left: name, meta, performance badge */}
+          {/* Left: avatar, name, meta, status tags */}
           <div className="flex items-center gap-4 min-w-0">
-            {/* Performance badge */}
-            <div className="hidden sm:flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-[#0071e3]/15 bg-gradient-to-br from-[#0071e3]/10 to-[#34c759]/8 shadow-sm">
-              <span className="text-[16px] font-bold leading-none tracking-tight text-[#1d1d1f]">
-                {performanceRate === null ? "--" : `${performanceRate}%`}
-              </span>
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[14px] border border-[#DCE1E8] bg-gradient-to-br from-[#E2F0FB] to-white text-[16px] font-bold text-[#0F2557] shadow-sm sm:flex">
+              {initials(student.fullName)}
             </div>
 
             <div className="min-w-0">
@@ -264,7 +271,7 @@ export function StickyHeader({
           {canViewAttendance ? <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} /> : null}
           {canViewAcademic ? <MiniKpiCard label="Current rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" /> : null}
           {canViewFees ? <MiniKpiCard label="Fee balance" value={money(feeBalance)} tone={feeTone} /> : null}
-          {canViewAttendance ? <MiniKpiCard label="Absent this month" value={String(totalAbsentThisMonth)} tone={absentTone} /> : null}
+          {canViewAcademic ? <MiniKpiCard label="Overall performance" value={performanceValue} tone={performanceKpiTone} /> : null}
         </div>
       </section>
     </div>
