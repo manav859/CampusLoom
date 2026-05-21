@@ -902,51 +902,63 @@ export default function StudentsPage() {
       </div>
 
       {/* ── Filters ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative sm:w-72">
-          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
-          <input
-            className="glass-input pl-10 sm:w-72"
-            placeholder="Search student..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <select
-            className="glass-input sm:w-36 text-[13px]"
-            value={classId}
-            onChange={(e) => { setClassId(e.target.value); setPage(1); }}
-          >
-            <option value="">All classes</option>
-            {classes.map((cls) => (
-              <option key={cls.id} value={cls.id}>{cls.name}-{cls.section}</option>
-            ))}
-          </select>
-          {canViewFees ? (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative sm:w-72">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
+            <input
+              className="glass-input pl-10 sm:w-72"
+              placeholder="Search student..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            />
+          </div>
+          <div className="flex items-center gap-2">
             <select
               className="glass-input sm:w-36 text-[13px]"
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              value={classId}
+              onChange={(e) => { setClassId(e.target.value); setPage(1); }}
             >
-              <option value="">All fee statuses</option>
-              <option value="PAID">Paid fees</option>
-              <option value="PENDING">Pending fees</option>
-              <option value="OVERDUE">Overdue fees</option>
+              <option value="">All classes</option>
+              {classes.map((cls) => (
+                <option key={cls.id} value={cls.id}>{cls.name}-{cls.section}</option>
+              ))}
             </select>
-          ) : null}
-          <button
-            onClick={() => { setShowInactive(!showInactive); setPage(1); }}
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-[13px] font-medium ${
-              showInactive 
-                ? "bg-[#0071e3] border-[#0071e3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.3)]" 
-                : "bg-white border-[rgba(0,0,0,0.08)] text-[#1d1d1f] hover:bg-[#f5f5f7]"
-            }`}
-          >
-            <div className={`h-2 w-2 rounded-full ${showInactive ? "bg-white animate-pulse" : "bg-[#86868b]"}`} />
-            {showInactive ? "Showing Inactive" : "Show Inactive Only"}
-          </button>
+            {canViewFees ? (
+              <select
+                className="glass-input sm:w-36 text-[13px]"
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              >
+                <option value="">All fee statuses</option>
+                <option value="PAID">Paid fees</option>
+                <option value="PENDING">Pending fees</option>
+                <option value="OVERDUE">Overdue fees</option>
+              </select>
+            ) : null}
+            <button
+              onClick={() => { setShowInactive(!showInactive); setPage(1); }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-[13px] font-medium ${
+                showInactive 
+                  ? "bg-[#0071e3] border-[#0071e3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.3)]" 
+                  : "bg-white border-[rgba(0,0,0,0.08)] text-[#1d1d1f] hover:bg-[#f5f5f7]"
+              }`}
+            >
+              <div className={`h-2 w-2 rounded-full ${showInactive ? "bg-white animate-pulse" : "bg-[#86868b]"}`} />
+              {showInactive ? "Showing Inactive" : "Show Inactive Only"}
+            </button>
+          </div>
         </div>
+        {selectedCount === 0 && (
+          <button
+            className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3.5 py-2.5 text-[13px] font-medium text-[#1d1d1f] hover:bg-[#f5f5f7] disabled:opacity-40 disabled:hover:bg-white transition-all duration-200"
+            disabled={loadingList || total === 0}
+            onClick={toggleAllPagesSelection}
+            type="button"
+          >
+            {selectAllLabel}
+          </button>
+        )}
       </div>
 
       {notice ? (
@@ -956,7 +968,7 @@ export default function StudentsPage() {
         </div>
       ) : null}
 
-      {selectedCount > 0 ? (
+      {selectedCount > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-[#DCE1E8] bg-white px-4 py-3 shadow-[0_8px_22px_-16px_rgba(15,20,25,0.35)] sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[13px] font-semibold text-[#0F1419]">{selectedCount} selected</p>
@@ -973,12 +985,6 @@ export default function StudentsPage() {
             {isAdmin ? <button className="rounded-lg bg-[#C8242C] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#a51d24]" onClick={() => openBulkDialog("inactive")} type="button">Mark inactive</button> : null}
             <button className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => { setSelectedIds([]); setSelectedRows({}); }} type="button">Clear</button>
           </div>
-        </div>
-      ) : (
-        <div className="flex justify-end">
-          <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB] disabled:opacity-60" disabled={loadingList || total === 0} onClick={toggleAllPagesSelection} type="button">
-            {selectAllLabel}
-          </button>
         </div>
       )}
 
