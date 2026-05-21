@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import { attendanceApi, type ClassesTodayReportRow } from "@/lib/api";
 
-type ChartPoint = { label: string; value: number; marked?: boolean };
+type ChartPoint = {
+  absent?: number;
+  attended?: number;
+  halfDay?: number;
+  label: string;
+  marked?: boolean;
+  present?: number;
+  total?: number;
+  value: number;
+};
 
 function isoDate(offsetDays = 0) {
   const date = new Date();
@@ -17,7 +26,7 @@ function isoDate(offsetDays = 0) {
 export function AttendanceChart({ data, title = "Attendance trend", classes = [] }: { data?: ChartPoint[]; title?: string; classes?: string[] }) {
   const [filter, setFilter] = useState("All");
   const [on, setOn] = useState(false);
-  const [tooltip, setTooltip] = useState<{ x: number, y: number, label: string, value: number } | null>(null);
+  const [tooltip, setTooltip] = useState<ChartPoint | null>(null);
   const [pastWeekOpen, setPastWeekOpen] = useState(false);
   const [pastWeekRows, setPastWeekRows] = useState<ClassesTodayReportRow[]>([]);
   const [pastWeekLoading, setPastWeekLoading] = useState(false);
@@ -72,12 +81,27 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
     );
   }
 
-  const W = 100, H = 48, pt = 4, pb = 2, bw = 4;
-  const mx = Math.max(...d.map((v) => v.value), 100);
-  const ph = H - pt - pb;
-  const gap = (W - bw * d.length) / (d.length + 1);
-  const gx = (i: number) => gap + i * (bw + gap) + bw / 2;
-  const gy = (v: number) => pt + ph * (1 - v / mx);
+  function attendanceValue(point: ChartPoint) {
+    if (typeof point.attended === "number" && typeof point.total === "number" && point.total > 0) {
+      return Math.round((point.attended / point.total) * 100);
+    }
+    return point.value;
+  }
+
+  function barColor(value: number) {
+    if (value >= 90) return "bg-[#0F8A4A]";
+    if (value >= 75) return "bg-[#F6C343]";
+    if (value >= 60) return "bg-[#B95A00]";
+    return "bg-[#C8242C]";
+  }
+
+  const plotted = d.map((point) => ({ ...point, value: attendanceValue(point) }));
+  const gridLines = [
+    { value: 100, className: "border-[#E8EBF2]" },
+    { value: 75, className: "border-[#FF3B30]" },
+    { value: 50, className: "border-[#E8EBF2]" },
+    { value: 25, className: "border-[#E8EBF2]" }
+  ];
 
   return (
     <div className="glass-card-interactive p-5 h-full flex flex-col relative">
@@ -98,57 +122,59 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
           <button onClick={openPastWeek} className="rounded-full bg-[#0071e3]/10 px-3 py-1 text-[11px] font-bold text-[#0071e3] transition-colors hover:bg-[#0071e3]/20" type="button">Past Week Attendance</button>
         </div>
       </div>
-      <div className="flex-1 min-h-0 relative">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="aGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#0071e3" stopOpacity="0.15" /><stop offset="100%" stopColor="#0071e3" stopOpacity="0.01" /></linearGradient>
-            <linearGradient id="bGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#0071e3" stopOpacity="0.25" /><stop offset="100%" stopColor="#0071e3" stopOpacity="0.08" /></linearGradient>
-          </defs>
-          {[25, 50, 100].map((v) => <line key={v} x1="0" x2={W} y1={gy(v)} y2={gy(v)} stroke="#e8e8ed" strokeWidth="0.3" strokeDasharray="1.5 1" />)}
-          {/* Custom red line for 75% bar */}
-          <line x1="0" x2={W} y1={gy(75)} y2={gy(75)} stroke="#ff3b30" strokeWidth="0.5" strokeDasharray="1.5 1" />
-          
-          {d.map((v, i) => <rect key={v.label} x={gx(i) - bw / 2} y={on ? gy(v.value) : H - pb} width={bw} height={on ? (v.value / mx) * ph : 0} rx="1.5" fill="#0071e3" style={{ transition: `all 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.06}s` }} />)}
-          
-          {/* Hit areas for hover */}
-          {d.map((v, i) => (
-            <rect
-              key={`hit-${v.label}`}
-              x={gx(i) - (bw + gap) / 2}
-              y={0}
-              width={bw + gap}
-              height={H}
-              fill="transparent"
-              onMouseMove={(e) => {
-                const card = e.currentTarget.closest(".glass-card-interactive");
-                if (card) {
-                  const rect = card.getBoundingClientRect();
-                  setTooltip({ 
-                    x: e.clientX - rect.left, 
-                    y: e.clientY - rect.top, 
-                    label: v.label, 
-                    value: v.value 
-                  });
-                }
-              }}
-              onMouseLeave={() => setTooltip(null)}
-              className="cursor-crosshair"
+      <div className="relative flex-1 min-h-[190px] overflow-x-auto px-1">
+        <div className="absolute inset-x-1 top-3 bottom-7 pointer-events-none">
+          {gridLines.map((line) => (
+            <div
+              className={`absolute left-0 right-0 border-t border-dashed ${line.className}`}
+              key={line.value}
+              style={{ top: `${100 - line.value}%` }}
             />
           ))}
-        </svg>
-      </div>
-      <div className="flex justify-between mt-2 px-1">
-        {d.map((v) => <span key={v.label} className={`text-[10px] font-medium transition-colors duration-200 text-center ${tooltip?.label === v.label ? "text-[#1d1d1f]" : "text-[#86868b]"}`} style={{ width: `${100 / d.length}%` }}>{v.label}</span>)}
+        </div>
+        <div
+          className="relative z-10 grid h-full min-w-full gap-6"
+          style={{ gridTemplateColumns: `repeat(${plotted.length}, minmax(56px, 1fr))` }}
+        >
+          {plotted.map((point, index) => {
+            const height = on ? Math.max(6, Math.min(100, point.value)) : 0;
+            return (
+              <div className="flex min-h-[190px] flex-col items-center justify-end" key={point.label}>
+                <button
+                  aria-label={`${point.label} attendance ${point.value}%`}
+                  className="flex h-[150px] w-full items-end justify-center rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2456E6]/40 focus:ring-offset-2"
+                  onBlur={() => setTooltip(null)}
+                  onFocus={() => setTooltip(point)}
+                  onMouseEnter={() => setTooltip(point)}
+                  onMouseLeave={() => setTooltip(null)}
+                  type="button"
+                >
+                  <span
+                    className={`block w-9 rounded-t-lg rounded-b-[3px] shadow-[0_8px_18px_-10px_rgba(15,20,25,0.45)] transition-all duration-700 ease-apple ${barColor(point.value)}`}
+                    style={{ height: `${height}%`, transitionDelay: `${index * 60}ms` }}
+                  />
+                </button>
+                <span className={`mt-3 block w-full text-center text-[11px] font-semibold transition-colors duration-200 ${tooltip?.label === point.label ? "text-[#1d1d1f]" : "text-[#86868b]"}`}>
+                  {point.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Floating Tooltip */}
       {tooltip && (
-        <div 
-          className="absolute z-[100] pointer-events-none -translate-x-1/2 -translate-y-[calc(100%+12px)] bg-[#1d1d1f]/90 backdrop-blur-md text-white px-3 py-1.5 rounded-[8px] text-[12px] font-medium shadow-xl flex items-center gap-2 border border-white/10"
-          style={{ left: tooltip.x, top: tooltip.y }}
-        >
-          <span className="text-[#a1a1a6]">{tooltip.label}</span>
-          <span className="font-bold text-white">{tooltip.value}%</span>
+        <div className="absolute right-5 top-20 z-[100] pointer-events-none rounded-[10px] border border-white/10 bg-[#1d1d1f]/90 px-3 py-2 text-[12px] font-medium text-white shadow-xl backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="text-[#a1a1a6]">{tooltip.label}</span>
+            <span className="font-bold text-white">{tooltip.value}%</span>
+          </div>
+          {typeof tooltip.present === "number" || typeof tooltip.halfDay === "number" ? (
+            <p className="mt-1 text-[11px] text-white/70">
+              Present {tooltip.present ?? 0}, half day {tooltip.halfDay ?? 0}
+            </p>
+          ) : null}
         </div>
       )}
       <PastWeekModal

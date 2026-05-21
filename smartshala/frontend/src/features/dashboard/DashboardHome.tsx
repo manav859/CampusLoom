@@ -16,7 +16,16 @@ import { cachedFetch, getCachedData } from "@/lib/prefetchCache";
 type DashboardResponse = {
   role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
   kpis: Record<string, number>;
-  attendance?: { className: string; attendancePercentage: number; marked: boolean; absent: number }[];
+  attendance?: {
+    absent: number;
+    attended?: number;
+    attendancePercentage: number;
+    className: string;
+    halfDay?: number;
+    marked: boolean;
+    present?: number;
+    totalStudents?: number;
+  }[];
   alerts?: { type?: string; studentId?: string; studentName?: string; message?: string; severity?: string; flags?: string[] }[];
   aiSummary?: string;
   defaulters?: FeeDefaulter[];
@@ -321,7 +330,16 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         ) : (
           <>
             <AttendanceChart
-              data={(data?.attendance ?? []).map((a) => ({ label: a.className, value: a.attendancePercentage, marked: a.marked }))}
+              data={(data?.attendance ?? []).map((a) => ({
+                absent: a.absent,
+                attended: a.attended,
+                halfDay: a.halfDay,
+                label: a.className,
+                marked: a.marked,
+                present: a.present,
+                total: a.totalStudents,
+                value: a.attendancePercentage
+              }))}
               title={mode === "ADMIN" ? "Attendance in marked classes" : "Your class attendance"}
               classes={(data?.attendance ?? []).map((a) => a.className)}
             />
