@@ -175,7 +175,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen bg-[var(--apple-bg)]">
       <PlatformTranslator />
-      <div className="relative flex min-h-screen">
+      <Topbar onMenuClick={handleToggleSidebar} user={user} />
+      <div className="relative flex min-h-[calc(100vh-4rem)]">
         <Sidebar
           onClose={() => setSidebarOpen(false)}
           open={sidebarOpen}
@@ -184,7 +185,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           setIsPinned={setSidebarPinned}
         />
         <div className="flex min-w-0 flex-1 flex-col pl-0 md:pl-[60px] transition-all duration-300">
-          <Topbar onMenuClick={handleToggleSidebar} user={user} />
           <main className="flex-1 px-4 pb-8 pt-3 sm:px-5 lg:px-6">{children}</main>
         </div>
       </div>

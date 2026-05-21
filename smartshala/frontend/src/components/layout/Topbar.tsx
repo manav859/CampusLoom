@@ -111,17 +111,19 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
         <div className="flex w-full items-center justify-between gap-4 px-5">
 
           {/* ── Left: Hamburger + School Identity ── */}
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#f5f5f7] transition-colors"
-              onClick={onMenuClick}
-              type="button"
-            >
-              <svg className="h-[18px] w-[18px] text-[#1d1d1f]" fill="none" viewBox="0 0 24 24">
-                <path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
-              </svg>
-            </button>
-            <div className="flex items-center gap-2.5 min-w-0">
+          <div className="flex min-w-0 flex-1 items-center">
+            {/* Left: Brand Group (Hamburger + Logo + SmartShala) */}
+            <div className="flex w-auto md:w-[220px] shrink-0 items-center gap-3">
+              <button
+                className="sidebar-toggle-btn flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#f5f5f7] transition-colors"
+                onClick={onMenuClick}
+                type="button"
+              >
+                <svg className="sidebar-toggle-btn h-[18px] w-[18px] text-[#1d1d1f]" fill="none" viewBox="0 0 24 24">
+                  <path className="sidebar-toggle-btn" d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" strokeLinecap="round" strokeWidth="2" />
+                </svg>
+              </button>
+              
               {/* PC View Brand Logo */}
               <div className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#0071e3] shadow-lg shadow-blue-500/30">
                 <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -130,26 +132,20 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
                 </svg>
               </div>
 
-              {/* Mobile View Icon */}
-              <span className="text-[20px] md:hidden" role="img" aria-label="School">🏫</span>
+              {/* Brand Name */}
+              <span className="text-[15px] font-bold text-[#1d1d1f] tracking-tight">SmartShala</span>
+            </div>
+
+            {/* School Identity Group */}
+            <div className="flex items-center gap-2.5 min-w-0 ml-2 md:ml-4">
+              {/* School Logo */}
+              <span className="text-[20px] shrink-0" role="img" aria-label="School">🏫</span>
 
               <div className="min-w-0">
                 <p className="truncate text-[15px] font-semibold text-[#1d1d1f] tracking-tight leading-tight">
-                  <span className="hidden md:inline font-bold">SmartShala</span>
-                  <span className="md:hidden">SmartShala</span>
-                  {user.schoolName ? (
-                    <>
-                      {" "}
-                      <span className="text-[#86868b] font-normal">·</span>{" "}
-                      <span className="text-[#424245]">{user.schoolName}</span>
-                    </>
-                  ) : null}
-                  {" "}
-                  <span className="text-[#86868b] font-normal">·</span>{" "}
+                  {user.schoolName || "SmartShala Partner School"}
+                  <span className="text-[#86868b] font-normal"> · </span>
                   <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
-                </p>
-                <p className="text-[11px] font-medium text-[#86868b] leading-tight">
-                  {getAcademicYear()}
                 </p>
               </div>
             </div>

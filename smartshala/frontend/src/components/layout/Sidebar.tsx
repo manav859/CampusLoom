@@ -165,7 +165,12 @@ export function Sidebar({
   useEffect(() => {
     if (!isPinned) return;
     const handleOutsideClick = (e: MouseEvent) => {
-      if (asideRef.current && !asideRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      if (
+        asideRef.current &&
+        !asideRef.current.contains(target) &&
+        !target.closest(".sidebar-toggle-btn")
+      ) {
         setIsPinned(false);
       }
     };
