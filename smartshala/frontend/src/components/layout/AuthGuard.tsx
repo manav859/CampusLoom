@@ -6,6 +6,7 @@ import type { Role, SessionUser } from "@/types";
 import { authApi } from "@/lib/api";
 import { clearCache, prefetchForRole } from "@/lib/prefetchCache";
 import { schoolIdFromPath, withResolvedSchoolPath, withSchoolPath } from "@/lib/tenant";
+import { PlatformTranslator } from "./PlatformLanguage";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -164,6 +165,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative min-h-screen bg-[var(--apple-bg)]">
+      <PlatformTranslator />
       <div className="relative flex min-h-screen">
         <Sidebar onClose={() => setSidebarOpen(false)} open={sidebarOpen} role={user.role} />
         <div className="flex min-w-0 flex-1 flex-col">

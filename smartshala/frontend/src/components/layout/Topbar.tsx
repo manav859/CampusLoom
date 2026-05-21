@@ -6,6 +6,7 @@ import type { SessionUser } from "@/types";
 import { clearCache } from "@/lib/prefetchCache";
 import { whatsappApi, type NotificationLog } from "@/lib/api";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
+import { LanguageToggle } from "./PlatformLanguage";
 import { NotificationPanel } from "./NotificationPanel";
 
 /* ── Live Clock ── */
@@ -207,6 +208,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
             </button>
 
             <AcademicYearSwitcher />
+            <LanguageToggle />
 
             {/* Divider */}
             <div className="hidden lg:block h-7 w-px bg-[#d2d2d7]/60" />
