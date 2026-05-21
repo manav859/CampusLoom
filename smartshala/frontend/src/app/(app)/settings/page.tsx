@@ -284,7 +284,8 @@ export default function SettingsPage() {
             <p className="mt-1 text-[12px] font-medium text-[#86868b]">Used by teacher timetable assignment and free-period planning.</p>
           </div>
 
-          <button className="btn-primary min-h-11 px-5 disabled:cursor-not-allowed disabled:opacity-50" disabled={loading || saving} type="submit">
+          <button className="btn-primary min-h-11 gap-2 px-5 disabled:cursor-not-allowed disabled:opacity-50" disabled={loading || saving} type="submit">
+            {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
             {saving ? "Saving..." : "Save profile"}
           </button>
         </form>

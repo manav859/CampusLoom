@@ -243,8 +243,9 @@ export default function NewClassPage() {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary px-8 py-2.5 rounded-xl disabled:opacity-50"
+            className="btn-primary gap-2 px-8 py-2.5 rounded-xl disabled:opacity-50"
           >
+            {loading ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
             {loading ? "Creating..." : "Create Class"}
           </button>
         </div>

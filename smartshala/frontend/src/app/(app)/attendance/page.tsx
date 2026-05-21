@@ -271,9 +271,9 @@ export default function TeacherAttendancePage() {
       )}
 
       {showFeedback && (attendance.error || attendance.success) ? (
-        <div className="fixed right-4 top-4 z-50 flex justify-end px-4 pointer-events-none" role="status" aria-live="polite">
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-8" role="status" aria-live="polite">
           <div
-            className={`rounded-xl px-5 py-2.5 text-[14px] font-semibold shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300 flex items-center gap-2 ${
+            className={`flex max-w-[min(92vw,520px)] items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-semibold shadow-2xl backdrop-blur-xl animate-fade-in ${
               attendance.error ? "bg-white/95 text-[#d70015] border border-[#ff3b30]/20" : "bg-[#34c759] text-white border border-[#34c759]/20"
             }`}
           >
@@ -298,10 +298,11 @@ export default function TeacherAttendancePage() {
         <div className="mx-auto flex max-w-5xl justify-end">
           <button
             type="button"
-            className="btn-primary min-h-[52px] w-full text-[15px] disabled:cursor-not-allowed disabled:opacity-50 sm:w-[232px]"
+            className="btn-primary min-h-[52px] w-full gap-2 text-[15px] disabled:cursor-not-allowed disabled:opacity-50 sm:w-[232px]"
             onClick={attendance.submitAttendance}
             disabled={submitDisabled}
           >
+            {attendance.submitting ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
             {attendance.submitting ? "Saving attendance..." : "Save attendance"}
           </button>
         </div>

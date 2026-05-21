@@ -612,7 +612,8 @@ export default function TeachersPage() {
 
             <div className="flex justify-end gap-2 border-t border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/60 px-5 py-4">
               <button className="rounded-xl px-4 py-2 text-[13px] font-semibold text-[#1d1d1f] hover:bg-white" onClick={() => setAssignmentContext(null)} type="button">Cancel</button>
-              <button className="rounded-xl bg-[#1d1d1f] px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={assignmentSaving || hasAssignmentConflicts} onClick={saveAssignments} type="button">
+              <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={assignmentSaving || hasAssignmentConflicts} onClick={saveAssignments} type="button">
+                {assignmentSaving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
                 {assignmentSaving ? "Saving..." : "Save periods"}
               </button>
             </div>

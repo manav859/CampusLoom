@@ -258,7 +258,8 @@ export default function EditStudentPage() {
           <button className="rounded-xl px-6 py-2.5 text-[14px] font-semibold text-[#1d1d1f] transition-colors hover:bg-[#f5f5f7]" onClick={() => router.back()} type="button">
             Cancel
           </button>
-          <button className="btn-primary rounded-xl px-10 py-2.5 disabled:opacity-50" disabled={saving} type="submit">
+          <button className="btn-primary gap-2 rounded-xl px-10 py-2.5 disabled:opacity-50" disabled={saving} type="submit">
+            {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
             {saving ? "Saving..." : "Save changes"}
           </button>
         </div>

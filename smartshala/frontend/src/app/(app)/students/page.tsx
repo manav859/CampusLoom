@@ -1343,11 +1343,12 @@ export default function StudentsPage() {
             <div className="flex justify-end gap-2 border-t border-[#DCE1E8] bg-[#F7F8FB] px-6 py-4">
               <button className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" disabled={importDialog.busy} onClick={closeImportDialog} type="button">Cancel</button>
               <button
-                className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD] disabled:bg-[#C2C9D4] disabled:text-[#7A8390]"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD] disabled:bg-[#C2C9D4] disabled:text-[#7A8390]"
                 disabled={importDialog.busy || importDialog.rows.length === 0}
                 onClick={submitImport}
                 type="button"
               >
+                {importDialog.busy ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
                 {importDialog.busy ? "Importing..." : `Save ${importDialog.rows.length} students`}
               </button>
             </div>

@@ -262,7 +262,8 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
           {formError ? <p className="mt-3 rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{formError}</p> : null}
 
           <div className="mt-4 flex justify-end">
-            <button className="btn-primary min-h-[44px] px-5 text-[14px]" disabled={saving} type="submit">
+            <button className="btn-primary min-h-[44px] gap-2 px-5 text-[14px]" disabled={saving} type="submit">
+              {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
               {saving ? "Saving..." : "Save behaviour record"}
             </button>
           </div>
@@ -481,7 +482,8 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               <button className="btn-secondary min-h-[44px] px-5 text-[14px]" onClick={() => setSelectedIncident(null)} type="button">
                 Cancel
               </button>
-              <button className="btn-primary min-h-[44px] px-5 text-[14px]" disabled={actionSaving} type="submit">
+              <button className="btn-primary min-h-[44px] gap-2 px-5 text-[14px]" disabled={actionSaving} type="submit">
+                {actionSaving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
                 {actionSaving ? "Saving..." : "Save action"}
               </button>
             </div>

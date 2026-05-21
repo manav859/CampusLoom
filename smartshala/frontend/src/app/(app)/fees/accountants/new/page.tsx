@@ -117,7 +117,8 @@ export default function NewAccountantPage() {
           >
             Cancel
           </button>
-          <button className="btn-primary rounded-xl px-8 py-2.5 disabled:opacity-50" disabled={loading} type="submit">
+          <button className="btn-primary gap-2 rounded-xl px-8 py-2.5 disabled:opacity-50" disabled={loading} type="submit">
+            {loading ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
             {loading ? "Adding..." : "Add Accountant"}
           </button>
         </div>

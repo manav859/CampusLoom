@@ -461,10 +461,11 @@ export default function TeacherHomeworkPage() {
             </label>
 
             <button
-              className="w-full rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
               disabled={saving || loading || !classId || !subjectId}
               type="submit"
             >
+              {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
               {saving ? "Assigning..." : "Assign to class"}
             </button>
           </div>
@@ -609,7 +610,7 @@ export default function TeacherHomeworkPage() {
                         <div className="inline-flex rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] p-1">
                           {(["ON_TIME", "LATE", "NOT_SUBMITTED"] as HomeworkSubmissionStatus[]).map((status) => (
                             <button
-                              className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                                 submission.status === status
                                   ? `${submissionTone(status) === "good" ? "bg-[#E1F5EA] text-[#0F8A4A]" : submissionTone(status) === "warn" ? "bg-[#FFF2DC] text-[#B95A00]" : "bg-[#FCE3E5] text-[#C8242C]"} shadow-sm`
                                   : "text-[#5A6573] hover:bg-white"
@@ -619,6 +620,7 @@ export default function TeacherHomeworkPage() {
                               onClick={() => updateSubmission(submission.studentId, status)}
                               type="button"
                             >
+                              {savingRow ? <span className="h-3.5 w-3.5 rounded-full border-2 border-current/40 border-t-current animate-spin" aria-hidden="true" /> : null}
                               {savingRow ? "Saving..." : submissionLabel(status)}
                             </button>
                           ))}
