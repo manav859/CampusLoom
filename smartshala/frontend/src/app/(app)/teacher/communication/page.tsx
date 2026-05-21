@@ -388,8 +388,8 @@ export default function TeacherCommunicationPage() {
             ) : null}
 
             <div className="rounded-xl bg-[#f5f5f7] px-4 py-3 text-[13px] text-[#6e6e73]">
-              <span className="font-semibold text-[#1d1d1f]">{recipientCount}</span> parent contact{recipientCount === 1 ? "" : "s"} selected.
-              {selectedStudent ? <span> Current parent: {selectedStudent.parentPhone}</span> : null}
+              <span className="font-semibold text-[#1d1d1f]">{recipientCount}</span>{` ${recipientCount === 1 ? "parent contact" : "parent contacts"} selected.`}
+              {selectedStudent ? <span>{` Current parent: ${selectedStudent.parentPhone}`}</span> : null}
             </div>
 
             <button
