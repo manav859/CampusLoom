@@ -213,7 +213,7 @@ export default function NotificationsPage() {
       </div>
 
       {selectedLog ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4">
           <button aria-label="Close message" className="absolute inset-0" onClick={() => setSelectedLog(null)} type="button" />
           <div className="relative w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">

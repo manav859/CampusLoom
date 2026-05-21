@@ -32,7 +32,7 @@ export function SideModal({ children, eyebrow, onClose, title, width = "md" }: S
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/35 backdrop-blur-[2px] side-modal-overlay" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[200] flex justify-end bg-black/35 backdrop-blur-[2px] side-modal-overlay" role="dialog" aria-modal="true">
       <button className="absolute inset-0 cursor-default" aria-label="Close panel" onClick={onClose} type="button" />
       <aside className={`relative flex h-full w-full ${widthClasses[width]} flex-col overflow-hidden bg-white shadow-[var(--shadow-modal)] side-modal-panel`}>
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--border-200)] px-5 py-4 sm:px-6">

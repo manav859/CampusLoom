@@ -161,7 +161,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/30 backdrop-blur-sm sm:items-center sm:justify-center"
+      className="fixed inset-0 z-[200] flex items-end bg-black/30 backdrop-blur-sm sm:items-center sm:justify-center"
       style={{ animation: "modal-overlay-in 200ms ease-out" }}
     >
       <div

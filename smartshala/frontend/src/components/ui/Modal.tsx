@@ -25,7 +25,7 @@ export function Modal({ children, description, footer, isOpen, onClose, title }:
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
       <button className="absolute inset-0 cursor-default" aria-label="Close modal" onClick={onClose} type="button" />
       <div className="relative w-full max-w-md overflow-hidden rounded-[var(--radius-xl)] bg-white shadow-[var(--shadow-modal)]">
         <div className="border-b border-[var(--border-200)] px-6 py-5">

@@ -199,7 +199,7 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
       </section>
 
       {selectedLog ? (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-4 backdrop-blur-sm sm:items-center sm:justify-center">
+        <div className="fixed inset-0 z-[200] flex items-end bg-black/40 p-4 backdrop-blur-sm sm:items-center sm:justify-center">
           <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>

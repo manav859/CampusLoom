@@ -436,7 +436,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
       )}
 
       {selectedIncident ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
           <form className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl" onSubmit={handleActionSubmit}>
             <div className="flex items-start justify-between gap-4">
               <div>

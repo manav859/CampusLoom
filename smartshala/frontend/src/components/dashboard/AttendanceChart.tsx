@@ -209,7 +209,7 @@ function PastWeekModal({
   const average = total ? Math.round((attended / total) * 1000) / 10 : 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
       <button aria-label="Close past week attendance" className="absolute inset-0 cursor-default" onClick={onClose} type="button" />
       <div className="relative w-full max-w-2xl overflow-hidden rounded-[20px] bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-[#e5e5ea] px-6 py-5">
