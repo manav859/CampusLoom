@@ -4,6 +4,17 @@
  */
 
 import { apiFetch, attendanceApi, classesApi, communicationApi, feesApi, homeworkApi, marksApi, whatsappApi } from "./api";
+import { schoolIdFromPath } from "./tenant";
+
+function getActiveSchoolId(): string | null {
+  if (typeof window === "undefined") return null;
+  return schoolIdFromPath(window.location.pathname);
+}
+
+function scopeKey(key: string): string {
+  const schoolId = getActiveSchoolId();
+  return schoolId ? `${schoolId}:${key}` : key;
+}
 
 type CacheEntry<T> = {
   promise: Promise<T>;
@@ -85,7 +96,7 @@ function enqueuePrefetch(key: string | string[], fetcher: () => Promise<unknown>
 }
 
 export function cachedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-  return cachedFetchMany([key], fetcher);
+  return cachedFetchMany([scopeKey(key)], fetcher);
 }
 
 export function cachedFetchMany<T>(keys: string[], fetcher: () => Promise<T>): Promise<T> {
@@ -128,18 +139,19 @@ export function cachedFetchMany<T>(keys: string[], fetcher: () => Promise<T>): P
 }
 
 export function getCachedData<T>(key: string): T | null {
-  const entry = cache.get(key) as CacheEntry<T> | undefined;
+  const entry = cache.get(scopeKey(key)) as CacheEntry<T> | undefined;
   if (!entry?.resolved) return null;
   return entry.data;
 }
 
 export function invalidateCache(key: string) {
-  cache.delete(key);
+  cache.delete(scopeKey(key));
 }
 
 export function invalidateCachePrefix(prefix: string) {
+  const scopedPrefix = scopeKey(prefix);
   for (const key of cache.keys()) {
-    if (key.startsWith(prefix)) cache.delete(key);
+    if (key.startsWith(scopedPrefix)) cache.delete(key);
   }
 }
 
@@ -149,33 +161,39 @@ export function clearCache() {
   prefetchQueue.length = 0;
 }
 
-export function prefetchForRole(role: string) {
+export function prefetchForRole(role: string, schoolId?: string | null) {
+  const prefixKey = (k: string) => schoolId ? `${schoolId}:${k}` : k;
+  const prefixKeys = (k: string | string[]) => {
+    if (Array.isArray(k)) return k.map(prefixKey);
+    return prefixKey(k);
+  };
+
   if (role === "PRINCIPAL" || role === "ADMIN") {
-    enqueuePrefetch(["classes:list", "classes:list:ADMIN"], () => classesApi.list());
-    enqueuePrefetch("dashboard", () => apiFetch("/dashboard"));
-    enqueuePrefetch("fees:structures", () => apiFetch<any[]>("/fees/structures"));
-    enqueuePrefetch("notifications:logs", () => whatsappApi.logs());
-    enqueuePrefetch("attendance:dashboard", () => attendanceApi.dashboard());
-    enqueuePrefetch("attendance:classesToday", () => attendanceApi.classesTodayReport());
-    enqueuePrefetch("students:list:limit=10&page=1", () => apiFetch<any>("/students?limit=10&page=1"));
-    enqueuePrefetch("teachers:list", () => apiFetch<any>("/users/teachers?limit=100"));
+    enqueuePrefetch(prefixKeys(["classes:list", "classes:list:ADMIN"]), () => classesApi.list());
+    enqueuePrefetch(prefixKey("dashboard"), () => apiFetch("/dashboard"));
+    enqueuePrefetch(prefixKey("fees:structures"), () => apiFetch<any[]>("/fees/structures"));
+    enqueuePrefetch(prefixKey("notifications:logs"), () => whatsappApi.logs());
+    enqueuePrefetch(prefixKey("attendance:dashboard"), () => attendanceApi.dashboard());
+    enqueuePrefetch(prefixKey("attendance:classesToday"), () => attendanceApi.classesTodayReport());
+    enqueuePrefetch(prefixKey("students:list:limit=10&page=1"), () => apiFetch<any>("/students?limit=10&page=1"));
+    enqueuePrefetch(prefixKey("teachers:list"), () => apiFetch<any>("/users/teachers?limit=100"));
   }
 
   if (role === "TEACHER") {
-    enqueuePrefetch(["classes:list", "classes:list:SCOPED"], () => classesApi.list());
-    enqueuePrefetch("dashboard:teacher", () => apiFetch("/dashboard"));
-    enqueuePrefetch("marks:context", () => marksApi.context());
-    enqueuePrefetch("marks:exams", () => marksApi.exams());
-    enqueuePrefetch("homework:context", () => homeworkApi.context());
-    enqueuePrefetch("homework:assignments", () => homeworkApi.assignments());
-    enqueuePrefetch("communication:context", () => communicationApi.context());
-    enqueuePrefetch("communication:messages", () => communicationApi.messages());
+    enqueuePrefetch(prefixKeys(["classes:list", "classes:list:SCOPED"]), () => classesApi.list());
+    enqueuePrefetch(prefixKey("dashboard:teacher"), () => apiFetch("/dashboard"));
+    enqueuePrefetch(prefixKey("marks:context"), () => marksApi.context());
+    enqueuePrefetch(prefixKey("marks:exams"), () => marksApi.exams());
+    enqueuePrefetch(prefixKey("homework:context"), () => homeworkApi.context());
+    enqueuePrefetch(prefixKey("homework:assignments"), () => homeworkApi.assignments());
+    enqueuePrefetch(prefixKey("communication:context"), () => communicationApi.context());
+    enqueuePrefetch(prefixKey("communication:messages"), () => communicationApi.messages());
   }
 
   if (role === "ACCOUNTANT") {
-    enqueuePrefetch(["classes:list", "classes:list:SCOPED"], () => classesApi.list());
-    enqueuePrefetch("fees:dashboard", () => feesApi.dashboard());
-    enqueuePrefetch("fees:defaulters", () => feesApi.defaulters());
-    enqueuePrefetch("fees:structures", () => apiFetch<any[]>("/fees/structures"));
+    enqueuePrefetch(prefixKeys(["classes:list", "classes:list:SCOPED"]), () => classesApi.list());
+    enqueuePrefetch(prefixKey("fees:dashboard"), () => feesApi.dashboard());
+    enqueuePrefetch(prefixKey("fees:defaulters"), () => feesApi.defaulters());
+    enqueuePrefetch(prefixKey("fees:structures"), () => apiFetch<any[]>("/fees/structures"));
   }
 }

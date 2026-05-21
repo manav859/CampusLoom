@@ -106,7 +106,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           if (cancelled) return;
           setUser(parsed);
           setReady(true);
-          prefetchForRole(parsed.role);
+          prefetchForRole(parsed.role, parsed.tenantSchoolId);
         } catch {
           window.localStorage.removeItem("smartshala.user");
         }
@@ -117,7 +117,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         setUser(result.user);
         window.localStorage.setItem("smartshala.user", JSON.stringify(result.user));
-        prefetchForRole(result.user.role);
+        prefetchForRole(result.user.role, result.user.tenantSchoolId);
         setReady(true);
       } catch {
         clearCache();

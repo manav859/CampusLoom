@@ -15,7 +15,23 @@ export function withResolvedSchoolPath(path: string, schoolId?: string | null) {
 
 export function tenantApiBase(baseUrl: string) {
   if (typeof window === "undefined") return baseUrl;
-  const schoolId = schoolIdFromPath(window.location.pathname);
+  let schoolId = schoolIdFromPath(window.location.pathname);
+
+  if (!schoolId) {
+    try {
+      const storedUser = window.localStorage.getItem("smartshala.user");
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        const storedId = user?.tenantSchoolId;
+        if (storedId && /^[A-Z0-9]{8}$/.test(storedId)) {
+          schoolId = storedId;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
   if (!schoolId) return baseUrl;
 
   const url = new URL(baseUrl, window.location.origin);
