@@ -184,8 +184,10 @@ export default function ActivityLogsPage() {
   }, [actionFilter, actorFilter, dateFrom, dateTo, limit, page, search]);
 
   const rows = data?.items ?? [];
-  const total = Math.max(data?.meta.total ?? 0, rows.length);
-  const headerCount = data?.stats.totalCount ?? data?.meta.total ?? rows.length;
+  const apiTotal = Number(data?.meta.total ?? 0);
+  const apiHeaderTotal = Number(data?.stats.totalCount ?? 0);
+  const total = rows.length > 0 && apiTotal === 0 ? rows.length : Math.max(apiTotal, rows.length);
+  const headerCount = rows.length > 0 && apiHeaderTotal === 0 ? total : Math.max(apiHeaderTotal, total);
   const start = total > 0 ? (page - 1) * limit + 1 : 0;
   const end = total > 0 ? Math.min(page * limit, total) : 0;
   const pageNumbers = useMemo(() => {
