@@ -105,7 +105,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="WhatsApp" title="Parent notification logs" action={<button className="btn-primary">Send message</button>} />
+      <PageHeader title="Message logs" action={<button className="btn-primary">Send message</button>} />
 
       <section className="grid gap-4 sm:grid-cols-3">
         {loading ? (

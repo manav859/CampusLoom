@@ -23,9 +23,9 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
         <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Student fee accounts</h2>
         <p className="mt-1 text-[13px] text-[#86868b]">Open a student ledger to record payment or view receipts.</p>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[400px] overflow-y-auto relative">
         <table className="w-full min-w-[720px] text-left text-[13px]">
-          <thead className="table-head">
+          <thead className="table-head sticky top-0 bg-white z-10 shadow-[0_1px_0_rgba(0,0,0,0.06)]">
             <tr>
               {["Student", "Class", "Paid", "Balance", "Status", ""].map((head) => (
                 <th className="px-6 py-3.5 font-semibold" key={head}>{head}</th>

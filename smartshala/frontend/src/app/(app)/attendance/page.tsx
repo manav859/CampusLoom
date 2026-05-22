@@ -98,8 +98,7 @@ export default function TeacherAttendancePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
-        eyebrow="Attendance"
-        title="Reliable attendance"
+        title="Attendance"
         action={
           <div className="flex gap-2">
             <button

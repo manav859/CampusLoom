@@ -25,7 +25,7 @@ const reports = [
 export default function ReportsPage() {
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Reports" title="Printable and exportable reports" />
+      <PageHeader title="Reports" />
       <section className="grid gap-4 md:grid-cols-3">
         {reports.map((report) => (
           <article className="rounded-2xl border border-[#DCE1E8] bg-white p-5 shadow-apple" key={report.href}>

@@ -340,7 +340,7 @@ export default function TeachersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow="Teachers" title="Teacher management" action={isAdmin ? <Link href="/teachers/new" className="btn-primary">Add teacher</Link> : null} />
+      <PageHeader title="Teacher management" action={isAdmin ? <Link href="/teachers/new" className="btn-primary">Add teacher</Link> : null} />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="grid gap-2 sm:grid-cols-3">
