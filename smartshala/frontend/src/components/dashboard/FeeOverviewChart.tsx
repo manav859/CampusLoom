@@ -1,26 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type Segment = { label: string; value: number; color: string };
 
-const defaultSegments: Segment[] = [
-  { label: "Collected", value: 65, color: "#34c759" },
-  { label: "Pending", value: 25, color: "#ff9500" },
-  { label: "Overdue", value: 10, color: "#ff3b30" },
-];
-
 export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "Finance" }: { segments?: Segment[]; title?: string; eyebrow?: string }) {
-  const data = segments ?? defaultSegments;
-  const [on, setOn] = useState(false);
+  const data = segments ?? [];
   const [mode, setMode] = useState<"donut" | "bar">("donut");
-  const [windowLabel, setWindowLabel] = useState("This month");
-  useEffect(() => { const t = setTimeout(() => setOn(true), 200); return () => clearTimeout(t); }, []);
 
   const total = data.reduce((s, d) => s + d.value, 0);
   const r = 40, cx = 50, cy = 50, sw = 12;
   const hasData = total > 0;
-
   const circumference = 2 * Math.PI * r;
   let strokeOffset = 0;
   const arcs = data.filter((seg) => seg.value > 0).map((seg) => {
@@ -29,46 +19,35 @@ export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "
     strokeOffset += length;
     return arc;
   });
-
   const primaryPct = hasData && data.length > 0 ? Math.round((data[0].value / total) * 100) : 0;
 
   return (
-    <div className="glass-card-interactive p-5 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
+    <div className="glass-card-interactive flex h-full flex-col p-5">
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">{eyebrow}</p>
           <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">{title}</h3>
-          <p className="mt-0.5 text-[11px] font-medium text-[#86868b]">{windowLabel}</p>
+          <p className="mt-0.5 text-[11px] font-medium text-[#86868b]">Live totals</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
-          <select
-            className="rounded-md border border-[#e5e5ea] bg-[#f5f5f7] px-2 py-1 text-[10px] font-bold text-[#5A6573] outline-none"
-            onChange={(event) => setWindowLabel(event.target.value)}
-            value={windowLabel}
-          >
-            <option>This week</option>
-            <option>This month</option>
-            <option>This term</option>
-          </select>
           <div className="flex rounded-md border border-[#e5e5ea] bg-[#f5f5f7] p-0.5">
-            <button onClick={() => setMode("donut")} className={`px-2.5 py-0.5 text-[10px] rounded-[4px] font-medium transition-colors ${mode === "donut" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Donut</button>
-            <button onClick={() => setMode("bar")} className={`px-2.5 py-0.5 text-[10px] rounded-[4px] font-medium transition-colors ${mode === "bar" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Bar</button>
+            <button onClick={() => setMode("donut")} className={`rounded-[4px] px-2.5 py-0.5 text-[10px] font-medium transition-colors ${mode === "donut" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Donut</button>
+            <button onClick={() => setMode("bar")} className={`rounded-[4px] px-2.5 py-0.5 text-[10px] font-medium transition-colors ${mode === "bar" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Bar</button>
           </div>
         </div>
       </div>
-      <div className="flex-1 flex flex-col justify-center min-h-0">
+
+      <div className="flex min-h-0 flex-1 flex-col justify-center">
         {!hasData ? (
           <div className="flex h-full flex-col items-center justify-center rounded-xl bg-[#f5f5f7] px-4 text-center">
-            <p className="text-[14px] font-semibold text-[#1d1d1f]">No active fee assignments yet.</p>
-            <p className="mt-1 text-[12px] font-medium text-[#86868b]">Collection, pending, and overdue totals will appear after active fees are assigned.</p>
+            <p className="text-[14px] font-semibold text-[#1d1d1f]">No fee data yet.</p>
+            <p className="mt-1 text-[12px] font-medium text-[#86868b]">Collection, pending, and overdue totals will appear after fees are assigned.</p>
           </div>
         ) : mode === "donut" ? (
-          <div className="flex items-center justify-center w-full h-full">
-            <div className="relative w-full max-w-[160px] aspect-square">
-              <svg viewBox="0 0 100 100" className="w-full h-full">
-                {/* Background circle */}
+          <div className="flex h-full w-full items-center justify-center">
+            <div className="relative aspect-square w-full max-w-[160px]">
+              <svg viewBox="0 0 100 100" className="h-full w-full">
                 <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f5f5f7" strokeWidth={sw} />
-                {/* Arcs */}
                 {arcs.map((arc) => (
                   <circle
                     key={arc.label}
@@ -82,36 +61,33 @@ export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "
                     strokeDasharray={`${arc.length} ${circumference}`}
                     strokeDashoffset={-arc.offset}
                     transform={`rotate(-90 ${cx} ${cy})`}
-                    opacity={on ? 1 : 0}
-                    style={{ transition: `opacity 0.6s ease 0.3s` }}
                   />
                 ))}
               </svg>
-              {/* Center label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[22px] font-bold text-[#1d1d1f] tracking-tight">{on ? `${primaryPct}%` : "—"}</span>
+                <span className="text-[22px] font-bold tracking-tight text-[#1d1d1f]">{primaryPct}%</span>
                 <span className="text-[10px] font-medium text-[#86868b]">collected</span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="w-full flex flex-col justify-center gap-5 px-2">
+          <div className="flex w-full flex-col justify-center gap-5 px-2">
             {data.map((seg, i) => (
               <div key={seg.label}>
-                <div className="flex justify-between text-[12px] font-medium text-[#424245] mb-1.5">
+                <div className="mb-1.5 flex justify-between text-[12px] font-medium text-[#424245]">
                   <span>{seg.label}</span>
-                  <span className="font-bold text-[#1d1d1f]">{hasData ? Math.round((seg.value / total) * 100) : 0}%</span>
+                  <span className="font-bold text-[#1d1d1f]">{Math.round((seg.value / total) * 100)}%</span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-[#f5f5f7] overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: on && hasData ? `${(seg.value / total) * 100}%` : '0%', backgroundColor: seg.color, transition: `width 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.1}s` }} />
+                <div className="h-2 w-full overflow-hidden rounded-full bg-[#f5f5f7]">
+                  <div className="h-full rounded-full" style={{ width: `${(seg.value / total) * 100}%`, backgroundColor: seg.color, transition: `width 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.1}s` }} />
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
-      {/* Legend */}
-      <div className="flex items-center justify-center gap-4 mt-3">
+
+      <div className="mt-3 flex items-center justify-center gap-4">
         {data.map((seg) => (
           <span key={seg.label} className="flex items-center gap-1.5 text-[11px] font-medium text-[#424245]">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: seg.color }} />

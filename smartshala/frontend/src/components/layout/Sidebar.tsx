@@ -9,7 +9,7 @@ import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
 type NavLink = {
   label: string;
   href: string;
-  icon: "dashboard" | "students" | "teachers" | "classes" | "attendance" | "reports" | "fees" | "analytics" | "notifications" | "settings";
+  icon: "dashboard" | "students" | "teachers" | "classes" | "attendance" | "reports" | "fees" | "analytics" | "notifications" | "activity" | "settings";
 };
 
 const adminLinks: NavLink[] = [
@@ -25,6 +25,7 @@ const adminLinks: NavLink[] = [
   { label: "Fees", href: "/fees", icon: "fees" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
   { label: "Message logs", href: "/notifications", icon: "notifications" },
+  { label: "Activity logs", href: "/activity-logs", icon: "activity" },
   { label: "Settings", href: "/settings", icon: "settings" }
 ];
 
@@ -130,6 +131,15 @@ function NavIcon({ icon, active }: { icon: NavLink["icon"]; active: boolean }) {
       <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
         <path d="M12 5a4.5 4.5 0 00-4.5 4.5v3L5 16h14l-2.5-3.5v-3A4.5 4.5 0 0012 5z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
         <path d="M10 19a2 2 0 004 0" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (icon === "activity") {
+    return (
+      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
+        <path d="M5 6h14M5 12h9M5 18h14" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M17 10l2 2-2 2" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }

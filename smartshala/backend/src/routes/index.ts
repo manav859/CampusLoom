@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { activityRouter } from "../modules/activity/activity.routes.js";
 import { apiHealthHandler, dbHealthHandler } from "./health.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
 import { attendanceRouter } from "../modules/attendance/attendance.routes.js";
@@ -19,6 +20,7 @@ import { superAdminRouter } from "../modules/superAdmin/superAdmin.routes.js";
 import { tenantSetupRouter } from "../modules/tenantSetup/tenantSetup.routes.js";
 import { usersRouter } from "../modules/users/users.routes.js";
 import { whatsappRouter } from "../modules/whatsapp/whatsapp.routes.js";
+import { auditMutatingRequest } from "../middleware/activityAudit.js";
 
 export const apiRouter = Router();
 
@@ -27,8 +29,10 @@ apiRouter.get("/health/db", dbHealthHandler);
 apiRouter.use("/onboarding", onboardingRouter);
 apiRouter.use("/super-admin", superAdminRouter);
 apiRouter.use("/tenant-setup", tenantSetupRouter);
+apiRouter.use(auditMutatingRequest);
 
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/activity-logs", activityRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/classes", classesRouter);
 apiRouter.use("/communication", communicationRouter);

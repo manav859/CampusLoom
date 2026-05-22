@@ -1,6 +1,6 @@
 import { env } from "./env";
 import { tenantApiBase } from "./tenant";
-import type { SessionUser } from "@/types";
+import type { Role, SessionUser } from "@/types";
 
 type ApiOptions = RequestInit & {
   auth?: boolean;
@@ -840,6 +840,48 @@ export type DatabaseDeletionStatus = {
   deletionExecutedAt: string | null;
 };
 
+export type ActivityLog = {
+  id: string;
+  schoolId: string;
+  actorId: string | null;
+  entityType: string;
+  entityId: string;
+  action: string;
+  summary: string;
+  beforeJson: Record<string, unknown> | null;
+  afterJson: Record<string, unknown> | null;
+  createdAt: string;
+  actor: {
+    id: string;
+    fullName: string;
+    role: Role;
+    phone?: string | null;
+    email?: string | null;
+  } | null;
+};
+
+export type ActivityLogResponse = {
+  items: ActivityLog[];
+  meta: {
+    limit: number;
+    page: number;
+    total: number;
+    totalPages: number;
+  };
+  stats: {
+    todayCount: number;
+    totalCount: number;
+    actorCount: number;
+    entityTypes: { label: string; count: number }[];
+    actions: { label: string; count: number }[];
+  };
+  filters: {
+    actors: { id: string; fullName: string; role: Role }[];
+    actions: string[];
+    entityTypes: string[];
+  };
+};
+
 export const classesApi = {
   list: (options?: { scope?: "classTeacher" }) => {
     const params = new URLSearchParams();
@@ -934,6 +976,19 @@ export const settingsApi = {
       method: "POST",
       body: JSON.stringify({ password })
     })
+};
+
+export const activityApi = {
+  logs: (params?: { action?: string; actorId?: string; entityType?: string; page?: number; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.action) query.set("action", params.action);
+    if (params?.actorId) query.set("actorId", params.actorId);
+    if (params?.entityType) query.set("entityType", params.entityType);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.search) query.set("search", params.search);
+    const qs = query.toString();
+    return apiFetch<ActivityLogResponse>(`/activity-logs${qs ? `?${qs}` : ""}`);
+  }
 };
 
 export const attendanceApi = {

@@ -340,7 +340,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
             <FeeOverviewChart
               eyebrow={mode === "ADMIN" ? "Finance" : "Teacher workload"}
               segments={mode === "ADMIN" ? feeSegments : teacherWorkSegments}
-              title={mode === "ADMIN" ? "Fee overview - active assignments" : "Today's actions"}
+              title={mode === "ADMIN" ? "Fee overview" : "Today's actions"}
             />
           </>
         )}
