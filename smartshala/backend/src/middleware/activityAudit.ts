@@ -61,6 +61,7 @@ export function auditMutatingRequest(req: Request, res: Response, next: NextFunc
     if (!MUTATING_METHODS.has(req.method)) return;
     if (!req.user) return;
     if (req.originalUrl.includes("/activity-logs")) return;
+    if (/\/api(?:\/v1)?\/students(?:\/|$)/.test(req.originalUrl)) return;
 
     const entityType = entityFromPath(req.originalUrl);
     const entityId = findUuid(req.params) ?? findUuid(req.body) ?? req.user.id ?? req.user.schoolId;

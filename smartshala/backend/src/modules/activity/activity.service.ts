@@ -35,6 +35,7 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
   if (dateTo) dateTo.setHours(23, 59, 59, 999);
   const where = {
     schoolId: user.schoolId,
+    NOT: { entityType: "STUDENTS" },
     ...(query.action ? { action: query.action } : {}),
     ...(query.actorId ? { actorId: query.actorId } : {}),
     ...(dateFrom || dateTo
