@@ -16,15 +16,15 @@ export function formatINR(value: string | number | null | undefined, options: Cu
 
   if (options.compact !== false && absAmount >= 10_000_000) {
     const crore = trimTrailingZeroes((amount / 10_000_000).toFixed(1));
-    return `INR ${crore} Crore`;
+    return `₹ ${crore} Crore`;
   }
 
   if (options.compact !== false && absAmount >= 100_000) {
     const lakh = trimTrailingZeroes((amount / 100_000).toFixed(1));
-    return `INR ${lakh} Lakh`;
+    return `₹ ${lakh} Lakh`;
   }
 
-  return `INR ${amount.toLocaleString("en-IN", {
+  return `₹ ${amount.toLocaleString("en-IN", {
     maximumFractionDigits,
     minimumFractionDigits: maximumFractionDigits > 0 ? maximumFractionDigits : 0
   })}`;

@@ -20,8 +20,8 @@ export function Skeleton({ className = "", style }: { className?: string; style?
 /* ── KPI Card skeleton ── */
 export function KpiCardSkeleton() {
   return (
-    <div className="flex min-h-[120px] items-center gap-5 rounded-[6px] border border-[#E2E7EE] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
-      <Skeleton className="hidden h-[70px] w-[70px] shrink-0 rounded-[8px] sm:block" />
+    <div className="flex h-[112px] items-center gap-4 rounded-[6px] border border-[#E2E7EE] bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
+      <Skeleton className="hidden h-14 w-14 shrink-0 rounded-[8px] sm:block" />
       <div className="min-w-0 flex-1 space-y-2">
         <Skeleton className="h-4 w-24 rounded-md" />
         <Skeleton className="h-8 w-20 rounded-md" />

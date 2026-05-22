@@ -66,13 +66,13 @@ const kpiToneStyles: Record<KpiTone, { hover: string; accent: string; iconBg: st
 function MiniKpiCard({ label, value, tone = "neutral" }: { label: string; value: string; tone?: KpiTone }) {
   const s = kpiToneStyles[tone];
   return (
-    <div className={`flex h-[120px] items-center gap-4 rounded-[6px] border border-[#E2E7EE] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 ${s.hover}`}>
-      <div className={`hidden h-16 w-16 shrink-0 items-center justify-center rounded-[8px] sm:flex ${s.iconBg}`}>
-        <KpiIcon label={label} className={`h-7 w-7 ${s.accent}`} />
+    <div className={`flex h-[112px] items-center gap-4 rounded-[6px] border border-[#E2E7EE] bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 ${s.hover}`}>
+      <div className={`hidden h-14 w-14 shrink-0 items-center justify-center rounded-[8px] sm:flex ${s.iconBg}`}>
+        <KpiIcon label={label} className={`h-6 w-6 ${s.accent}`} />
       </div>
       <div className="min-w-0 flex-1">
         <MarqueeText text={label} className="text-[15px] font-medium leading-6 text-[#52687D]" />
-        <MarqueeText text={value} className="mt-0.5 text-[28px] font-semibold leading-8 tracking-normal text-[#0F2233]" />
+        <MarqueeText text={value} className="mt-0.5 text-[27px] font-semibold leading-8 tracking-normal text-[#0F2233]" />
       </div>
     </div>
   );

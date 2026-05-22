@@ -199,7 +199,7 @@ samp,
   }
 
   .kpi-metric-card {
-    height: 120px;
+    height: 112px;
     border-radius: 6px;
     border: 1px solid #E2E7EE;
     background: #ffffff;
@@ -241,7 +241,7 @@ samp,
 
   .kpi-metric-value {
     margin-top: 4px;
-    font-size: 28px;
+    font-size: 27px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     line-height: 36px;

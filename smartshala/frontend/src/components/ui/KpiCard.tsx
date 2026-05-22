@@ -18,30 +18,34 @@ const toneMap: Record<NonNullable<Kpi["tone"]>, { hover: string; accent: string;
 
 export function MarqueeText({ text, className = "" }: { text: string | number; className?: string }) {
   const value = String(text);
-  const ref = useRef<HTMLSpanElement>(null);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
   useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
+    const container = containerRef.current;
+    const measureNode = measureRef.current;
+    if (!container || !measureNode) return;
 
-    const measure = () => setIsOverflowing(node.scrollWidth > node.clientWidth + 1);
+    const measure = () => setIsOverflowing(measureNode.scrollWidth > container.clientWidth + 1);
     measure();
 
     const observer = new ResizeObserver(measure);
-    observer.observe(node);
+    observer.observe(container);
+    observer.observe(measureNode);
     return () => observer.disconnect();
   }, [value]);
 
   return (
-    <span ref={ref} className={`block overflow-hidden whitespace-nowrap ${className}`} title={value}>
+    <span ref={containerRef} className={`relative block overflow-hidden whitespace-nowrap ${className}`} title={value}>
+      <span ref={measureRef} className="invisible absolute whitespace-nowrap">{value}</span>
       {isOverflowing ? (
         <span className="inline-flex min-w-max gap-8 animate-kpi-marquee">
           <span>{value}</span>
           <span aria-hidden="true">{value}</span>
         </span>
       ) : (
-        <span className="block truncate">{value}</span>
+        <span className="inline-block max-w-full">{value}</span>
       )}
     </span>
   );
@@ -126,10 +130,10 @@ export function KpiCard({ label, value, helper, formula, href, tone = "neutral" 
   const styles = toneMap[tone];
   const content = (
     <div
-      className={`relative flex h-[120px] items-center gap-4 overflow-visible rounded-[6px] border border-[#E2E7EE] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 ${href ? "cursor-pointer" : ""} ${styles.hover}`}
+      className={`relative flex h-[112px] items-center gap-4 overflow-visible rounded-[6px] border border-[#E2E7EE] bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 ${href ? "cursor-pointer" : ""} ${styles.hover}`}
     >
-      <div className={`hidden h-16 w-16 shrink-0 items-center justify-center rounded-[8px] sm:flex ${styles.iconBg}`}>
-        <KpiIcon label={label} className={`h-7 w-7 ${styles.accent}`} />
+      <div className={`hidden h-14 w-14 shrink-0 items-center justify-center rounded-[8px] sm:flex ${styles.iconBg}`}>
+        <KpiIcon label={label} className={`h-6 w-6 ${styles.accent}`} />
       </div>
       {formula ? (
         <span className="group/tooltip absolute right-4 top-4 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#9AA5B1] bg-white text-[11px] font-bold text-[#6B7785]">
@@ -142,7 +146,7 @@ export function KpiCard({ label, value, helper, formula, href, tone = "neutral" 
 
       <div className="min-w-0 flex-1">
         <MarqueeText text={label} className="pr-7 text-[15px] font-medium leading-6 text-[#52687D]" />
-        <MarqueeText text={value} className="mt-0.5 text-[28px] font-semibold leading-8 tracking-normal text-[#0F2233] [font-variant-numeric:tabular-nums]" />
+        <MarqueeText text={value} className="mt-0.5 text-[27px] font-semibold leading-8 tracking-normal text-[#0F2233] [font-variant-numeric:tabular-nums]" />
         {helper ? <MarqueeText text={helper} className="mt-1 text-[12px] font-medium leading-4 text-[#5A6573]" /> : null}
       </div>
     </div>
