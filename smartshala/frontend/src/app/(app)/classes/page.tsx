@@ -69,7 +69,7 @@ export default function ClassesPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Classes" action={isAdmin ? <Link href="/classes/new" className="btn-primary">Create class</Link> : null} />
+      <PageHeader eyebrow="Classes" title="Classes and assignments" action={isAdmin ? <Link href="/classes/new" className="btn-primary">Create class</Link> : null} />
       
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

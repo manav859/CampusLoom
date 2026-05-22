@@ -168,7 +168,8 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Analytics"
+        eyebrow="AI analytics"
+        title="Attendance and fee risk insights"
         action={
           <>
             <button className="btn-secondary" onClick={() => downloadCsv(visibleRisks)} type="button">Export CSV</button>

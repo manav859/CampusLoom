@@ -146,7 +146,8 @@ export default function FeesDashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Fees"
+        eyebrow="Fees"
+        title="Collection command center"
         action={
           <>
             {isAdmin ? <a className="btn-secondary" href="#fee-structures">Manage fee structures</a> : null}

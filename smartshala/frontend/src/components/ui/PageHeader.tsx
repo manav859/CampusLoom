@@ -39,22 +39,11 @@ function humanSegment(segment: string) {
 }
 
 function breadcrumbsFromPath(pathname: string): Breadcrumb[] {
-  const allSegments = pathname.split("/").filter(Boolean);
-  const hasSchoolId = allSegments[0] && /^[A-Z0-9]{8}$/.test(allSegments[0]);
-  const schoolId = hasSchoolId ? allSegments[0] : "";
-  const segments = hasSchoolId ? allSegments.slice(1) : allSegments;
-
-  return segments.map((segment, index) => {
-    const sliceCount = hasSchoolId ? index + 2 : index + 1;
-    const href = index < segments.length - 1
-      ? `/${allSegments.slice(0, sliceCount).join("/")}`
-      : undefined;
-
-    return {
-      href,
-      label: humanSegment(segment)
-    };
-  });
+  const segments = pathname.split("/").filter(Boolean);
+  return segments.map((segment, index) => ({
+    href: index < segments.length - 1 ? `/${segments.slice(0, index + 1).join("/")}` : undefined,
+    label: humanSegment(segment)
+  }));
 }
 
 export function PageHeader({ title, eyebrow, action, breadcrumbs }: PageHeaderProps) {
