@@ -23,17 +23,17 @@ export function WhatsAppWidget({ logs, loading }: { logs: NotificationLog[]; loa
         <p className="mt-5 rounded-xl bg-[rgba(0,0,0,0.02)] px-4 py-4 text-[13px] text-[#86868b]">Loading WhatsApp logs…</p>
       ) : (
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl bg-[#34c759]/[0.08] p-4 border border-[#34c759]/10">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#248a3d]">Sent</p>
-            <p className="mt-2 text-[28px] font-bold tracking-tight text-inherit">{sent}</p>
+          <div className="kpi-metric-card kpi-metric-card-good p-4">
+            <p className="kpi-metric-label">Sent</p>
+            <p className="kpi-metric-value">{sent}</p>
           </div>
-          <div className="rounded-xl bg-[#ff9500]/[0.08] p-4 border border-[#ff9500]/10">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#c93400]">Queued</p>
-            <p className="mt-2 text-[28px] font-bold tracking-tight text-inherit">{queued}</p>
+          <div className="kpi-metric-card kpi-metric-card-warn p-4">
+            <p className="kpi-metric-label">Queued</p>
+            <p className="kpi-metric-value">{queued}</p>
           </div>
-          <div className="rounded-xl bg-[#ff3b30]/[0.08] p-4 border border-[#ff3b30]/10">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-[#d70015]">Failed</p>
-            <p className="mt-2 text-[28px] font-bold tracking-tight text-inherit">{failed}</p>
+          <div className="kpi-metric-card kpi-metric-card-danger p-4">
+            <p className="kpi-metric-label">Failed</p>
+            <p className="kpi-metric-value">{failed}</p>
           </div>
         </div>
       )}

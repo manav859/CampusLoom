@@ -142,13 +142,13 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
                 : `${student.fullName} has no pending fees and no recent attendance risk from the available records.`}
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Fees paid</p>
-              <p className="mt-1.5 text-[20px] font-semibold tracking-tight text-[#1d1d1f]">{money(paidFees)}</p>
+            <div className="kpi-metric-card kpi-metric-card-good min-h-[96px] p-4">
+              <p className="kpi-metric-label">Fees paid</p>
+              <p className="kpi-metric-value text-[24px] leading-7">{money(paidFees)}</p>
             </div>
-            <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Attendance records</p>
-              <p className="mt-1.5 text-[20px] font-semibold tracking-tight text-[#1d1d1f]">{attendance.total}</p>
+            <div className="kpi-metric-card min-h-[96px] p-4">
+              <p className="kpi-metric-label">Attendance records</p>
+              <p className="kpi-metric-value text-[24px] leading-7">{attendance.total}</p>
             </div>
           </div>
         </div>

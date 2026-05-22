@@ -271,21 +271,21 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-4 shadow-apple-sm backdrop-blur-xl">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Incidents</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#c93400]">{behaviour.counts.incidents}</p>
+        <div className="kpi-metric-card kpi-metric-card-warn p-4">
+          <p className="kpi-metric-label">Incidents</p>
+          <p className="kpi-metric-value">{behaviour.counts.incidents}</p>
         </div>
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-4 shadow-apple-sm backdrop-blur-xl">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Positive achievements</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#248a3d]">{behaviour.counts.achievements}</p>
+        <div className="kpi-metric-card kpi-metric-card-good p-4">
+          <p className="kpi-metric-label">Positive achievements</p>
+          <p className="kpi-metric-value">{behaviour.counts.achievements}</p>
         </div>
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-4 shadow-apple-sm backdrop-blur-xl">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Counsellor notes</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#5856d6]">{behaviour.counts.counsellorNotes}</p>
+        <div className="kpi-metric-card kpi-metric-card-purple p-4">
+          <p className="kpi-metric-label">Counsellor notes</p>
+          <p className="kpi-metric-value">{behaviour.counts.counsellorNotes}</p>
         </div>
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-4 shadow-apple-sm backdrop-blur-xl">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Total records</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{behaviour.counts.total}</p>
+        <div className="kpi-metric-card p-4">
+          <p className="kpi-metric-label">Total records</p>
+          <p className="kpi-metric-value">{behaviour.counts.total}</p>
         </div>
       </div>
 

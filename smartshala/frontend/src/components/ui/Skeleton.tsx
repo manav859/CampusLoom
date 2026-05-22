@@ -20,9 +20,12 @@ export function Skeleton({ className = "", style }: { className?: string; style?
 /* ── KPI Card skeleton ── */
 export function KpiCardSkeleton() {
   return (
-    <div className="glass-card-interactive min-h-[96px] p-5 space-y-3">
-      <Skeleton className="h-3 w-16 rounded-md" />
-      <Skeleton className="h-7 w-24 rounded-md" />
+    <div className="flex min-h-[120px] items-center gap-5 rounded-[6px] border border-[#E2E7EE] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
+      <Skeleton className="hidden h-[70px] w-[70px] shrink-0 rounded-[8px] sm:block" />
+      <div className="min-w-0 flex-1 space-y-2">
+        <Skeleton className="h-4 w-24 rounded-md" />
+        <Skeleton className="h-8 w-20 rounded-md" />
+      </div>
     </div>
   );
 }
@@ -111,9 +114,9 @@ export function AlertSkeleton({ rows = 4 }: { rows?: number }) {
 /* ── Notification stat card skeleton ── */
 export function StatCardSkeleton() {
   return (
-    <div className="glass-card-interactive p-6 space-y-3">
-      <Skeleton className="h-3 w-24 rounded-md" />
-      <Skeleton className="h-10 w-16 rounded-md" />
+    <div className="kpi-metric-card p-6 space-y-3">
+      <Skeleton className="h-4 w-28 rounded-md" />
+      <Skeleton className="h-8 w-20 rounded-md" />
     </div>
   );
 }

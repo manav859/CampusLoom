@@ -78,21 +78,21 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl bg-white/70 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">On time</p>
-              <p className="mt-1.5 text-[24px] font-semibold text-[#248a3d]">{homework.counts.onTime}</p>
+            <div className="kpi-metric-card kpi-metric-card-good min-h-[96px] p-4">
+              <p className="kpi-metric-label">On time</p>
+              <p className="kpi-metric-value text-[24px] leading-7">{homework.counts.onTime}</p>
             </div>
-            <div className="rounded-xl bg-white/70 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Late</p>
-              <p className="mt-1.5 text-[24px] font-semibold text-[#cc7700]">{homework.counts.late}</p>
+            <div className="kpi-metric-card kpi-metric-card-warn min-h-[96px] p-4">
+              <p className="kpi-metric-label">Late</p>
+              <p className="kpi-metric-value text-[24px] leading-7">{homework.counts.late}</p>
             </div>
-            <div className="rounded-xl bg-white/70 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Missing</p>
-              <p className="mt-1.5 text-[24px] font-semibold text-[#c90011]">{homework.counts.missing}</p>
+            <div className="kpi-metric-card kpi-metric-card-danger min-h-[96px] p-4">
+              <p className="kpi-metric-label">Missing</p>
+              <p className="kpi-metric-value text-[24px] leading-7">{homework.counts.missing}</p>
             </div>
-            <div className="rounded-xl bg-white/70 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Streak</p>
-              <p className="mt-1.5 text-[24px] font-semibold text-[#1d1d1f]">{homework.currentStreak}</p>
+            <div className="kpi-metric-card min-h-[96px] p-4">
+              <p className="kpi-metric-label">Streak</p>
+              <p className="kpi-metric-value text-[24px] leading-7">{homework.currentStreak}</p>
               <p className="mt-1 text-[11px] font-semibold text-[#5A6573]">Class avg {homework.classAverageStreak}</p>
             </div>
           </div>

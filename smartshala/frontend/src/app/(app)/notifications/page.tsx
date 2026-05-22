@@ -116,17 +116,17 @@ export default function NotificationsPage() {
           </>
         ) : (
           <>
-            <div className="glass-card-interactive p-6">
-              <p className="text-[13px] font-semibold text-[#248a3d]">Total sent today</p>
-              <p className="mt-3 text-[40px] font-semibold tracking-tight text-[#1d1d1f]">{sentToday}</p>
+            <div className="kpi-metric-card kpi-metric-card-good p-6">
+              <p className="kpi-metric-label">Total sent today</p>
+              <p className="kpi-metric-value">{sentToday}</p>
             </div>
-            <div className="glass-card-interactive p-6">
-              <p className="text-[13px] font-semibold text-[#d70015]">Failed count</p>
-              <p className="mt-3 text-[40px] font-semibold tracking-tight text-[#1d1d1f]">{failedCount}</p>
+            <div className="kpi-metric-card kpi-metric-card-danger p-6">
+              <p className="kpi-metric-label">Failed count</p>
+              <p className="kpi-metric-value">{failedCount}</p>
             </div>
-            <div className="glass-card-interactive p-6">
-              <p className="text-[13px] font-semibold text-[#2456E6]">Credits remaining</p>
-              <p className="mt-3 text-[40px] font-semibold tracking-tight text-[#1d1d1f]">{creditsRemaining.toLocaleString("en-IN")}</p>
+            <div className="kpi-metric-card p-6">
+              <p className="kpi-metric-label">Credits remaining</p>
+              <p className="kpi-metric-value">{creditsRemaining.toLocaleString("en-IN")}</p>
             </div>
           </>
         )}

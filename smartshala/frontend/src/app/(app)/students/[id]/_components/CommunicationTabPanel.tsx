@@ -86,19 +86,19 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-4 shadow-apple-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">WhatsApp logs</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#248a3d]">{whatsappCount}</p>
+        <div className="kpi-metric-card kpi-metric-card-good p-4">
+          <p className="kpi-metric-label">WhatsApp logs</p>
+          <p className="kpi-metric-value">{whatsappCount}</p>
           {whatsappCount === 0 ? <a className="mt-2 inline-flex text-[12px] font-semibold text-[#2456E6]" href="/teacher/communication">Send WhatsApp</a> : null}
         </div>
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-4 shadow-apple-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Manual notes</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{noteCount}</p>
+        <div className="kpi-metric-card p-4">
+          <p className="kpi-metric-label">Manual notes</p>
+          <p className="kpi-metric-value">{noteCount}</p>
           {noteCount === 0 ? <a className="mt-2 inline-flex text-[12px] font-semibold text-[#2456E6]" href="/teacher/communication">Add manual note</a> : null}
         </div>
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-4 shadow-apple-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">Call logs</p>
-          <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#0071e3]">{callCount}</p>
+        <div className="kpi-metric-card p-4">
+          <p className="kpi-metric-label">Call logs</p>
+          <p className="kpi-metric-value">{callCount}</p>
           {callCount === 0 ? <a className="mt-2 inline-flex text-[12px] font-semibold text-[#2456E6]" href="/teacher/communication">Log a call</a> : null}
         </div>
       </div>

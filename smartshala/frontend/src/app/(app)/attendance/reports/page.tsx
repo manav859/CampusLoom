@@ -241,21 +241,21 @@ export default function AttendanceReportsPage() {
       {notice ? <div className="rounded-xl bg-[#34c759]/10 p-4 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="glass-card-interactive p-5">
-          <p className="text-[13px] font-medium text-[#86868b]">Total classes</p>
-          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{totalClassesCount}</p>
+        <div className="kpi-metric-card p-5">
+          <p className="kpi-metric-label">Total classes</p>
+          <p className="kpi-metric-value">{totalClassesCount}</p>
         </div>
-        <div className="glass-card-interactive p-5">
-          <p className="text-[13px] font-medium text-[#248a3d]">Marked</p>
-          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{markedCount}</p>
+        <div className="kpi-metric-card kpi-metric-card-good p-5">
+          <p className="kpi-metric-label">Marked</p>
+          <p className="kpi-metric-value">{markedCount}</p>
         </div>
-        <div className="glass-card-interactive p-5">
-          <p className="text-[13px] font-medium text-[#c93400]">Pending</p>
-          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.pendingClasses ?? 0}</p>
+        <div className="kpi-metric-card kpi-metric-card-warn p-5">
+          <p className="kpi-metric-label">Pending</p>
+          <p className="kpi-metric-value">{data?.pendingClasses ?? 0}</p>
         </div>
-        <div className="glass-card-interactive p-5">
-          <p className="text-[13px] font-medium text-[#86868b]">Avg. attendance (marked)</p>
-          <p className="mt-3 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{data?.attendancePercentage ?? 0}%</p>
+        <div className="kpi-metric-card p-5">
+          <p className="kpi-metric-label">Avg. attendance (marked)</p>
+          <p className="kpi-metric-value">{data?.attendancePercentage ?? 0}%</p>
           <p className="mt-1 text-[12px] font-medium text-[#86868b]">{markedCount} of {totalClassesCount} classes marked</p>
         </div>
       </div>

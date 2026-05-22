@@ -138,9 +138,9 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
     <section className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {counts.map((item) => (
-          <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-4 shadow-apple-sm backdrop-blur-xl" key={item.label}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#86868b]">{item.label}</p>
-            <p className="mt-1.5 text-[28px] font-semibold tracking-tight text-[#1d1d1f]">{item.count}</p>
+          <div className="kpi-metric-card p-4" key={item.label}>
+            <p className="kpi-metric-label">{item.label}</p>
+            <p className="kpi-metric-value">{item.count}</p>
             <p className="mt-1 text-[11px] font-medium text-[#86868b]">{item.types.map(typeLabel).join(", ")}</p>
           </div>
         ))}

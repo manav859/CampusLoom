@@ -65,22 +65,6 @@ function getAvailableMonths(calendar: StudentDetail["attendanceAnalytics"]["cale
 
 /* ── "Remaining before 75%" card color logic ── */
 
-function remainingCardClasses(attendancePercentage: number) {
-  if (attendancePercentage < 70) {
-    return "border-[#ff3b30]/20 bg-gradient-to-br from-[#ff3b30]/15 to-[#ff3b30]/5";
-  }
-  if (attendancePercentage < 80) {
-    return "border-[#ff9500]/20 bg-gradient-to-br from-[#ff9500]/15 to-[#ff9500]/5";
-  }
-  return "border-[rgba(0,0,0,0.04)] bg-white";
-}
-
-function remainingValueColor(attendancePercentage: number) {
-  if (attendancePercentage < 70) return "text-[#c90011]";
-  if (attendancePercentage < 80) return "text-[#cc7700]";
-  return "text-[#1d1d1f]";
-}
-
 export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps) {
   const analytics = student.attendanceAnalytics;
   const metrics = analytics.metrics;
@@ -138,10 +122,10 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
         {/* Left Side: 2x2 Metrics Grid (5 columns) */}
         <div className="grid grid-cols-2 gap-3 lg:col-span-5">
           {/* Attendance % */}
-          <div className="flex flex-col justify-between rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-white p-4 sm:p-5 shadow-apple-sm transition-all hover:shadow-apple">
+          <div className="kpi-metric-card flex flex-col justify-between p-4 sm:p-5">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#86868b] sm:text-[11px]">Attendance %</p>
-              <p className="mt-1.5 text-[26px] font-bold tracking-tight text-[#1d1d1f] sm:text-[32px]">{metrics.attendancePercentage}%</p>
+              <p className="kpi-metric-label">Attendance %</p>
+              <p className="kpi-metric-value">{metrics.attendancePercentage}%</p>
             </div>
             <div className="mt-3">
               <StatusPill label={metrics.attendancePercentage >= 80 ? "Healthy" : "Watch"} tone={metricTone(metrics.attendancePercentage)} />
@@ -154,10 +138,10 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
           </div>
 
           {/* Total days — present/total format */}
-          <div className="flex flex-col justify-between rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-white p-4 sm:p-5 shadow-apple-sm transition-all hover:shadow-apple">
+          <div className="kpi-metric-card kpi-metric-card-good flex flex-col justify-between p-4 sm:p-5">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#86868b] sm:text-[11px]">Total days</p>
-              <p className="mt-1.5 text-[26px] font-bold tracking-tight text-[#1d1d1f] sm:text-[32px]">
+              <p className="kpi-metric-label">Total days</p>
+              <p className="kpi-metric-value">
                 <span className="text-[#248a3d]">{presentDays}</span>
                 <span className="mx-0.5 font-medium text-[#aeaeb2]">/</span>
                 <span>{metrics.totalDays}</span>
@@ -167,18 +151,18 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
           </div>
 
           {/* Absences */}
-          <div className="flex flex-col justify-between rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-white p-4 sm:p-5 shadow-apple-sm transition-all hover:shadow-apple">
+          <div className="kpi-metric-card kpi-metric-card-danger flex flex-col justify-between p-4 sm:p-5">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#86868b] sm:text-[11px]">Absences</p>
-              <p className="mt-1.5 text-[26px] font-bold tracking-tight text-[#c90011] sm:text-[32px]">{metrics.absences}</p>
+              <p className="kpi-metric-label">Absences</p>
+              <p className="kpi-metric-value">{metrics.absences}</p>
             </div>
           </div>
 
           {/* Remaining before 75% */}
-          <div className={`flex flex-col justify-between rounded-[20px] border p-4 sm:p-5 shadow-apple-sm transition-all hover:shadow-apple ${remainingCardClasses(metrics.attendancePercentage)}`}>
+          <div className={`kpi-metric-card flex flex-col justify-between p-4 sm:p-5 ${metrics.attendancePercentage < 75 ? "kpi-metric-card-danger" : "kpi-metric-card-good"}`}>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#86868b] sm:text-[11px]">Buffer to 75%</p>
-              <p className={`mt-1.5 text-[26px] font-bold tracking-tight sm:text-[32px] ${remainingValueColor(metrics.attendancePercentage)}`}>
+              <p className="kpi-metric-label">Buffer to 75%</p>
+              <p className="kpi-metric-value">
                 {metrics.remainingBefore75}
               </p>
             </div>

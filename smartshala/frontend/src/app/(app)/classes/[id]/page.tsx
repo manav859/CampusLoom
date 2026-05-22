@@ -117,9 +117,9 @@ export default function ClassDetailPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         {statCards.map((card) => (
-          <div className="rounded-2xl border border-[#DCE1E8] bg-white p-5 shadow-apple-sm" key={card.label}>
-            <p className="text-[12px] font-bold uppercase tracking-wider text-[#86868b]">{card.label}</p>
-            <p className="mt-2 text-[24px] font-bold tabular-nums text-[#1d1d1f]">{card.value}</p>
+          <div className="kpi-metric-card p-5" key={card.label}>
+            <p className="kpi-metric-label">{card.label}</p>
+            <p className="kpi-metric-value">{card.value}</p>
             <p className="mt-1 text-[12px] font-medium text-[#6e6e73]">{card.helper}</p>
           </div>
         ))}

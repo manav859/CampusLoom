@@ -55,20 +55,28 @@ function initials(name: string) {
 
 type KpiTone = "good" | "warn" | "danger" | "neutral";
 
-const kpiToneStyles: Record<KpiTone, { bg: string; border: string; value: string; bar: string }> = {
-  neutral: { bg: "from-[#f5f5f7]/80 to-white/40", border: "border-[#e5e5ea]", value: "text-[#1d1d1f]", bar: "from-[#d2d2d7] to-[#aeaeb2]" },
-  good:    { bg: "from-[#22a74c]/20 to-[#22a74c]/5", border: "border-[#22a74c]/20", value: "text-[#187d37]", bar: "from-[#22a74c] to-[#187d37]" },
-  warn:    { bg: "from-[#ff9500]/20 to-[#ff9500]/5", border: "border-[#ff9500]/20", value: "text-[#b86400]", bar: "from-[#ff9500] to-[#b86400]" },
-  danger:  { bg: "from-[#d63230]/20 to-[#d63230]/5", border: "border-[#d63230]/20", value: "text-[#b02725]", bar: "from-[#d63230] to-[#b02725]" },
+const kpiToneStyles: Record<KpiTone, { hover: string; accent: string; iconBg: string }> = {
+  neutral: { hover: "hover:border-[#8C96A3]", accent: "text-[#5A6573]", iconBg: "bg-[#F2F5F8]" },
+  good: { hover: "hover:border-[#0F8A4A]", accent: "text-[#0F8A4A]", iconBg: "bg-[#E1F5EA]" },
+  warn: { hover: "hover:border-[#B95A00]", accent: "text-[#B95A00]", iconBg: "bg-[#FFF2DC]" },
+  danger: { hover: "hover:border-[#C8242C]", accent: "text-[#C8242C]", iconBg: "bg-[#FCE3E5]" },
 };
 
 function MiniKpiCard({ label, value, tone = "neutral" }: { label: string; value: string; tone?: KpiTone }) {
   const s = kpiToneStyles[tone];
   return (
-    <div className={`relative overflow-hidden rounded-[10px] border bg-gradient-to-br pl-[18px] pr-3 py-2.5 ${s.border} ${s.bg}`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-[4px] bg-gradient-to-b ${s.bar}`} />
-      <p className={`text-[20px] font-bold leading-tight tracking-tight ${s.value}`}>{value}</p>
-      <p className="mt-0.5 text-[11px] font-medium text-[#1d1d1f]/60">{label}</p>
+    <div className={`flex min-h-[86px] items-center gap-3 rounded-[6px] border border-[#E2E7EE] bg-white px-3 py-3 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 ${s.hover}`}>
+      <div className={`hidden h-11 w-11 shrink-0 items-center justify-center rounded-[8px] sm:flex ${s.iconBg}`}>
+        <svg className={`h-5 w-5 ${s.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" aria-hidden="true">
+          <path d="M6 19V9" />
+          <path d="M12 19V5" />
+          <path d="M18 19v-7" />
+        </svg>
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-[12px] font-medium leading-4 text-[#52687D]">{label}</p>
+        <p className="mt-1 truncate text-[20px] font-semibold leading-6 tracking-normal text-[#0F2233]">{value}</p>
+      </div>
     </div>
   );
 }

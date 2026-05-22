@@ -1,47 +1,50 @@
 import Link from "next/link";
 import type { Kpi } from "@/types";
 
-const toneMap: Record<NonNullable<Kpi["tone"]>, { bg: string; border: string; value: string; bar: string; shadow: string }> = {
-  neutral: { bg: "bg-gradient-to-br from-[#f5f5f7]/80 to-[#ffffff]/40", border: "border-[#e5e5ea]", value: "text-[#1d1d1f]", bar: "bg-gradient-to-b from-[#d2d2d7] to-[#aeaeb2]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_4px_12px_-4px_rgba(0,0,0,0.05)]" },
-  good: { bg: "bg-gradient-to-br from-[#34c759]/20 to-[#34c759]/5", border: "border-[#34c759]/20", value: "text-[#248a3d]", bar: "bg-gradient-to-b from-[#34c759] to-[#248a3d]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(52,199,89,0.2)]" },
-  warn: { bg: "bg-gradient-to-br from-[#ff9500]/20 to-[#ff9500]/5", border: "border-[#ff9500]/20", value: "text-[#cc7700]", bar: "bg-gradient-to-b from-[#ff9500] to-[#cc7700]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(255,149,0,0.2)]" },
-  danger: { bg: "bg-gradient-to-br from-[#ff3b30]/20 to-[#ff3b30]/5", border: "border-[#ff3b30]/20", value: "text-[#c90011]", bar: "bg-gradient-to-b from-[#ff3b30] to-[#c90011]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(255,59,48,0.2)]" },
-  teal: { bg: "bg-gradient-to-br from-[#13bfa6]/20 to-[#13bfa6]/5", border: "border-[#13bfa6]/20", value: "text-[#0e9884]", bar: "bg-gradient-to-b from-[#13bfa6] to-[#0e9884]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(19,191,166,0.2)]" },
-  green: { bg: "bg-gradient-to-br from-[#22a74c]/20 to-[#22a74c]/5", border: "border-[#22a74c]/20", value: "text-[#187d37]", bar: "bg-gradient-to-b from-[#22a74c] to-[#187d37]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(34,167,76,0.2)]" },
-  red: { bg: "bg-gradient-to-br from-[#d63230]/20 to-[#d63230]/5", border: "border-[#d63230]/20", value: "text-[#b02725]", bar: "bg-gradient-to-b from-[#d63230] to-[#b02725]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(214,50,48,0.2)]" },
-  amber: { bg: "bg-gradient-to-br from-[#eba931]/20 to-[#eba931]/5", border: "border-[#eba931]/20", value: "text-[#c28a25]", bar: "bg-gradient-to-b from-[#eba931] to-[#c28a25]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(235,169,49,0.2)]" },
-  purple: { bg: "bg-gradient-to-br from-[#7e53db]/20 to-[#7e53db]/5", border: "border-[#7e53db]/20", value: "text-[#6341ac]", bar: "bg-gradient-to-b from-[#7e53db] to-[#6341ac]", shadow: "shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_8px_20px_-6px_rgba(126,83,219,0.2)]" }
+const toneMap: Record<NonNullable<Kpi["tone"]>, { hover: string; accent: string; iconBg: string }> = {
+  neutral: { hover: "hover:border-[#8C96A3]", accent: "text-[#5A6573]", iconBg: "bg-[#F2F5F8]" },
+  good: { hover: "hover:border-[#0F8A4A]", accent: "text-[#0F8A4A]", iconBg: "bg-[#E1F5EA]" },
+  warn: { hover: "hover:border-[#B95A00]", accent: "text-[#B95A00]", iconBg: "bg-[#FFF2DC]" },
+  danger: { hover: "hover:border-[#C8242C]", accent: "text-[#C8242C]", iconBg: "bg-[#FCE3E5]" },
+  teal: { hover: "hover:border-[#0E9884]", accent: "text-[#0E9884]", iconBg: "bg-[#E2F7F4]" },
+  green: { hover: "hover:border-[#0F8A4A]", accent: "text-[#0F8A4A]", iconBg: "bg-[#E1F5EA]" },
+  red: { hover: "hover:border-[#C8242C]", accent: "text-[#C8242C]", iconBg: "bg-[#FCE3E5]" },
+  amber: { hover: "hover:border-[#B95A00]", accent: "text-[#B95A00]", iconBg: "bg-[#FFF2DC]" },
+  purple: { hover: "hover:border-[#7C3AED]", accent: "text-[#7C3AED]", iconBg: "bg-[#EFE9FF]" }
 };
 
 export function KpiCard({ label, value, helper, formula, href, tone = "neutral" }: Kpi) {
   const styles = toneMap[tone];
   const content = (
     <div
-      className={`relative overflow-hidden rounded-[16px] h-[96px] pl-[22px] pr-5 py-3.5 flex flex-col justify-between backdrop-blur-2xl border transition-transform duration-300 ${href ? "cursor-pointer hover:-translate-y-[3px] hover:shadow-xl" : ""} ${styles.border} ${styles.bg} ${styles.shadow}`}
+      className={`group relative flex min-h-[120px] items-center gap-5 rounded-[6px] border border-[#E2E7EE] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 ${href ? "cursor-pointer" : ""} ${styles.hover}`}
       title={formula}
     >
-      {/* Premium Gradient Left Bar */}
-      <div className={`absolute left-0 top-0 bottom-0 w-[6px] ${styles.bar}`} />
+      <div className={`hidden h-[70px] w-[70px] shrink-0 items-center justify-center rounded-[8px] sm:flex ${styles.iconBg}`}>
+        <svg className={`h-8 w-8 ${styles.accent}`} fill="none" viewBox="0 0 32 32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" aria-hidden="true">
+          <path d="M7 23V12" />
+          <path d="M16 23V7" />
+          <path d="M25 23V16" />
+          <path d="M5 25h22" />
+        </svg>
+      </div>
       {formula ? (
-        <span className="absolute right-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full border border-black/10 bg-white/70 text-[11px] font-bold text-[#6e6e73]">
+        <span className="absolute right-4 top-4 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#9AA5B1] bg-white text-[11px] font-bold text-[#6B7785]">
           ?
         </span>
       ) : null}
-      
-      {/* Value */}
-      <p className={`type-kpi pr-7 ${styles.value}`}>{value}</p>
-      
-      {/* Label */}
-      <div>
-        <p className="type-kpi-label text-[#1d1d1f]/70">{label}</p>
-        {helper ? <p className="mt-0.5 truncate text-caption text-[#5A6573]">{helper}</p> : null}
+
+      <div className="min-w-0">
+        <p className="pr-7 text-[16px] font-medium leading-6 text-[#52687D]">{label}</p>
+        <p className="mt-1 text-[30px] font-semibold leading-9 tracking-normal text-[#0F2233] [font-variant-numeric:tabular-nums]">{value}</p>
+        {helper ? <p className="mt-1 truncate text-caption text-[#5A6573]">{helper}</p> : null}
       </div>
     </div>
   );
 
   if (href) {
     return (
-      <Link aria-label={`${label} details`} className="block focus:outline-none focus:ring-2 focus:ring-[#2456E6]/40 focus:ring-offset-2 rounded-[16px]" href={href}>
+      <Link aria-label={`${label} details`} className="block rounded-[6px] focus:outline-none focus:ring-2 focus:ring-[#2456E6]/40 focus:ring-offset-2" href={href}>
         {content}
       </Link>
     );
