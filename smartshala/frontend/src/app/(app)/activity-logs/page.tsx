@@ -1,36 +1,94 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StatusPill } from "@/components/ui/StatusPill";
 import { activityApi, type ActivityLog, type ActivityLogResponse } from "@/lib/api";
-import { formatDateTimeShort, humanizeConstant } from "@/lib/formatters";
+import { formatDateShort, humanizeConstant } from "@/lib/formatters";
 
-function actionTone(action: string) {
-  if (action.includes("DELETE")) return "danger";
-  if (action.includes("CREATE") || action.includes("RUN")) return "good";
-  if (action.includes("UPDATE") || action.includes("REPLACE")) return "warn";
-  return "neutral";
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function stringifyJson(value: unknown) {
-  if (!value) return "No details";
-  return JSON.stringify(value, null, 2);
+function monthStart() {
+  const date = new Date();
+  date.setDate(1);
+  return dateInputValue(date);
 }
 
-function actorLabel(log: ActivityLog) {
-  if (!log.actor) return "System";
-  return `${log.actor.fullName} (${humanizeConstant(log.actor.role)})`;
+function today() {
+  return dateInputValue(new Date());
+}
+
+function actorName(log: ActivityLog) {
+  return log.actor?.fullName ?? "System";
+}
+
+function pathParts(log: ActivityLog) {
+  const path = typeof log.afterJson?.path === "string" ? log.afterJson.path : "";
+  const parts = path.split("?")[0].split("/").filter(Boolean);
+  const apiIndex = parts.findIndex((part) => part === "api" || part === "v1");
+  const clean = apiIndex >= 0 ? parts.slice(apiIndex + 1) : parts;
+  if (clean[0] === "v1") clean.shift();
+  return clean;
+}
+
+function subModule(log: ActivityLog) {
+  const parts = pathParts(log);
+  return humanizeConstant(parts[1] ?? parts[0] ?? log.entityType);
+}
+
+function targetName(log: ActivityLog) {
+  const body = (log.afterJson?.body ?? {}) as Record<string, unknown>;
+  const candidates = [body.fullName, body.name, body.studentName, body.title, body.phone, body.email];
+  const value = candidates.find((item) => typeof item === "string" && item.trim());
+  return typeof value === "string" ? value : "-";
+}
+
+function actionLabel(action: string) {
+  if (action === "CREATE_OR_RUN") return "Create";
+  if (action === "REPLACE") return "Update";
+  return humanizeConstant(action);
+}
+
+function titleLabel(log: ActivityLog) {
+  const parts = pathParts(log);
+  const last = parts.at(-1);
+  if (last && !/^[0-9a-f-]{8,}$/i.test(last)) return humanizeConstant(last);
+  return actionLabel(log.action);
+}
+
+function description(log: ActivityLog) {
+  const body = (log.afterJson?.body ?? {}) as Record<string, unknown>;
+  const rich = [body.summary, body.message, body.reason, body.description].find((item) => typeof item === "string" && item.trim());
+  return typeof rich === "string" ? rich : log.summary;
+}
+
+function download(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value: string | number | null | undefined) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
 export default function ActivityLogsPage() {
   const [data, setData] = useState<ActivityLogResponse | null>(null);
-  const [selected, setSelected] = useState<ActivityLog | null>(null);
   const [search, setSearch] = useState("");
-  const [actorId, setActorId] = useState("");
-  const [entityType, setEntityType] = useState("");
-  const [action, setAction] = useState("");
+  const [dateFrom, setDateFrom] = useState(monthStart());
+  const [dateTo, setDateTo] = useState(today());
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -39,11 +97,9 @@ export default function ActivityLogsPage() {
     setLoading(true);
     setError("");
 
-    activityApi.logs({ action, actorId, entityType, page, search: search.trim() })
+    activityApi.logs({ dateFrom, dateTo, limit, page, search: search.trim() })
       .then((result) => {
-        if (!active) return;
-        setData(result);
-        setSelected((current) => current ?? result.items[0] ?? null);
+        if (active) setData(result);
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Unable to load activity logs");
@@ -55,186 +111,206 @@ export default function ActivityLogsPage() {
     return () => {
       active = false;
     };
-  }, [action, actorId, entityType, page, search]);
+  }, [dateFrom, dateTo, limit, page, search]);
 
-  const topEntity = data?.stats.entityTypes[0];
-  const topAction = data?.stats.actions[0];
-  const stats = useMemo(
-    () => [
-      { label: "Total events", value: data?.stats.totalCount ?? 0 },
-      { label: "Today", value: data?.stats.todayCount ?? 0 },
-      { label: "Active actors", value: data?.stats.actorCount ?? 0 },
-      { label: topEntity ? humanizeConstant(topEntity.label) : "Top module", value: topEntity?.count ?? 0 }
-    ],
-    [data, topEntity]
-  );
+  const rows = data?.items ?? [];
+  const start = data && data.meta.total > 0 ? (data.meta.page - 1) * data.meta.limit + 1 : 0;
+  const end = data ? Math.min(data.meta.page * data.meta.limit, data.meta.total) : 0;
+  const pageNumbers = useMemo(() => {
+    const totalPages = data?.meta.totalPages ?? 1;
+    const first = Math.max(1, Math.min(page - 2, Math.max(1, totalPages - 4)));
+    return Array.from({ length: Math.min(5, totalPages) }, (_, index) => first + index);
+  }, [data?.meta.totalPages, page]);
 
-  function resetFilters() {
-    setSearch("");
-    setActorId("");
-    setEntityType("");
-    setAction("");
-    setPage(1);
+  function exportExcel() {
+    const header = ["Module", "Sub Module", "Employee Name", "Title", "Description", "Action", "Action By", "Log Date"];
+    const body = rows.map((log) => [
+      humanizeConstant(log.entityType),
+      subModule(log),
+      targetName(log),
+      titleLabel(log),
+      description(log),
+      actionLabel(log.action),
+      actorName(log),
+      formatDateShort(log.createdAt)
+    ]);
+    const csv = [header, ...body].map((row) => row.map(csvCell).join(",")).join("\n");
+    download(`activity-logs-${dateFrom}-${dateTo}.csv`, csv, "text/csv;charset=utf-8");
+    setActionsOpen(false);
+  }
+
+  function exportPdf() {
+    window.print();
+    setActionsOpen(false);
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader eyebrow="Audit trail" title="Activity logs" />
+    <div className="space-y-5 print:bg-white">
+      <section className="overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+        <div className="border-b border-[#C9D3DE] px-6 py-6">
+          <h1 className="text-[22px] font-semibold text-[#031526]">
+            Activity Logs <span className="text-[#0086d1]">{data?.stats.totalCount ?? data?.meta.total ?? 0}</span>
+          </h1>
+        </div>
 
-      {error ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((item) => (
-          <div className="kpi-metric-card p-5" key={item.label}>
-            <p className="kpi-metric-label">{item.label}</p>
-            <p className="kpi-metric-value">{item.value}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="glass-card-interactive p-5">
-        <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_180px_auto]">
-          <label className="block">
-            <span className="text-[12px] font-semibold text-[#5A6573]">Search</span>
+        <div className="flex flex-col gap-4 border-b border-[#C9D3DE] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex min-h-[48px] items-center gap-3 rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-[16px] font-medium text-[#031526]">
+              <input
+                aria-label="From date"
+                className="w-[136px] bg-transparent outline-none"
+                onChange={(event) => {
+                  setPage(1);
+                  setDateFrom(event.target.value);
+                }}
+                type="date"
+                value={dateFrom}
+              />
+              <span className="text-[#9AA5B1]">→</span>
+              <input
+                aria-label="To date"
+                className="w-[136px] bg-transparent outline-none"
+                onChange={(event) => {
+                  setPage(1);
+                  setDateTo(event.target.value);
+                }}
+                type="date"
+                value={dateTo}
+              />
+            </div>
             <input
-              className="glass-input mt-1.5"
+              className="min-h-[48px] w-[280px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-medium outline-none transition focus:border-[#0B86D1]"
               onChange={(event) => {
                 setPage(1);
                 setSearch(event.target.value);
               }}
-              placeholder="Search actor, action, module, summary"
+              placeholder="Search logs"
               value={search}
             />
-          </label>
-          <label className="block">
-            <span className="text-[12px] font-semibold text-[#5A6573]">Actor</span>
-            <select className="glass-input mt-1.5" onChange={(event) => { setPage(1); setActorId(event.target.value); }} value={actorId}>
-              <option value="">All actors</option>
-              {data?.filters.actors.map((actor) => (
-                <option key={actor.id} value={actor.id}>{actor.fullName}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="text-[12px] font-semibold text-[#5A6573]">Module</span>
-            <select className="glass-input mt-1.5" onChange={(event) => { setPage(1); setEntityType(event.target.value); }} value={entityType}>
-              <option value="">All modules</option>
-              {data?.filters.entityTypes.map((type) => (
-                <option key={type} value={type}>{humanizeConstant(type)}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="text-[12px] font-semibold text-[#5A6573]">Action</span>
-            <select className="glass-input mt-1.5" onChange={(event) => { setPage(1); setAction(event.target.value); }} value={action}>
-              <option value="">All actions</option>
-              {data?.filters.actions.map((item) => (
-                <option key={item} value={item}>{humanizeConstant(item)}</option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-end">
-            <button className="btn-secondary min-h-[44px] w-full px-4 text-[13px]" onClick={resetFilters} type="button">Reset</button>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[1fr_420px]">
-        <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-          <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
-            <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Full activity stream</h2>
-              <p className="mt-0.5 text-[12px] font-medium text-[#86868b]">
-                {loading ? "Loading..." : `${data?.meta.total ?? 0} events found`}
-                {topAction ? ` - most common: ${humanizeConstant(topAction.label)}` : ""}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={!data || data.meta.page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">Prev</button>
-              <span className="text-[12px] font-semibold text-[#5A6573]">{data?.meta.page ?? page} / {data?.meta.totalPages ?? 1}</span>
-              <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={!data || data.meta.page >= data.meta.totalPages || loading} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
-            </div>
+            <button className="min-h-[48px] rounded-[5px] bg-[#1088CF] px-7 text-[16px] font-semibold text-white transition hover:bg-[#0B75B5]" type="button">
+              Search
+            </button>
           </div>
 
-          <div className="divide-y divide-[rgba(0,0,0,0.05)]">
-            {loading ? (
-              Array.from({ length: 8 }).map((_, index) => (
-                <div className="animate-pulse px-5 py-4" key={index}>
-                  <div className="h-4 w-48 rounded bg-[#f5f5f7]" />
-                  <div className="mt-2 h-3 w-80 rounded bg-[#f5f5f7]" />
-                </div>
-              ))
-            ) : data?.items.length === 0 ? (
-              <div className="px-5 py-12 text-center text-[13px] font-medium text-[#86868b]">No activity logs found.</div>
-            ) : (
-              data?.items.map((log) => (
-                <button
-                  className={`block w-full px-5 py-4 text-left transition-colors hover:bg-[#F7F8FB] ${selected?.id === log.id ? "bg-[#E2F0FB]/70" : ""}`}
-                  key={log.id}
-                  onClick={() => setSelected(log)}
-                  type="button"
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <StatusPill label={humanizeConstant(log.action)} tone={actionTone(log.action)} />
-                        <span className="rounded-md bg-[#F7F8FB] px-2 py-1 text-[11px] font-semibold text-[#5A6573]">{humanizeConstant(log.entityType)}</span>
-                        <span className="text-[12px] font-medium text-[#86868b]">{formatDateTimeShort(log.createdAt)}</span>
-                      </div>
-                      <p className="mt-2 text-[14px] font-semibold text-[#1d1d1f]">{log.summary}</p>
-                      <p className="mt-1 text-[12px] font-medium text-[#5A6573]">{actorLabel(log)}</p>
-                    </div>
-                    <code className="shrink-0 rounded-md bg-[#F7F8FB] px-2 py-1 text-[11px] font-semibold text-[#5A6573]">{log.entityId.slice(0, 8)}</code>
-                  </div>
-                </button>
-              ))
-            )}
+          <div className="relative print:hidden">
+            <button
+              className="inline-flex min-h-[48px] items-center gap-2 rounded-[5px] border border-[#C9D3DE] bg-white px-5 text-[16px] font-semibold text-[#031526] transition hover:border-[#1088CF]"
+              onClick={() => setActionsOpen((value) => !value)}
+              type="button"
+            >
+              Actions
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            {actionsOpen ? (
+              <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-[5px] border border-[#C9D3DE] bg-white py-1 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                <button className="block w-full px-5 py-2.5 text-left text-[15px] font-medium text-[#424B57] hover:bg-[#F2F7FC]" onClick={exportExcel} type="button">Export Excel</button>
+                <button className="block w-full px-5 py-2.5 text-left text-[15px] font-medium text-[#424B57] hover:bg-[#F2F7FC]" onClick={exportPdf} type="button">Export PDF</button>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        <aside className="sticky top-20 h-fit rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
-          {selected ? (
-            <>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Selected event</p>
-                  <h2 className="mt-1 text-[17px] font-semibold text-[#1d1d1f]">{humanizeConstant(selected.entityType)}</h2>
-                </div>
-                <StatusPill label={humanizeConstant(selected.action)} tone={actionTone(selected.action)} />
-              </div>
-              <dl className="mt-5 space-y-3 text-[13px]">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-[#86868b]">Actor</dt>
-                  <dd className="text-right font-semibold text-[#1d1d1f]">{actorLabel(selected)}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-[#86868b]">Time</dt>
-                  <dd className="text-right font-semibold text-[#1d1d1f]">{formatDateTimeShort(selected.createdAt)}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-[#86868b]">Entity ID</dt>
-                  <dd className="text-right font-code text-[12px] text-[#1d1d1f]">{selected.entityId}</dd>
-                </div>
-              </dl>
-              <div className="mt-5 rounded-xl bg-[#F7F8FB] p-4">
-                <p className="text-[12px] font-semibold text-[#5A6573]">Summary</p>
-                <p className="mt-2 text-[13px] leading-6 text-[#1d1d1f]">{selected.summary}</p>
-              </div>
-              <div className="mt-4 space-y-3">
-                <details className="rounded-xl border border-[#DCE1E8] bg-white p-4" open>
-                  <summary className="cursor-pointer text-[12px] font-semibold text-[#1d1d1f]">After / request details</summary>
-                  <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-[#0F1419] p-3 text-[11px] leading-5 text-white">{stringifyJson(selected.afterJson)}</pre>
-                </details>
-                <details className="rounded-xl border border-[#DCE1E8] bg-white p-4">
-                  <summary className="cursor-pointer text-[12px] font-semibold text-[#1d1d1f]">Before details</summary>
-                  <pre className="mt-3 max-h-64 overflow-auto rounded-lg bg-[#0F1419] p-3 text-[11px] leading-5 text-white">{stringifyJson(selected.beforeJson)}</pre>
-                </details>
-              </div>
-            </>
-          ) : (
-            <div className="rounded-xl bg-[#F7F8FB] p-5 text-[13px] font-medium text-[#86868b]">Select an event to inspect full details.</div>
-          )}
-        </aside>
+        {error ? <div className="mx-6 mt-5 rounded-md bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
+
+        <div className="px-5 py-5">
+          <div className="overflow-x-auto rounded-[5px] border border-[#C9D3DE]">
+            <table className="w-full min-w-[1360px] border-collapse text-left text-[15px] text-[#001B33]">
+              <thead>
+                <tr className="bg-[#DDECF8]">
+                  {["Module", "Sub Module", "Employee Name", "Title", "Description", "Action", "Action By", "Log Date"].map((head) => (
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold" key={head}>
+                      <span className="inline-flex items-center gap-2">
+                        {head}
+                        {["Sub Module", "Employee Name", "Title", "Description", "Action By", "Log Date"].includes(head) ? (
+                          <svg className="h-4 w-4 text-[#52687D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path d="m8 9 4-4 4 4M16 15l-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        ) : null}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: limit }).map((_, index) => (
+                    <tr key={index}>
+                      <td className="border-b border-[#C9D3DE] px-4 py-5" colSpan={8}>
+                        <div className="h-4 w-full animate-pulse rounded bg-[#F1F5F9]" />
+                      </td>
+                    </tr>
+                  ))
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-12 text-center text-[#52687D]" colSpan={8}>No activity logs found.</td>
+                  </tr>
+                ) : (
+                  rows.map((log) => {
+                    const desc = description(log);
+                    return (
+                      <tr className="transition-colors hover:bg-[#F8FBFD]" key={log.id}>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{humanizeConstant(log.entityType)}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{subModule(log)}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{targetName(log)}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4">{titleLabel(log)}</td>
+                        <td className="relative border-b border-[#C9D3DE] px-4 py-4">
+                          <span className="group relative inline-block max-w-[360px] cursor-default truncate align-bottom">
+                            {desc}
+                            <span className="pointer-events-none absolute left-1/2 top-7 z-30 hidden w-[460px] -translate-x-1/2 rounded-[5px] bg-[#001827] px-4 py-3 text-[15px] font-semibold leading-6 text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)] group-hover:block">
+                              <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
+                              <span className="relative block whitespace-normal">{desc}</span>
+                            </span>
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{actionLabel(log.action)}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{actorName(log)}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{formatDateShort(log.createdAt)}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 h-2 overflow-x-auto">
+            <div className="h-1 w-[1360px] rounded-full bg-[#D1D5DB]" />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 px-2 pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="px-3 text-[15px] font-semibold text-[#52687D]">
+            Showing <span className="text-[#0F1419]">{start}</span> to <span className="text-[#0F1419]">{end}</span> of <span className="text-[#0F1419]">{data?.meta.total ?? 0}</span> Results
+          </p>
+          <div className="flex flex-wrap items-center gap-3 print:hidden">
+            <select
+              className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-[15px] font-semibold outline-none"
+              onChange={(event) => {
+                setLimit(Number(event.target.value));
+                setPage(1);
+              }}
+              value={limit}
+            >
+              {[10, 25, 50, 100].map((item) => (
+                <option key={item} value={item}>{item} / Page</option>
+              ))}
+            </select>
+            <button className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-semibold text-[#7A8390] disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">Previous</button>
+            {pageNumbers.map((item) => (
+              <button
+                className={`min-h-[44px] min-w-[44px] rounded-[5px] border px-3 text-[15px] font-semibold ${item === page ? "border-[#1088CF] bg-[#1088CF] text-white" : "border-[#C9D3DE] bg-white text-[#1088CF]"}`}
+                key={item}
+                onClick={() => setPage(item)}
+                type="button"
+              >
+                {item}
+              </button>
+            ))}
+            <button className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-semibold text-[#1088CF] disabled:opacity-50" disabled={!data || page >= data.meta.totalPages} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
+          </div>
+        </div>
       </section>
     </div>
   );

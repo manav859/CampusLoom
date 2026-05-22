@@ -5,6 +5,8 @@ import { AppError } from "../../core/errors.js";
 type ActivityQuery = {
   action?: string;
   actorId?: string;
+  dateFrom?: string;
+  dateTo?: string;
   entityType?: string;
   limit?: string;
   page?: string;
@@ -28,10 +30,21 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
 
   const { limit, page, skip } = pageInfo(query);
   const search = query.search?.trim();
+  const dateFrom = query.dateFrom ? new Date(query.dateFrom) : null;
+  const dateTo = query.dateTo ? new Date(query.dateTo) : null;
+  if (dateTo) dateTo.setHours(23, 59, 59, 999);
   const where = {
     schoolId: user.schoolId,
     ...(query.action ? { action: query.action } : {}),
     ...(query.actorId ? { actorId: query.actorId } : {}),
+    ...(dateFrom || dateTo
+      ? {
+          createdAt: {
+            ...(dateFrom && !Number.isNaN(dateFrom.getTime()) ? { gte: dateFrom } : {}),
+            ...(dateTo && !Number.isNaN(dateTo.getTime()) ? { lte: dateTo } : {})
+          }
+        }
+      : {}),
     ...(query.entityType ? { entityType: query.entityType } : {}),
     ...(search
       ? {
