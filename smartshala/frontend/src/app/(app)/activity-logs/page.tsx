@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { activityApi, type ActivityLog, type ActivityLogResponse } from "@/lib/api";
 import { formatDateShort, humanizeConstant } from "@/lib/formatters";
 
@@ -63,29 +63,48 @@ function description(log: ActivityLog) {
   return `${action.charAt(0).toUpperCase() + action.slice(1)} ${module}${target ? ` ${target}` : ""}`;
 }
 
-function displayValue(value: unknown) {
+const HIDDEN_DETAIL_KEYS = new Set(["id", "schoolId", "createdAt", "updatedAt", "passwordHash", "durationMs", "method", "path", "params", "query", "statusCode"]);
+
+function displayValue(value: unknown, key = "") {
   if (value === null || value === undefined || value === "") return "Empty";
   if (value instanceof Date) return formatDateShort(value);
-  if (typeof value === "object") return JSON.stringify(value);
+  if (typeof value === "number" && /(amount|balance|fee|paid|pending|total)/i.test(key)) {
+    return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  }
+  if (typeof value === "object") return "Details";
   return String(value);
+}
+
+function titleCase(value: string) {
+  return humanizeConstant(value.replace(/\./g, " "));
+}
+
+function flattenDetails(value: unknown, prefix = ""): [string, unknown][] {
+  if (!value || typeof value !== "object" || value instanceof Date) return prefix ? [[prefix, value]] : [];
+  if (Array.isArray(value)) return prefix ? [[prefix, `${value.length} item${value.length === 1 ? "" : "s"}`]] : [];
+
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, item]) => {
+    if (HIDDEN_DETAIL_KEYS.has(key)) return [];
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (!item || typeof item !== "object" || item instanceof Date || Array.isArray(item)) return [[path, item]];
+    return flattenDetails(item, path);
+  });
 }
 
 function diffLines(log: ActivityLog) {
   const before = (log.beforeJson ?? {}) as Record<string, unknown>;
-  const after = (log.afterJson ?? {}) as Record<string, unknown>;
+  const rawAfter = (log.afterJson ?? {}) as Record<string, unknown>;
   const body = bodyOf(log);
-  const keys = Object.keys(after).length > 0 ? Object.keys(after) : Object.keys(body);
-  const hidden = new Set(["id", "schoolId", "createdAt", "updatedAt", "passwordHash"]);
+  const after = Object.keys(body).length > 0 ? body : rawAfter;
+  const beforeFlat = new Map(flattenDetails(before));
 
-  const lines = keys
-    .filter((key) => !hidden.has(key))
-    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key] ?? body[key]))
-    .slice(0, 8)
-    .map((key) => {
-      const label = humanizeConstant(key);
-      const beforeValue = displayValue(before[key]);
-      const afterValue = displayValue(after[key] ?? body[key]);
-      return `${label}: ${beforeValue} -> ${afterValue}`;
+  const lines = flattenDetails(after)
+    .filter(([key, value]) => JSON.stringify(beforeFlat.get(key)) !== JSON.stringify(value))
+    .slice(0, 12)
+    .map(([key, value]) => {
+      const label = titleCase(key);
+      if (beforeFlat.has(key)) return `${label}: ${displayValue(beforeFlat.get(key), key)} -> ${displayValue(value, key)}`;
+      return `${label}: ${displayValue(value, key)}`;
     });
 
   if (lines.length > 0) return lines;
@@ -120,8 +139,13 @@ export default function ActivityLogsPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [tooltip, setTooltip] = useState<{ desc: string; lines: string[]; x: number; y: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  function showTooltip(event: MouseEvent<HTMLElement>, desc: string, lines: string[]) {
+    setTooltip({ desc, lines, x: event.clientX, y: event.clientY });
+  }
 
   useEffect(() => {
     let active = true;
@@ -188,7 +212,7 @@ export default function ActivityLogsPage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex min-h-[48px] items-center gap-3 rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-[16px] font-medium text-[#031526]">
               <input aria-label="From date" className="w-[136px] bg-transparent outline-none" onChange={(event) => { setPage(1); setDateFrom(event.target.value); }} type="date" value={dateFrom} />
-              <span className="text-[#9AA5B1]">→</span>
+              <span className="text-[#9AA5B1]">-&gt;</span>
               <input aria-label="To date" className="w-[136px] bg-transparent outline-none" onChange={(event) => { setPage(1); setDateTo(event.target.value); }} type="date" value={dateTo} />
             </div>
             <input
@@ -263,18 +287,14 @@ export default function ActivityLogsPage() {
                     return (
                       <tr className="transition-colors hover:bg-[#F8FBFD]" key={log.id}>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{moduleLabel(log)}</td>
-                        <td className="relative border-b border-[#C9D3DE] px-4 py-4">
-                          <span className="group relative inline-block max-w-[520px] cursor-default truncate align-bottom">
+                        <td className="border-b border-[#C9D3DE] px-4 py-4">
+                          <span
+                            className="inline-block max-w-[520px] cursor-default truncate align-bottom decoration-[#2456E6] underline-offset-4 hover:text-[#2456E6] hover:underline"
+                            onMouseEnter={(event) => showTooltip(event, desc, lines)}
+                            onMouseMove={(event) => showTooltip(event, desc, lines)}
+                            onMouseLeave={() => setTooltip(null)}
+                          >
                             {desc}
-                            <span className="pointer-events-none absolute left-1/2 top-7 z-30 hidden w-[520px] -translate-x-1/2 rounded-[5px] bg-[#001827] px-4 py-3 text-[15px] font-semibold leading-6 text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)] group-hover:block">
-                              <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
-                              <span className="relative block whitespace-normal">
-                                <span className="block">{desc}</span>
-                                {lines.map((line) => (
-                                  <span className="block" key={line}>- {line}</span>
-                                ))}
-                              </span>
-                            </span>
                           </span>
                         </td>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{actionLabel(log.action)}</td>
@@ -307,6 +327,23 @@ export default function ActivityLogsPage() {
             <button className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-semibold text-[#2456E6] disabled:opacity-50" disabled={!data || page >= data.meta.totalPages} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
           </div>
         </div>
+        {tooltip ? (
+          <div
+            className="pointer-events-none fixed z-50 w-[520px] max-w-[calc(100vw-32px)] rounded-[5px] bg-[#001827] px-4 py-3 text-[15px] font-semibold leading-6 text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)]"
+            style={{
+              left: Math.min(Math.max(16, tooltip.x - 240), window.innerWidth - 536),
+              top: Math.min(tooltip.y + 18, window.innerHeight - 220)
+            }}
+          >
+            <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
+            <span className="relative block whitespace-normal">
+              <span className="mb-1 block">{tooltip.desc}</span>
+              {tooltip.lines.map((line) => (
+                <span className="block" key={line}>- {line}</span>
+              ))}
+            </span>
+          </div>
+        ) : null}
       </section>
     </div>
   );

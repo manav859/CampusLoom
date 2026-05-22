@@ -3,6 +3,7 @@ import { logger } from "../../config/logger.js";
 import { env } from "../../config/env.js";
 import { prisma, withRetry, isRetryableError } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { recordAuditLog } from "../../core/auditLog.js";
 import { buildFeeReceiptMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 import { generateReceiptPdf } from "./receipt-pdf.js";
@@ -50,6 +51,10 @@ function toMoney(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function formatCurrency(value: number) {
+  return `₹${toMoney(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
 function currentAcademicYear() {
   const now = new Date();
   const year = now.getFullYear();
@@ -71,6 +76,10 @@ function publicReceiptUrl(receiptId: string, tenantSchoolId?: string) {
 
 function className(classRecord: { name: string; section: string }) {
   return `${classRecord.name}-${classRecord.section}`;
+}
+
+function humanizeAdjustmentType(type: FeeAdjustmentType) {
+  return type.toLowerCase().replace(/_/g, " ");
 }
 
 function isUniqueConstraintError(error: unknown) {
@@ -608,6 +617,38 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
     );
   }
 
+  await recordAuditLog({
+    action: "CREATE",
+    actorId: user.id,
+    entityId: result.payment.id,
+    entityType: "FEE",
+    schoolId: user.schoolId,
+    summary: `Recorded fee for ${result.assignment.student.fullName} for ${formatCurrency(toNumber(result.payment.amount))}`,
+    before: {
+      balance: toMoney(toNumber(result.assignment.pendingAmount) + toNumber(result.payment.amount))
+    },
+    after: {
+      student: {
+        id: result.assignment.student.id,
+        fullName: result.assignment.student.fullName,
+        admissionNumber: result.assignment.student.admissionNumber,
+        class: className(result.assignment.student.class)
+      },
+      fee: {
+        amount: toNumber(result.payment.amount),
+        mode: result.payment.mode,
+        paidAt: result.payment.paidAt,
+        receiptNo: result.receipt.receiptNo,
+        feeStructure: result.assignment.feeStructure.name,
+        balanceAfter: toNumber(result.assignment.pendingAmount),
+        status: result.assignment.status,
+        notes: result.payment.notes
+      }
+    }
+  }).catch((error) => {
+    logger.warn({ err: error, schoolId: user.schoolId, paymentId: result.payment.id }, "Failed to write fee payment activity log");
+  });
+
   return {
     payment: result.payment,
     receipt: result.receipt,
@@ -695,6 +736,40 @@ export async function applyFeeAdjustment(user: Express.UserContext, data: FeeAdj
       });
 
       return { adjustment, assignment: updatedAssignment };
+    });
+
+    await recordAuditLog({
+      action: "UPDATE",
+      actorId: user.id,
+      entityId: result.adjustment.id,
+      entityType: "FEE",
+      schoolId: user.schoolId,
+      summary: `Applied ${humanizeAdjustmentType(data.type)} of ${formatCurrency(amount)} for ${result.assignment.student.fullName}`,
+      before: {
+        totalAmount: toNumber(assignment.totalAmount),
+        pendingAmount: pendingBefore
+      },
+      after: {
+        student: {
+          id: result.assignment.student.id,
+          fullName: result.assignment.student.fullName,
+          admissionNumber: result.assignment.student.admissionNumber,
+          class: className(result.assignment.student.class)
+        },
+        adjustment: {
+          type: data.type,
+          amount,
+          reason: data.reason,
+          feeStructure: result.assignment.feeStructure.name
+        },
+        ledger: {
+          totalAmount: toNumber(result.assignment.totalAmount),
+          pendingAmount: toNumber(result.assignment.pendingAmount),
+          status: result.assignment.status
+        }
+      }
+    }).catch((error) => {
+      logger.warn({ err: error, schoolId: user.schoolId, adjustmentId: result.adjustment.id }, "Failed to write fee adjustment activity log");
     });
 
     return {

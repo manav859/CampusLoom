@@ -1,4 +1,4 @@
-import { UserRole } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { AppError } from "../../core/errors.js";
 
@@ -25,6 +25,80 @@ function pageInfo(query: ActivityQuery) {
   return { limit, page, skip: (page - 1) * limit };
 }
 
+function dedupeLogs<T extends { actorId: string | null; entityId: string; entityType: string; action: string; summary: string; createdAt: Date }>(items: T[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const minute = Math.floor(item.createdAt.getTime() / 60_000);
+    const key = [item.actorId, item.entityType, item.entityId, item.action, item.summary, minute].join("|");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function formatCurrency(value: number) {
+  return `₹${(Math.round(value * 100) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
+function readBody(log: { afterJson: Prisma.JsonValue | null }) {
+  const after = log.afterJson;
+  if (!after || typeof after !== "object" || Array.isArray(after)) return {} as Record<string, unknown>;
+  const body = (after as Record<string, unknown>).body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return {} as Record<string, unknown>;
+  return body as Record<string, unknown>;
+}
+
+async function enrichFeeLog<T extends { action: string; afterJson: Prisma.JsonValue | null; entityType: string; schoolId: string; summary: string }>(log: T): Promise<T> {
+  const isFeePayment = /\/fees\/(payment|payments)(?:\?|$|\/)/.test(log.summary);
+  const isFeeAdjustment = /\/fees\/(adjustments|fee-adjustments)(?:\?|$|\/)/.test(log.summary);
+  if (!isFeePayment && !isFeeAdjustment) return log;
+
+  const body = readBody(log);
+  const amount = Number(body.amount ?? 0);
+  const assignmentId = typeof body.assignmentId === "string" ? body.assignmentId : null;
+  const studentId = typeof body.studentId === "string" ? body.studentId : null;
+  if (!amount || (!assignmentId && !studentId)) return log;
+
+  const assignment = assignmentId
+    ? await prisma.studentFeeAssignment.findFirst({
+        where: { id: assignmentId, schoolId: log.schoolId },
+        include: { feeStructure: true, student: { include: { class: true } } }
+      })
+    : await prisma.studentFeeAssignment.findFirst({
+        where: { studentId: studentId!, schoolId: log.schoolId },
+        include: { feeStructure: true, student: { include: { class: true } } },
+        orderBy: { assignedAt: "desc" }
+      });
+
+  const student = assignment?.student ?? (studentId ? await prisma.student.findFirst({ where: { id: studentId, schoolId: log.schoolId }, include: { class: true } }) : null);
+  if (!student) return log;
+
+  const summary = isFeePayment
+    ? `Recorded fee for ${student.fullName} for ${formatCurrency(amount)}`
+    : `Applied fee adjustment of ${formatCurrency(amount)} for ${student.fullName}`;
+
+  return {
+    ...log,
+    action: isFeePayment ? "CREATE" : "UPDATE",
+    entityType: "FEE",
+    summary,
+    afterJson: {
+      student: {
+        fullName: student.fullName,
+        admissionNumber: student.admissionNumber,
+        class: `${student.class.name}-${student.class.section}`
+      },
+      fee: {
+        amount,
+        mode: body.mode,
+        feeStructure: assignment?.feeStructure.name,
+        reason: body.reason,
+        notes: body.notes
+      }
+    }
+  };
+}
+
 export async function listActivityLogs(user: Express.UserContext, query: ActivityQuery) {
   assertAdmin(user);
 
@@ -33,9 +107,12 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
   const dateFrom = query.dateFrom ? new Date(query.dateFrom) : null;
   const dateTo = query.dateTo ? new Date(query.dateTo) : null;
   if (dateTo) dateTo.setHours(23, 59, 59, 999);
-  const where = {
+  const baseWhere = {
     schoolId: user.schoolId,
-    NOT: { entityType: "STUDENTS" },
+    NOT: { entityType: "STUDENTS" }
+  } satisfies Prisma.AuditLogWhereInput;
+  const where = {
+    ...baseWhere,
     ...(query.action ? { action: query.action } : {}),
     ...(query.actorId ? { actorId: query.actorId } : {}),
     ...(dateFrom || dateTo
@@ -57,7 +134,7 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
           ]
         }
       : {})
-  };
+  } satisfies Prisma.AuditLogWhereInput;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -68,32 +145,34 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
       include: { actor: { select: { id: true, fullName: true, role: true, phone: true, email: true } } },
       orderBy: { createdAt: "desc" },
       skip,
-      take: limit
+      take: limit * 3
     }),
     prisma.auditLog.count({ where }),
-    prisma.auditLog.count({ where: { schoolId: user.schoolId, createdAt: { gte: today } } }),
+    prisma.auditLog.count({ where: { ...baseWhere, createdAt: { gte: today } } }),
     prisma.auditLog.findMany({
-      where: { schoolId: user.schoolId, actorId: { not: null } },
+      where: { ...baseWhere, actorId: { not: null } },
       distinct: ["actorId"],
       include: { actor: { select: { id: true, fullName: true, role: true } } },
       orderBy: { createdAt: "desc" }
     }),
     prisma.auditLog.groupBy({
       by: ["entityType"],
-      where: { schoolId: user.schoolId },
+      where: baseWhere,
       _count: { entityType: true },
       orderBy: { _count: { entityType: "desc" } }
     }),
     prisma.auditLog.groupBy({
       by: ["action"],
-      where: { schoolId: user.schoolId },
+      where: baseWhere,
       _count: { action: true },
       orderBy: { _count: { action: "desc" } }
     })
   ]);
 
+  const visibleItems = await Promise.all(dedupeLogs(items).slice(0, limit).map(enrichFeeLog));
+
   return {
-    items,
+    items: visibleItems,
     meta: {
       limit,
       page,
@@ -102,7 +181,7 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
     },
     stats: {
       todayCount,
-      totalCount: await prisma.auditLog.count({ where: { schoolId: user.schoolId } }),
+      totalCount: await prisma.auditLog.count({ where: baseWhere }),
       actorCount: actors.filter((item) => item.actor).length,
       entityTypes: entityTypes.map((item) => ({ label: item.entityType, count: item._count.entityType })),
       actions: actions.map((item) => ({ label: item.action, count: item._count.action }))
