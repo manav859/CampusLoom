@@ -28,6 +28,18 @@ function paymentReference(payment: StudentFeeLedger["payments"][number]) {
   return payment.upiTransactionId ?? payment.chequeNumber ?? payment.ddNumber ?? payment.bankReference ?? payment.gatewayTransactionId ?? "-";
 }
 
+function transportFeeAmount(assignment: StudentFeeLedger["assignments"][number]) {
+  return Number(assignment.transportFeeAmount ?? 0);
+}
+
+function baseFeeAmount(assignment: StudentFeeLedger["assignments"][number]) {
+  return Math.max(0, Number(assignment.total ?? 0) - transportFeeAmount(assignment));
+}
+
+function feeComponentLabel(feeComponent?: StudentFeeLedger["payments"][number]["feeComponent"]) {
+  return feeComponent === "TRANSPORTATION_FEE" ? "Transportation fee" : "School fee";
+}
+
 export default function StudentFeeLedgerPage() {
   const params = useParams<{ studentId: string }>();
   const studentId = params.studentId;
@@ -219,20 +231,31 @@ export default function StudentFeeLedgerPage() {
                   <tr>{["Fee", "Total", "Paid", "Balance", "Status"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
-                  {ledger.assignments.map((assignment) => (
-                    <tr key={assignment.id} className="table-row">
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{assignment.feeStructure.name}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.total)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.paid)}</td>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(assignment.balance)}</td>
-                      <td className="px-5 py-4">
-                        <StatusPill label={humanizeConstant(assignment.status)} tone={statusTone(assignment.status)} />
-                        {assignment.status === "PARTIAL" ? (
-                          <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {formatINR(assignment.paid, { compact: false })} of {formatINR(assignment.total, { compact: false })} - {formatINR(assignment.balance, { compact: false })} pending</p>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
+                  {ledger.assignments.map((assignment) => {
+                    const transportAmount = transportFeeAmount(assignment);
+                    return (
+                      <tr key={assignment.id} className="table-row">
+                        <td className="px-5 py-4">
+                          <p className="font-semibold text-[#1d1d1f]">{assignment.feeStructure.name}</p>
+                          {transportAmount > 0 ? (
+                            <div className="mt-1.5 space-y-0.5 text-[11px] font-medium text-[#86868b]">
+                              <p>Base fee: {formatINR(baseFeeAmount(assignment), { compact: false })}</p>
+                              <p>Transportation fee: {formatINR(transportAmount, { compact: false })}</p>
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.total)}</td>
+                        <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.paid)}</td>
+                        <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(assignment.balance)}</td>
+                        <td className="px-5 py-4">
+                          <StatusPill label={humanizeConstant(assignment.status)} tone={statusTone(assignment.status)} />
+                          {assignment.status === "PARTIAL" ? (
+                            <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {formatINR(assignment.paid, { compact: false })} of {formatINR(assignment.total, { compact: false })} - {formatINR(assignment.balance, { compact: false })} pending</p>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -297,7 +320,10 @@ export default function StudentFeeLedgerPage() {
                         return (
                           <tr key={payment.id} className="table-row">
                             <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(payment.date ?? payment.paidAt)}</td>
-                            <td className="px-5 py-4 font-semibold text-[#248a3d]">{formatINR(payment.amount)}</td>
+                            <td className="px-5 py-4">
+                              <p className="font-semibold text-[#248a3d]">{formatINR(payment.amount)}</p>
+                              <p className="mt-1 text-[11px] font-medium text-[#86868b]">{feeComponentLabel(payment.feeComponent)}</p>
+                            </td>
                             <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
                             <td className="px-5 py-4 text-[#6e6e73]">{paymentReference(payment)}</td>
                             <td className="px-5 py-4 type-code text-[#6e6e73]">{receiptLabel(payment)}</td>
@@ -358,7 +384,7 @@ export default function StudentFeeLedgerPage() {
                       <span className="absolute left-0 top-1.5 h-3 w-3 rounded-full bg-[#34c759] ring-4 ring-[#34c759]/15" />
                       {index < ledger.transactionLedger.length - 1 ? <span className="absolute bottom-[-22px] left-[5px] top-5 w-px bg-[rgba(0,0,0,0.08)]" /> : null}
                       <p className="text-[13px] font-semibold text-[#1d1d1f]">{formatINR(payment.amount)} posted</p>
-                      <p className="mt-1 text-[12px] text-[#86868b]">{formatDateShort(payment.date)} - {humanizeConstant(payment.mode)} - {payment.feeStructureName}</p>
+                      <p className="mt-1 text-[12px] text-[#86868b]">{formatDateShort(payment.date)} - {humanizeConstant(payment.mode)} - {feeComponentLabel(payment.feeComponent)} - {payment.feeStructureName}</p>
                       <p className="mt-1 text-[12px] font-semibold text-[#6e6e73]">Balance after: {formatINR(payment.balanceAfter)}</p>
                     </div>
                   ))

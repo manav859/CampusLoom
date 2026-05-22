@@ -26,6 +26,8 @@ export const studentSchema = z.object({
   guardianOccupation: optionalText,
   address: z.string().nullable().optional(),
   joiningDate: optionalDate,
+  transportRequired: z.coerce.boolean().optional(),
+  transportFeeAmount: z.coerce.number().min(0).optional(),
   isActive: z.boolean().optional(),
   feeStructureId: z.string().uuid().optional()
 });

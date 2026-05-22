@@ -287,6 +287,7 @@ export type NotificationLog = {
 };
 
 export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "DD" | "ONLINE_GATEWAY" | "OTHER";
+export type FeeComponent = "SCHOOL_FEE" | "TRANSPORTATION_FEE";
 
 export type PaymentReferencePayload = {
   upiTransactionId?: string | null;
@@ -300,6 +301,7 @@ export type FeeAssignmentSummary = {
   id: string;
   studentId: string;
   totalAmount: string | number;
+  transportFeeAmount?: string | number;
   paidAmount: string | number;
   pendingAmount: string | number;
   status: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
@@ -365,6 +367,7 @@ export type StudentFeeLedger = {
   assignments: {
     id: string;
     feeStructureId: string;
+    transportFeeAmount?: string | number;
     total: number;
     paid: number;
     balance: number;
@@ -375,6 +378,7 @@ export type StudentFeeLedger = {
     id: string;
     date: string;
     amount: string | number;
+    feeComponent?: FeeComponent;
     mode: PaymentMode;
     upiTransactionId?: string | null;
     chequeNumber?: string | null;
@@ -392,6 +396,7 @@ export type StudentFeeLedger = {
     id: string;
     date: string;
     amount: number;
+    feeComponent?: FeeComponent;
     mode: PaymentMode;
     upiTransactionId?: string | null;
     chequeNumber?: string | null;
@@ -418,7 +423,7 @@ export type StudentFeeLedger = {
 };
 
 export type PaymentResult = {
-  payment: { id: string; amount: string | number; mode: PaymentMode; paidAt: string } & PaymentReferencePayload;
+  payment: { id: string; amount: string | number; feeComponent?: FeeComponent; mode: PaymentMode; paidAt: string } & PaymentReferencePayload;
   receipt: { id: string; receiptNo: string };
   ledger: { total: number; paid: number; balance: number; balanceAmount: number; status: string };
   receiptNotificationQueued?: boolean;
@@ -450,6 +455,8 @@ export type StudentDetail = {
   guardianPhone: string | null;
   guardianOccupation: string | null;
   address: string | null;
+  transportRequired?: boolean;
+  transportFeeAmount?: string | number;
   isActive: boolean;
   joiningDate: string;
   lastAbsentDate: string | null;
@@ -613,6 +620,7 @@ export type StudentDetail = {
   feeAssignments: {
     id: string;
     totalAmount: string | number;
+    transportFeeAmount?: string | number;
     paidAmount: string | number;
     pendingAmount: string | number;
     status: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
@@ -620,6 +628,7 @@ export type StudentDetail = {
     payments: {
       id: string;
       amount: string | number;
+      feeComponent?: FeeComponent;
       mode: PaymentMode;
       upiTransactionId?: string | null;
       chequeNumber?: string | null;
@@ -1066,7 +1075,7 @@ export const feesApi = {
       method: "POST"
     }),
   studentLedger: (studentId: string) => apiFetch<StudentFeeLedger>(`/fees/student/${studentId}`),
-  recordPayment: (payload: { studentId: string; amount: number; mode: PaymentMode; paidAt?: string; sendReceiptOnWhatsApp?: boolean } & PaymentReferencePayload) =>
+  recordPayment: (payload: { studentId: string; amount: number; feeComponent?: FeeComponent; mode: PaymentMode; paidAt?: string; sendReceiptOnWhatsApp?: boolean } & PaymentReferencePayload) =>
     apiFetch<PaymentResult>("/fees/payment", {
       method: "POST",
       body: JSON.stringify(payload)

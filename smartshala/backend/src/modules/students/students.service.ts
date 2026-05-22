@@ -1259,6 +1259,8 @@ export async function createStudent(user: Express.UserContext, data: Record<stri
     data: { 
       ...studentData, 
       schoolId,
+      transportRequired: Boolean(studentData.transportRequired),
+      transportFeeAmount: studentData.transportRequired ? Number(studentData.transportFeeAmount ?? 0) : 0,
       joiningDate: studentData.joiningDate ? new Date(studentData.joiningDate as string) : new Date(),
       dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth as string) : null,
     } as never 

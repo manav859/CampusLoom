@@ -58,6 +58,8 @@ export default function NewStudentPage() {
     address: "",
     classId: "",
     feeStructureId: "",
+    transportRequired: false,
+    transportFeeAmount: "",
     aadhaar: "",
     apaar: "",
     previousSchool: "",
@@ -153,6 +155,8 @@ export default function NewStudentPage() {
         if (!payload[key]) delete payload[key];
       });
       if (!payload.feeStructureId) delete payload.feeStructureId;
+      payload.transportRequired = Boolean(payload.transportRequired);
+      payload.transportFeeAmount = payload.transportRequired ? Number(payload.transportFeeAmount || 0) : 0;
       if (!payload.aadhaar) delete payload.aadhaar;
       if (!payload.apaar) delete payload.apaar;
       if (!payload.previousSchool) delete payload.previousSchool;
@@ -323,6 +327,33 @@ export default function NewStudentPage() {
                   <option key={fs.id} value={fs.id}>{fs.name} ({formatINR(fs.totalAmount, { compact: false })}) — {fs.academicYear}</option>
                 ))}
               </select>
+            </div>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <div className="flex items-center rounded-2xl border border-[#DCE1E8] bg-white/55 px-4 py-3">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  checked={formData.transportRequired}
+                  className="rounded border-[rgba(0,0,0,0.1)] text-[#2456E6] focus:ring-[#2456E6]"
+                  onChange={(e) => setFormData({ ...formData, transportRequired: e.target.checked })}
+                  type="checkbox"
+                />
+                <span className="text-[13px] font-semibold text-[#1d1d1f]">Uses school transportation</span>
+              </label>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Transportation Fee</label>
+              <input
+                className="glass-input w-full"
+                disabled={!formData.transportRequired}
+                inputMode="decimal"
+                min="0"
+                placeholder="e.g. 5000"
+                type="number"
+                value={formData.transportFeeAmount}
+                onChange={(e) => setFormData({ ...formData, transportFeeAmount: e.target.value })}
+              />
+              <p className="ml-1 text-[12px] font-medium text-[#5A6573]">Added to selected fee structure total for this student.</p>
             </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">

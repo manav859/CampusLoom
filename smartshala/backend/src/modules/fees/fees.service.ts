@@ -1,4 +1,4 @@
-import { FeeAdjustmentType, InstallmentStatus, NotificationKind, PaymentMode, Prisma } from "@prisma/client";
+import { FeeAdjustmentType, FeeComponent, InstallmentStatus, NotificationKind, PaymentMode, Prisma } from "@prisma/client";
 import { logger } from "../../config/logger.js";
 import { env } from "../../config/env.js";
 import { prisma, withRetry, isRetryableError } from "../../core/prisma.js";
@@ -24,6 +24,7 @@ type PaymentInput = {
   studentId?: string;
   installmentId?: string;
   amount: number;
+  feeComponent?: FeeComponent;
   mode: PaymentMode;
   paidAt?: Date;
   upiTransactionId?: string;
@@ -127,12 +128,14 @@ function normalizeFeeStructureInput(data: FeeStructureInput) {
 
 function mapAssignmentSummary(assignment: {
   totalAmount: unknown;
+  transportFeeAmount?: unknown;
   paidAmount: unknown;
   pendingAmount: unknown;
   status: InstallmentStatus;
 }) {
   return {
     total: toNumber(assignment.totalAmount),
+    transportFeeAmount: toNumber(assignment.transportFeeAmount ?? 0),
     paid: toNumber(assignment.paidAmount),
     balance: toNumber(assignment.pendingAmount),
     balanceAmount: toNumber(assignment.pendingAmount),
@@ -148,6 +151,7 @@ type LedgerAssignment = {
   payments: {
     id: string;
     amount: unknown;
+    feeComponent?: FeeComponent;
     mode: PaymentMode;
     upiTransactionId?: string | null;
     chequeNumber?: string | null;
@@ -192,6 +196,7 @@ export function buildTransactionLedger(assignments: LedgerAssignment[]) {
         paidAt: payment.paidAt,
         createdAt: payment.createdAt,
         amount: toNumber(payment.amount),
+        feeComponent: payment.feeComponent ?? FeeComponent.SCHOOL_FEE,
         mode: payment.mode,
         upiTransactionId: payment.upiTransactionId ?? null,
         chequeNumber: payment.chequeNumber ?? null,
@@ -453,13 +458,17 @@ export async function assignFee(schoolId: string, studentId: string, feeStructur
 
     if (existingAssignment) return existingAssignment;
 
+    const transportFeeAmount = student.transportRequired ? toMoney(toNumber(student.transportFeeAmount)) : 0;
+    const totalAmount = toMoney(toNumber(feeStructure.totalAmount) + transportFeeAmount);
+
     return prisma.studentFeeAssignment.create({
       data: {
         schoolId,
         studentId,
         feeStructureId,
-        totalAmount: feeStructure.totalAmount,
-        pendingAmount: feeStructure.totalAmount,
+        totalAmount,
+        transportFeeAmount,
+        pendingAmount: totalAmount,
         status: InstallmentStatus.PENDING
       },
       include: { student: true, feeStructure: true }
@@ -481,19 +490,24 @@ export async function assignFeeStructureToClass(schoolId: string, feeStructureId
 
     const students = await prisma.student.findMany({
       where: { schoolId, classId: feeStructure.classId, isActive: true },
-      select: { id: true }
+      select: { id: true, transportRequired: true, transportFeeAmount: true }
     });
 
     const result = await prisma.$transaction(async (tx) => {
       await tx.studentFeeAssignment.createMany({
-        data: students.map((student) => ({
-          schoolId,
-          studentId: student.id,
-          feeStructureId: feeStructure.id,
-          totalAmount: feeStructure.totalAmount,
-          pendingAmount: feeStructure.totalAmount,
-          status: InstallmentStatus.PENDING
-        })),
+        data: students.map((student) => {
+          const transportFeeAmount = student.transportRequired ? toMoney(toNumber(student.transportFeeAmount)) : 0;
+          const totalAmount = toMoney(toNumber(feeStructure.totalAmount) + transportFeeAmount);
+          return {
+            schoolId,
+            studentId: student.id,
+            feeStructureId: feeStructure.id,
+            totalAmount,
+            transportFeeAmount,
+            pendingAmount: totalAmount,
+            status: InstallmentStatus.PENDING
+          };
+        }),
         skipDuplicates: true
       });
 
@@ -568,6 +582,7 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
         assignmentId: assignment.id,
         installmentId: data.installmentId,
         amount: data.amount,
+        feeComponent: data.feeComponent ?? FeeComponent.SCHOOL_FEE,
         mode: data.mode,
         upiTransactionId: data.upiTransactionId,
         chequeNumber: data.chequeNumber,
@@ -623,7 +638,7 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
     entityId: result.payment.id,
     entityType: "FEE",
     schoolId: user.schoolId,
-    summary: `Recorded fee for ${result.assignment.student.fullName} for ${formatCurrency(toNumber(result.payment.amount))}`,
+    summary: `${result.payment.feeComponent === FeeComponent.TRANSPORTATION_FEE ? "Recorded transportation fee" : "Recorded fee"} for ${result.assignment.student.fullName} for ${formatCurrency(toNumber(result.payment.amount))}`,
     before: {
       balance: toMoney(toNumber(result.assignment.pendingAmount) + toNumber(result.payment.amount))
     },
@@ -636,6 +651,7 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
       },
       fee: {
         amount: toNumber(result.payment.amount),
+        feeComponent: result.payment.feeComponent,
         mode: result.payment.mode,
         paidAt: result.payment.paidAt,
         receiptNo: result.receipt.receiptNo,

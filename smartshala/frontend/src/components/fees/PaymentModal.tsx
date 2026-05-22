@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { feesApi, type PaymentMode, type PaymentReferencePayload, type PaymentResult } from "@/lib/api";
+import { feesApi, type FeeComponent, type PaymentMode, type PaymentReferencePayload, type PaymentResult } from "@/lib/api";
 import { formatINR, humanizeConstant } from "@/lib/formatters";
 
 type PaymentModalProps = {
@@ -35,6 +35,7 @@ function paymentReference(payment: PaymentResult["payment"]) {
 export function PaymentModal({ open, studentId, studentName, maxAmount, onClose, onSuccess }: PaymentModalProps) {
   const [amount, setAmount] = useState("");
   const [mode, setMode] = useState<PaymentMode>("CASH");
+  const [feeComponent, setFeeComponent] = useState<FeeComponent>("SCHOOL_FEE");
   const [paidAt, setPaidAt] = useState(todayInputValue);
   const [sendReceiptOnWhatsApp, setSendReceiptOnWhatsApp] = useState(true);
   const [references, setReferences] = useState<PaymentReferencePayload>({});
@@ -50,6 +51,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
     if (open) {
       setAmount("");
       setMode("CASH");
+      setFeeComponent("SCHOOL_FEE");
       setPaidAt(todayInputValue());
       setSendReceiptOnWhatsApp(true);
       setReferences({});
@@ -91,6 +93,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
       const result = await feesApi.recordPayment({
         studentId,
         amount: numericAmount,
+        feeComponent,
         mode,
         paidAt,
         sendReceiptOnWhatsApp,
@@ -199,6 +202,10 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                 <span className="font-bold text-[#248a3d]">{formatINR(success.payment.amount, { compact: false })}</span>
               </div>
               <div className="flex justify-between text-[13px]">
+                <span className="text-[#86868b]">Payment Type</span>
+                <span className="font-semibold text-[#1d1d1f]">{success.payment.feeComponent === "TRANSPORTATION_FEE" ? "Transportation fee" : "School fee"}</span>
+              </div>
+              <div className="flex justify-between text-[13px]">
                 <span className="text-[#86868b]">Payment Mode</span>
                 <span className="font-semibold text-[#1d1d1f]">{humanizeConstant(success.payment.mode)}</span>
               </div>
@@ -298,6 +305,17 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                   type="number"
                   value={amount}
                 />
+              </label>
+              <label className="block">
+                <span className="text-[13px] font-semibold text-[#1d1d1f]">Fee type</span>
+                <select
+                  className="glass-input mt-2 min-h-[48px]"
+                  onChange={(event) => setFeeComponent(event.target.value as FeeComponent)}
+                  value={feeComponent}
+                >
+                  <option value="SCHOOL_FEE">School fee</option>
+                  <option value="TRANSPORTATION_FEE">Transportation fee</option>
+                </select>
               </label>
               <label className="block">
                 <span className="text-[13px] font-semibold text-[#1d1d1f]">Payment date</span>

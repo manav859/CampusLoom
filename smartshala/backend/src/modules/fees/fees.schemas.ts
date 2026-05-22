@@ -1,4 +1,4 @@
-import { FeeAdjustmentType, FeeFrequency, PaymentMode } from "@prisma/client";
+import { FeeAdjustmentType, FeeFrequency, PaymentMode, FeeComponent } from "@prisma/client";
 import { z } from "zod";
 
 const optionalTrimmed = z.preprocess(
@@ -63,6 +63,7 @@ export const paymentSchema = z.object({
   studentId: z.string().uuid().optional(),
   installmentId: z.string().uuid().optional(),
   amount: z.coerce.number().positive(),
+  feeComponent: z.preprocess((value) => (typeof value === "string" ? value.toUpperCase() : value), z.nativeEnum(FeeComponent)).optional().default(FeeComponent.SCHOOL_FEE),
   mode: z.preprocess((value) => (typeof value === "string" ? value.toUpperCase() : value), z.nativeEnum(PaymentMode)),
   paidAt: z.coerce.date().optional(),
   upiTransactionId: optionalTrimmed,

@@ -18,6 +18,7 @@ function buildTransactionLedger(student: StudentDetail) {
         id: payment.id,
         date: payment.paidAt,
         amount: Number(payment.amount ?? 0),
+        feeComponent: payment.feeComponent ?? "SCHOOL_FEE",
         mode: payment.mode,
         upiTransactionId: payment.upiTransactionId ?? null,
         chequeNumber: payment.chequeNumber ?? null,
@@ -44,6 +45,10 @@ function paymentReference(payment: ReturnType<typeof buildTransactionLedger>[num
 
 function receiptLabel(payment: ReturnType<typeof buildTransactionLedger>[number]) {
   return payment.receiptNo ?? payment.receiptId ?? "Pending";
+}
+
+function baseFeeAmount(assignment: StudentDetail["feeAssignments"][number]) {
+  return Math.max(0, Number(assignment.totalAmount ?? 0) - Number(assignment.transportFeeAmount ?? 0));
 }
 
 export default function FeesTabPanel({ student }: FeesTabPanelProps) {
@@ -109,7 +114,15 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
               ) : (
                 student.feeAssignments.map((assignment) => (
                   <tr key={assignment.id} className="table-row">
-                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{assignment.feeStructure.name}</td>
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-[#1d1d1f]">{assignment.feeStructure.name}</p>
+                      {Number(assignment.transportFeeAmount ?? 0) > 0 ? (
+                        <div className="mt-1.5 space-y-0.5 text-[11px] font-medium text-[#6e6e73]">
+                          <p>Base fee: {money(baseFeeAmount(assignment))}</p>
+                          <p className="text-[#2456E6]">Transportation fee: {money(assignment.transportFeeAmount ?? 0)}</p>
+                        </div>
+                      ) : null}
+                    </td>
                     <td className="px-5 py-4 text-[#6e6e73]">{money(assignment.paidAmount)}</td>
                     <td className="px-5 py-4 text-[#6e6e73]">{money(assignment.pendingAmount)}</td>
                     <td className="px-5 py-4">
@@ -149,7 +162,10 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                     return (
                       <tr key={payment.id} className="table-row">
                         <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(payment.date)}</td>
-                        <td className="px-5 py-4 font-semibold text-[#248a3d]">{money(payment.amount)}</td>
+                        <td className="px-5 py-4">
+                          <p className="font-semibold text-[#248a3d]">{money(payment.amount)}</p>
+                          <p className="mt-1 text-[11px] font-semibold text-[#6e6e73]">{payment.feeComponent === "TRANSPORTATION_FEE" ? "Transportation fee" : "School fee"}</p>
+                        </td>
                         <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
                         <td className="px-5 py-4 text-[#6e6e73]">{paymentReference(payment)}</td>
                         <td className="px-5 py-4">

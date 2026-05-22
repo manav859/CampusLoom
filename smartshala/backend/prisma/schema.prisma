@@ -141,6 +141,8 @@ model Student {
   guardianOccupation  String?
   address             String?
   joiningDate         DateTime               @default(now())
+  transportRequired   Boolean                @default(false)
+  transportFeeAmount  Decimal                @default(0) @db.Decimal(12, 2)
   isActive            Boolean                @default(true)
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
@@ -497,6 +499,7 @@ model StudentFeeAssignment {
   studentId      String            @db.Uuid
   feeStructureId String            @db.Uuid
   totalAmount    Decimal           @db.Decimal(12, 2)
+  transportFeeAmount Decimal        @default(0) @db.Decimal(12, 2)
   paidAmount     Decimal           @default(0) @db.Decimal(12, 2)
   pendingAmount  Decimal           @db.Decimal(12, 2)
   status         InstallmentStatus @default(PENDING)
@@ -523,6 +526,7 @@ model Payment {
   installmentId String?              @db.Uuid
   recordedById  String               @db.Uuid
   amount        Decimal              @db.Decimal(12, 2)
+  feeComponent  FeeComponent         @default(SCHOOL_FEE)
   mode          PaymentMode
   upiTransactionId     String?
   chequeNumber         String?
@@ -648,6 +652,11 @@ enum PaymentMode {
   DD
   ONLINE_GATEWAY
   OTHER
+}
+
+enum FeeComponent {
+  SCHOOL_FEE
+  TRANSPORTATION_FEE
 }
 
 enum FeeAdjustmentType {
