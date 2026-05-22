@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { activityApi, type ActivityLog, type ActivityLogResponse } from "@/lib/api";
 import { formatDateShort, humanizeConstant } from "@/lib/formatters";
 
@@ -147,8 +147,10 @@ export default function ActivityLogsPage() {
   const [limit, setLimit] = useState(10);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [tooltip, setTooltip] = useState<{ desc: string; lines: string[]; x: number; y: number } | null>(null);
+  const [domRowCount, setDomRowCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
   function showTooltip(event: MouseEvent<HTMLElement>, desc: string, lines: string[]) {
     setTooltip({ desc, lines, x: event.clientX, y: event.clientY });
@@ -184,10 +186,15 @@ export default function ActivityLogsPage() {
   }, [actionFilter, actorFilter, dateFrom, dateTo, limit, page, search]);
 
   const rows = data?.items ?? [];
+  useEffect(() => {
+    setDomRowCount(tableBodyRef.current?.querySelectorAll("[data-activity-log-row]").length ?? rows.length);
+  }, [loading, rows.length]);
+
   const apiTotal = Number(data?.meta.total ?? 0);
   const apiHeaderTotal = Number(data?.stats.totalCount ?? 0);
-  const total = rows.length > 0 && apiTotal === 0 ? rows.length : Math.max(apiTotal, rows.length);
-  const headerCount = rows.length > 0 && apiHeaderTotal === 0 ? total : Math.max(apiHeaderTotal, total);
+  const visibleCount = Math.max(rows.length, domRowCount);
+  const total = visibleCount > 0 && apiTotal === 0 ? visibleCount : Math.max(apiTotal, visibleCount);
+  const headerCount = visibleCount > 0 && apiHeaderTotal === 0 ? total : Math.max(apiHeaderTotal, total);
   const start = total > 0 ? (page - 1) * limit + 1 : 0;
   const end = total > 0 ? Math.min(page * limit, total) : 0;
   const pageNumbers = useMemo(() => {
@@ -352,7 +359,7 @@ export default function ActivityLogsPage() {
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">Log Time</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref={tableBodyRef}>
                 {loading ? (
                   Array.from({ length: limit }).map((_, index) => (
                     <tr key={index}>
@@ -370,7 +377,7 @@ export default function ActivityLogsPage() {
                     const desc = description(log);
                     const lines = diffLines(log);
                     return (
-                      <tr className="transition-colors hover:bg-[#F8FBFD]" key={log.id}>
+                      <tr className="transition-colors hover:bg-[#F8FBFD]" data-activity-log-row key={log.id}>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{moduleLabel(log)}</td>
                         <td className="border-b border-[#C9D3DE] px-4 py-4">
                           <span

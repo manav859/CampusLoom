@@ -882,6 +882,27 @@ export type ActivityLogResponse = {
   };
 };
 
+function normalizeActivityLogResponse(response: ActivityLogResponse): ActivityLogResponse {
+  const itemCount = Array.isArray(response.items) ? response.items.length : 0;
+  const metaTotal = Number(response.meta?.total ?? 0);
+  const statsTotal = Number(response.stats?.totalCount ?? 0);
+  const total = Math.max(metaTotal, statsTotal, itemCount);
+  const limit = Number(response.meta?.limit ?? 10) || 10;
+
+  return {
+    ...response,
+    meta: {
+      ...response.meta,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit))
+    },
+    stats: {
+      ...response.stats,
+      totalCount: total
+    }
+  };
+}
+
 export const classesApi = {
   list: (options?: { scope?: "classTeacher" }) => {
     const params = new URLSearchParams();
@@ -990,7 +1011,7 @@ export const activityApi = {
     if (params?.page) query.set("page", String(params.page));
     if (params?.search) query.set("search", params.search);
     const qs = query.toString();
-    return apiFetch<ActivityLogResponse>(`/activity-logs${qs ? `?${qs}` : ""}`);
+    return apiFetch<ActivityLogResponse>(`/activity-logs${qs ? `?${qs}` : ""}`).then(normalizeActivityLogResponse);
   }
 };
 
