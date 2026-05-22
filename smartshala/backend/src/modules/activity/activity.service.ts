@@ -185,18 +185,20 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
     const enriched = await Promise.all(dedupeLogs(candidateItems).map(enrichFeeLog));
     const filtered = enriched.filter((item) => logSearchText(item).includes(searchText));
     const visibleItems = filtered.slice(skip, skip + limit);
+    const resultTotal = Math.max(filtered.length, visibleItems.length);
+    const totalCount = await prisma.auditLog.count({ where: baseWhere });
 
     return {
       items: visibleItems,
       meta: {
         limit,
         page,
-        total: filtered.length,
-        totalPages: Math.max(1, Math.ceil(filtered.length / limit))
+        total: resultTotal,
+        totalPages: Math.max(1, Math.ceil(resultTotal / limit))
       },
       stats: {
         todayCount,
-        totalCount: await prisma.auditLog.count({ where: baseWhere }),
+        totalCount: Math.max(totalCount, resultTotal),
         actorCount: actors.filter((item) => item.actor).length,
         entityTypes: entityTypes.map((item) => ({ label: item.entityType, count: item._count.entityType })),
         actions: actions.map((item) => ({ label: item.action, count: item._count.action }))
@@ -242,18 +244,20 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
   ]);
 
   const visibleItems = await Promise.all(dedupeLogs(items).slice(0, limit).map(enrichFeeLog));
+  const resultTotal = Math.max(total, visibleItems.length);
+  const totalCount = await prisma.auditLog.count({ where: baseWhere });
 
   return {
     items: visibleItems,
     meta: {
       limit,
       page,
-      total,
-      totalPages: Math.max(1, Math.ceil(total / limit))
+      total: resultTotal,
+      totalPages: Math.max(1, Math.ceil(resultTotal / limit))
     },
     stats: {
       todayCount,
-      totalCount: await prisma.auditLog.count({ where: baseWhere }),
+      totalCount: Math.max(totalCount, resultTotal),
       actorCount: actors.filter((item) => item.actor).length,
       entityTypes: entityTypes.map((item) => ({ label: item.entityType, count: item._count.entityType })),
       actions: actions.map((item) => ({ label: item.action, count: item._count.action }))
