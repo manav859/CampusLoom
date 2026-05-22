@@ -236,7 +236,9 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-3">
+        <nav className={`mt-3 flex-1 space-y-0.5 px-2.5 pb-3 ${
+          isOpenDesktop ? "overflow-y-auto" : "overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        }`}>
           {links.map(({ label, href, icon }) => {
             const active = isActiveLink(pathname, href);
 
@@ -245,7 +247,9 @@ export function Sidebar({
                 key={href}
                 href={withSchoolPath(href, pathname)}
                 onClick={onClose}
-                className={`group flex items-center rounded-lg border px-3 py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
+                className={`group flex min-h-[42px] items-center rounded-lg border py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
+                  isOpenDesktop ? "justify-start px-3" : "justify-center px-0"
+                } ${
                   active
                     ? "border-[#0071e3] bg-[#0071e3] text-white shadow-md shadow-blue-500/20"
                     : "border-transparent text-[#424245] hover:border-[#0071e3] hover:text-[#1d1d1f]"

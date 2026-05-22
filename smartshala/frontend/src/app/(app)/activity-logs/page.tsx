@@ -169,7 +169,7 @@ export default function ActivityLogsPage() {
   }, [dateFrom, dateTo, limit, page, search]);
 
   const rows = data?.items ?? [];
-  const total = data?.meta.total ?? rows.length;
+  const total = Math.max(data?.meta.total ?? 0, rows.length);
   const headerCount = data?.stats.totalCount ?? data?.meta.total ?? rows.length;
   const start = total > 0 ? (page - 1) * limit + 1 : 0;
   const end = total > 0 ? Math.min(page * limit, total) : 0;
@@ -327,23 +327,27 @@ export default function ActivityLogsPage() {
             <button className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-semibold text-[#2456E6] disabled:opacity-50" disabled={!data || page >= data.meta.totalPages} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
           </div>
         </div>
-        {tooltip ? (
-          <div
-            className="pointer-events-none fixed z-50 w-[520px] max-w-[calc(100vw-32px)] rounded-[5px] bg-[#001827] px-4 py-3 text-[15px] font-semibold leading-6 text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)]"
-            style={{
-              left: Math.min(Math.max(16, tooltip.x - 240), window.innerWidth - 536),
-              top: Math.min(tooltip.y + 18, window.innerHeight - 220)
-            }}
-          >
-            <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
-            <span className="relative block whitespace-normal">
-              <span className="mb-1 block">{tooltip.desc}</span>
-              {tooltip.lines.map((line) => (
-                <span className="block" key={line}>- {line}</span>
-              ))}
-            </span>
-          </div>
-        ) : null}
+        {tooltip ? (() => {
+          const width = Math.min(520, window.innerWidth - 32);
+          const height = Math.min(360, 56 + tooltip.lines.length * 24);
+          const left = Math.min(Math.max(16, tooltip.x - width / 2), window.innerWidth - width - 16);
+          const top = tooltip.y + height + 24 > window.innerHeight ? Math.max(16, tooltip.y - height - 18) : tooltip.y + 18;
+
+          return (
+            <div
+              className="pointer-events-none fixed z-50 max-h-[360px] overflow-y-auto rounded-[5px] bg-[#001827] px-4 py-3 text-[15px] font-semibold leading-6 text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)]"
+              style={{ left, top, width }}
+            >
+              <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
+              <span className="relative block whitespace-normal">
+                <span className="mb-1 block">{tooltip.desc}</span>
+                {tooltip.lines.map((line) => (
+                  <span className="block" key={line}>- {line}</span>
+                ))}
+              </span>
+            </div>
+          );
+        })() : null}
       </section>
     </div>
   );

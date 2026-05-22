@@ -48,6 +48,18 @@ function readBody(log: { afterJson: Prisma.JsonValue | null }) {
   return body as Record<string, unknown>;
 }
 
+function logSearchText(log: { action: string; actor?: { fullName: string; role: UserRole } | null; afterJson: Prisma.JsonValue | null; beforeJson: Prisma.JsonValue | null; entityType: string; summary: string }) {
+  return [
+    log.summary,
+    log.action,
+    log.entityType,
+    log.actor?.fullName,
+    log.actor?.role,
+    JSON.stringify(log.beforeJson ?? {}),
+    JSON.stringify(log.afterJson ?? {})
+  ].join(" ").toLowerCase();
+}
+
 async function enrichFeeLog<T extends { action: string; afterJson: Prisma.JsonValue | null; entityType: string; schoolId: string; summary: string }>(log: T): Promise<T> {
   const isFeePayment = /\/fees\/(payment|payments)(?:\?|$|\/)/.test(log.summary);
   const isFeeAdjustment = /\/fees\/(adjustments|fee-adjustments)(?:\?|$|\/)/.test(log.summary);
@@ -111,7 +123,7 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
     schoolId: user.schoolId,
     NOT: { entityType: "STUDENTS" }
   } satisfies Prisma.AuditLogWhereInput;
-  const where = {
+  const whereWithoutSearch = {
     ...baseWhere,
     ...(query.action ? { action: query.action } : {}),
     ...(query.actorId ? { actorId: query.actorId } : {}),
@@ -123,7 +135,10 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
           }
         }
       : {}),
-    ...(query.entityType ? { entityType: query.entityType } : {}),
+    ...(query.entityType ? { entityType: query.entityType } : {})
+  } satisfies Prisma.AuditLogWhereInput;
+  const where = {
+    ...whereWithoutSearch,
     ...(search
       ? {
           OR: [
@@ -138,6 +153,64 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  if (search) {
+    const [candidateItems, todayCount, actors, entityTypes, actions] = await Promise.all([
+      prisma.auditLog.findMany({
+        where: whereWithoutSearch,
+        include: { actor: { select: { id: true, fullName: true, role: true, phone: true, email: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 2000
+      }),
+      prisma.auditLog.count({ where: { ...baseWhere, createdAt: { gte: today } } }),
+      prisma.auditLog.findMany({
+        where: { ...baseWhere, actorId: { not: null } },
+        distinct: ["actorId"],
+        include: { actor: { select: { id: true, fullName: true, role: true } } },
+        orderBy: { createdAt: "desc" }
+      }),
+      prisma.auditLog.groupBy({
+        by: ["entityType"],
+        where: baseWhere,
+        _count: { entityType: true },
+        orderBy: { _count: { entityType: "desc" } }
+      }),
+      prisma.auditLog.groupBy({
+        by: ["action"],
+        where: baseWhere,
+        _count: { action: true },
+        orderBy: { _count: { action: "desc" } }
+      })
+    ]);
+    const searchText = search.toLowerCase();
+    const enriched = await Promise.all(dedupeLogs(candidateItems).map(enrichFeeLog));
+    const filtered = enriched.filter((item) => logSearchText(item).includes(searchText));
+    const visibleItems = filtered.slice(skip, skip + limit);
+
+    return {
+      items: visibleItems,
+      meta: {
+        limit,
+        page,
+        total: filtered.length,
+        totalPages: Math.max(1, Math.ceil(filtered.length / limit))
+      },
+      stats: {
+        todayCount,
+        totalCount: await prisma.auditLog.count({ where: baseWhere }),
+        actorCount: actors.filter((item) => item.actor).length,
+        entityTypes: entityTypes.map((item) => ({ label: item.entityType, count: item._count.entityType })),
+        actions: actions.map((item) => ({ label: item.action, count: item._count.action }))
+      },
+      filters: {
+        actors: actors
+          .filter((item) => item.actor)
+          .map((item) => ({ id: item.actor!.id, fullName: item.actor!.fullName, role: item.actor!.role })),
+        actions: actions.map((item) => item.action),
+        entityTypes: entityTypes.map((item) => item.entityType)
+      }
+    };
+  }
 
   const [items, total, todayCount, actors, entityTypes, actions] = await Promise.all([
     prisma.auditLog.findMany({
