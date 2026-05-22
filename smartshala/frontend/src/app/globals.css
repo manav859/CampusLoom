@@ -199,7 +199,7 @@ samp,
   }
 
   .kpi-metric-card {
-    min-height: 120px;
+    height: 120px;
     border-radius: 6px;
     border: 1px solid #E2E7EE;
     background: #ffffff;
@@ -234,6 +234,9 @@ samp,
     color: #52687D;
     letter-spacing: 0;
     text-transform: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .kpi-metric-value {
@@ -244,6 +247,9 @@ samp,
     line-height: 36px;
     letter-spacing: 0;
     color: #0F2233;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* ─── Apple Glass Input ─── */
