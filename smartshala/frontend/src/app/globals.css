@@ -228,7 +228,7 @@ samp,
   }
 
   .kpi-metric-label {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 500;
     line-height: 24px;
     color: #52687D;
@@ -241,7 +241,7 @@ samp,
 
   .kpi-metric-value {
     margin-top: 4px;
-    font-size: 30px;
+    font-size: 28px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     line-height: 36px;
@@ -429,6 +429,21 @@ samp,
 
 .animate-progress {
   animation: progress 2s infinite ease-in-out;
+}
+
+@keyframes kpi-marquee {
+  0%, 12% { transform: translateX(0); }
+  88%, 100% { transform: translateX(calc(-50% - 1rem)); }
+}
+
+.animate-kpi-marquee {
+  animation: kpi-marquee 7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-kpi-marquee {
+    animation: none;
+  }
 }
 
 @keyframes shimmer {
