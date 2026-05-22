@@ -151,6 +151,10 @@ export default function ActivityLogsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+  const headerCountRef = useRef<HTMLSpanElement>(null);
+  const footerStartRef = useRef<HTMLSpanElement>(null);
+  const footerEndRef = useRef<HTMLSpanElement>(null);
+  const footerTotalRef = useRef<HTMLSpanElement>(null);
 
   function showTooltip(event: MouseEvent<HTMLElement>, desc: string, lines: string[]) {
     setTooltip({ desc, lines, x: event.clientX, y: event.clientY });
@@ -187,16 +191,30 @@ export default function ActivityLogsPage() {
 
   const rows = data?.items ?? [];
   useEffect(() => {
-    setDomRowCount(tableBodyRef.current?.querySelectorAll("[data-activity-log-row]").length ?? rows.length);
-  }, [loading, rows.length]);
+    const renderedRows = tableBodyRef.current?.querySelectorAll("[data-activity-log-row]").length ?? rows.length;
+    setDomRowCount(renderedRows);
+
+    const apiTotalNow = Number(data?.meta.total ?? 0);
+    const apiHeaderTotalNow = Number(data?.stats.totalCount ?? 0);
+    const visibleFloorTotal = renderedRows > 0 ? (page - 1) * limit + renderedRows : 0;
+    const resolvedTotal = Math.max(apiTotalNow, apiHeaderTotalNow, visibleFloorTotal);
+    const resolvedStart = renderedRows > 0 ? (page - 1) * limit + 1 : 0;
+    const resolvedEnd = renderedRows > 0 ? (page - 1) * limit + renderedRows : 0;
+
+    if (headerCountRef.current) headerCountRef.current.textContent = String(resolvedTotal);
+    if (footerStartRef.current) footerStartRef.current.textContent = String(resolvedStart);
+    if (footerEndRef.current) footerEndRef.current.textContent = String(resolvedEnd);
+    if (footerTotalRef.current) footerTotalRef.current.textContent = String(resolvedTotal);
+  }, [data?.meta.total, data?.stats.totalCount, limit, loading, page, rows.length]);
 
   const apiTotal = Number(data?.meta.total ?? 0);
   const apiHeaderTotal = Number(data?.stats.totalCount ?? 0);
   const visibleCount = Math.max(rows.length, domRowCount);
-  const total = visibleCount > 0 && apiTotal === 0 ? visibleCount : Math.max(apiTotal, visibleCount);
-  const headerCount = visibleCount > 0 && apiHeaderTotal === 0 ? total : Math.max(apiHeaderTotal, total);
-  const start = total > 0 ? (page - 1) * limit + 1 : 0;
-  const end = total > 0 ? Math.min(page * limit, total) : 0;
+  const visibleFloorTotal = visibleCount > 0 ? (page - 1) * limit + visibleCount : 0;
+  const total = Math.max(apiTotal, apiHeaderTotal, visibleFloorTotal);
+  const headerCount = Math.max(apiHeaderTotal, total);
+  const start = visibleCount > 0 ? (page - 1) * limit + 1 : 0;
+  const end = visibleCount > 0 ? (page - 1) * limit + visibleCount : 0;
   const pageNumbers = useMemo(() => {
     const totalPages = data?.meta.totalPages ?? 1;
     const first = Math.max(1, Math.min(page - 2, Math.max(1, totalPages - 4)));
@@ -268,7 +286,7 @@ export default function ActivityLogsPage() {
       <section className="overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="border-b border-[#C9D3DE] px-6 py-6">
           <h1 className="text-[22px] font-semibold text-[#031526]">
-            Activity Logs <span className="text-[#2456E6]">{headerCount}</span>
+            Activity Logs <span className="text-[#2456E6]" data-count-fix="dom-v2" ref={headerCountRef}>{headerCount}</span>
           </h1>
         </div>
 
@@ -404,7 +422,7 @@ export default function ActivityLogsPage() {
 
         <div className="flex flex-col gap-4 px-2 pb-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="px-3 text-[15px] font-semibold text-[#52687D]">
-            Showing <span className="text-[#0F1419]">{start}</span> to <span className="text-[#0F1419]">{end}</span> of <span className="text-[#0F1419]">{total}</span> Results
+            Showing <span className="text-[#0F1419]" ref={footerStartRef}>{start}</span> to <span className="text-[#0F1419]" ref={footerEndRef}>{end}</span> of <span className="text-[#0F1419]" ref={footerTotalRef}>{total}</span> Results
           </p>
           <div className="flex flex-wrap items-center gap-3 print:hidden">
             <select className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-[15px] font-semibold outline-none" onChange={(event) => { setLimit(Number(event.target.value)); setPage(1); }} value={limit}>
