@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { activityApi, type ActivityLog, type ActivityLogResponse } from "@/lib/api";
 import { formatDateShort, humanizeConstant } from "@/lib/formatters";
-
-const BRAND_BLUE = "#2456E6";
 
 function dateInputValue(date: Date) {
   const year = date.getFullYear();
@@ -13,14 +11,20 @@ function dateInputValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function today() {
+  return dateInputValue(new Date());
+}
+
+function monthStart() {
+  const date = new Date();
+  date.setDate(1);
+  return dateInputValue(date);
+}
+
 function yearStart() {
   const date = new Date();
   date.setMonth(0, 1);
   return dateInputValue(date);
-}
-
-function today() {
-  return dateInputValue(new Date());
 }
 
 function actorName(log: ActivityLog) {
@@ -134,8 +138,11 @@ function csvCell(value: string | number | null | undefined) {
 export default function ActivityLogsPage() {
   const [data, setData] = useState<ActivityLogResponse | null>(null);
   const [search, setSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState(yearStart());
-  const [dateTo, setDateTo] = useState(today());
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [actionFilter, setActionFilter] = useState("");
+  const [actorFilter, setActorFilter] = useState("");
+  const [openFilter, setOpenFilter] = useState<"action" | "actor" | "date" | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -152,7 +159,15 @@ export default function ActivityLogsPage() {
     setLoading(true);
     setError("");
 
-    activityApi.logs({ dateFrom, dateTo, limit, page, search: search.trim() })
+    activityApi.logs({
+      action: actionFilter,
+      actorId: actorFilter,
+      dateFrom,
+      dateTo,
+      limit,
+      page,
+      search: search.trim()
+    })
       .then((result) => {
         if (active) setData(result);
       })
@@ -166,7 +181,7 @@ export default function ActivityLogsPage() {
     return () => {
       active = false;
     };
-  }, [dateFrom, dateTo, limit, page, search]);
+  }, [actionFilter, actorFilter, dateFrom, dateTo, limit, page, search]);
 
   const rows = data?.items ?? [];
   const total = Math.max(data?.meta.total ?? 0, rows.length);
@@ -197,6 +212,46 @@ export default function ActivityLogsPage() {
   function exportPdf() {
     window.print();
     setActionsOpen(false);
+  }
+
+  function setDatePreset(preset: "all" | "today" | "month" | "year") {
+    setPage(1);
+    setOpenFilter(null);
+    if (preset === "all") {
+      setDateFrom("");
+      setDateTo("");
+    } else if (preset === "today") {
+      setDateFrom(today());
+      setDateTo(today());
+    } else if (preset === "month") {
+      setDateFrom(monthStart());
+      setDateTo(today());
+    } else {
+      setDateFrom(yearStart());
+      setDateTo(today());
+    }
+  }
+
+  function HeaderFilter({
+    children,
+    filterKey
+  }: {
+    children: ReactNode;
+    filterKey: "action" | "actor" | "date";
+  }) {
+    const open = openFilter === filterKey;
+    return (
+      <button
+        className="inline-flex items-center gap-2 text-left"
+        onClick={() => setOpenFilter(open ? null : filterKey)}
+        type="button"
+      >
+        {children}
+        <svg className="h-4 w-4 text-[#52687D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path d="m8 9 4-4 4 4M16 15l-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+    );
   }
 
   return (
@@ -253,18 +308,46 @@ export default function ActivityLogsPage() {
             <table className="w-full min-w-[980px] border-collapse text-left text-[15px] text-[#001B33]">
               <thead>
                 <tr className="bg-[#DDECF8]">
-                  {["Module", "Description", "Action", "Action By", "Log Date", "Log Time"].map((head) => (
-                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold" key={head}>
-                      <span className="inline-flex items-center gap-2">
-                        {head}
-                        {head !== "Module" ? (
-                          <svg className="h-4 w-4 text-[#52687D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path d="m8 9 4-4 4 4M16 15l-4 4-4-4" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        ) : null}
-                      </span>
-                    </th>
-                  ))}
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">Module</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">Description</th>
+                  <th className="relative whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">
+                    <HeaderFilter filterKey="action">Action</HeaderFilter>
+                    {openFilter === "action" ? (
+                      <div className="absolute left-4 top-12 z-30 w-48 overflow-hidden rounded-[5px] border border-[#C9D3DE] bg-white py-1 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                        <button className="block w-full px-4 py-2 text-left text-[14px] font-medium text-[#031526] hover:bg-[#F2F7FC]" onClick={() => { setActionFilter(""); setPage(1); setOpenFilter(null); }} type="button">All actions</button>
+                        {(data?.filters.actions ?? []).map((action) => (
+                          <button className="block w-full px-4 py-2 text-left text-[14px] font-medium text-[#031526] hover:bg-[#F2F7FC]" key={action} onClick={() => { setActionFilter(action); setPage(1); setOpenFilter(null); }} type="button">
+                            {actionLabel(action)}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </th>
+                  <th className="relative whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">
+                    <HeaderFilter filterKey="actor">Action By</HeaderFilter>
+                    {openFilter === "actor" ? (
+                      <div className="absolute left-4 top-12 z-30 w-56 overflow-hidden rounded-[5px] border border-[#C9D3DE] bg-white py-1 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                        <button className="block w-full px-4 py-2 text-left text-[14px] font-medium text-[#031526] hover:bg-[#F2F7FC]" onClick={() => { setActorFilter(""); setPage(1); setOpenFilter(null); }} type="button">All users</button>
+                        {(data?.filters.actors ?? []).map((actor) => (
+                          <button className="block w-full px-4 py-2 text-left text-[14px] font-medium text-[#031526] hover:bg-[#F2F7FC]" key={actor.id} onClick={() => { setActorFilter(actor.id); setPage(1); setOpenFilter(null); }} type="button">
+                            {actor.fullName}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </th>
+                  <th className="relative whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">
+                    <button className="text-left" onClick={() => setOpenFilter(openFilter === "date" ? null : "date")} type="button">Log Date</button>
+                    {openFilter === "date" ? (
+                      <div className="absolute left-4 top-12 z-30 w-44 overflow-hidden rounded-[5px] border border-[#C9D3DE] bg-white py-1 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                        <button className="block w-full px-4 py-2 text-left text-[14px] font-medium text-[#031526] hover:bg-[#F2F7FC]" onClick={() => setDatePreset("all")} type="button">All dates</button>
+                        <button className="block w-full px-4 py-2 text-left text-[14px] font-medium text-[#031526] hover:bg-[#F2F7FC]" onClick={() => setDatePreset("today")} type="button">Today</button>
+                        <button className="block w-full px-4 py-2 text-left text-[14px] font-medium text-[#031526] hover:bg-[#F2F7FC]" onClick={() => setDatePreset("month")} type="button">This month</button>
+                        <button className="block w-full px-4 py-2 text-left text-[14px] font-medium text-[#031526] hover:bg-[#F2F7FC]" onClick={() => setDatePreset("year")} type="button">This year</button>
+                      </div>
+                    ) : null}
+                  </th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">Log Time</th>
                 </tr>
               </thead>
               <tbody>
