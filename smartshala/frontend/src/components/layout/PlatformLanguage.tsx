@@ -336,9 +336,24 @@ function applyLanguage(language: PlatformLanguage) {
 
   textNodes.forEach((node) => {
     if (shouldSkipNode(node)) return;
-    const original = originalText.get(node) ?? node.nodeValue ?? "";
-    if (!originalText.has(node)) originalText.set(node, original);
-    const next = language === "hi" ? translate(original) : original;
+    const current = node.nodeValue ?? "";
+    const storedOriginal = originalText.get(node);
+    let original = storedOriginal ?? current;
+
+    if (language === "en") {
+      originalText.set(node, current);
+      return;
+    }
+
+    if (storedOriginal) {
+      const translatedOriginal = translate(storedOriginal);
+      if (current !== storedOriginal && current !== translatedOriginal) {
+        original = current;
+      }
+    }
+
+    originalText.set(node, original);
+    const next = translate(original);
     if (node.nodeValue !== next) node.nodeValue = next;
   });
 
