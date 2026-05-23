@@ -18,6 +18,29 @@ function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function monthInputFromParts(year: number, monthIndex: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+}
+
+function dateInputFromParts(year: number, monthIndex: number, day: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function monthLabel(month: string) {
+  const [year = 0, monthNumber = 1] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(year, monthNumber - 1, 1));
+}
+
+function calendarCells(month: string) {
+  const [year = 0, monthNumber = 1] = month.split("-").map(Number);
+  const firstOfMonth = new Date(year, monthNumber - 1, 1);
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  return [
+    ...Array.from({ length: firstOfMonth.getDay() }, (_, index) => ({ key: `blank-${index}`, day: null as number | null })),
+    ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
+  ];
+}
+
 function assignmentTone(status: HomeworkAssignment["status"]) {
   if (status === "COMPLETED") return "good";
   if (status === "OVERDUE") return "danger";
@@ -84,9 +107,16 @@ export default function TeacherHomeworkPage() {
   const [rubricNames, setRubricNames] = useState<string[]>([]);
   const [estimatedTime, setEstimatedTime] = useState("");
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("ALL");
+  const [classPickerOpen, setClassPickerOpen] = useState(false);
+  const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
+  const [assignedPickerOpen, setAssignedPickerOpen] = useState(false);
+  const [duePickerOpen, setDuePickerOpen] = useState(false);
+  const [assignedPickerMonth, setAssignedPickerMonth] = useState(todayInputValue().slice(0, 7));
+  const [duePickerMonth, setDuePickerMonth] = useState(todayInputValue().slice(0, 7));
 
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
   const subjectOptions = selectedClass?.subjects ?? [];
+  const selectedSubject = subjectOptions.find((subject) => subject.id === subjectId) ?? null;
   const selectedClassHasSubjects = subjectOptions.length > 0;
   const selectedAssignmentAverage = useMemo(() => {
     if (!selectedAssignment) return null;
@@ -137,6 +167,14 @@ export default function TeacherHomeworkPage() {
   useEffect(() => {
     setSubjectId(subjectOptions[0]?.id ?? "");
   }, [classId, subjectOptions]);
+
+  useEffect(() => {
+    setAssignedPickerMonth(assignedDate.slice(0, 7));
+  }, [assignedDate]);
+
+  useEffect(() => {
+    setDuePickerMonth(dueDate.slice(0, 7));
+  }, [dueDate]);
 
   async function refreshAssignments(nextClassId = classId) {
     const rows = await homeworkApi.assignments(nextClassId || undefined);
@@ -323,6 +361,70 @@ export default function TeacherHomeworkPage() {
     void updateSubmission(submission.studentId, submission.status, { announce: false });
   }
 
+  function renderDatePicker(
+    label: string,
+    value: string,
+    pickerMonth: string,
+    setPickerMonth: (month: string) => void,
+    open: boolean,
+    setOpen: (open: boolean) => void,
+    onSelect: (date: string) => void,
+    minDate?: string
+  ) {
+    const [year = 0, monthNumber = 1] = pickerMonth.split("-").map(Number);
+    const selectedMonth = value.slice(0, 7);
+
+    return (
+      <div className="relative">
+        <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">{label}</span>
+        <button
+          className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+          onClick={() => setOpen(!open)}
+          type="button"
+        >
+          <span>{formatDateShort(value)}</span>
+          <svg className="h-4 w-4 text-[#52687D]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+          </svg>
+        </button>
+        {open ? (
+          <div className="absolute left-0 top-[76px] z-30 w-72 rounded-2xl border border-[#C9D3DE] bg-white p-3 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+            <div className="mb-3 flex items-center justify-between">
+              <button className="rounded-full p-2 text-[#52687D] hover:bg-[#F2F7FC]" onClick={() => setPickerMonth(monthInputFromParts(year, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
+              <span className="text-[13px] font-bold text-[#031526]">{monthLabel(pickerMonth)}</span>
+              <button className="rounded-full p-2 text-[#52687D] hover:bg-[#F2F7FC]" onClick={() => setPickerMonth(monthInputFromParts(year, monthNumber))} type="button" aria-label="Next month">&gt;</button>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[#52687D]">
+              {["S", "M", "T", "W", "T", "F", "S"].map((weekday, index) => <span key={`${weekday}-${index}`}>{weekday}</span>)}
+            </div>
+            <div className="mt-2 grid grid-cols-7 gap-1">
+              {calendarCells(pickerMonth).map((cell) => {
+                if (!cell.day) return <span aria-hidden="true" className="h-8" key={cell.key} />;
+                const dateKey = dateInputFromParts(year, monthNumber - 1, cell.day);
+                const disabled = Boolean(minDate && dateKey < minDate);
+                const selected = value === dateKey;
+                return (
+                  <button
+                    className={`h-8 rounded-lg text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : selectedMonth === pickerMonth ? "text-[#031526] hover:bg-[#F2F7FC]" : "text-[#52687D] hover:bg-[#F2F7FC]"}`}
+                    disabled={disabled}
+                    key={cell.key}
+                    onClick={() => {
+                      onSelect(dateKey);
+                      setOpen(false);
+                    }}
+                    type="button"
+                  >
+                    {cell.day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -345,36 +447,81 @@ export default function TeacherHomeworkPage() {
         <form className="w-full rounded-[6px] border border-[#C9D3DE] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.04)]" onSubmit={handleSubmit}>
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Create assignment</h2>
           <div className="mt-5 space-y-4">
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Class</span>
-              <select
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                disabled={loading}
-                onChange={(event) => handleClassChange(event.target.value)}
-                value={classId}
-              >
-                {context.classes.length === 0 ? <option value="">No assigned classes</option> : null}
-                {context.classes.map((classRecord) => (
-                  <option key={classRecord.id} value={classRecord.id}>
-                    Class {classRecord.name}-{classRecord.section} ({classRecord.studentCount} students)
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="relative">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Class</span>
+                <button
+                  className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={loading}
+                  onClick={() => {
+                    setClassPickerOpen(!classPickerOpen);
+                    setSubjectPickerOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span>{selectedClass ? `Class ${selectedClass.name}-${selectedClass.section} (${selectedClass.studentCount} students)` : "No assigned classes"}</span>
+                  <svg className={`h-4 w-4 text-[#52687D] transition ${classPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {classPickerOpen ? (
+                  <div className="absolute left-0 right-0 top-[76px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                    {context.classes.length === 0 ? (
+                      <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No assigned classes</div>
+                    ) : (
+                      context.classes.map((classRecord) => (
+                        <button
+                          className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${classRecord.id === classId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                          key={classRecord.id}
+                          onClick={() => {
+                            setClassPickerOpen(false);
+                            void handleClassChange(classRecord.id);
+                          }}
+                          type="button"
+                        >
+                          Class {classRecord.name}-{classRecord.section} ({classRecord.studentCount} students)
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </div>
 
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Subject</span>
-              <select
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                onChange={(event) => setSubjectId(event.target.value)}
-                value={subjectId}
-              >
-                {subjectOptions.length === 0 ? <option value="">No subjects assigned</option> : null}
-                {subjectOptions.map((subject) => (
-                  <option key={subject.id} value={subject.id}>{subject.name}</option>
-                ))}
-              </select>
-            </label>
+              <div className="relative">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Subject</span>
+                <button
+                  className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={subjectOptions.length === 0}
+                  onClick={() => {
+                    setSubjectPickerOpen(!subjectPickerOpen);
+                    setClassPickerOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span>{selectedSubject?.name ?? "No subjects assigned"}</span>
+                  <svg className={`h-4 w-4 text-[#52687D] transition ${subjectPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {subjectPickerOpen ? (
+                  <div className="absolute left-0 right-0 top-[76px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                    {subjectOptions.map((subject) => (
+                      <button
+                        className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${subject.id === subjectId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                        key={subject.id}
+                        onClick={() => {
+                          setSubjectPickerOpen(false);
+                          setSubjectId(subject.id);
+                        }}
+                        type="button"
+                      >
+                        {subject.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
 
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Title</span>
@@ -401,64 +548,48 @@ export default function TeacherHomeworkPage() {
               />
             </label>
 
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Estimated time (minutes)</span>
-              <input
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                min={1}
-                onChange={(event) => setEstimatedTime(event.target.value)}
-                placeholder="30"
-                type="number"
-                value={estimatedTime}
-              />
-            </label>
-
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 lg:grid-cols-3">
               <label className="block">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Assigned date</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Estimated time</span>
                 <input
-                  className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                  onChange={(event) => setAssignedDate(event.target.value)}
-                  type="date"
-                  value={assignedDate}
+                  className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
+                  min={1}
+                  onChange={(event) => setEstimatedTime(event.target.value)}
+                  placeholder="30"
+                  type="number"
+                  value={estimatedTime}
                 />
               </label>
-              <label className="block">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Due date</span>
-                <input
-                  className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                  min={assignedDate}
-                  onChange={(event) => setDueDate(event.target.value)}
-                  type="date"
-                  value={dueDate}
-                />
-              </label>
+              {renderDatePicker("Assigned date", assignedDate, assignedPickerMonth, setAssignedPickerMonth, assignedPickerOpen, setAssignedPickerOpen, setAssignedDate)}
+              {renderDatePicker("Due date", dueDate, duePickerMonth, setDuePickerMonth, duePickerOpen, setDuePickerOpen, setDueDate, assignedDate)}
             </div>
 
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Attachments</span>
-              <input
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="mt-1.5 w-full rounded-xl border border-dashed border-[rgba(0,0,0,0.16)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                multiple
-                onChange={(event) => handleHomeworkFiles(event.target.files)}
-                type="file"
-              />
-              <p className="mt-1 text-[12px] font-medium text-[#86868b]">PDF, JPG, PNG up to 10MB each. Names save with assignment note.</p>
-              {attachmentNames.length ? <p className="mt-1 text-[12px] font-semibold text-[#1d1d1f]">{attachmentNames.join(", ")}</p> : null}
-            </label>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <label className="block">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Attachments</span>
+                <input
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="mt-1.5 min-h-[46px] w-full rounded-xl border border-dashed border-[#C9D3DE] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
+                  multiple
+                  onChange={(event) => handleHomeworkFiles(event.target.files)}
+                  type="file"
+                />
+                <p className="mt-1 text-[12px] font-medium text-[#86868b]">PDF, JPG, PNG up to 10MB each.</p>
+                {attachmentNames.length ? <p className="mt-1 text-[12px] font-semibold text-[#1d1d1f]">{attachmentNames.join(", ")}</p> : null}
+              </label>
 
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Rubric / answer key attachment</span>
-              <input
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="mt-1.5 w-full rounded-xl border border-dashed border-[rgba(0,0,0,0.16)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                multiple
-                onChange={(event) => handleRubricFiles(event.target.files)}
-                type="file"
-              />
-              {rubricNames.length ? <p className="mt-1 text-[12px] font-semibold text-[#1d1d1f]">{rubricNames.join(", ")}</p> : null}
-            </label>
+              <label className="block">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Rubric / answer key attachment</span>
+                <input
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="mt-1.5 min-h-[46px] w-full rounded-xl border border-dashed border-[#C9D3DE] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
+                  multiple
+                  onChange={(event) => handleRubricFiles(event.target.files)}
+                  type="file"
+                />
+                {rubricNames.length ? <p className="mt-1 text-[12px] font-semibold text-[#1d1d1f]">{rubricNames.join(", ")}</p> : null}
+              </label>
+            </div>
 
             <button
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
@@ -492,9 +623,9 @@ export default function TeacherHomeworkPage() {
             </div>
           </div>
           <div className="p-5">
-            <div className="max-h-[560px] overflow-auto rounded-[5px] border border-[#C9D3DE]">
-            <table className="w-full min-w-[980px] border-collapse text-left text-[15px] text-[#001B33]">
-              <thead className="sticky top-0 z-10">
+            <div className="max-h-[520px] overflow-auto rounded-[5px] border border-[#C9D3DE] [contain:content]">
+            <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[15px] text-[#001B33]">
+              <thead>
                 <tr className="bg-[#DDECF8]">
                   {["Title", "Subject", "Assigned Date", "Due Date", "Status", "Submitted", "Late", "Not submitted", "Class avg", "Tracking"].map((head) => (
                     <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold" key={head}>{head}</th>
@@ -516,7 +647,7 @@ export default function TeacherHomeworkPage() {
                   </tr>
                 ) : (
                   visibleAssignments.map((assignment) => (
-                    <tr className="transition-colors hover:bg-[#F8FBFD]" key={assignment.id}>
+                    <tr key={assignment.id}>
                       <td className="border-b border-[#C9D3DE] px-4 py-4">
                         <p className="font-semibold text-[#1d1d1f]">{assignment.title}</p>
                         {assignment.description ? <p className="mt-1 line-clamp-1 max-w-[260px] text-[12px] text-[#86868b]">{assignment.description}</p> : null}
