@@ -47,6 +47,7 @@ function groupedClasses(classes: ClassSummary[]) {
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
   const [classSearch, setClassSearch] = useState("");
+  const [calendarDetailDate, setCalendarDetailDate] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -54,7 +55,9 @@ export default function TeacherAttendancePage() {
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
   const selectedDateLabel = formatDateShort(attendance.selectedDate);
   const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
-  const selectedMonthDay = monthlyByDate.get(attendance.selectedDate);
+  const calendarDetailDateKey = calendarDetailDate || attendance.selectedDate;
+  const calendarDetailLabel = formatDateShort(calendarDetailDateKey);
+  const selectedMonthDay = monthlyByDate.get(calendarDetailDateKey);
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstOfMonth = new Date(monthYear, monthNumber - 1, 1);
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
@@ -95,6 +98,10 @@ export default function TeacherAttendancePage() {
     const timeout = window.setTimeout(() => setShowFeedback(false), 3000);
     return () => window.clearTimeout(timeout);
   }, [attendance.error, attendance.success]);
+
+  useEffect(() => {
+    if (!calendarDetailDate) setCalendarDetailDate(attendance.selectedDate);
+  }, [attendance.selectedDate, calendarDetailDate]);
 
   return (
     <div className="w-full space-y-6">
@@ -157,7 +164,10 @@ export default function TeacherAttendancePage() {
             className="glass-input h-20 min-h-0 self-start text-[14px] font-semibold"
             type="date"
             value={attendance.selectedDate}
-            onChange={(event) => attendance.selectDate(event.target.value)}
+            onChange={(event) => {
+              setCalendarDetailDate(event.target.value);
+              attendance.selectDate(event.target.value);
+            }}
             disabled={attendance.loading || attendance.submitting}
           />
           <input
@@ -228,7 +238,10 @@ export default function TeacherAttendancePage() {
               <button
                 type="button"
                 key={cell.key}
-                onClick={() => attendance.selectDate(dateKey)}
+                onClick={() => {
+                  setCalendarDetailDate(dateKey);
+                  attendance.selectDate(dateKey);
+                }}
                 disabled={attendance.loading || attendance.submitting}
                 className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${
                   calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
@@ -256,7 +269,7 @@ export default function TeacherAttendancePage() {
 
         <div className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] text-[#6e6e73] md:hidden">
           <div className="flex items-center justify-between gap-3">
-            <span className="font-semibold text-[#1d1d1f]">{selectedDateLabel}</span>
+            <span className="font-semibold text-[#1d1d1f]">{calendarDetailLabel}</span>
             {selectedMonthDay ? <span className="font-semibold text-[#1d1d1f]">{selectedMonthDay.percentage}%</span> : null}
           </div>
           {selectedMonthDay ? (
