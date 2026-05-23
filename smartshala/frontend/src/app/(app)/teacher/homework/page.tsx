@@ -109,6 +109,7 @@ export default function TeacherHomeworkPage() {
   const [estimatedTime, setEstimatedTime] = useState("");
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("ALL");
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [filterClassPickerOpen, setFilterClassPickerOpen] = useState(false);
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
   const [assignedPickerOpen, setAssignedPickerOpen] = useState(false);
@@ -623,23 +624,58 @@ export default function TeacherHomeworkPage() {
 
       <section className="space-y-4">
         <div className="w-full overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
-          <div className="flex flex-col gap-3 border-b border-[#C9D3DE] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 border-b border-[#C9D3DE] px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <h2 className="text-[20px] font-semibold text-[#031526]">Assignment list</h2>
               <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Submission tracking updates from homework submission rows.</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {(["ALL", "OVERDUE", "DUE_SOON", "CLOSED"] as AssignmentFilter[]).map((filter) => (
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative w-full lg:w-[240px]">
                 <button
-                  className={`rounded-[5px] border px-4 py-2 text-[13px] font-semibold ${assignmentFilter === filter ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#031526]"}`}
-                  key={filter}
-                  onClick={() => setAssignmentFilter(filter)}
+                  className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#031526] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={loading}
+                  onClick={() => setFilterClassPickerOpen((open) => !open)}
                   type="button"
                 >
-                  {filter === "ALL" ? "All" : filter === "OVERDUE" ? "Overdue" : filter === "DUE_SOON" ? "Due soon" : "Closed"}
+                  <span className="truncate">{selectedClass ? `Class ${selectedClass.name}-${selectedClass.section}` : "All assigned classes"}</span>
+                  <svg className={`h-4 w-4 shrink-0 text-[#52687D] transition ${filterClassPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                  </svg>
                 </button>
-              ))}
-              {selectedClass ? <StatusPill label={`Class ${selectedClass.name}-${selectedClass.section}`} tone="neutral" /> : null}
+                {filterClassPickerOpen ? (
+                  <div className="absolute left-0 right-0 top-[46px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                    {context.classes.length === 0 ? (
+                      <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No assigned classes</div>
+                    ) : (
+                      context.classes.map((classRecord) => (
+                        <button
+                          className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${classRecord.id === classId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                          key={classRecord.id}
+                          onClick={() => {
+                            setFilterClassPickerOpen(false);
+                            void handleClassChange(classRecord.id);
+                          }}
+                          type="button"
+                        >
+                          Class {classRecord.name}-{classRecord.section} ({classRecord.studentCount} students)
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(["ALL", "OVERDUE", "DUE_SOON", "CLOSED"] as AssignmentFilter[]).map((filter) => (
+                  <button
+                    className={`rounded-[5px] border px-4 py-2 text-[13px] font-semibold ${assignmentFilter === filter ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#031526]"}`}
+                    key={filter}
+                    onClick={() => setAssignmentFilter(filter)}
+                    type="button"
+                  >
+                    {filter === "ALL" ? "All" : filter === "OVERDUE" ? "Overdue" : filter === "DUE_SOON" ? "Due soon" : "Closed"}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="p-5">
@@ -705,12 +741,31 @@ export default function TeacherHomeworkPage() {
               )}
             </div>
             <div className="hidden max-h-[520px] overflow-auto rounded-[5px] border border-[#C9D3DE] [contain:content] md:block">
-            <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[15px] text-[#001B33]">
+            <table className="w-full min-w-[1320px] table-fixed border-collapse text-left text-[14px] text-[#001B33]">
+              <colgroup>
+                <col className="w-[230px]" />
+                <col className="w-[130px]" />
+                <col className="w-[145px]" />
+                <col className="w-[145px]" />
+                <col className="w-[190px]" />
+                <col className="w-[115px]" />
+                <col className="w-[90px]" />
+                <col className="w-[150px]" />
+                <col className="w-[110px]" />
+                <col className="w-[215px]" />
+              </colgroup>
               <thead>
                 <tr className="bg-[#DDECF8]">
-                  {["Title", "Subject", "Assigned Date", "Due Date", "Status", "Submitted", "Late", "Not submitted", "Class avg", "Tracking"].map((head) => (
-                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold" key={head}>{head}</th>
-                  ))}
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-5 py-4 text-[14px] font-semibold">Title</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Subject</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Assigned Date</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Due Date</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Status</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Submitted</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Late</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Not submitted</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Class avg</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Tracking</th>
                 </tr>
               </thead>
               <tbody>
@@ -729,21 +784,21 @@ export default function TeacherHomeworkPage() {
                 ) : (
                   visibleAssignments.map((assignment) => (
                     <tr key={assignment.id}>
-                      <td className="border-b border-[#C9D3DE] px-4 py-4">
-                        <p className="font-semibold text-[#1d1d1f]">{assignment.title}</p>
+                      <td className="border-b border-[#C9D3DE] px-5 py-4 align-middle">
+                        <p className="truncate font-semibold text-[#1d1d1f]">{assignment.title}</p>
                         {assignment.description ? <p className="mt-1 line-clamp-1 max-w-[260px] text-[12px] text-[#86868b]">{assignment.description}</p> : null}
                       </td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{assignment.subject}</td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{formatDateShort(assignment.assignedDate)}</td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{formatDateShort(assignment.dueDate)}</td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4"><StatusPill label={assignmentStatusLabel(assignment)} tone={assignmentStatusTone(assignment)} /></td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#248a3d]">{assignment.submittedCount}</td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#cc7700]">{assignment.lateCount}</td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#d70015]">{assignment.notSubmittedCount}</td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#1d1d1f]">
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{assignment.subject}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{formatDateShort(assignment.assignedDate)}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{formatDateShort(assignment.dueDate)}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle"><StatusPill label={assignmentStatusLabel(assignment)} tone={assignmentStatusTone(assignment)} /></td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#248a3d]">{assignment.submittedCount}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#cc7700]">{assignment.lateCount}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#d70015]">{assignment.notSubmittedCount}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#1d1d1f]">
                         {selectedAssignment?.id === assignment.id && selectedAssignmentAverage !== null ? `${selectedAssignmentAverage}/20` : "-"}
                       </td>
-                      <td className="border-b border-[#C9D3DE] px-4 py-4">
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 align-middle">
                         <div className="flex flex-wrap gap-2">
                           <button
                             className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
