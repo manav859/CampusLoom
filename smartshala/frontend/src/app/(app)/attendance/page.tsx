@@ -54,6 +54,7 @@ export default function TeacherAttendancePage() {
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
   const selectedDateLabel = formatDateShort(attendance.selectedDate);
   const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
+  const selectedMonthDay = monthlyByDate.get(attendance.selectedDate);
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstOfMonth = new Date(monthYear, monthNumber - 1, 1);
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
@@ -234,11 +235,7 @@ export default function TeacherAttendancePage() {
                 }`}
               >
                 <span className="block text-[12px] font-semibold leading-none text-[#1d1d1f]">{cell.day}</span>
-                <span
-                  className={`mt-2 space-y-0.5 text-[11px] text-[#6e6e73] ${
-                    selected ? "block" : "hidden"
-                  } md:absolute md:left-1/2 md:top-9 md:z-20 md:mt-0 md:hidden md:w-32 md:-translate-x-1/2 md:rounded-lg md:border md:border-[#DCE1E8] md:bg-white md:p-2 md:text-left md:shadow-[var(--shadow-menu)] md:group-hover:block md:group-focus-visible:block`}
-                >
+                <span className="hidden text-[11px] text-[#6e6e73] md:absolute md:left-1/2 md:top-9 md:z-20 md:mt-0 md:w-32 md:-translate-x-1/2 md:space-y-0.5 md:rounded-lg md:border md:border-[#DCE1E8] md:bg-white md:p-2 md:text-left md:shadow-[var(--shadow-menu)] md:group-hover:block md:group-focus-visible:block">
                   {day ? (
                     <>
                       <span className="block font-semibold text-[#1d1d1f]">{day.percentage}%</span>
@@ -255,6 +252,22 @@ export default function TeacherAttendancePage() {
               </button>
             );
           })}
+        </div>
+
+        <div className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] text-[#6e6e73] md:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold text-[#1d1d1f]">{selectedDateLabel}</span>
+            {selectedMonthDay ? <span className="font-semibold text-[#1d1d1f]">{selectedMonthDay.percentage}%</span> : null}
+          </div>
+          {selectedMonthDay ? (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              <span>{selectedMonthDay.absent} absent</span>
+              {selectedMonthDay.halfDay ? <span>{selectedMonthDay.halfDay} half-day</span> : null}
+              <span>{selectedMonthDay.late} late</span>
+            </div>
+          ) : (
+            <p className="mt-1">No attendance marked for this day.</p>
+          )}
         </div>
       </section>
 
