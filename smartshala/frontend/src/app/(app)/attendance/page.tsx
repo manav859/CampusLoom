@@ -26,12 +26,12 @@ function calendarDayClasses(input: { selected: boolean; marked: boolean; isHolid
 }
 
 function classGroupName(className: string) {
+  if (/nursery|pre|kg|lkg|ukg/i.test(className)) return "Nursery";
   const grade = Number.parseInt(className, 10);
-  if (!Number.isFinite(grade)) return "Other";
+  if (!Number.isFinite(grade)) return "Nursery";
   if (grade <= 5) return "Primary";
-  if (grade <= 8) return "Upper Primary";
   if (grade <= 10) return "Secondary";
-  return "Senior (Sr.) Secondary";
+  return "Senior Secondary";
 }
 
 function groupedClasses(classes: ClassSummary[]) {
@@ -40,7 +40,7 @@ function groupedClasses(classes: ClassSummary[]) {
     const group = classGroupName(classItem.name);
     groups.set(group, [...(groups.get(group) ?? []), classItem]);
   });
-  return ["Primary", "Upper Primary", "Secondary", "Senior (Sr.) Secondary", "Other"]
+  return ["Nursery", "Primary", "Secondary", "Senior Secondary"]
     .map((group) => ({ group, classes: groups.get(group) ?? [] }))
     .filter((item) => item.classes.length > 0);
 }
@@ -75,8 +75,14 @@ export default function TeacherAttendancePage() {
   const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
   const calendarDetailDateKey = calendarDetailDate || attendance.selectedDate;
   const calendarDetailLabel = formatDateShort(calendarDetailDateKey);
+  const selectedDateMonthDay = monthlyByDate.get(attendance.selectedDate);
   const selectedMonthDay = monthlyByDate.get(calendarDetailDateKey);
-  const summary = selectedMonthDay ? summaryFromMonthlyDay(selectedMonthDay, attendance.monthly?.totalStudents ?? attendance.summary.total) : attendance.summary;
+  const attendancePending = !attendance.loading && !attendance.marked && !selectedDateMonthDay;
+  const summary = selectedDateMonthDay
+    ? summaryFromMonthlyDay(selectedDateMonthDay, attendance.monthly?.totalStudents ?? attendance.summary.total)
+    : attendance.marked
+      ? attendance.summary
+      : { total: attendance.monthly?.totalStudents ?? attendance.summary.total, present: 0, absent: 0, late: 0, halfDay: 0, attended: 0 };
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstOfMonth = new Date(monthYear, monthNumber - 1, 1);
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
@@ -153,7 +159,8 @@ export default function TeacherAttendancePage() {
 
       <div className="rounded-md border border-[#E2E7EE] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
         <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(280px,440px)_1fr]">
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(560px,720px)_1fr]">
+          <div className="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_160px_160px]">
           <div className="relative rounded-md border border-[#E2E7EE] bg-white p-2 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
             <button
               aria-expanded={classPickerOpen}
@@ -204,10 +211,8 @@ export default function TeacherAttendancePage() {
             ) : null}
             <p className="mt-2 text-[11px] font-medium text-[#86868b]">Last selected class is remembered for this user.</p>
           </div>
-          <div>
-            <div className="flex flex-wrap gap-3 lg:justify-end">
               <input
-                className="glass-input h-20 min-h-0 w-full self-start text-[14px] font-semibold sm:w-40"
+                className="glass-input h-full min-h-[68px] self-start text-[14px] font-semibold"
                 type="date"
                 value={attendance.selectedDate}
                 max={attendance.today}
@@ -218,15 +223,16 @@ export default function TeacherAttendancePage() {
                 disabled={attendance.loading || attendance.submitting}
               />
               <input
-                className="glass-input h-20 min-h-0 w-full self-start text-[14px] font-semibold sm:w-40"
+                className="glass-input h-full min-h-[68px] self-start text-[14px] font-semibold"
                 type="month"
                 value={attendance.selectedMonth}
                 max={attendance.today.slice(0, 7)}
                 onChange={(event) => attendance.selectMonth(event.target.value)}
                 disabled={attendance.loading || attendance.submitting}
               />
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2 lg:justify-end">
+          </div>
+          <div className="rounded-md border border-[#E2E7EE] bg-white p-3 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
+            <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
               <span className="rounded-full bg-[#2456E6]/10 px-3 py-1 text-[12px] font-semibold text-[#2456E6]">{currentPeriodLabel}</span>
               {todayRows.length === 0 ? (
                 <span className="rounded-full bg-[#F1F3F6] px-3 py-1 text-[12px] font-semibold text-[#5A6573]">Today status loading</span>
@@ -258,6 +264,7 @@ export default function TeacherAttendancePage() {
         halfDay={summary.halfDay}
         attended={summary.attended}
         layout="rail"
+        pending={attendancePending}
       />
 
       <section className="min-w-0 space-y-3 rounded-md border border-[#E2E7EE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
