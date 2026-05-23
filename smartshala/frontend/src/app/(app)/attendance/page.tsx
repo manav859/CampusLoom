@@ -103,9 +103,7 @@ export default function TeacherAttendancePage() {
   const attendancePending = !attendance.loading && !attendance.marked && !selectedDateMonthDay;
   const summary = selectedDateMonthDay
     ? summaryFromMonthlyDay(selectedDateMonthDay, attendance.monthly?.totalStudents ?? attendance.summary.total)
-    : attendance.marked
-      ? attendance.summary
-      : { total: attendance.monthly?.totalStudents ?? attendance.summary.total, present: 0, absent: 0, late: 0, halfDay: 0, attended: 0 };
+    : attendance.summary;
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstOfMonth = new Date(monthYear, monthNumber - 1, 1);
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
@@ -145,8 +143,8 @@ export default function TeacherAttendancePage() {
   }, [attendance.error, attendance.success]);
 
   useEffect(() => {
-    if (!calendarDetailDate) setCalendarDetailDate(attendance.selectedDate);
-  }, [attendance.selectedDate, calendarDetailDate]);
+    setCalendarDetailDate(attendance.selectedDate);
+  }, [attendance.selectedDate]);
 
   useEffect(() => {
     if (selectedClassRecord) setSelectedClassDisplay(classOptionLabel(selectedClassRecord));
@@ -186,8 +184,8 @@ export default function TeacherAttendancePage() {
 
       <div className="rounded-md border border-[#E2E7EE] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
         <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
-        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(260px,380px)_180px_180px]">
-          <div className="relative rounded-md border border-[#E2E7EE] bg-white p-2 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
+        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-[minmax(260px,380px)_180px_180px]">
+          <div className="relative col-span-2 rounded-md border border-[#E2E7EE] bg-white p-2 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] lg:col-span-1">
             <button
               aria-expanded={classPickerOpen}
               className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DCE1E8] bg-white px-3 py-2.5 text-left text-[15px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#AAB4C2] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-60"
@@ -240,7 +238,7 @@ export default function TeacherAttendancePage() {
 
           <div className="relative">
             <button
-              className="flex min-h-[72px] w-full items-center justify-between rounded-md border border-[#E2E7EE] bg-white px-4 text-left text-[14px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]"
+              className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
               disabled={attendance.loading || attendance.submitting}
               onClick={() => {
                 setDatePickerOpen((open) => !open);
@@ -248,7 +246,10 @@ export default function TeacherAttendancePage() {
               }}
               type="button"
             >
-              <span>{selectedDateLabel}</span>
+              <span className="min-w-0">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">Day</span>
+                <span className="mt-0.5 block truncate">{selectedDateLabel}</span>
+              </span>
               <svg className="h-4 w-4 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
               </svg>
@@ -300,7 +301,7 @@ export default function TeacherAttendancePage() {
 
           <div className="relative">
             <button
-              className="flex min-h-[72px] w-full items-center justify-between rounded-md border border-[#E2E7EE] bg-white px-4 text-left text-[14px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]"
+              className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
               disabled={attendance.loading || attendance.submitting}
               onClick={() => {
                 setMonthPickerOpen((open) => !open);
@@ -308,7 +309,10 @@ export default function TeacherAttendancePage() {
               }}
               type="button"
             >
-              <span>{monthLabel(attendance.selectedMonth)}</span>
+              <span className="min-w-0">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">Month</span>
+                <span className="mt-0.5 block truncate">{monthLabel(attendance.selectedMonth)}</span>
+              </span>
               <svg className="h-4 w-4 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
               </svg>

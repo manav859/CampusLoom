@@ -22,6 +22,14 @@ function monthInputFromDate(date: string) {
   return date.slice(0, 7);
 }
 
+function dateInMonth(currentDate: string, month: string, today: string) {
+  const currentDay = Number(currentDate.slice(8, 10)) || 1;
+  const [year, monthNumber] = month.split("-").map(Number);
+  const lastDay = new Date(year, monthNumber, 0).getDate();
+  const nextDate = `${month}-${String(Math.min(currentDay, lastDay)).padStart(2, "0")}`;
+  return nextDate > today ? today : nextDate;
+}
+
 function toMarkStatus(status: string): AttendanceMarkStatus {
   if (status === "ABSENT") return "ABSENT";
   if (status === "LATE") return "LATE";
@@ -124,7 +132,7 @@ export function useAttendance() {
       setError("");
 
       try {
-        const classList = await classesApi.list({ scope: "classTeacher" });
+        const classList = await classesApi.list();
         if (cancelled) return;
         setClasses(classList);
 
@@ -172,9 +180,11 @@ export function useAttendance() {
   }, [loadClass, loadMonth, selectedClassId]);
 
   const selectMonth = useCallback(async (month: string) => {
+    const nextDate = dateInMonth(selectedDate, month, todayAsDateInput());
     setSelectedMonth(month);
-    if (selectedClassId) await loadMonth(selectedClassId, month);
-  }, [loadMonth, selectedClassId]);
+    setSelectedDate(nextDate);
+    if (selectedClassId) await Promise.all([loadClass(selectedClassId, nextDate), loadMonth(selectedClassId, month)]);
+  }, [loadClass, loadMonth, selectedClassId, selectedDate]);
 
   const setStudentStatus = useCallback((studentId: string, status: AttendanceMarkStatus) => {
     if (!canEdit || submitting) return;

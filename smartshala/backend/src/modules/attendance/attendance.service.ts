@@ -88,7 +88,7 @@ function isUniqueConstraintError(error: unknown) {
 
 function teacherClassAccessWhere(user: AttendanceUser) {
   return user.role === UserRole.TEACHER
-    ? { classTeacherId: user.id }
+    ? { OR: [{ classTeacherId: user.id }, { teacherPeriodAssignments: { some: { teacherId: user.id } } }] }
     : {};
 }
 
@@ -546,7 +546,7 @@ export async function dailyReport(user: Express.UserContext, date = new Date()) 
   const normalizedDate = startOfDay(date);
   const classWhere = {
     schoolId: user.schoolId,
-    ...(user.role === UserRole.TEACHER ? { classTeacherId: user.id } : {})
+    ...teacherClassAccessWhere(user)
   };
   const [classes, sessions] = await Promise.all([
     prisma.class.findMany({
@@ -562,7 +562,7 @@ export async function dailyReport(user: Express.UserContext, date = new Date()) 
       where: {
         schoolId: user.schoolId,
         date: normalizedDate,
-        ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
+        ...(user.role === UserRole.TEACHER ? { class: teacherClassAccessWhere(user) } : {})
       },
       select: { id: true, classId: true }
     })
@@ -621,7 +621,7 @@ export async function monthlyStudentReport(user: Express.UserContext, studentId:
     where: {
       id: studentId,
       schoolId: user.schoolId,
-      ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
+      ...(user.role === UserRole.TEACHER ? { class: teacherClassAccessWhere(user) } : {})
     }
   });
   if (!student) throw notFound("Student");
