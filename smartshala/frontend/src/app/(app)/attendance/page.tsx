@@ -29,8 +29,9 @@ function classGroupName(className: string) {
   const grade = Number.parseInt(className, 10);
   if (!Number.isFinite(grade)) return "Other";
   if (grade <= 5) return "Primary";
-  if (grade <= 8) return "Middle";
-  return "Secondary";
+  if (grade <= 8) return "Upper Primary";
+  if (grade <= 10) return "Secondary";
+  return "Senior (Sr.) Secondary";
 }
 
 function groupedClasses(classes: ClassSummary[]) {
@@ -39,36 +40,43 @@ function groupedClasses(classes: ClassSummary[]) {
     const group = classGroupName(classItem.name);
     groups.set(group, [...(groups.get(group) ?? []), classItem]);
   });
-  return ["Primary", "Middle", "Secondary", "Other"]
+  return ["Primary", "Upper Primary", "Secondary", "Senior (Sr.) Secondary", "Other"]
     .map((group) => ({ group, classes: groups.get(group) ?? [] }))
     .filter((item) => item.classes.length > 0);
 }
 
+type MonthlyDay = NonNullable<ReturnType<typeof useAttendance>["monthly"]>["days"][number];
+
+function summaryFromMonthlyDay(day: MonthlyDay, fallbackTotal: number) {
+  const total = day.total || fallbackTotal;
+  const late = day.late ?? 0;
+  const halfDay = day.halfDay ?? 0;
+  const attended = day.attended || Math.round((day.percentage / 100) * total);
+  const present = day.total ? day.present : Math.max(0, Math.round(attended - late - halfDay * 0.5));
+  const absent = day.total ? day.absent : Math.max(0, total - present - late - halfDay);
+
+  return { total, present, absent, late, halfDay, attended };
+}
+
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
-  const [classSearch, setClassSearch] = useState("");
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [calendarDetailDate, setCalendarDetailDate] = useState("");
+  const [selectedClassDisplay, setSelectedClassDisplay] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
-  const classLabel = attendance.selectedClass ? `${attendance.selectedClass.name}-${attendance.selectedClass.section}` : "Class";
+  const selectedClassRecord = attendance.selectedClass ?? attendance.classes.find((classItem) => classItem.id === attendance.selectedClassId);
+  const classLabel = selectedClassRecord
+    ? `${selectedClassRecord.name}-${selectedClassRecord.section}`
+    : selectedClassDisplay || attendance.monthly?.className || (attendance.classes.length > 0 ? "Select class" : "No assigned class");
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
   const selectedDateLabel = formatDateShort(attendance.selectedDate);
   const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
   const calendarDetailDateKey = calendarDetailDate || attendance.selectedDate;
   const calendarDetailLabel = formatDateShort(calendarDetailDateKey);
   const selectedMonthDay = monthlyByDate.get(calendarDetailDateKey);
-  const summary = attendance.summary.total > 0 || !selectedMonthDay
-    ? attendance.summary
-    : {
-        total: selectedMonthDay.total,
-        present: selectedMonthDay.present,
-        absent: selectedMonthDay.absent,
-        late: selectedMonthDay.late,
-        halfDay: selectedMonthDay.halfDay,
-        attended: selectedMonthDay.attended
-      };
+  const summary = selectedMonthDay ? summaryFromMonthlyDay(selectedMonthDay, attendance.monthly?.totalStudents ?? attendance.summary.total) : attendance.summary;
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstOfMonth = new Date(monthYear, monthNumber - 1, 1);
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
@@ -77,9 +85,7 @@ export default function TeacherAttendancePage() {
     ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
   ];
   const currentPeriodLabel = "My current period";
-  const filteredClassGroups = groupedClasses(
-    attendance.classes.filter((classItem) => `${classItem.name}-${classItem.section}`.toLowerCase().includes(classSearch.trim().toLowerCase()))
-  );
+  const classGroups = groupedClasses(attendance.classes);
 
   useEffect(() => {
     let active = true;
@@ -114,6 +120,10 @@ export default function TeacherAttendancePage() {
     if (!calendarDetailDate) setCalendarDetailDate(attendance.selectedDate);
   }, [attendance.selectedDate, calendarDetailDate]);
 
+  useEffect(() => {
+    if (selectedClassRecord) setSelectedClassDisplay(`${selectedClassRecord.name}-${selectedClassRecord.section}`);
+  }, [selectedClassRecord]);
+
   return (
     <div className="w-full space-y-6">
       <PageHeader
@@ -141,17 +151,10 @@ export default function TeacherAttendancePage() {
         }
       />
 
-      <div className="glass-card-interactive p-5">
+      <div className="rounded-md border border-[#E2E7EE] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
         <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(280px,440px)_1fr]">
-          <div className="relative rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white/70 p-2">
-            <input
-              className="mb-2 w-full rounded-xl border border-[#DCE1E8] bg-white px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#2456E6]"
-              disabled={attendance.loading || attendance.submitting}
-              onChange={(event) => setClassSearch(event.target.value)}
-              placeholder="Search class"
-              value={classSearch}
-            />
+          <div className="relative rounded-md border border-[#E2E7EE] bg-white p-2 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
             <button
               aria-expanded={classPickerOpen}
               className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DCE1E8] bg-white px-3 py-2.5 text-left text-[15px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#AAB4C2] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-60"
@@ -165,11 +168,11 @@ export default function TeacherAttendancePage() {
               </svg>
             </button>
             {classPickerOpen ? (
-              <div className="absolute left-2 right-2 top-[104px] z-30 max-h-[340px] overflow-auto rounded-2xl border border-[#DCE1E8] bg-white/95 p-2 shadow-[var(--shadow-menu)] backdrop-blur-apple">
-                {attendance.classes.length === 0 || filteredClassGroups.length === 0 ? (
+              <div className="absolute left-2 right-2 top-[58px] z-30 max-h-[340px] overflow-auto rounded-2xl border border-[#DCE1E8] bg-white p-2 shadow-[var(--shadow-menu)]">
+                {attendance.classes.length === 0 || classGroups.length === 0 ? (
                   <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No assigned class</div>
                 ) : (
-                  filteredClassGroups.map((item) => (
+                  classGroups.map((item) => (
                     <div key={item.group} className="py-1">
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#86868b]">{item.group}</p>
                       <div className="grid grid-cols-2 gap-1">
@@ -183,6 +186,7 @@ export default function TeacherAttendancePage() {
                               }`}
                               key={classItem.id}
                               onClick={() => {
+                                setSelectedClassDisplay(className);
                                 setClassPickerOpen(false);
                                 attendance.selectClass(classItem.id);
                               }}
@@ -206,6 +210,7 @@ export default function TeacherAttendancePage() {
                 className="glass-input h-20 min-h-0 w-full self-start text-[14px] font-semibold sm:w-40"
                 type="date"
                 value={attendance.selectedDate}
+                max={attendance.today}
                 onChange={(event) => {
                   setCalendarDetailDate(event.target.value);
                   attendance.selectDate(event.target.value);
@@ -216,6 +221,7 @@ export default function TeacherAttendancePage() {
                 className="glass-input h-20 min-h-0 w-full self-start text-[14px] font-semibold sm:w-40"
                 type="month"
                 value={attendance.selectedMonth}
+                max={attendance.today.slice(0, 7)}
                 onChange={(event) => attendance.selectMonth(event.target.value)}
                 disabled={attendance.loading || attendance.submitting}
               />
@@ -254,7 +260,7 @@ export default function TeacherAttendancePage() {
         layout="rail"
       />
 
-      <section className="glass-card-interactive min-w-0 space-y-3 p-4">
+      <section className="min-w-0 space-y-3 rounded-md border border-[#E2E7EE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Monthly view</p>
@@ -279,6 +285,7 @@ export default function TeacherAttendancePage() {
             const date = new Date(monthYear, monthNumber - 1, cell.day);
             const isSunday = date.getDay() === 0;
             const isHoliday = isSunday || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
+            const isFuture = dateKey > attendance.today;
 
             return (
               <button
@@ -288,9 +295,9 @@ export default function TeacherAttendancePage() {
                   setCalendarDetailDate(dateKey);
                   attendance.selectDate(dateKey);
                 }}
-                disabled={attendance.loading || attendance.submitting}
+                disabled={attendance.loading || attendance.submitting || isFuture}
                 className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${
-                  calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
+                  isFuture ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
                 }`}
               >
                 <span className="block text-[12px] font-semibold leading-none text-[#1d1d1f]">{cell.day}</span>
@@ -331,7 +338,7 @@ export default function TeacherAttendancePage() {
       </section>
       </div>
 
-      <div className="glass-card-interactive flex flex-col gap-2 px-5 py-4 text-[13px] sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 rounded-md border border-[#E2E7EE] bg-white px-5 py-4 text-[13px] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:flex-row sm:items-center sm:justify-between">
         <span className="font-semibold text-[#1d1d1f]">{classLabel}</span>
         <span className="text-[#86868b]">
           {selectedDateLabel} - {attendance.marked ? "Saved" : "Unsaved"}
