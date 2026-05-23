@@ -199,7 +199,7 @@ export function Sidebar({
       {/* Mobile overlay */}
       <div
         aria-hidden={!open}
-        className={`fixed inset-0 z-30 bg-black/20 backdrop-blur-sm transition-opacity duration-300 md:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-[150] bg-black/20 backdrop-blur-sm transition-opacity duration-300 md:hidden ${open ? "opacity-100" : "pointer-events-none opacity-0"}`}
         onClick={onClose}
       />
 
@@ -208,7 +208,7 @@ export function Sidebar({
         ref={asideRef}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`fixed inset-y-0 left-0 z-40 flex flex-col bg-white border-r border-[var(--apple-card-border)] transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen md:pt-16 ${
+        className={`fixed inset-y-0 left-0 z-[160] flex flex-col bg-white border-r border-[var(--apple-card-border)] transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen md:pt-16 ${
           open ? "w-[200px] translate-x-0" : "-translate-x-full md:translate-x-0"
         } ${
           isOpenDesktop ? "md:w-[200px]" : "md:w-[60px]"

@@ -285,7 +285,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const activityEvents = buildActivityEvents(data, notificationLogs);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {!loading && data ? <p className="text-[14px] font-medium leading-6 text-[#5A6573]">{pulseText}</p> : null}
 
       {error ? <div className="rounded-xl bg-[#ff9500]/10 px-4 py-3 text-[13px] font-medium text-[#c93400]">{error}</div> : null}
@@ -297,16 +297,16 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       ) : null}
 
       {mode === "ADMIN" ? (
-        <div className="flex flex-wrap gap-2">
-          <Link className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD]" href="/attendance">Mark today&apos;s attendance</Link>
-          <Link className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/defaulters">Send fee reminder</Link>
-          <Link className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/students/new">Add student</Link>
-          <Link className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/new">Record payment</Link>
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#2456E6] px-4 py-2 text-center text-[13px] font-semibold text-white hover:bg-[#1B45BD]" href="/attendance">Mark today&apos;s attendance</Link>
+          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/defaulters">Send fee reminder</Link>
+          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/students/new">Add student</Link>
+          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/new">Record payment</Link>
         </div>
       ) : null}
 
       {/* ═══ Row 1 — KPI Summary Cards ═══ */}
-      <div className="grid gap-4 grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-5">
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (

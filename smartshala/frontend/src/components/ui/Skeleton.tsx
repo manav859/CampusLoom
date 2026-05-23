@@ -33,7 +33,7 @@ export function KpiCardSkeleton() {
 /* ── Chart card skeleton ── */
 export function ChartSkeleton({ height = 280 }: { height?: number }) {
   return (
-    <div className="glass-card-interactive p-5 flex flex-col" style={{ minHeight: height }}>
+    <div className="dashboard-panel-card p-5 flex flex-col" style={{ minHeight: height }}>
       <div className="flex items-center justify-between mb-4">
         <div className="space-y-1.5">
           <Skeleton className="h-2.5 w-12 rounded-md" />
@@ -92,7 +92,7 @@ export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: nu
 /* ── Alert/Feed card skeleton ── */
 export function AlertSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <div className="glass-card-interactive p-5 space-y-4">
+    <div className="dashboard-panel-card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <Skeleton className="h-4 w-32 rounded-md" />
         <Skeleton className="h-3 w-16 rounded-md" />

@@ -22,14 +22,14 @@ export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "
   const primaryPct = hasData && data.length > 0 ? Math.round((data[0].value / total) * 100) : 0;
 
   return (
-    <div className="glass-card-interactive flex h-full flex-col p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+    <div className="dashboard-panel-card flex h-full flex-col p-4 sm:p-5">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">{eyebrow}</p>
           <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">{title}</h3>
           <p className="mt-0.5 text-[11px] font-medium text-[#86868b]">Live totals</p>
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap gap-2 sm:justify-end">
           <div className="flex rounded-md border border-[#e5e5ea] bg-[#f5f5f7] p-0.5">
             <button onClick={() => setMode("donut")} className={`rounded-[4px] px-2.5 py-0.5 text-[10px] font-medium transition-colors ${mode === "donut" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Donut</button>
             <button onClick={() => setMode("bar")} className={`rounded-[4px] px-2.5 py-0.5 text-[10px] font-medium transition-colors ${mode === "bar" ? "bg-white text-[#1d1d1f] shadow-sm" : "text-[#86868b] hover:text-[#1d1d1f]"}`}>Bar</button>
@@ -87,7 +87,7 @@ export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "
         )}
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-4">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
         {data.map((seg) => (
           <span key={seg.label} className="flex items-center gap-1.5 text-[11px] font-medium text-[#424245]">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: seg.color }} />

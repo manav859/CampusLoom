@@ -102,6 +102,24 @@ summary {
   @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2456E6]/40 focus-visible:ring-offset-2;
 }
 
+select:not([multiple]) {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #5A6573 50%),
+    linear-gradient(135deg, #5A6573 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+
+select:not([multiple]) option {
+  background: #ffffff;
+  color: #1d1d1f;
+}
+
 [data-script="devanagari"],
 .font-devanagari {
   font-family: var(--font-devanagari);
@@ -174,6 +192,18 @@ samp,
         minmax(0, calc((100% - 1rem) * 0.6 + 20px))
         minmax(0, calc((100% - 1rem) * 0.4 - 20px));
     }
+  }
+
+  .dashboard-panel-card {
+    border-radius: 6px;
+    border: 1px solid #E2E7EE;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 20, 25, 0.06), 0 8px 22px -18px rgba(15, 20, 25, 0.45);
+    transition: border-color 180ms ease;
+  }
+
+  .dashboard-panel-card:hover {
+    border-color: #8C96A3;
   }
 
   /* ─── Apple Cards ─── */
@@ -440,8 +470,40 @@ samp,
   animation: kpi-marquee 7s linear infinite;
 }
 
+@keyframes school-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.mobile-school-marquee {
+  display: flex;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #1d1d1f;
+  letter-spacing: 0;
+}
+
+.mobile-school-marquee-track {
+  display: inline-flex;
+  min-width: max-content;
+  align-items: center;
+  animation: school-marquee 12s linear infinite;
+}
+
+.mobile-school-marquee-track > span {
+  display: inline-flex;
+  min-width: max-content;
+  align-items: center;
+  padding-right: 2rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-kpi-marquee {
+  .animate-kpi-marquee,
+  .mobile-school-marquee-track {
     animation: none;
   }
 }

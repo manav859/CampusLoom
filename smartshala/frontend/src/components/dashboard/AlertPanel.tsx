@@ -43,8 +43,8 @@ const toneStyles = {
 
 export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?: boolean }) {
   return (
-    <section className="glass-card-interactive flex h-[360px] flex-col p-6">
-      <div className="flex shrink-0 items-center justify-between gap-4">
+    <section className="dashboard-panel-card flex h-[360px] flex-col p-4 sm:p-6">
+      <div className="flex shrink-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Today&apos;s actions</h2>
           <p className="mt-0.5 text-[13px] text-[#86868b]">Priority follow-ups across attendance and fees.</p>
@@ -64,7 +64,7 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
             const isClickable = !!alert.href;
 
             const content = (
-              <div className={`flex items-center justify-between gap-4 rounded-xl border border-l-4 px-4 py-3.5 transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:shadow-md ${currentTone.cardBg} ${currentTone.borderLeft}`}>
+              <div className={`flex flex-col gap-3 rounded-[8px] border border-l-4 px-3.5 py-3.5 transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 ${currentTone.cardBg} ${currentTone.borderLeft}`}>
                 <div className="flex min-w-0 items-center gap-3.5">
                   <span className="relative flex h-2.5 w-2.5 shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: currentTone.dot }} />
@@ -86,7 +86,7 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
                   {alert.actionLabel && alert.onAction ? (
                     <button
                       className="rounded-lg bg-[#2456E6]/[0.08] hover:bg-[#2456E6] text-[#2456E6] hover:text-white px-3.5 py-1.5 text-[11.5px] font-semibold transition-all duration-200 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
@@ -134,4 +134,3 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
     </section>
   );
 }
-

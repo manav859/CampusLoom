@@ -18,7 +18,7 @@ export function ActivityFeed({ events }: { events?: ActivityEvent[] }) {
   const items = events ?? [];
 
   return (
-    <div className="glass-card-interactive flex h-[360px] flex-col p-5">
+    <div className="dashboard-panel-card flex h-[360px] flex-col p-4 sm:p-5">
       <div className="mb-3 shrink-0">
         <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Activity</p>
         <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">Recent events</h3>

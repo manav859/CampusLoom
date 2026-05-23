@@ -108,7 +108,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
   return (
     <>
       <header className="sticky top-0 z-[100] flex h-16 items-center bg-white shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
-        <div className="flex w-full items-center justify-between gap-4 px-5">
+        <div className="flex w-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5">
 
           {/* ── Left: Hamburger + School Identity ── */}
           <div className="flex min-w-0 flex-1 items-center">
@@ -133,16 +133,30 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
               </div>
 
               {/* Brand Name */}
-              <span className="text-[15px] font-bold text-[#1d1d1f] tracking-tight">SmartShala</span>
+              <span className="hidden text-[15px] font-bold text-[#1d1d1f] tracking-tight md:inline">SmartShala</span>
             </div>
 
             {/* School Identity Group */}
-            <div className="flex items-center gap-2.5 min-w-0 ml-2 md:ml-4">
+            <div className="ml-1 flex min-w-0 flex-1 items-center gap-2 md:ml-4 md:gap-2.5">
               {/* School Logo */}
               <span className="text-[20px] shrink-0" role="img" aria-label="School">🏫</span>
 
-              <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold text-[#1d1d1f] tracking-tight leading-tight">
+              <div className="min-w-0 flex-1">
+                <div className="mobile-school-marquee md:hidden">
+                  <span className="mobile-school-marquee-track">
+                    <span>
+                      {user.schoolName || "SmartShala Partner School"}
+                      <span className="text-[#86868b] font-normal"> - </span>
+                      <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
+                    </span>
+                    <span aria-hidden="true">
+                      {user.schoolName || "SmartShala Partner School"}
+                      <span className="text-[#86868b] font-normal"> - </span>
+                      <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
+                    </span>
+                  </span>
+                </div>
+                <p className="hidden truncate text-[15px] font-semibold text-[#1d1d1f] tracking-tight leading-tight md:block">
                   {user.schoolName || "SmartShala Partner School"}
                   <span className="text-[#86868b] font-normal"> · </span>
                   <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
@@ -152,7 +166,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
           </div>
 
           {/* ── Right: Notifications + Clock + Avatar ── */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
             {/* Notification Bell */}
             <button
               className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#f5f5f7] hover:bg-[#e8e8ed] transition-colors"
@@ -208,12 +222,6 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                       </svg>
                       Profile
-                    </button>
-                    <button className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors text-left">
-                      <svg className="h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                      </svg>
-                      Switch Role
                     </button>
                   </div>
                   <div className="border-t border-[rgba(0,0,0,0.06)] py-1">

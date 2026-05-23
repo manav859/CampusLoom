@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 function currentAcademicYear() {
   const now = new Date();
@@ -34,22 +35,18 @@ export function AcademicYearSwitcher() {
   }
 
   const readOnly = selected !== current;
+  const yearSelectOptions = options.map((year) => ({ label: year, value: year }));
 
   return (
     <div className="hidden items-center md:flex">
       <div className="flex items-center gap-2">
-        <select
-          aria-label="Academic year"
-          className="h-9 rounded-lg border border-[#DCE1E8] bg-white px-2 text-[12px] font-semibold text-[#1d1d1f] shadow-sm cursor-pointer"
-          onChange={(event) => updateYear(event.target.value)}
+        <CustomSelect
+          ariaLabel="Academic year"
+          className="w-[104px]"
+          onChange={updateYear}
+          options={yearSelectOptions}
           value={selected}
-        >
-          {options.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
+        />
         {readOnly ? (
           <span className="rounded-full bg-[#FFF2DC] px-2 py-1 text-[10px] font-bold text-[#B95A00]">Read-only</span>
         ) : null}

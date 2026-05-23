@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { attendanceApi, type ClassesTodayReportRow } from "@/lib/api";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 type ChartPoint = {
   absent?: number;
@@ -54,13 +55,13 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
 
   if (d.length === 0) {
     return (
-      <div className="glass-card-interactive p-5 h-full flex flex-col">
-        <div className="flex items-center justify-between gap-3">
-          <div>
+      <div className="dashboard-panel-card p-4 sm:p-5 h-full flex flex-col">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Overview</p>
             <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">{title}</h3>
           </div>
-          <button onClick={openPastWeek} className="rounded-full bg-[#0071e3]/10 px-3 py-1 text-[11px] font-bold text-[#0071e3] transition-colors hover:bg-[#0071e3]/20" type="button">
+          <button onClick={openPastWeek} className="h-8 rounded-[6px] bg-[#2456E6]/10 px-3 text-[11px] font-bold text-[#2456E6] transition-colors hover:bg-[#2456E6]/20" type="button">
             Past Week Attendance
           </button>
         </div>
@@ -96,6 +97,10 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
   }
 
   const plotted = d.map((point) => ({ ...point, value: attendanceValue(point) }));
+  const classOptions = [
+    { label: "All Classes", value: "All" },
+    ...classes.map((className) => ({ label: className, value: className }))
+  ];
   const gridLines = [
     { value: 100, className: "border-[#E8EBF2]" },
     { value: 75, className: "border-[#FF3B30]" },
@@ -104,22 +109,22 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
   ];
 
   return (
-    <div className="glass-card-interactive p-5 h-full flex flex-col relative">
-      <div className="flex items-center justify-between mb-4">
-        <div>
+    <div className="dashboard-panel-card p-4 sm:p-5 h-full flex flex-col relative">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Overview</p>
           <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">{title}</h3>
         </div>
-        <div className="flex items-center gap-3">
-          <select 
-            value={filter} 
-            onChange={(e) => setFilter(e.target.value)}
-            className="text-[10px] font-bold bg-[#f5f5f7] border border-[#e5e5ea] rounded-full px-2.5 py-1 text-[#0071e3] outline-none hover:bg-[#e8e8ed] transition-colors cursor-pointer"
-          >
-            <option value="All">All Classes</option>
-            {classes.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <button onClick={openPastWeek} className="rounded-full bg-[#0071e3]/10 px-3 py-1 text-[11px] font-bold text-[#0071e3] transition-colors hover:bg-[#0071e3]/20" type="button">Past Week Attendance</button>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <CustomSelect
+            ariaLabel="Filter attendance class"
+            className="h-8 max-w-[160px] text-[11px] text-[#2456E6]"
+            menuClassName="left-0 right-auto sm:left-auto sm:right-0"
+            onChange={setFilter}
+            options={classOptions}
+            value={filter}
+          />
+          <button onClick={openPastWeek} className="h-8 rounded-[6px] bg-[#2456E6]/10 px-3 text-[11px] font-bold text-[#2456E6] transition-colors hover:bg-[#2456E6]/20" type="button">Past Week Attendance</button>
         </div>
       </div>
       <div className="relative flex-1 min-h-[190px] overflow-x-auto px-1">

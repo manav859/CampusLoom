@@ -1,4 +1,5 @@
 export { Button } from "./Button";
+export { CustomSelect } from "./CustomSelect";
 export { DataTable } from "./DataTable";
 export { DropdownItem, DropdownMenu } from "./DropdownMenu";
 export { EmptyState } from "./EmptyState";
