@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { Button } from "@/components/ui/Button";
@@ -49,10 +49,6 @@ function monthInputFromParts(year: number, monthIndex: number) {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
 }
 
-function monthInputFromDate(date: string) {
-  return date.slice(0, 7);
-}
-
 function dateInMonth(currentDate: string, month: string, today: string) {
   const currentDay = Number(currentDate.slice(8, 10)) || 1;
   const [year, monthNumber] = month.split("-").map(Number);
@@ -90,46 +86,51 @@ export default function TeacherAttendancePage() {
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [monthPickerYear, setMonthPickerYear] = useState(new Date().getFullYear());
   const [calendarDetailDate, setCalendarDetailDate] = useState("");
-  const [displayDate, setDisplayDate] = useState(attendance.selectedDate);
-  const [displayMonth, setDisplayMonth] = useState(attendance.selectedMonth);
   const [selectedClassDisplay, setSelectedClassDisplay] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
-  const classOptions = attendance.classes.length > 0
-    ? attendance.classes
-    : todayRows.map((row) => {
-        const [name = row.className, section = ""] = row.className.split("-");
-        return { id: row.classId, name, section, academicYear: "" };
-      });
+  const classOptions = useMemo(
+    () =>
+      attendance.classes.length > 0
+        ? attendance.classes
+        : todayRows.map((row) => {
+            const [name = row.className, section = ""] = row.className.split("-");
+            return { id: row.classId, name, section, academicYear: "" };
+          }),
+    [attendance.classes, todayRows]
+  );
   const selectedClassRecord = attendance.selectedClass ?? classOptions.find((classItem) => classItem.id === attendance.selectedClassId);
   const firstAvailableClass = classOptions[0] ?? null;
   const displayClassRecord = selectedClassRecord ?? firstAvailableClass;
-  const classLabel = selectedClassRecord
+  const classLabel = selectedClassDisplay || (selectedClassRecord
     ? classOptionLabel(selectedClassRecord)
     : displayClassRecord
       ? classOptionLabel(displayClassRecord)
-      : attendance.classesLoading ? "Loading classes..." : "No assigned class";
+      : attendance.classesLoading ? "Loading classes..." : "No assigned class");
   const hasAssignedClasses = classOptions.length > 0;
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0 || !hasAssignedClasses;
-  const selectedDateLabel = formatDateShort(displayDate);
-  const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
-  const calendarDetailDateKey = calendarDetailDate || displayDate;
+  const selectedDateLabel = formatDateShort(attendance.selectedDate);
+  const monthlyByDate = useMemo(() => new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day])), [attendance.monthly?.days]);
+  const calendarDetailDateKey = calendarDetailDate || attendance.selectedDate;
   const calendarDetailLabel = formatDateShort(calendarDetailDateKey);
-  const selectedDateMonthDay = monthlyByDate.get(displayDate);
+  const selectedDateMonthDay = monthlyByDate.get(attendance.selectedDate);
   const selectedMonthDay = monthlyByDate.get(calendarDetailDateKey);
   const attendancePending = !attendance.loading && !attendance.marked && !selectedDateMonthDay;
   const summary = selectedDateMonthDay
     ? summaryFromMonthlyDay(selectedDateMonthDay, attendance.monthly?.totalStudents ?? attendance.summary.total)
     : attendance.summary;
-  const [monthYear = 0, monthNumber = 1] = displayMonth.split("-").map(Number);
-  const firstOfMonth = new Date(monthYear, monthNumber - 1, 1);
+  const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
+  const firstWeekday = new Date(monthYear, monthNumber - 1, 1).getDay();
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
-  const calendarCells = [
-    ...Array.from({ length: firstOfMonth.getDay() }, (_, index) => ({ key: `blank-${index}`, day: null as number | null })),
-    ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
-  ];
-  const classGroups = groupedClasses(classOptions);
+  const calendarCells = useMemo(
+    () => [
+      ...Array.from({ length: firstWeekday }, (_, index) => ({ key: `blank-${index}`, day: null as number | null })),
+      ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
+    ],
+    [daysInMonth, firstWeekday]
+  );
+  const classGroups = useMemo(() => groupedClasses(classOptions), [classOptions]);
 
   useEffect(() => {
     let active = true;
@@ -168,30 +169,28 @@ export default function TeacherAttendancePage() {
 
   useEffect(() => {
     setCalendarDetailDate(attendance.selectedDate);
-    setDisplayDate(attendance.selectedDate);
   }, [attendance.selectedDate]);
 
   useEffect(() => {
-    if (selectedClassRecord) setSelectedClassDisplay(classOptionLabel(selectedClassRecord));
-  }, [selectedClassRecord]);
+    if (selectedClassRecord) {
+      setSelectedClassDisplay(classOptionLabel(selectedClassRecord));
+      return;
+    }
+    if (!attendance.selectedClassId) setSelectedClassDisplay("");
+  }, [attendance.selectedClassId, selectedClassRecord]);
 
   useEffect(() => {
     const [year = new Date().getFullYear()] = attendance.selectedMonth.split("-").map(Number);
-    setDisplayMonth(attendance.selectedMonth);
     setMonthPickerYear(year);
   }, [attendance.selectedMonth]);
 
   function selectDisplayDate(date: string) {
-    setDisplayDate(date);
-    setDisplayMonth(monthInputFromDate(date));
     setCalendarDetailDate(date);
     void attendance.selectDate(date);
   }
 
   function selectDisplayMonth(month: string) {
-    const nextDate = dateInMonth(displayDate, month, attendance.today);
-    setDisplayMonth(month);
-    setDisplayDate(nextDate);
+    const nextDate = dateInMonth(attendance.selectedDate, month, attendance.today);
     setCalendarDetailDate(nextDate);
     void attendance.selectMonth(month);
   }
@@ -301,7 +300,7 @@ export default function TeacherAttendancePage() {
               <div className="absolute left-0 top-[80px] z-30 w-72 rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]">
                 <div className="mb-3 flex items-center justify-between">
                   <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => selectDisplayMonth(monthInputFromParts(monthYear, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
-                  <span className="text-[13px] font-bold text-[#1d1d1f]">{monthLabel(displayMonth)}</span>
+                  <span className="text-[13px] font-bold text-[#1d1d1f]">{monthLabel(attendance.selectedMonth)}</span>
                   <button
                     className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-40"
                     disabled={monthInputFromParts(monthYear, monthNumber) > attendance.today.slice(0, 7)}
@@ -318,9 +317,9 @@ export default function TeacherAttendancePage() {
                 <div className="mt-2 grid grid-cols-7 gap-1">
                   {calendarCells.map((cell) => {
                     if (!cell.day) return <span aria-hidden="true" className="h-8" key={cell.key} />;
-                    const dateKey = `${displayMonth}-${String(cell.day).padStart(2, "0")}`;
+                    const dateKey = `${attendance.selectedMonth}-${String(cell.day).padStart(2, "0")}`;
                     const isFuture = dateKey > attendance.today;
-                    const selected = displayDate === dateKey;
+                    const selected = attendance.selectedDate === dateKey;
                     return (
                       <button
                         className={`h-8 rounded-lg text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : "text-[#2A3340] hover:bg-[#F7F8FB]"}`}
@@ -353,7 +352,7 @@ export default function TeacherAttendancePage() {
             >
               <span className="min-w-0">
                 <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">Month</span>
-                <span className="mt-0.5 block truncate">{monthLabel(displayMonth)}</span>
+                <span className="mt-0.5 block truncate">{monthLabel(attendance.selectedMonth)}</span>
               </span>
               <svg className="h-4 w-4 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
@@ -370,7 +369,7 @@ export default function TeacherAttendancePage() {
                   {Array.from({ length: 12 }, (_, index) => {
                     const value = monthInputFromParts(monthPickerYear, index);
                     const disabled = value > attendance.today.slice(0, 7);
-                    const selected = displayMonth === value;
+                    const selected = attendance.selectedMonth === value;
                     return (
                       <button
                         className={`rounded-xl px-3 py-2 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : "bg-[#F7F8FB] text-[#2A3340] hover:bg-[#E8ECF3]"}`}
@@ -436,9 +435,9 @@ export default function TeacherAttendancePage() {
           {calendarCells.map((cell) => {
             if (!cell.day) return <div aria-hidden="true" key={cell.key} className="min-h-[42px]" />;
 
-            const dateKey = `${displayMonth}-${String(cell.day).padStart(2, "0")}`;
+            const dateKey = `${attendance.selectedMonth}-${String(cell.day).padStart(2, "0")}`;
             const day = monthlyByDate.get(dateKey);
-            const selected = displayDate === dateKey;
+            const selected = attendance.selectedDate === dateKey;
             const date = new Date(monthYear, monthNumber - 1, cell.day);
             const isSunday = date.getDay() === 0;
             const isHoliday = isSunday || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
