@@ -109,9 +109,9 @@ export default function TeacherAttendancePage() {
     ? classOptionLabel(selectedClassRecord)
     : displayClassRecord
       ? classOptionLabel(displayClassRecord)
-      : attendance.loading ? "Loading classes..." : "No assigned class";
+      : attendance.classesLoading ? "Loading classes..." : "No assigned class";
   const hasAssignedClasses = classOptions.length > 0;
-  const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
+  const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0 || !hasAssignedClasses;
   const selectedDateLabel = formatDateShort(displayDate);
   const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
   const calendarDetailDateKey = calendarDetailDate || displayDate;
@@ -147,17 +147,17 @@ export default function TeacherAttendancePage() {
 
   useEffect(() => {
     const requestedClassId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("classId") : null;
-    if (!requestedClassId || attendance.loading || attendance.selectedClassId === requestedClassId) return;
+    if (!requestedClassId || attendance.classesLoading || attendance.selectedClassId === requestedClassId) return;
     if (classOptions.some((classItem) => classItem.id === requestedClassId)) {
       void attendance.selectClass(requestedClassId);
     }
-  }, [attendance.loading, attendance.selectedClassId, classOptions, attendance.selectClass]);
+  }, [attendance.classesLoading, attendance.selectedClassId, classOptions, attendance.selectClass]);
 
   useEffect(() => {
-    if (attendance.loading || attendance.selectedClassId || !firstAvailableClass) return;
+    if (attendance.classesLoading || attendance.selectedClassId || !firstAvailableClass) return;
     setSelectedClassDisplay(classOptionLabel(firstAvailableClass));
     void attendance.selectClass(firstAvailableClass.id);
-  }, [attendance.loading, attendance.selectedClassId, firstAvailableClass, attendance.selectClass]);
+  }, [attendance.classesLoading, attendance.selectedClassId, firstAvailableClass, attendance.selectClass]);
 
   useEffect(() => {
     if (!attendance.error && !attendance.success) return;
@@ -215,7 +215,7 @@ export default function TeacherAttendancePage() {
               type="button"
               className="btn-secondary"
               onClick={() => setResetConfirmOpen(true)}
-              disabled={!attendance.canEdit || attendance.submitting || attendance.loading}
+              disabled={!attendance.canEdit || attendance.submitting || attendance.loading || !hasAssignedClasses}
             >
               Reset all present
             </button>
@@ -230,7 +230,7 @@ export default function TeacherAttendancePage() {
             <button
               aria-expanded={classPickerOpen}
               className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DCE1E8] bg-white px-3 py-2.5 text-left text-[15px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#AAB4C2] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={attendance.loading || attendance.submitting}
+              disabled={attendance.classesLoading || attendance.submitting}
               onClick={() => setClassPickerOpen((open) => !open)}
               type="button"
             >
@@ -277,12 +277,12 @@ export default function TeacherAttendancePage() {
             <p className="mt-2 text-[11px] font-medium text-[#86868b]">Last selected class is remembered for this user.</p>
           </div>
 
-          {(hasAssignedClasses || attendance.loading) ? (
+          {(hasAssignedClasses || attendance.classesLoading) ? (
             <>
           <div className="relative">
             <button
               className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
-              disabled={attendance.loading || attendance.submitting}
+              disabled={!hasAssignedClasses || attendance.submitting}
               onClick={() => {
                 setDatePickerOpen((open) => !open);
                 setMonthPickerOpen(false);
@@ -344,7 +344,7 @@ export default function TeacherAttendancePage() {
           <div className="relative">
             <button
               className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
-              disabled={attendance.loading || attendance.submitting}
+              disabled={!hasAssignedClasses || attendance.submitting}
               onClick={() => {
                 setMonthPickerOpen((open) => !open);
                 setDatePickerOpen(false);
@@ -395,7 +395,7 @@ export default function TeacherAttendancePage() {
         </div>
       </div>
 
-      {!attendance.loading && !hasAssignedClasses ? (
+      {!attendance.classesLoading && !hasAssignedClasses ? (
         <div className="rounded-md border border-[#E2E7EE] bg-white px-5 py-10 text-center shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
           <p className="text-[16px] font-semibold text-[#1d1d1f]">No assigned class</p>
           <p className="mx-auto mt-2 max-w-md text-[13px] leading-6 text-[#6e6e73]">

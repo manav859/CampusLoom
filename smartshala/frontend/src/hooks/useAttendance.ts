@@ -30,6 +30,25 @@ function dateInMonth(currentDate: string, month: string, today: string) {
   return nextDate > today ? today : nextDate;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("Request timed out")), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
+function classesFromDailyRows(rows: Awaited<ReturnType<typeof attendanceApi.daily>>): ClassSummary[] {
+  const byId = new Map<string, ClassSummary>();
+  rows.forEach((row) => {
+    const [name = row.className, section = ""] = row.className.split("-");
+    byId.set(row.classId, { id: row.classId, name, section, academicYear: "" });
+  });
+  return [...byId.values()];
+}
+
 function toMarkStatus(status: string): AttendanceMarkStatus {
   if (status === "ABSENT") return "ABSENT";
   if (status === "LATE") return "LATE";
@@ -62,7 +81,8 @@ export function useAttendance() {
   const [monthly, setMonthly] = useState<ClassMonthlyAttendance | null>(null);
   const [marked, setMarked] = useState(false);
   const [canEdit, setCanEdit] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [classesLoading, setClassesLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -128,26 +148,31 @@ export function useAttendance() {
     let cancelled = false;
 
     async function loadInitialData() {
-      setLoading(true);
+      setClassesLoading(true);
+      setLoading(false);
       setError("");
 
       try {
-        let classList = await classesApi.list();
-        if (classList.length === 0) {
-          const dailyRows = await attendanceApi.daily().catch(() => []);
-          classList = dailyRows.map((row) => {
-            const [name = row.className, section = ""] = row.className.split("-");
-            return { id: row.classId, name, section, academicYear: "" };
-          });
-        }
+        const [classResult, dailyResult] = await Promise.allSettled([
+          withTimeout(classesApi.list(), 6000),
+          withTimeout(attendanceApi.daily(), 6000)
+        ]);
         if (cancelled) return;
-        setClasses(classList);
+
+        const classList = classResult.status === "fulfilled" ? classResult.value : [];
+        const dailyRows = dailyResult.status === "fulfilled" ? dailyResult.value : [];
+        const fallbackClasses = classesFromDailyRows(dailyRows);
+        const mergedClasses = new Map<string, ClassSummary>();
+        [...classList, ...fallbackClasses].forEach((classItem) => mergedClasses.set(classItem.id, classItem));
+        const availableClasses = [...mergedClasses.values()];
+        setClasses(availableClasses);
 
         const rememberedClassId = window.localStorage.getItem(attendanceClassStorageKey());
-        const firstClassId = classList.some((classItem) => classItem.id === rememberedClassId) ? rememberedClassId! : classList[0]?.id ?? "";
+        const firstClassId = availableClasses.some((classItem) => classItem.id === rememberedClassId) ? rememberedClassId! : availableClasses[0]?.id ?? "";
         setSelectedClassId(firstClassId);
+        setClassesLoading(false);
         if (firstClassId) {
-          await Promise.all([loadClass(firstClassId, selectedDate), loadMonth(firstClassId, selectedMonth)]);
+          void Promise.all([loadClass(firstClassId, selectedDate), loadMonth(firstClassId, selectedMonth)]);
         }
         else {
           setStudents([]);
@@ -157,6 +182,8 @@ export function useAttendance() {
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unable to load classes");
+        setClasses([]);
+        setClassesLoading(false);
         setLoading(false);
       }
     }
@@ -265,6 +292,7 @@ export function useAttendance() {
     monthly,
     marked,
     canEdit,
+    classesLoading,
     loading,
     submitting,
     error,
