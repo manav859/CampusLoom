@@ -96,7 +96,7 @@ export default function TeacherAttendancePage() {
   }, [attendance.error, attendance.success]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="w-full space-y-6">
       <PageHeader
         eyebrow="Attendance"
         title="Reliable attendance"
@@ -124,7 +124,7 @@ export default function TeacherAttendancePage() {
 
       <div className="glass-card-interactive p-5">
         <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px_180px]">
+        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(320px,1fr)_150px_150px] xl:grid-cols-[minmax(420px,1fr)_160px_160px]">
           <div className="rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white/70 p-2">
             <input
               className="mb-2 w-full rounded-xl border border-[#DCE1E8] bg-white px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#2456E6]"
@@ -134,7 +134,7 @@ export default function TeacherAttendancePage() {
               value={classSearch}
             />
             <select
-              className="w-full rounded-xl border border-transparent bg-white px-3 py-2.5 text-[15px] font-semibold text-[#1d1d1f] outline-none"
+              className="w-full rounded-xl border border-[#DCE1E8] bg-white px-3 py-2.5 text-[15px] font-semibold text-[#1d1d1f] outline-none focus:border-[#2456E6]"
               value={attendance.selectedClassId}
               onChange={(event) => attendance.selectClass(event.target.value)}
               disabled={attendance.loading || attendance.submitting}
@@ -153,14 +153,14 @@ export default function TeacherAttendancePage() {
             <p className="mt-2 text-[11px] font-medium text-[#86868b]">Last selected class is remembered for this user.</p>
           </div>
           <input
-            className="glass-input min-h-[48px] text-[15px] font-semibold"
+            className="glass-input h-20 min-h-0 self-start text-[14px] font-semibold"
             type="date"
             value={attendance.selectedDate}
             onChange={(event) => attendance.selectDate(event.target.value)}
             disabled={attendance.loading || attendance.submitting}
           />
           <input
-            className="glass-input min-h-[48px] text-[15px] font-semibold"
+            className="glass-input h-20 min-h-0 self-start text-[14px] font-semibold"
             type="month"
             value={attendance.selectedMonth}
             onChange={(event) => attendance.selectMonth(event.target.value)}
@@ -197,24 +197,24 @@ export default function TeacherAttendancePage() {
         attended={attendance.summary.attended}
       />
 
-      <section className="glass-card-interactive space-y-4 p-5">
+      <section className="glass-card-interactive space-y-3 p-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Monthly view</p>
-            <h2 className="text-[20px] font-semibold text-[#1d1d1f]">{classLabel} attendance calendar</h2>
+            <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{classLabel} attendance calendar</h2>
           </div>
-          <p className="text-[13px] text-[#86868b]">Tap any day to load or edit attendance.</p>
+          <p className="text-[12px] text-[#86868b]">Daily attendance snapshot</p>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">
+        <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((weekday) => (
             <span key={weekday}>{weekday}</span>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1.5">
           {calendarCells.map((cell) => {
-            if (!cell.day) return <div aria-hidden="true" key={cell.key} className="min-h-[76px]" />;
+            if (!cell.day) return <div aria-hidden="true" key={cell.key} className="min-h-[42px]" />;
 
             const dateKey = `${attendance.selectedMonth}-${String(cell.day).padStart(2, "0")}`;
             const day = monthlyByDate.get(dateKey);
@@ -229,23 +229,29 @@ export default function TeacherAttendancePage() {
                 key={cell.key}
                 onClick={() => attendance.selectDate(dateKey)}
                 disabled={attendance.loading || attendance.submitting}
-                className={`min-h-[76px] rounded-2xl border p-2 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${
+                className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${
                   calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
                 }`}
               >
-                <span className="block text-[13px] font-semibold text-[#1d1d1f]">{cell.day}</span>
-                {day ? (
-                  <span className="mt-2 block space-y-0.5 text-[11px] text-[#6e6e73]">
-                    <span className="block font-semibold text-[#1d1d1f]">{day.percentage}%</span>
-                    <span className="block">{day.absent} absent</span>
-                    {day.halfDay ? <span className="block">{day.halfDay} half-day</span> : null}
-                    <span className="block">{day.late} late</span>
-                  </span>
-                ) : isHoliday ? (
-                  <span className="mt-3 block text-[11px] font-medium text-[#86868b]">{isSunday ? "Sunday" : "Holiday"}</span>
-                ) : (
-                  <span className="mt-3 block text-[11px] text-[#86868b]">Unmarked</span>
-                )}
+                <span className="block text-[12px] font-semibold leading-none text-[#1d1d1f]">{cell.day}</span>
+                <span
+                  className={`mt-2 space-y-0.5 text-[11px] text-[#6e6e73] ${
+                    selected ? "block" : "hidden"
+                  } md:absolute md:left-1/2 md:top-9 md:z-20 md:mt-0 md:hidden md:w-32 md:-translate-x-1/2 md:rounded-lg md:border md:border-[#DCE1E8] md:bg-white md:p-2 md:text-left md:shadow-[var(--shadow-menu)] md:group-hover:block md:group-focus-visible:block`}
+                >
+                  {day ? (
+                    <>
+                      <span className="block font-semibold text-[#1d1d1f]">{day.percentage}%</span>
+                      <span className="block">{day.absent} absent</span>
+                      {day.halfDay ? <span className="block">{day.halfDay} half-day</span> : null}
+                      <span className="block">{day.late} late</span>
+                    </>
+                  ) : isHoliday ? (
+                    <span className="block font-medium text-[#86868b]">{isSunday ? "Sunday" : "Holiday"}</span>
+                  ) : (
+                    <span className="block text-[#86868b]">Unmarked</span>
+                  )}
+                </span>
               </button>
             );
           })}
@@ -295,7 +301,7 @@ export default function TeacherAttendancePage() {
         className="fixed inset-x-0 bottom-0 z-20 border-t border-[rgba(0,0,0,0.06)] bg-white/80 px-4 pt-3 backdrop-blur-apple md:sticky md:inset-auto md:bottom-4 md:border-0 md:bg-transparent md:px-0 md:pt-0 md:backdrop-blur-none"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
-        <div className="mx-auto flex max-w-5xl justify-end">
+        <div className="flex w-full justify-end">
           <button
             type="button"
             className="btn-primary min-h-[52px] w-full gap-2 text-[15px] disabled:cursor-not-allowed disabled:opacity-50 sm:w-[232px]"
