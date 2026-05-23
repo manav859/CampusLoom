@@ -390,7 +390,8 @@ function compareStudents(left: StudentRow, right: StudentRow, key: SortKey, dire
     return (leftValue - rightValue) * multiplier || left.fullName.localeCompare(right.fullName, "en-IN");
   }
 
-  return String(leftValue).localeCompare(String(rightValue), "en-IN", { numeric: true, sensitivity: "base" }) * multiplier;
+  return String(leftValue).localeCompare(String(rightValue), "en-IN", { numeric: true, sensitivity: "base" }) * multiplier
+    || left.fullName.localeCompare(right.fullName, "en-IN", { sensitivity: "base" });
 }
 
 function toStudentRows(items: ApiStudentItem[]): StudentRow[] {
@@ -450,15 +451,14 @@ export default function StudentsPage() {
     busy?: boolean;
   }>({ isOpen: false, action: null, message: "", targetClassId: "" });
   const [notice, setNotice] = useState<string | null>(null);
-  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
+  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "class", direction: "asc" });
   const [importDialog, setImportDialog] = useState<{
     isOpen: boolean;
     fileName: string;
     rows: ImportStudentRow[];
-    defaultClassId: string;
     busy?: boolean;
     error?: string;
-  }>({ isOpen: false, fileName: "", rows: [], defaultClassId: "" });
+  }>({ isOpen: false, fileName: "", rows: [] });
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
@@ -479,7 +479,7 @@ export default function StudentsPage() {
   const [classId, setClassId] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const perPage = 15;
   const [showInactive, setShowInactive] = useState(false);
 
   // Load classes
@@ -589,11 +589,7 @@ export default function StudentsPage() {
   const allFilteredSelected = resolvedTotal > 0 && selectedIds.length >= resolvedTotal;
   const selectedCount = selectedIds.length;
   const isInitialListLoading = loadingList && !hasLoadedStudents;
-  const selectAllLabel = isInitialListLoading
-    ? "Loading students..."
-    : resolvedTotal === 0
-    ? "No students to select"
-    : statusFilter && canViewFees ? "Select all matching students" : `Select all ${resolvedTotal} Students`;
+  const selectAllLabel = "Select All";
   const classOptions = [
     { label: "All classes", value: "" },
     ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))
@@ -604,14 +600,9 @@ export default function StudentsPage() {
     { label: "Pending fees", value: "PENDING" },
     { label: "Overdue fees", value: "OVERDUE" }
   ];
-  const perPageOptions = [10, 25, 50].map((value) => ({ label: `${value} / page`, value: String(value) }));
-  const importClassOptions = [
-    { label: "No default class", value: "" },
-    ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))
-  ];
   const pageNumbers = useMemo(() => {
-    const first = Math.max(1, Math.min(page - 2, Math.max(1, totalPages - 4)));
-    return Array.from({ length: Math.min(5, totalPages) }, (_, index) => first + index);
+    const first = Math.max(1, Math.min(page - 1, Math.max(1, totalPages - 3)));
+    return Array.from({ length: Math.min(4, totalPages) }, (_, index) => first + index);
   }, [page, totalPages]);
 
   const handleDelete = (id: string) => {
@@ -705,7 +696,6 @@ export default function StudentsPage() {
       const rows = await fetchAllMatchingStudents();
       setSelectedIds(rows.map((student) => student.id));
       setSelectedRows(Object.fromEntries(rows.map((student) => [student.id, student])));
-      setNotice(`Selected ${rows.length} students across all pages.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Unable to select all students.");
     } finally {
@@ -771,8 +761,7 @@ export default function StudentsPage() {
     setImportDialog({
       isOpen: true,
       fileName: "",
-      rows: [],
-      defaultClassId: classes[0]?.id ?? ""
+      rows: []
     });
   }
 
@@ -805,7 +794,6 @@ export default function StudentsPage() {
         isOpen: true,
         fileName: file.name,
         rows,
-        defaultClassId: importDialog.defaultClassId || classes[0]?.id || "",
       });
     } catch (error) {
       setImportDialog((prev) => ({
@@ -820,7 +808,7 @@ export default function StudentsPage() {
 
   function closeImportDialog() {
     if (importDialog.busy) return;
-    setImportDialog({ isOpen: false, fileName: "", rows: [], defaultClassId: "" });
+    setImportDialog({ isOpen: false, fileName: "", rows: [] });
   }
 
   async function submitImport() {
@@ -830,9 +818,9 @@ export default function StudentsPage() {
     const payload = [];
 
     for (const row of importDialog.rows) {
-      const classId = classMap.get(classKey(row.className, row.classSection)) ?? importDialog.defaultClassId;
+      const classId = classMap.get(classKey(row.className, row.classSection));
       if (!classId) {
-        setImportDialog((prev) => ({ ...prev, error: `Row ${row.rowNumber}: class not found. Add className/classSection in CSV or choose a default class.` }));
+        setImportDialog((prev) => ({ ...prev, error: `Row ${row.rowNumber}: class not found. Add className and classSection in the CSV.` }));
         return;
       }
 
@@ -857,7 +845,7 @@ export default function StudentsPage() {
       const result = await studentsApi.importStudents(payload);
       invalidateCachePrefix("students:list");
       setNotice(`Imported ${result.importedCount} students.`);
-      setImportDialog({ isOpen: false, fileName: "", rows: [], defaultClassId: "" });
+      setImportDialog({ isOpen: false, fileName: "", rows: [] });
       setPage(1);
       setSearch("");
       setClassId("");
@@ -1024,7 +1012,7 @@ export default function StudentsPage() {
         {selectedCount === 0 && (
           <button
             className="h-12 rounded-[8px] border border-[rgba(0,0,0,0.08)] bg-white px-3.5 text-[13px] font-medium text-[#1d1d1f] transition-all duration-200 hover:bg-[#f5f5f7] disabled:opacity-40 disabled:hover:bg-white"
-            disabled={loadingList || resolvedTotal === 0}
+            disabled={resolvedTotal === 0}
             onClick={toggleAllPagesSelection}
             type="button"
           >
@@ -1043,12 +1031,12 @@ export default function StudentsPage() {
       {selectedCount > 0 && (
         <div className="flex flex-col gap-3 rounded-xl border border-[#DCE1E8] bg-white px-4 py-3 shadow-[0_8px_22px_-16px_rgba(15,20,25,0.35)] sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[13px] font-semibold text-[#0F1419]">{selectedCount} selected</p>
+            <p className="text-[13px] font-semibold text-[#0F1419]">Selected {selectedCount} Students</p>
             <p className="text-[12px] font-medium text-[#5A6573]">Bulk actions apply to all selected students across pages.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" disabled={loadingList} onClick={toggleAllPagesSelection} type="button">
-              {allFilteredSelected ? "Clear all pages" : selectAllLabel}
+              {allFilteredSelected ? "Clear all pages" : "Select All"}
             </button>
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("whatsapp")} type="button">Send WhatsApp</button>
             {isAdmin ? <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("promote")} type="button">Promote class</button> : null}
@@ -1291,20 +1279,11 @@ export default function StudentsPage() {
           <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
             Showing <span className="text-[#0F1419]">{displayStart}</span> to <span className="text-[#0F1419]">{displayEnd}</span> of <span className="text-[#0F1419]">{resolvedTotal}</span> students
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <CustomSelect
-              ariaLabel="Students per page"
-              className="h-11 min-w-[120px] rounded-[5px] text-[14px]"
-              menuClassName="left-0 right-auto"
-              onChange={(value) => { setPerPage(Number(value)); setPage(1); }}
-              options={perPageOptions}
-              value={String(perPage)}
-              wrapperClassName="min-w-[120px]"
-            />
+          <div className="flex w-full flex-nowrap items-center justify-center gap-2 overflow-x-auto sm:w-auto sm:gap-3">
             <button
               disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
-              className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[14px] font-semibold text-[#7A8390] transition hover:bg-[#F8FBFD] disabled:opacity-50"
+              className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#7A8390] transition hover:bg-[#F8FBFD] disabled:opacity-50 sm:px-4"
               type="button"
             >
               Previous
@@ -1313,7 +1292,7 @@ export default function StudentsPage() {
               <button
                 key={pg}
                 onClick={() => setPage(pg)}
-                className={`min-h-[44px] min-w-[44px] rounded-[5px] border px-3 text-[14px] font-semibold transition ${page === pg ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#2456E6] hover:bg-[#F8FBFD]"}`}
+                className={`min-h-[44px] min-w-[44px] shrink-0 rounded-[5px] border px-3 text-[14px] font-semibold transition ${page === pg ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#2456E6] hover:bg-[#F8FBFD]"}`}
                 type="button"
               >
                 {pg}
@@ -1322,7 +1301,7 @@ export default function StudentsPage() {
             <button
               disabled={page >= totalPages || resolvedTotal === 0}
               onClick={() => setPage((p) => p + 1)}
-              className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[14px] font-semibold text-[#2456E6] transition hover:bg-[#F8FBFD] disabled:opacity-50"
+              className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#2456E6] transition hover:bg-[#F8FBFD] disabled:opacity-50 sm:px-4"
               type="button"
             >
               Next
@@ -1370,18 +1349,6 @@ export default function StudentsPage() {
                   Import filled CSV
                 </button>
               </div>
-              <label className="block">
-                <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Default class for unmatched rows</span>
-                <CustomSelect
-                  ariaLabel="Default class for unmatched rows"
-                  className="mt-2 h-11 w-full rounded-xl text-[14px]"
-                  menuClassName="left-0 right-auto w-full"
-                  onChange={(value) => setImportDialog((prev) => ({ ...prev, defaultClassId: value }))}
-                  options={importClassOptions}
-                  value={importDialog.defaultClassId}
-                  wrapperClassName="block w-full"
-                />
-              </label>
               {importDialog.error ? <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{importDialog.error}</div> : null}
               {importDialog.rows.length > 0 ? (
                 <div className="overflow-hidden rounded-xl border border-[#DCE1E8]">

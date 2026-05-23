@@ -897,7 +897,7 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
               }
             : {})
         },
-        orderBy: [{ class: { name: "asc" } }, { rollNumber: "asc" }, { fullName: "asc" }]
+        orderBy: [{ class: { name: "asc" } }, { class: { section: "asc" } }, { fullName: "asc" }]
       }),
       prisma.student.count({ where })
     ]);
