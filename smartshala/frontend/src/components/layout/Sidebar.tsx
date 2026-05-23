@@ -189,9 +189,10 @@ export function Sidebar({
   }, [isPinned, setIsPinned]);
 
   const isOpenDesktop = isHovered || isPinned;
+  const isExpanded = open || isOpenDesktop;
 
   const labelClass = `transition-all duration-300 ease-in-out whitespace-nowrap truncate md:transition-all ${
-    isOpenDesktop ? "opacity-100 max-w-[150px] ml-2.5" : "opacity-100 max-w-[150px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
+    isExpanded ? "opacity-100 max-w-[150px] ml-2.5" : "opacity-100 max-w-[150px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
   }`;
 
   return (
@@ -237,7 +238,7 @@ export function Sidebar({
 
         {/* Navigation */}
         <nav className={`mt-3 flex-1 space-y-0.5 px-2.5 pb-3 ${
-          isOpenDesktop ? "overflow-y-auto" : "overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          isExpanded ? "overflow-y-auto" : "overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         }`}>
           {links.map(({ label, href, icon }) => {
             const active = isActiveLink(pathname, href);
@@ -248,7 +249,7 @@ export function Sidebar({
                 href={withSchoolPath(href, pathname)}
                 onClick={onClose}
                 className={`group flex min-h-[42px] items-center rounded-lg border py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
-                  isOpenDesktop ? "justify-start px-3" : "justify-center px-0"
+                  isExpanded ? "justify-start px-3" : "justify-center px-0"
                 } ${
                   active
                     ? "border-[#0071e3] bg-[#0071e3] text-white shadow-md shadow-blue-500/20"
@@ -269,7 +270,7 @@ export function Sidebar({
               AD
             </div>
             <div className={`min-w-0 transition-all duration-300 ease-in-out ${
-              isOpenDesktop ? "opacity-100 max-w-[120px] ml-2.5" : "opacity-100 max-w-[120px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
+              isExpanded ? "opacity-100 max-w-[120px] ml-2.5" : "opacity-100 max-w-[120px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
             }`}>
               <p className="truncate text-[12px] font-semibold text-[#1d1d1f]">Admin</p>
               <p className="truncate text-[10px] text-[#86868b]">Principal</p>

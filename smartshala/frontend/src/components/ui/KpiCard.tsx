@@ -4,16 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Kpi } from "@/types";
 
-const toneMap: Record<NonNullable<Kpi["tone"]>, { hover: string; accent: string; iconBg: string }> = {
-  neutral: { hover: "hover:border-[#8C96A3]", accent: "text-[#5A6573]", iconBg: "bg-[#F2F5F8]" },
-  good: { hover: "hover:border-[#0F8A4A]", accent: "text-[#0F8A4A]", iconBg: "bg-[#E1F5EA]" },
-  warn: { hover: "hover:border-[#B95A00]", accent: "text-[#B95A00]", iconBg: "bg-[#FFF2DC]" },
-  danger: { hover: "hover:border-[#C8242C]", accent: "text-[#C8242C]", iconBg: "bg-[#FCE3E5]" },
-  teal: { hover: "hover:border-[#0E9884]", accent: "text-[#0E9884]", iconBg: "bg-[#E2F7F4]" },
-  green: { hover: "hover:border-[#0F8A4A]", accent: "text-[#0F8A4A]", iconBg: "bg-[#E1F5EA]" },
-  red: { hover: "hover:border-[#C8242C]", accent: "text-[#C8242C]", iconBg: "bg-[#FCE3E5]" },
-  amber: { hover: "hover:border-[#B95A00]", accent: "text-[#B95A00]", iconBg: "bg-[#FFF2DC]" },
-  purple: { hover: "hover:border-[#7C3AED]", accent: "text-[#7C3AED]", iconBg: "bg-[#EFE9FF]" }
+const toneMap: Record<NonNullable<Kpi["tone"]>, { border: string; hover: string; accent: string; iconBg: string }> = {
+  neutral: { border: "border-[#8C96A3]", hover: "hover:border-[#8C96A3]", accent: "text-[#5A6573]", iconBg: "bg-[#F2F5F8]" },
+  good: { border: "border-[#0F8A4A]", hover: "hover:border-[#0F8A4A]", accent: "text-[#0F8A4A]", iconBg: "bg-[#E1F5EA]" },
+  warn: { border: "border-[#B95A00]", hover: "hover:border-[#B95A00]", accent: "text-[#B95A00]", iconBg: "bg-[#FFF2DC]" },
+  danger: { border: "border-[#C8242C]", hover: "hover:border-[#C8242C]", accent: "text-[#C8242C]", iconBg: "bg-[#FCE3E5]" },
+  teal: { border: "border-[#0E9884]", hover: "hover:border-[#0E9884]", accent: "text-[#0E9884]", iconBg: "bg-[#E2F7F4]" },
+  green: { border: "border-[#0F8A4A]", hover: "hover:border-[#0F8A4A]", accent: "text-[#0F8A4A]", iconBg: "bg-[#E1F5EA]" },
+  red: { border: "border-[#C8242C]", hover: "hover:border-[#C8242C]", accent: "text-[#C8242C]", iconBg: "bg-[#FCE3E5]" },
+  amber: { border: "border-[#B95A00]", hover: "hover:border-[#B95A00]", accent: "text-[#B95A00]", iconBg: "bg-[#FFF2DC]" },
+  purple: { border: "border-[#7C3AED]", hover: "hover:border-[#7C3AED]", accent: "text-[#7C3AED]", iconBg: "bg-[#EFE9FF]" }
 };
 
 export function MarqueeText({ text, className = "" }: { text: string | number; className?: string }) {
@@ -130,9 +130,9 @@ export function KpiCard({ label, value, helper, formula, href, tone = "neutral" 
   const styles = toneMap[tone];
   const content = (
     <div
-      className={`relative flex h-[112px] items-center gap-4 overflow-visible rounded-[6px] border border-[#E2E7EE] bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 ${href ? "cursor-pointer" : ""} ${styles.hover}`}
+      className={`relative flex h-[112px] items-center gap-4 overflow-visible rounded-[6px] border bg-white px-4 py-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 sm:px-5 ${href ? "cursor-pointer" : ""} ${styles.border} ${styles.hover}`}
     >
-      <div className={`hidden h-14 w-14 shrink-0 items-center justify-center rounded-[8px] sm:flex ${styles.iconBg}`}>
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] sm:h-14 sm:w-14 ${styles.iconBg}`}>
         <KpiIcon label={label} className={`h-6 w-6 ${styles.accent}`} />
       </div>
       {formula ? (

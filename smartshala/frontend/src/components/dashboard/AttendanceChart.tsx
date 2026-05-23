@@ -38,6 +38,24 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
   const allData = data ?? [];
   const d = (filter === "All" ? allData : allData.filter((point) => point.label === filter)).filter((point) => point.marked !== false);
   const selectedClassExists = filter !== "All" && classes.includes(filter);
+  const classOptions = [
+    { label: "All Classes", value: "All" },
+    ...classes.map((className) => ({ label: className, value: className }))
+  ];
+
+  const attendanceControls = (
+    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+      <CustomSelect
+        ariaLabel="Filter attendance class"
+        className="h-8 max-w-[160px] text-[11px] text-[#2456E6]"
+        menuClassName="left-0 right-auto sm:left-auto sm:right-0"
+        onChange={setFilter}
+        options={classOptions}
+        value={filter}
+      />
+      <button onClick={openPastWeek} className="h-8 rounded-[6px] bg-[#2456E6]/10 px-3 text-[11px] font-bold text-[#2456E6] transition-colors hover:bg-[#2456E6]/20" type="button">Past Week Attendance</button>
+    </div>
+  );
 
   async function openPastWeek() {
     setPastWeekOpen(true);
@@ -61,9 +79,7 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
             <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Overview</p>
             <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">{title}</h3>
           </div>
-          <button onClick={openPastWeek} className="h-8 rounded-[6px] bg-[#2456E6]/10 px-3 text-[11px] font-bold text-[#2456E6] transition-colors hover:bg-[#2456E6]/20" type="button">
-            Past Week Attendance
-          </button>
+          {attendanceControls}
         </div>
         <div className="flex flex-1 flex-col items-center justify-center text-center">
           <p className="text-[14px] font-semibold text-[#1d1d1f]">
@@ -97,10 +113,6 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
   }
 
   const plotted = d.map((point) => ({ ...point, value: attendanceValue(point) }));
-  const classOptions = [
-    { label: "All Classes", value: "All" },
-    ...classes.map((className) => ({ label: className, value: className }))
-  ];
   const gridLines = [
     { value: 100, className: "border-[#E8EBF2]" },
     { value: 75, className: "border-[#FF3B30]" },
@@ -115,17 +127,7 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
           <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Overview</p>
           <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">{title}</h3>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <CustomSelect
-            ariaLabel="Filter attendance class"
-            className="h-8 max-w-[160px] text-[11px] text-[#2456E6]"
-            menuClassName="left-0 right-auto sm:left-auto sm:right-0"
-            onChange={setFilter}
-            options={classOptions}
-            value={filter}
-          />
-          <button onClick={openPastWeek} className="h-8 rounded-[6px] bg-[#2456E6]/10 px-3 text-[11px] font-bold text-[#2456E6] transition-colors hover:bg-[#2456E6]/20" type="button">Past Week Attendance</button>
-        </div>
+        {attendanceControls}
       </div>
       <div className="relative flex-1 min-h-[190px] overflow-x-auto px-1">
         <div className="absolute inset-x-1 top-3 bottom-7 pointer-events-none">

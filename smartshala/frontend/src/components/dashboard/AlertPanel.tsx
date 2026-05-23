@@ -64,7 +64,7 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
             const isClickable = !!alert.href;
 
             const content = (
-              <div className={`flex flex-col gap-3 rounded-[8px] border border-l-4 px-3.5 py-3.5 transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:shadow-md sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 ${currentTone.cardBg} ${currentTone.borderLeft}`}>
+              <div className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border border-l-4 px-3.5 py-3.5 transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:shadow-md sm:gap-4 sm:px-4 ${currentTone.cardBg} ${currentTone.borderLeft}`}>
                 <div className="flex min-w-0 items-center gap-3.5">
                   <span className="relative flex h-2.5 w-2.5 shrink-0">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: currentTone.dot }} />
@@ -72,8 +72,8 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
                   </span>
                   
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-[13.5px] font-semibold leading-tight text-[#1d1d1f] tracking-tight">{alert.label}</p>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <p className="min-w-0 truncate text-[13.5px] font-semibold leading-tight text-[#1d1d1f] tracking-tight">{alert.label}</p>
                       {alert.severity ? (
                         <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityStyles[alert.severity]}`}>
                           {severityLabels[alert.severity]}
@@ -86,7 +86,7 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+                <div className="flex shrink-0 items-center justify-end gap-2">
                   {alert.actionLabel && alert.onAction ? (
                     <button
                       className="rounded-lg bg-[#2456E6]/[0.08] hover:bg-[#2456E6] text-[#2456E6] hover:text-white px-3.5 py-1.5 text-[11.5px] font-semibold transition-all duration-200 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
