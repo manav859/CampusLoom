@@ -11,6 +11,29 @@ function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function monthInputFromParts(year: number, monthIndex: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+}
+
+function dateInputFromParts(year: number, monthIndex: number, day: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function monthLabel(month: string) {
+  const [year = 0, monthNumber = 1] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(year, monthNumber - 1, 1));
+}
+
+function calendarCells(month: string) {
+  const [year = 0, monthNumber = 1] = month.split("-").map(Number);
+  const firstOfMonth = new Date(year, monthNumber - 1, 1);
+  const daysInMonth = new Date(year, monthNumber, 0).getDate();
+  return [
+    ...Array.from({ length: firstOfMonth.getDay() }, (_, index) => ({ key: `blank-${index}`, day: null as number | null })),
+    ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
+  ];
+}
+
 function examTone(status: MarksExam["status"]) {
   return status === "MARKS_ENTERED" ? "good" : "warn";
 }
@@ -49,9 +72,15 @@ export default function TeacherMarksPage() {
   const [examDrafts, setExamDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [classPickerOpen, setClassPickerOpen] = useState(false);
+  const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
+  const [termPickerOpen, setTermPickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [datePickerMonth, setDatePickerMonth] = useState(todayInputValue().slice(0, 7));
 
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
   const subjects = useMemo(() => selectedClass?.subjects ?? [], [selectedClass]);
+  const selectedSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? null, [subjectId, subjects]);
   const students = useMemo(() => selectedClass?.students ?? [], [selectedClass]);
   const examsByTerm = useMemo(() => {
     const grouped = new Map<MarksExam["term"], MarksExam[]>();
@@ -100,6 +129,10 @@ export default function TeacherMarksPage() {
     setSubjectId(nextClass?.subjects[0]?.id ?? "");
     setMarks(Object.fromEntries((nextClass?.students ?? []).map((student) => [student.id, ""])));
   }, [classId, context.classes]);
+
+  useEffect(() => {
+    setDatePickerMonth(date.slice(0, 7));
+  }, [date]);
 
   async function refreshExams(nextClassId = classId) {
     const rows = await marksApi.exams(nextClassId || undefined);
@@ -215,6 +248,58 @@ export default function TeacherMarksPage() {
     }
   }
 
+  function renderDatePicker() {
+    const [year = 0, monthNumber = 1] = datePickerMonth.split("-").map(Number);
+
+    return (
+      <div className="relative">
+        <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Date</span>
+        <button
+          className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+          onClick={() => setDatePickerOpen((open) => !open)}
+          type="button"
+        >
+          <span>{formatDateShort(date)}</span>
+          <svg className="h-4 w-4 text-[#52687D]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+          </svg>
+        </button>
+        {datePickerOpen ? (
+          <div className="absolute left-0 top-[76px] z-30 w-72 rounded-2xl border border-[#C9D3DE] bg-white p-3 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+            <div className="mb-3 flex items-center justify-between">
+              <button className="rounded-full p-2 text-[#52687D] hover:bg-[#F2F7FC]" onClick={() => setDatePickerMonth(monthInputFromParts(year, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
+              <span className="text-[13px] font-bold text-[#031526]">{monthLabel(datePickerMonth)}</span>
+              <button className="rounded-full p-2 text-[#52687D] hover:bg-[#F2F7FC]" onClick={() => setDatePickerMonth(monthInputFromParts(year, monthNumber))} type="button" aria-label="Next month">&gt;</button>
+            </div>
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[#52687D]">
+              {["S", "M", "T", "W", "T", "F", "S"].map((weekday, index) => <span key={`${weekday}-${index}`}>{weekday}</span>)}
+            </div>
+            <div className="mt-2 grid grid-cols-7 gap-1">
+              {calendarCells(datePickerMonth).map((cell) => {
+                if (!cell.day) return <span aria-hidden="true" className="h-8" key={cell.key} />;
+                const dateKey = dateInputFromParts(year, monthNumber - 1, cell.day);
+                const selected = date === dateKey;
+                return (
+                  <button
+                    className={`h-8 rounded-lg text-[12px] font-semibold transition ${selected ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                    key={cell.key}
+                    onClick={() => {
+                      setDate(dateKey);
+                      setDatePickerOpen(false);
+                    }}
+                    type="button"
+                  >
+                    {cell.day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -228,81 +313,139 @@ export default function TeacherMarksPage() {
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
       {notice ? <div className="rounded-xl bg-[#34c759]/10 p-4 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
-      <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
-        <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple" onSubmit={handleSubmit}>
+      <section className="space-y-4">
+        <form className="w-full rounded-[6px] border border-[#C9D3DE] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.04)]" onSubmit={handleSubmit}>
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Create exam</h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Class</span>
-              <select
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                disabled={loading}
-                onChange={(event) => handleClassChange(event.target.value)}
-                value={classId}
-              >
-                {context.classes.length === 0 ? <option value="">No assigned classes</option> : null}
-                {context.classes.map((classRecord) => (
-                  <option key={classRecord.id} value={classRecord.id}>Class {classRecord.name}-{classRecord.section}</option>
-                ))}
-              </select>
-            </label>
+          <div className="mt-5 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="relative">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Class</span>
+                <button
+                  className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={loading}
+                  onClick={() => {
+                    setClassPickerOpen(!classPickerOpen);
+                    setSubjectPickerOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span>{selectedClass ? `Class ${selectedClass.name}-${selectedClass.section}` : "No assigned classes"}</span>
+                  <svg className={`h-4 w-4 text-[#52687D] transition ${classPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {classPickerOpen ? (
+                  <div className="absolute left-0 right-0 top-[76px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                    {context.classes.length === 0 ? (
+                      <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No assigned classes</div>
+                    ) : (
+                      context.classes.map((classRecord) => (
+                        <button
+                          className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${classRecord.id === classId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                          key={classRecord.id}
+                          onClick={() => {
+                            setClassPickerOpen(false);
+                            void handleClassChange(classRecord.id);
+                          }}
+                          type="button"
+                        >
+                          Class {classRecord.name}-{classRecord.section}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </div>
 
+              <div className="relative">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Subject</span>
+                <button
+                  className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={subjects.length === 0}
+                  onClick={() => {
+                    setSubjectPickerOpen(!subjectPickerOpen);
+                    setClassPickerOpen(false);
+                  }}
+                  type="button"
+                >
+                  <span>{selectedSubject?.name ?? "No subjects"}</span>
+                  <svg className={`h-4 w-4 text-[#52687D] transition ${subjectPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                {subjectPickerOpen ? (
+                  <div className="absolute left-0 right-0 top-[76px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                    {subjects.map((subject) => (
+                      <button
+                        className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${subject.id === subjectId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                        key={subject.id}
+                        onClick={() => {
+                          setSubjectPickerOpen(false);
+                          setSubjectId(subject.id);
+                        }}
+                        type="button"
+                      >
+                        {subject.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-4">
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Exam name</span>
               <input
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
+                className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
                 onChange={(event) => setName(event.target.value)}
                 value={name}
               />
             </label>
 
-            <label className="block">
+            <div className="relative">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Term / type</span>
-              <select
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                onChange={(event) => setTerm(event.target.value as MarksExam["term"])}
-                value={term}
+              <button
+                className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+                onClick={() => setTermPickerOpen(!termPickerOpen)}
+                type="button"
               >
-                {examTermOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Subject</span>
-              <select
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                onChange={(event) => setSubjectId(event.target.value)}
-                value={subjectId}
-              >
-                {subjects.length === 0 ? <option value="">No subjects</option> : null}
-                {subjects.map((subject) => (
-                  <option key={subject.id} value={subject.id}>{subject.name}</option>
-                ))}
-              </select>
-            </label>
+                <span>{examTermLabel(term)}</span>
+                <svg className={`h-4 w-4 text-[#52687D] transition ${termPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {termPickerOpen ? (
+                <div className="absolute left-0 right-0 top-[76px] z-30 overflow-hidden rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                  {examTermOptions.map((option) => (
+                    <button
+                      className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${option.value === term ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                      key={option.value}
+                      onClick={() => {
+                        setTermPickerOpen(false);
+                        setTerm(option.value);
+                      }}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Max marks</span>
               <input
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
+                className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
                 min={1}
                 onChange={(event) => setMaxMarks(Number(event.target.value))}
                 type="number"
                 value={maxMarks}
               />
             </label>
-
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Date</span>
-              <input
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
-                onChange={(event) => setDate(event.target.value)}
-                type="date"
-                value={date}
-              />
-            </label>
+            {renderDatePicker()}
+            </div>
           </div>
 
           <div className="mt-5 overflow-hidden rounded-xl border border-[rgba(0,0,0,0.06)]">
@@ -364,57 +507,58 @@ export default function TeacherMarksPage() {
           </button>
         </form>
 
-        <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-          <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
-            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam history</h2>
-            <p className="mt-0.5 text-[13px] text-[#86868b]">Saved exams feed the Academic tab and performance rate.</p>
+        <div className="w-full overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+          <div className="border-b border-[#C9D3DE] px-6 py-5">
+            <h2 className="text-[20px] font-semibold text-[#031526]">Exam history</h2>
+            <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Saved exams feed the Academic tab and performance rate.</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-[13px]">
-              <thead className="table-head">
-                <tr>
+          <div className="p-5">
+            <div className="max-h-[520px] overflow-auto rounded-[5px] border border-[#C9D3DE] [contain:content]">
+            <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[15px] text-[#001B33]">
+              <thead>
+                <tr className="bg-[#DDECF8]">
                   {["Exam", "Subject", "Max", "Date", "Status", "Entered", "Pending", "Class Avg", "Students"].map((head) => (
-                    <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold" key={head}>{head}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+              <tbody>
                 {loading ? (
                   Array.from({ length: 5 }).map((_, index) => (
                     <tr key={index}>
                       {Array.from({ length: 9 }).map((__, cell) => (
-                        <td className="px-5 py-4" key={cell}><Skeleton className="h-4 w-20 rounded-md" /></td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-5" key={cell}><Skeleton className="h-4 w-20 rounded-md" /></td>
                       ))}
                     </tr>
                   ))
                 ) : exams.length === 0 ? (
                   <tr>
-                    <td className="px-5 py-12 text-center text-[#86868b]" colSpan={9}>No exams saved yet.</td>
+                    <td className="px-4 py-12 text-center text-[#52687D]" colSpan={9}>No exams saved yet.</td>
                   </tr>
                 ) : (
                   examsByTerm.map((group) => (
                     <Fragment key={group.value}>
                       <tr>
-                        <td className="bg-[#f7f8fb] px-5 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#5A6573]" colSpan={9}>
+                        <td className="border-b border-[#C9D3DE] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#52687D]" colSpan={9}>
                           {group.label}
                         </td>
                       </tr>
                       {group.exams.map((exam) => (
-                        <tr className="table-row" key={exam.id}>
-                          <td className="px-5 py-4">
+                        <tr key={exam.id}>
+                          <td className="border-b border-[#C9D3DE] px-4 py-4">
                             <p className="font-semibold text-[#1d1d1f]">{exam.name}</p>
                             <p className="mt-1 text-[12px] text-[#86868b]">{exam.className}</p>
                           </td>
-                          <td className="px-5 py-4 text-[#6e6e73]">{exam.subject}</td>
-                          <td className="px-5 py-4 text-[#6e6e73]">{exam.maxMarks}</td>
-                          <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(exam.date)}</td>
-                          <td className="px-5 py-4"><StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} /></td>
-                          <td className="px-5 py-4 font-semibold text-[#248a3d]">{exam.enteredCount}</td>
-                          <td className="px-5 py-4 font-semibold text-[#d70015]">{exam.pendingCount}</td>
-                          <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
-                          <td className="px-5 py-4">
+                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{exam.subject}</td>
+                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{exam.maxMarks}</td>
+                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{formatDateShort(exam.date)}</td>
+                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4"><StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} /></td>
+                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#248a3d]">{exam.enteredCount}</td>
+                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#d70015]">{exam.pendingCount}</td>
+                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
+                          <td className="border-b border-[#C9D3DE] px-4 py-4">
                             <button
-                              className="rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[12px] font-semibold text-[#0071e3] transition hover:bg-[#0071e3] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                              className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
                               disabled={loadingExamId === exam.id}
                               onClick={() => openExam(exam.id)}
                               type="button"
@@ -429,6 +573,7 @@ export default function TeacherMarksPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       </section>
