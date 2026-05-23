@@ -44,6 +44,22 @@ type ApiStudentItem = {
 type SortKey = "name" | "class" | "feeStatus" | "pendingAmount" | "lastPayment" | "attendance";
 type SortDirection = "asc" | "desc";
 
+const studentImportTemplateHeaders = [
+  "fullName",
+  "className",
+  "classSection",
+  "parentName",
+  "parentPhone",
+  "gender",
+  "rollNumber",
+  "dateOfBirth",
+  "address",
+  "fatherName",
+  "fatherPhone",
+  "motherName",
+  "motherPhone"
+];
+
 type ImportStudentRow = {
   rowNumber: number;
   fullName: string;
@@ -760,6 +776,19 @@ export default function StudentsPage() {
     });
   }
 
+  function downloadStudentTemplate() {
+    const csv = `${studentImportTemplateHeaders.map(csvCell).join(",")}\n`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "student-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -1306,24 +1335,31 @@ export default function StudentsPage() {
           <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-[#DCE1E8] px-6 py-4">
               <h3 className="text-[18px] font-semibold text-[#0F1419]">Import students</h3>
-              <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{importDialog.fileName || "Upload a CSV after checking the columns below."}</p>
+              <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{importDialog.fileName || "Use the ready CSV template, fill student data, then upload it here."}</p>
             </div>
             <div className="space-y-4 px-6 py-5">
-              <div className="rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-3 text-[12px] font-medium leading-5 text-[#5A6573]">
-                <p className="font-semibold text-[#2A3340]">Required columns</p>
-                <p>fullName, parentName, parentPhone</p>
-                <p className="mt-2 font-semibold text-[#2A3340]">Optional columns</p>
-                <p>className, classSection, gender, rollNumber, dateOfBirth, address, fatherName, fatherPhone, motherName, motherPhone</p>
-                <p className="mt-2 font-semibold text-[#2A3340]">Example header</p>
-                <code className="block overflow-x-auto whitespace-nowrap rounded-lg bg-white px-3 py-2 text-[11px] text-[#2A3340]">
-                  fullName,className,classSection,parentName,parentPhone,gender,rollNumber,dateOfBirth
-                </code>
-                <p className="mt-2">Date format: yyyy-mm-dd or dd/mm/yyyy. Gender: MALE, FEMALE, or OTHER.</p>
+              <div className="rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[14px] font-semibold text-[#0F1419]">Download empty CSV template</p>
+                    <p className="mt-1 text-[12px] font-medium leading-5 text-[#5A6573]">The file is prebuilt with all student import columns. Fill the rows in Excel or Google Sheets, save as .csv, then upload the filled file.</p>
+                  </div>
+                  <button
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[#2456E6] bg-white px-4 py-2 text-[13px] font-semibold text-[#2456E6] hover:bg-[#EEF3FF]"
+                    onClick={downloadStudentTemplate}
+                    type="button"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                    </svg>
+                    Download CSV
+                  </button>
+                </div>
               </div>
               <div className="flex flex-col gap-2 rounded-xl border border-[#DCE1E8] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-[13px] font-semibold text-[#0F1419]">{importDialog.fileName || "No file selected"}</p>
-                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">Choose a .csv file from this device.</p>
+                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">Upload the completed template file.</p>
                 </div>
                 <button
                   className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD] disabled:bg-[#C2C9D4]"
@@ -1331,7 +1367,7 @@ export default function StudentsPage() {
                   onClick={() => importInputRef.current?.click()}
                   type="button"
                 >
-                  Import students from CSV
+                  Import filled CSV
                 </button>
               </div>
               <label className="block">
