@@ -47,6 +47,7 @@ function groupedClasses(classes: ClassSummary[]) {
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
   const [classSearch, setClassSearch] = useState("");
+  const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [calendarDetailDate, setCalendarDetailDate] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
@@ -58,6 +59,16 @@ export default function TeacherAttendancePage() {
   const calendarDetailDateKey = calendarDetailDate || attendance.selectedDate;
   const calendarDetailLabel = formatDateShort(calendarDetailDateKey);
   const selectedMonthDay = monthlyByDate.get(calendarDetailDateKey);
+  const summary = attendance.summary.total > 0 || !selectedMonthDay
+    ? attendance.summary
+    : {
+        total: selectedMonthDay.total,
+        present: selectedMonthDay.present,
+        absent: selectedMonthDay.absent,
+        late: selectedMonthDay.late,
+        halfDay: selectedMonthDay.halfDay,
+        attended: selectedMonthDay.attended
+      };
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstOfMonth = new Date(monthYear, monthNumber - 1, 1);
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
@@ -132,8 +143,8 @@ export default function TeacherAttendancePage() {
 
       <div className="glass-card-interactive p-5">
         <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-[minmax(320px,1fr)_150px_150px] xl:grid-cols-[minmax(420px,1fr)_160px_160px]">
-          <div className="rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white/70 p-2">
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(280px,440px)_1fr]">
+          <div className="relative rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white/70 p-2">
             <input
               className="mb-2 w-full rounded-xl border border-[#DCE1E8] bg-white px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#2456E6]"
               disabled={attendance.loading || attendance.submitting}
@@ -141,74 +152,109 @@ export default function TeacherAttendancePage() {
               placeholder="Search class"
               value={classSearch}
             />
-            <select
-              className="w-full rounded-xl border border-[#DCE1E8] bg-white px-3 py-2.5 text-[15px] font-semibold text-[#1d1d1f] outline-none focus:border-[#2456E6]"
-              value={attendance.selectedClassId}
-              onChange={(event) => attendance.selectClass(event.target.value)}
+            <button
+              aria-expanded={classPickerOpen}
+              className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DCE1E8] bg-white px-3 py-2.5 text-left text-[15px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#AAB4C2] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={attendance.loading || attendance.submitting}
+              onClick={() => setClassPickerOpen((open) => !open)}
+              type="button"
             >
-              {attendance.classes.length === 0 ? <option value="">No assigned class</option> : null}
-              {filteredClassGroups.map((item) => (
-                <optgroup key={item.group} label={item.group}>
-                  {item.classes.map((classItem) => (
-                    <option key={classItem.id} value={classItem.id}>
-                      {classItem.name}-{classItem.section}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+              <span>{classLabel}</span>
+              <svg className={`h-4 w-4 text-[#5A6573] transition ${classPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {classPickerOpen ? (
+              <div className="absolute left-2 right-2 top-[104px] z-30 max-h-[340px] overflow-auto rounded-2xl border border-[#DCE1E8] bg-white/95 p-2 shadow-[var(--shadow-menu)] backdrop-blur-apple">
+                {attendance.classes.length === 0 || filteredClassGroups.length === 0 ? (
+                  <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No assigned class</div>
+                ) : (
+                  filteredClassGroups.map((item) => (
+                    <div key={item.group} className="py-1">
+                      <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#86868b]">{item.group}</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {item.classes.map((classItem) => {
+                          const className = `${classItem.name}-${classItem.section}`;
+                          const active = classItem.id === attendance.selectedClassId;
+                          return (
+                            <button
+                              className={`rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${
+                                active ? "bg-[#2456E6] text-white shadow-apple-sm" : "text-[#2A3340] hover:bg-[#F7F8FB]"
+                              }`}
+                              key={classItem.id}
+                              onClick={() => {
+                                setClassPickerOpen(false);
+                                attendance.selectClass(classItem.id);
+                              }}
+                              type="button"
+                            >
+                              {className}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : null}
             <p className="mt-2 text-[11px] font-medium text-[#86868b]">Last selected class is remembered for this user.</p>
           </div>
-          <input
-            className="glass-input h-20 min-h-0 self-start text-[14px] font-semibold"
-            type="date"
-            value={attendance.selectedDate}
-            onChange={(event) => {
-              setCalendarDetailDate(event.target.value);
-              attendance.selectDate(event.target.value);
-            }}
-            disabled={attendance.loading || attendance.submitting}
-          />
-          <input
-            className="glass-input h-20 min-h-0 self-start text-[14px] font-semibold"
-            type="month"
-            value={attendance.selectedMonth}
-            onChange={(event) => attendance.selectMonth(event.target.value)}
-            disabled={attendance.loading || attendance.submitting}
-          />
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="rounded-full bg-[#2456E6]/10 px-3 py-1 text-[12px] font-semibold text-[#2456E6]">{currentPeriodLabel}</span>
-          {todayRows.length === 0 ? (
-            <span className="rounded-full bg-[#F1F3F6] px-3 py-1 text-[12px] font-semibold text-[#5A6573]">Today status loading</span>
-          ) : (
-            todayRows.slice(0, 6).map((row) => (
-              <button
-                className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
-                  row.marked ? "bg-[#E1F5EA] text-[#0F8A4A]" : "bg-[#FFF2DC] text-[#B95A00]"
-                }`}
-                key={row.classId}
-                onClick={() => attendance.selectClass(row.classId)}
-                type="button"
-              >
-                {row.className}: {row.marked ? "Marked" : "Unmarked"}
-              </button>
-            ))
-          )}
+          <div>
+            <div className="flex flex-wrap gap-3 lg:justify-end">
+              <input
+                className="glass-input h-20 min-h-0 w-full self-start text-[14px] font-semibold sm:w-40"
+                type="date"
+                value={attendance.selectedDate}
+                onChange={(event) => {
+                  setCalendarDetailDate(event.target.value);
+                  attendance.selectDate(event.target.value);
+                }}
+                disabled={attendance.loading || attendance.submitting}
+              />
+              <input
+                className="glass-input h-20 min-h-0 w-full self-start text-[14px] font-semibold sm:w-40"
+                type="month"
+                value={attendance.selectedMonth}
+                onChange={(event) => attendance.selectMonth(event.target.value)}
+                disabled={attendance.loading || attendance.submitting}
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2 lg:justify-end">
+              <span className="rounded-full bg-[#2456E6]/10 px-3 py-1 text-[12px] font-semibold text-[#2456E6]">{currentPeriodLabel}</span>
+              {todayRows.length === 0 ? (
+                <span className="rounded-full bg-[#F1F3F6] px-3 py-1 text-[12px] font-semibold text-[#5A6573]">Today status loading</span>
+              ) : (
+                todayRows.slice(0, 6).map((row) => (
+                  <button
+                    className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
+                      row.marked ? "bg-[#E1F5EA] text-[#0F8A4A]" : "bg-[#FFF2DC] text-[#B95A00]"
+                    }`}
+                    key={row.classId}
+                    onClick={() => attendance.selectClass(row.classId)}
+                    type="button"
+                  >
+                    {row.className}: {row.marked ? "Marked" : "Unmarked"}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-[minmax(220px,25%)_minmax(0,1fr)]">
       <AttendanceSummary
-        total={attendance.summary.total}
-        present={attendance.summary.present}
-        absent={attendance.summary.absent}
-        late={attendance.summary.late}
-        halfDay={attendance.summary.halfDay}
-        attended={attendance.summary.attended}
+        total={summary.total}
+        present={summary.present}
+        absent={summary.absent}
+        late={summary.late}
+        halfDay={summary.halfDay}
+        attended={summary.attended}
+        layout="rail"
       />
 
-      <section className="glass-card-interactive space-y-3 p-4">
+      <section className="glass-card-interactive min-w-0 space-y-3 p-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Monthly view</p>
@@ -283,6 +329,7 @@ export default function TeacherAttendancePage() {
           )}
         </div>
       </section>
+      </div>
 
       <div className="glass-card-interactive flex flex-col gap-2 px-5 py-4 text-[13px] sm:flex-row sm:items-center sm:justify-between">
         <span className="font-semibold text-[#1d1d1f]">{classLabel}</span>
