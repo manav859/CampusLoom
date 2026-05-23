@@ -103,10 +103,14 @@ export default function TeacherAttendancePage() {
         return { id: row.classId, name, section, academicYear: "" };
       });
   const selectedClassRecord = attendance.selectedClass ?? classOptions.find((classItem) => classItem.id === attendance.selectedClassId);
-  const selectedDailyClass = todayRows.find((row) => row.classId === attendance.selectedClassId);
+  const firstAvailableClass = classOptions[0] ?? null;
+  const displayClassRecord = selectedClassRecord ?? firstAvailableClass;
   const classLabel = selectedClassRecord
     ? classOptionLabel(selectedClassRecord)
-    : selectedClassDisplay || selectedDailyClass?.className || attendance.monthly?.className || (classOptions.length > 0 ? "Select class" : "No assigned class");
+    : displayClassRecord
+      ? classOptionLabel(displayClassRecord)
+      : attendance.loading ? "Loading classes..." : "No assigned class";
+  const hasAssignedClasses = classOptions.length > 0;
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
   const selectedDateLabel = formatDateShort(displayDate);
   const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
@@ -144,10 +148,16 @@ export default function TeacherAttendancePage() {
   useEffect(() => {
     const requestedClassId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("classId") : null;
     if (!requestedClassId || attendance.loading || attendance.selectedClassId === requestedClassId) return;
-    if (attendance.classes.some((classItem) => classItem.id === requestedClassId)) {
+    if (classOptions.some((classItem) => classItem.id === requestedClassId)) {
       void attendance.selectClass(requestedClassId);
     }
-  }, [attendance]);
+  }, [attendance.loading, attendance.selectedClassId, classOptions, attendance.selectClass]);
+
+  useEffect(() => {
+    if (attendance.loading || attendance.selectedClassId || !firstAvailableClass) return;
+    setSelectedClassDisplay(classOptionLabel(firstAvailableClass));
+    void attendance.selectClass(firstAvailableClass.id);
+  }, [attendance.loading, attendance.selectedClassId, firstAvailableClass, attendance.selectClass]);
 
   useEffect(() => {
     if (!attendance.error && !attendance.success) return;
@@ -267,6 +277,8 @@ export default function TeacherAttendancePage() {
             <p className="mt-2 text-[11px] font-medium text-[#86868b]">Last selected class is remembered for this user.</p>
           </div>
 
+          {(hasAssignedClasses || attendance.loading) ? (
+            <>
           <div className="relative">
             <button
               className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
@@ -378,8 +390,20 @@ export default function TeacherAttendancePage() {
               </div>
             ) : null}
           </div>
+            </>
+          ) : null}
         </div>
       </div>
+
+      {!attendance.loading && !hasAssignedClasses ? (
+        <div className="rounded-md border border-[#E2E7EE] bg-white px-5 py-10 text-center shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
+          <p className="text-[16px] font-semibold text-[#1d1d1f]">No assigned class</p>
+          <p className="mx-auto mt-2 max-w-md text-[13px] leading-6 text-[#6e6e73]">
+            Attendance can be marked after a class is assigned to this account.
+          </p>
+        </div>
+      ) : (
+        <>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(220px,25%)_minmax(0,1fr)]">
         <AttendanceSummary
@@ -550,6 +574,8 @@ export default function TeacherAttendancePage() {
           Existing Absent, Late, and Half day selections in the current roster will become Present locally. The change is saved only after you use Save attendance.
         </p>
       </Modal>
+        </>
+      )}
     </div>
   );
 }
