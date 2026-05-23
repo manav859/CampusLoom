@@ -398,15 +398,26 @@ function toStudentRows(items: ApiStudentItem[]): StudentRow[] {
   });
 }
 
+function resolveStudentList(items: ApiStudentItem[] | undefined, total: unknown, page: number, perPage: number) {
+  const rows = toStudentRows(items ?? []);
+  const apiTotal = Number(total ?? 0);
+  const pageFloorTotal = rows.length > 0 ? (page - 1) * perPage + rows.length : 0;
+
+  return {
+    rows,
+    total: Math.max(Number.isFinite(apiTotal) ? apiTotal : 0, pageFloorTotal)
+  };
+}
+
 /* ── Component ── */
 export default function StudentsPage() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
-  const tableBodyRef = useRef<HTMLTableSectionElement | null>(null);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string; section: string }[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingList, setLoadingList] = useState(false);
+  const [hasLoadedStudents, setHasLoadedStudents] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isTeacher, setIsTeacher] = useState(false);
   const [canViewFees, setCanViewFees] = useState(false);
@@ -423,7 +434,6 @@ export default function StudentsPage() {
     busy?: boolean;
   }>({ isOpen: false, action: null, message: "", targetClassId: "" });
   const [notice, setNotice] = useState<string | null>(null);
-  const [domRowCount, setDomRowCount] = useState(0);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
   const [importDialog, setImportDialog] = useState<{
     isOpen: boolean;
@@ -478,28 +488,22 @@ export default function StudentsPage() {
     const cacheKey = `students:list:${params.toString()}`;
     cachedFetch(cacheKey, () => apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`))
       .then((data) => {
-        const items = data?.items || [];
-        if (items.length > 0) {
-          const rows = toStudentRows(items);
-          const apiTotal = Number(data?.total ?? 0);
-          const fallbackTotal = (page - 1) * perPage + rows.length;
-          setStudents(rows);
-          setSelectedRows((prev) => {
-            const next = { ...prev };
-            rows.forEach((row) => {
-              if (selectedIds.includes(row.id)) next[row.id] = row;
-            });
-            return next;
+        const { rows, total: nextTotal } = resolveStudentList(data?.items, data?.total, page, perPage);
+        setStudents(rows);
+        setSelectedRows((prev) => {
+          const next = { ...prev };
+          rows.forEach((row) => {
+            if (selectedIds.includes(row.id)) next[row.id] = row;
           });
-          setTotal(Math.max(apiTotal, fallbackTotal));
-        } else {
-          setStudents([]);
-          setTotal(Number(data?.total ?? 0));
-        }
+          return next;
+        });
+        setTotal(nextTotal);
+        setHasLoadedStudents(true);
       })
       .catch(() => {
         setStudents([]);
         setTotal(0);
+        setHasLoadedStudents(true);
       })
       .finally(() => setLoadingList(false));
   }, [search, classId, page, perPage, showInactive, statusFilter, canViewFees]);
@@ -535,11 +539,7 @@ export default function StudentsPage() {
     [filtered, sort.direction, sort.key]
   );
 
-  useEffect(() => {
-    setDomRowCount(tableBodyRef.current?.querySelectorAll("[data-student-row]").length ?? sortedFiltered.length);
-  }, [loadingList, page, perPage, sortedFiltered.length]);
-
-  const visibleCount = Math.max(sortedFiltered.length, domRowCount);
+  const visibleCount = sortedFiltered.length;
   const visibleFloorTotal = visibleCount > 0 ? (page - 1) * perPage + visibleCount : 0;
   const resolvedTotal = Math.max(total, visibleFloorTotal);
   const displayStart = visibleCount > 0 ? (page - 1) * perPage + 1 : 0;
@@ -572,9 +572,12 @@ export default function StudentsPage() {
   const visibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
   const allFilteredSelected = resolvedTotal > 0 && selectedIds.length >= resolvedTotal;
   const selectedCount = selectedIds.length;
-  const selectAllLabel = resolvedTotal === 0
+  const isInitialListLoading = loadingList && !hasLoadedStudents;
+  const selectAllLabel = isInitialListLoading
+    ? "Loading students..."
+    : resolvedTotal === 0
     ? "No students to select"
-    : statusFilter && canViewFees ? "Select all matching students" : `Select all ${resolvedTotal} students`;
+    : statusFilter && canViewFees ? "Select all matching students" : `Select all ${resolvedTotal} Students`;
   const classOptions = [
     { label: "All classes", value: "" },
     ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))
@@ -1072,8 +1075,8 @@ export default function StudentsPage() {
                   ))}
                 </tr>
               </thead>
-              <tbody ref={tableBodyRef}>
-                {loading && students.length === 0 ? (
+              <tbody>
+                {(loading || isInitialListLoading) && students.length === 0 ? (
                   Array.from({ length: 7 }).map((_, i) => (
                     <tr key={`skel-${i}`} className="animate-pulse">
                       <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-6 rounded-md" /></td>
