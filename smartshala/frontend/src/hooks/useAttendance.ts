@@ -132,7 +132,14 @@ export function useAttendance() {
       setError("");
 
       try {
-        const classList = await classesApi.list();
+        let classList = await classesApi.list();
+        if (classList.length === 0) {
+          const dailyRows = await attendanceApi.daily().catch(() => []);
+          classList = dailyRows.map((row) => {
+            const [name = row.className, section = ""] = row.className.split("-");
+            return { id: row.classId, name, section, academicYear: "" };
+          });
+        }
         if (cancelled) return;
         setClasses(classList);
 
