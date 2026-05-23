@@ -6,7 +6,7 @@ import Link from "next/link";
 import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { TableRowSkeleton } from "@/components/ui/Skeleton";
+import { Skeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
 import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 
@@ -79,6 +79,10 @@ function assignedPeriodCount(teacher: TeacherData, periodCount = teacher.timetab
 
 function totalTimetableSlots(periodCount: number) {
   return timetableDays.length * periodCount;
+}
+
+function statusTone(status: string) {
+  return status === "ACTIVE" ? "good" : "warn";
 }
 
 function emptyAssignmentDraft(periodCount: number): AssignmentDraft {
@@ -342,8 +346,8 @@ export default function TeachersPage() {
     <div className="space-y-5">
       <PageHeader eyebrow="Teachers" title="Teacher management" action={isAdmin ? <Link href="/teachers/new" className="btn-primary">Add teacher</Link> : null} />
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="grid gap-2 sm:grid-cols-3">
+      <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+        <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[1fr_1fr_1fr_auto]">
           <select className="glass-input text-[13px]" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             <option value="">All statuses</option>
             <option value="ACTIVE">Active</option>
@@ -361,19 +365,97 @@ export default function TeachersPage() {
               <option key={item} value={item}>{item}</option>
             ))}
           </select>
+          <button
+            onClick={() => setShowInactive(!showInactive)}
+            className={`flex min-h-10 items-center justify-center gap-2 rounded-[6px] border px-3 text-[13px] font-semibold transition-all ${
+              showInactive ? "border-[#2456E6] bg-[#2456E6] text-white shadow-[0_2px_10px_rgba(36,86,230,0.24)]" : "border-[#C9D3DE] bg-white text-[#1d1d1f] hover:bg-[#F7F8FB]"
+            }`}
+            type="button"
+          >
+            <div className={`h-2 w-2 rounded-full ${showInactive ? "bg-white" : "bg-[#86868b]"}`} />
+            {showInactive ? "Showing inactive" : "Show inactive"}
+          </button>
         </div>
-        <button
-          onClick={() => setShowInactive(!showInactive)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-[13px] font-medium ${
-            showInactive ? "bg-[#0071e3] border-[#0071e3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.3)]" : "bg-white border-[rgba(0,0,0,0.08)] text-[#1d1d1f] hover:bg-[#f5f5f7]"
-          }`}
-        >
-          <div className={`h-2 w-2 rounded-full ${showInactive ? "bg-white animate-pulse" : "bg-[#86868b]"}`} />
-          {showInactive ? "Showing Inactive" : "Show Inactive Only"}
-        </button>
       </div>
 
-      <div className="overflow-hidden rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] shadow-apple">
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          Array.from({ length: 5 }).map((_, index) => (
+            <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]" key={index}>
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-36 rounded-md" />
+                  <Skeleton className="h-3 w-24 rounded-md" />
+                </div>
+              </div>
+              <Skeleton className="mt-4 h-16 w-full rounded-md" />
+            </div>
+          ))
+        ) : filteredTeachers.length === 0 ? (
+          <div className="rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] px-4 py-10 text-center text-[13px] font-medium text-[#52687D]">
+            No teachers found.
+          </div>
+        ) : (
+          filteredTeachers.map((teacher) => {
+            const assigned = assignedPeriodCount(teacher);
+            const total = totalTimetableSlots(teacher.timetablePeriodCount ?? 8);
+            return (
+              <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]" key={teacher.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <InitialsAvatar name={teacher.fullName} size="sm" />
+                    <div className="min-w-0">
+                      <h2 className="truncate text-[15px] font-semibold text-[#1d1d1f]">{teacher.fullName}</h2>
+                      <p className="mt-0.5 truncate text-[12px] font-medium text-[#52687D]">{teacher.email || teacher.phone || "-"}</p>
+                    </div>
+                  </div>
+                  <StatusPill label={teacher.status} tone={statusTone(teacher.status)} />
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 text-[12px]">
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3">
+                    <p className="font-bold uppercase tracking-[0.08em] text-[#86868b]">Class teacher</p>
+                    <p className="mt-1 font-semibold text-[#1d1d1f]">{classTeacherLabel(teacher)}</p>
+                  </div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3">
+                    <p className="font-bold uppercase tracking-[0.08em] text-[#86868b]">Periods</p>
+                    <p className="mt-1 font-semibold text-[#1d1d1f]">{assigned}/{total} assigned</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-[6px] bg-[#F7F8FB] p-3 text-[12px]">
+                  <p className="font-bold uppercase tracking-[0.08em] text-[#86868b]">Phone</p>
+                  <p className="mt-1 font-semibold text-[#1d1d1f]">{teacher.phone || "-"}</p>
+                </div>
+
+                {isAdmin ? (
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <Link href={`/teachers/${teacher.id}/edit`} className="inline-flex min-h-10 items-center justify-center rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[13px] font-semibold text-[#2456E6]">
+                      Edit
+                    </Link>
+                    <button onClick={() => openAssignments(teacher.id)} className="inline-flex min-h-10 items-center justify-center rounded-[6px] bg-[#2456E6] px-3 text-[13px] font-semibold text-white" type="button">
+                      Manage
+                    </button>
+                    {teacher.status === "ACTIVE" ? (
+                      <button onClick={() => handleDelete(teacher.id)} className="col-span-2 inline-flex min-h-10 items-center justify-center rounded-[6px] border border-[#F0B8BC] bg-[#FFF5F5] px-3 text-[13px] font-semibold text-[#C8242C]" type="button">
+                        Deactivate
+                      </button>
+                    ) : (
+                      <button onClick={() => handleActivate(teacher.id)} className="col-span-2 inline-flex min-h-10 items-center justify-center rounded-[6px] border border-[#BEE7CD] bg-[#F1FFF6] px-3 text-[13px] font-semibold text-[#0F8A4A]" type="button">
+                        Activate
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+              </article>
+            );
+          })
+        )}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)] md:block">
+        <div className="overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-[13px]">
           <thead className="table-head">
             <tr>
@@ -415,7 +497,7 @@ export default function TeachersPage() {
                   <td className="px-5 py-4 text-[#6e6e73]">
                     {assignedPeriodCount(teacher)}/{totalTimetableSlots(teacher.timetablePeriodCount ?? 8)} assigned
                   </td>
-                  <td className="px-5 py-4"><StatusPill label={teacher.status} tone={teacher.status === "ACTIVE" ? "good" : "warn"} /></td>
+                  <td className="px-5 py-4"><StatusPill label={teacher.status} tone={statusTone(teacher.status)} /></td>
                   <td className="px-5 py-4 text-right">
                     {isAdmin ? (
                       <div className="flex justify-end gap-2">
@@ -476,22 +558,23 @@ export default function TeachersPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {assignmentContext && typeof window !== "undefined" ? createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
-              <div>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm sm:p-4">
+          <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[6px] bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+            <div className="flex shrink-0 flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div className="min-w-0">
                 <h2 className="text-[18px] font-semibold text-[#1d1d1f]">Manage classes and subjects</h2>
                 <p className="mt-0.5 text-[13px] text-[#86868b]">
                   {assignmentContext.teacher.fullName} gets {assignmentPeriodCount} periods per day. Leave class as free period when unassigned.
                 </p>
               </div>
-              <button className="rounded-full px-3 py-1 text-[13px] font-semibold text-[#6e6e73] hover:bg-[#f5f5f7]" onClick={() => setAssignmentContext(null)} type="button">Close</button>
+              <button className="min-h-9 rounded-[6px] border border-[#DCE1E8] px-3 text-[13px] font-semibold text-[#6e6e73] hover:bg-[#f5f5f7]" onClick={() => setAssignmentContext(null)} type="button">Close</button>
             </div>
 
-            <div className="max-h-[70vh] overflow-auto p-5">
+            <div className="min-h-0 overflow-auto p-4 sm:p-5">
               {assignmentError ? <div className="mb-4 rounded-xl bg-[#ff3b30]/10 p-3 text-[13px] font-medium text-[#d70015]">{assignmentError}</div> : null}
               {assignmentLoading ? (
                 <p className="py-10 text-center text-[13px] text-[#86868b]">Loading assignments...</p>
@@ -610,9 +693,9 @@ export default function TeachersPage() {
               )}
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/60 px-5 py-4">
-              <button className="rounded-xl px-4 py-2 text-[13px] font-semibold text-[#1d1d1f] hover:bg-white" onClick={() => setAssignmentContext(null)} type="button">Cancel</button>
-              <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={assignmentSaving || hasAssignmentConflicts} onClick={saveAssignments} type="button">
+            <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/60 px-4 py-4 sm:flex sm:justify-end sm:px-5">
+              <button className="min-h-10 rounded-[6px] px-4 text-[13px] font-semibold text-[#1d1d1f] hover:bg-white" onClick={() => setAssignmentContext(null)} type="button">Cancel</button>
+              <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[6px] bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={assignmentSaving || hasAssignmentConflicts} onClick={saveAssignments} type="button">
                 {assignmentSaving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
                 {assignmentSaving ? "Saving..." : "Save periods"}
               </button>
