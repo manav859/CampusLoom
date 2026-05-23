@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { Modal } from "@/components/ui/Modal";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { marksApi, type MarksContext, type MarksExam, type MarksExamDetail } from "@/lib/api";
@@ -72,6 +73,7 @@ export default function TeacherMarksPage() {
   const [examDrafts, setExamDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [marksModalOpen, setMarksModalOpen] = useState(false);
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
   const [termPickerOpen, setTermPickerOpen] = useState(false);
@@ -212,6 +214,7 @@ export default function TeacherMarksPage() {
       await openExam(created.id);
       setMarks(Object.fromEntries(students.map((student) => [student.id, ""])));
       setNotice("Exam marks saved for the full class.");
+      setMarksModalOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save marks");
     } finally {
@@ -307,16 +310,31 @@ export default function TeacherMarksPage() {
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Teacher workspace</p>
           <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Exam and marks</h1>
         </div>
-        <StatusPill label={`${exams.length} exams`} tone={exams.length ? "good" : "neutral"} />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <StatusPill label={`${exams.length} exams`} tone={exams.length ? "good" : "neutral"} />
+          <button
+            className="inline-flex min-h-10 items-center justify-center rounded-[6px] bg-[#2456E6] px-4 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(15,20,25,0.08)] transition hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={loading || !classId || !subjectId || students.length === 0}
+            onClick={() => setMarksModalOpen(true)}
+            type="button"
+          >
+            Bulk save marks
+          </button>
+        </div>
       </div>
 
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
       {notice ? <div className="rounded-xl bg-[#34c759]/10 p-4 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
-      <section className="space-y-4">
-        <form className="w-full rounded-[6px] border border-[#C9D3DE] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.04)]" onSubmit={handleSubmit}>
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Create exam</h2>
-          <div className="mt-5 space-y-4">
+      <Modal
+        isOpen={marksModalOpen}
+        onClose={() => setMarksModalOpen(false)}
+        size="xl"
+        title="Bulk save marks"
+        description={selectedClass ? `Class ${selectedClass.name}-${selectedClass.section} | ${selectedSubject?.name ?? "No subject"} | ${students.length} students` : "Create an exam and enter marks for the full class."}
+      >
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="relative">
                 <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Class</span>
@@ -498,7 +516,7 @@ export default function TeacherMarksPage() {
           </div>
 
           <button
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
             disabled={saving || loading || students.length === 0}
             type="submit"
           >
@@ -506,14 +524,71 @@ export default function TeacherMarksPage() {
             {saving ? "Saving marks..." : "Bulk save marks"}
           </button>
         </form>
+      </Modal>
 
+      <section className="space-y-4">
         <div className="w-full overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
           <div className="border-b border-[#C9D3DE] px-6 py-5">
             <h2 className="text-[20px] font-semibold text-[#031526]">Exam history</h2>
             <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Saved exams feed the Academic tab and performance rate.</p>
           </div>
           <div className="p-5">
-            <div className="max-h-[520px] overflow-auto rounded-[5px] border border-[#C9D3DE] [contain:content]">
+            <div className="space-y-3 md:hidden">
+              {loading ? (
+                Array.from({ length: 4 }).map((_, index) => (
+                  <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={index}>
+                    <Skeleton className="h-4 w-40 rounded-md" />
+                    <Skeleton className="mt-3 h-3 w-28 rounded-md" />
+                    <Skeleton className="mt-4 h-9 w-full rounded-md" />
+                  </div>
+                ))
+              ) : exams.length === 0 ? (
+                <div className="rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] px-4 py-8 text-center text-[13px] font-medium text-[#52687D]">
+                  No exams saved yet.
+                </div>
+              ) : (
+                examsByTerm.map((group) => (
+                  <div className="space-y-3" key={group.value}>
+                    <p className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#52687D]">{group.label}</p>
+                    {group.exams.map((exam) => (
+                      <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]" key={exam.id}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="truncate text-[15px] font-semibold text-[#1d1d1f]">{exam.name}</h3>
+                            <p className="mt-1 text-[12px] font-medium text-[#52687D]">{exam.subject} | {formatDateShort(exam.date)}</p>
+                            <p className="mt-0.5 text-[12px] text-[#86868b]">{exam.className} | Max {exam.maxMarks}</p>
+                          </div>
+                          <StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} />
+                        </div>
+                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                          <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
+                            <p className="text-[16px] font-semibold text-[#248a3d]">{exam.enteredCount}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Entered</p>
+                          </div>
+                          <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
+                            <p className="text-[16px] font-semibold text-[#d70015]">{exam.pendingCount}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Pending</p>
+                          </div>
+                          <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
+                            <p className="text-[16px] font-semibold text-[#1d1d1f]">{exam.classAverage}%</p>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Avg</p>
+                          </div>
+                        </div>
+                        <button
+                          className="mt-4 min-h-10 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[13px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={loadingExamId === exam.id}
+                          onClick={() => openExam(exam.id)}
+                          type="button"
+                        >
+                          {loadingExamId === exam.id ? "Loading..." : "View students"}
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="hidden max-h-[520px] overflow-auto rounded-[5px] border border-[#C9D3DE] [contain:content] md:block">
             <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[15px] text-[#001B33]">
               <thead>
                 <tr className="bg-[#DDECF8]">
@@ -594,7 +669,49 @@ export default function TeacherMarksPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="space-y-3 p-4 md:hidden">
+            {selectedExam.students.map((student) => {
+              const draft = examDrafts[student.studentId] ?? "";
+              const savingRow = savingStudentId === student.studentId;
+
+              return (
+                <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={student.studentId}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-[#1d1d1f]">{student.fullName}</p>
+                      <p className="mt-1 text-[12px] text-[#86868b]">Roll {student.rollNumber ?? "-"} | <span className="type-code">{student.admissionNumber}</span></p>
+                    </div>
+                    {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
+                  </div>
+                  <div className="mt-4 grid grid-cols-[1fr_auto] gap-3">
+                    <input
+                      className="min-h-10 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 text-[13px] font-semibold outline-none focus:border-[#0071e3]"
+                      max={selectedExam.maxMarks}
+                      min={0}
+                      onChange={(event) => setExamDrafts((current) => ({ ...current, [student.studentId]: event.target.value }))}
+                      placeholder={`/${selectedExam.maxMarks}`}
+                      type="number"
+                      value={draft}
+                    />
+                    <button
+                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#1d1d1f] px-4 text-[12px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={savingRow}
+                      onClick={() => updateStudentMark(student.studentId)}
+                      type="button"
+                    >
+                      {savingRow ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
+                      {savingRow ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between rounded-[6px] bg-[#F7F8FB] px-3 py-2 text-[12px]">
+                    <span className="font-medium text-[#52687D]">Percentage</span>
+                    <span className="font-semibold text-[#1d1d1f]">{student.result ? `${student.result.percentage}%` : "-"}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[980px] text-left text-[13px]">
               <thead className="table-head">
                 <tr>
