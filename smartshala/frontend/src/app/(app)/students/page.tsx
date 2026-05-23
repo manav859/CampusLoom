@@ -1276,9 +1276,11 @@ export default function StudentsPage() {
 
         {/* ── Pagination ── */}
         <div className="flex flex-col gap-4 px-5 pb-5 pt-1 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
-            Showing <span className="text-[#0F1419]">{displayStart}</span> to <span className="text-[#0F1419]">{displayEnd}</span> of <span className="text-[#0F1419]">{resolvedTotal}</span> students
-          </p>
+          {resolvedTotal > 0 ? (
+            <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
+              Showing <span className="text-[#0F1419]">{displayStart}</span> to <span className="text-[#0F1419]">{displayEnd}</span> of <span className="text-[#0F1419]">{resolvedTotal}</span> students
+            </p>
+          ) : null}
           <div className="flex w-full flex-nowrap items-center justify-center gap-2 overflow-x-auto sm:w-auto sm:gap-3">
             <button
               disabled={page === 1}

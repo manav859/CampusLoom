@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { KpiCardSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
 import { cachedFetch } from "@/lib/prefetchCache";
@@ -23,6 +22,61 @@ function levelStripe(className: string) {
   if (grade <= 5) return "from-[#0F8A4A] to-[#1F6FB8]";
   if (grade <= 8) return "from-[#2456E6] to-[#7C3AED]";
   return "from-[#B95A00] to-[#C8242C]";
+}
+
+function ClassCard({ cls, isAdmin, onDelete }: { cls: ClassData; isAdmin: boolean; onDelete: (event: React.MouseEvent, id: string) => void }) {
+  const studentCount = cls._count?.students ?? 0;
+
+  return (
+    <article className="overflow-hidden rounded-xl border border-[#DCE1E8] bg-white shadow-[0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors hover:border-[#B8C4D2]">
+      <div className={`h-1.5 bg-gradient-to-r ${levelStripe(cls.name)}`} />
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <Link href={`/classes/${cls.id}`} className="min-w-0">
+            <span className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6E7885]">{cls.academicYear}</span>
+            <span className="mt-1 block truncate text-[24px] font-semibold leading-7 text-[#0F1419] sm:text-[21px]">
+              {cls.name}-{cls.section}
+            </span>
+          </Link>
+          {isAdmin ? (
+            <button
+              aria-label={`Delete class ${cls.name}-${cls.section}`}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#F2C7CB] bg-[#FFF7F8] text-[#C8242C] transition-colors hover:bg-[#FCE3E5]"
+              onClick={(event) => onDelete(event, cls.id)}
+              type="button"
+            >
+              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-[#F7F8FB] px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6E7885]">Students</p>
+            <p className="mt-1 text-[18px] font-semibold text-[#0F1419]">{studentCount}</p>
+          </div>
+          <div className="rounded-lg bg-[#F7F8FB] px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6E7885]">Teacher</p>
+            <p className="mt-1 truncate text-[13px] font-semibold text-[#0F1419]">{cls.classTeacher?.fullName || "Unassigned"}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-0.5">
+          <Link href={`/classes/${cls.id}`} className="inline-flex min-h-[42px] shrink-0 items-center justify-center rounded-lg bg-[#2456E6] px-4 text-[13px] font-semibold text-white">
+            Roster
+          </Link>
+          <Link href={`/attendance?classId=${cls.id}`} className="inline-flex min-h-[42px] shrink-0 items-center justify-center rounded-lg border border-[#C9D3DE] bg-white px-4 text-[13px] font-semibold text-[#2A3340]">
+            Attendance
+          </Link>
+          <Link href={`/teacher/communication?classId=${cls.id}`} className="inline-flex min-h-[42px] shrink-0 items-center justify-center rounded-lg border border-[#C9D3DE] bg-white px-4 text-[13px] font-semibold text-[#2A3340]">
+            Notice
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export default function ClassesPage() {
@@ -68,55 +122,31 @@ export default function ClassesPage() {
   };
 
   return (
-    <div className="space-y-5">
-      <PageHeader eyebrow="Classes" title="Classes and assignments" action={isAdmin ? <Link href="/classes/new" className="btn-primary">Create class</Link> : null} />
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6E7885]">Classes</p>
+          <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#0F1419]">Classes</h1>
+        </div>
+        {isAdmin ? (
+          <Link href="/classes/new" className="btn-primary min-h-[44px] w-full justify-center sm:w-auto">
+            Create class
+          </Link>
+        ) : null}
+      </div>
       
       {loading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />)}
         </div>
       ) : classes.length === 0 ? (
-        <div className="rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] p-12 text-center text-[13px] text-[#86868b] shadow-apple-sm">
+        <div className="rounded-xl border border-[#DCE1E8] bg-white px-5 py-10 text-center text-[13px] font-medium text-[#6E7885]">
           No classes found.
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {classes.map((cls) => (
-            <article key={cls.id} className="glass-card-interactive p-5">
-              <div className={`mb-4 h-1.5 rounded-full bg-gradient-to-r ${levelStripe(cls.name)}`} />
-              <div className="flex items-center justify-between">
-                <Link href={`/classes/${cls.id}`} className="text-[17px] font-semibold text-[#1d1d1f] hover:text-[#2456E6]">
-                  {cls.name}-{cls.section}
-                </Link>
-                <div className="flex items-center gap-2">
-                  {isAdmin && (
-                    <button onClick={(e) => handleDelete(e, cls.id)} className="text-[#ff3b30] hover:text-[#d70015] p-1 rounded-lg transition-colors hover:bg-[rgba(255,59,48,0.1)]">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2 text-[13px]">
-                  <svg className="h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24">
-                    <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M6 19a6 6 0 0112 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  <span className="text-[#6e6e73]">{cls.classTeacher?.fullName || "Unassigned"}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[13px]">
-                  <svg className="h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24">
-                    <path d="M8 11a3 3 0 100-6 3 3 0 000 6zM17 13a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM3.5 19a4.5 4.5 0 019 0M13 19a4 4 0 018 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  <span className="text-[#6e6e73]">{cls._count?.students || 0} students</span>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2 border-t border-[rgba(0,0,0,0.06)] pt-4">
-                <Link href={`/classes/${cls.id}`} className="rounded-lg bg-[#F7F8FB] px-3 py-1.5 text-[12px] font-semibold text-[#2456E6]">View roster</Link>
-                <Link href={`/attendance?classId=${cls.id}`} className="rounded-lg bg-[#F7F8FB] px-3 py-1.5 text-[12px] font-semibold text-[#2A3340]">Mark attendance</Link>
-                <Link href={`/teacher/communication?classId=${cls.id}`} className="rounded-lg bg-[#F7F8FB] px-3 py-1.5 text-[12px] font-semibold text-[#2A3340]">Send notice</Link>
-              </div>
-            </article>
+            <ClassCard cls={cls} isAdmin={isAdmin} key={cls.id} onDelete={handleDelete} />
           ))}
         </div>
       )}
