@@ -45,6 +45,19 @@ function groupedClasses(classes: ClassSummary[]) {
     .filter((item) => item.classes.length > 0);
 }
 
+function monthInputFromParts(year: number, monthIndex: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(month: string) {
+  const [year = 0, monthNumber = 1] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(year, monthNumber - 1, 1));
+}
+
+function classOptionLabel(classItem: Pick<ClassSummary, "name" | "section">) {
+  return classItem.section ? `${classItem.name}-${classItem.section}` : classItem.name;
+}
+
 type MonthlyDay = NonNullable<ReturnType<typeof useAttendance>["monthly"]>["days"][number];
 
 function summaryFromMonthlyDay(day: MonthlyDay, fallbackTotal: number) {
@@ -61,15 +74,25 @@ function summaryFromMonthlyDay(day: MonthlyDay, fallbackTotal: number) {
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
   const [classPickerOpen, setClassPickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [monthPickerYear, setMonthPickerYear] = useState(new Date().getFullYear());
   const [calendarDetailDate, setCalendarDetailDate] = useState("");
   const [selectedClassDisplay, setSelectedClassDisplay] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
-  const selectedClassRecord = attendance.selectedClass ?? attendance.classes.find((classItem) => classItem.id === attendance.selectedClassId);
+  const classOptions = attendance.classes.length > 0
+    ? attendance.classes
+    : todayRows.map((row) => {
+        const [name = row.className, section = ""] = row.className.split("-");
+        return { id: row.classId, name, section, academicYear: "" };
+      });
+  const selectedClassRecord = attendance.selectedClass ?? classOptions.find((classItem) => classItem.id === attendance.selectedClassId);
+  const selectedDailyClass = todayRows.find((row) => row.classId === attendance.selectedClassId);
   const classLabel = selectedClassRecord
-    ? `${selectedClassRecord.name}-${selectedClassRecord.section}`
-    : selectedClassDisplay || attendance.monthly?.className || (attendance.classes.length > 0 ? "Select class" : "No assigned class");
+    ? classOptionLabel(selectedClassRecord)
+    : selectedClassDisplay || selectedDailyClass?.className || attendance.monthly?.className || (classOptions.length > 0 ? "Select class" : "No assigned class");
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0;
   const selectedDateLabel = formatDateShort(attendance.selectedDate);
   const monthlyByDate = new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day]));
@@ -90,8 +113,7 @@ export default function TeacherAttendancePage() {
     ...Array.from({ length: firstOfMonth.getDay() }, (_, index) => ({ key: `blank-${index}`, day: null as number | null })),
     ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
   ];
-  const currentPeriodLabel = "My current period";
-  const classGroups = groupedClasses(attendance.classes);
+  const classGroups = groupedClasses(classOptions);
 
   useEffect(() => {
     let active = true;
@@ -127,8 +149,13 @@ export default function TeacherAttendancePage() {
   }, [attendance.selectedDate, calendarDetailDate]);
 
   useEffect(() => {
-    if (selectedClassRecord) setSelectedClassDisplay(`${selectedClassRecord.name}-${selectedClassRecord.section}`);
+    if (selectedClassRecord) setSelectedClassDisplay(classOptionLabel(selectedClassRecord));
   }, [selectedClassRecord]);
+
+  useEffect(() => {
+    const [year = new Date().getFullYear()] = attendance.selectedMonth.split("-").map(Number);
+    setMonthPickerYear(year);
+  }, [attendance.selectedMonth]);
 
   return (
     <div className="w-full space-y-6">
@@ -159,8 +186,7 @@ export default function TeacherAttendancePage() {
 
       <div className="rounded-md border border-[#E2E7EE] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
         <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(560px,720px)_1fr]">
-          <div className="grid gap-3 sm:grid-cols-[minmax(240px,1fr)_160px_160px]">
+        <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(260px,380px)_180px_180px]">
           <div className="relative rounded-md border border-[#E2E7EE] bg-white p-2 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
             <button
               aria-expanded={classPickerOpen}
@@ -176,7 +202,7 @@ export default function TeacherAttendancePage() {
             </button>
             {classPickerOpen ? (
               <div className="absolute left-2 right-2 top-[58px] z-30 max-h-[340px] overflow-auto rounded-2xl border border-[#DCE1E8] bg-white p-2 shadow-[var(--shadow-menu)]">
-                {attendance.classes.length === 0 || classGroups.length === 0 ? (
+                {classOptions.length === 0 || classGroups.length === 0 ? (
                   <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No assigned class</div>
                 ) : (
                   classGroups.map((item) => (
@@ -184,7 +210,7 @@ export default function TeacherAttendancePage() {
                       <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#86868b]">{item.group}</p>
                       <div className="grid grid-cols-2 gap-1">
                         {item.classes.map((classItem) => {
-                          const className = `${classItem.name}-${classItem.section}`;
+                          const className = classOptionLabel(classItem);
                           const active = classItem.id === attendance.selectedClassId;
                           return (
                             <button
@@ -211,61 +237,127 @@ export default function TeacherAttendancePage() {
             ) : null}
             <p className="mt-2 text-[11px] font-medium text-[#86868b]">Last selected class is remembered for this user.</p>
           </div>
-              <input
-                className="glass-input h-full min-h-[68px] self-start text-[14px] font-semibold"
-                type="date"
-                value={attendance.selectedDate}
-                max={attendance.today}
-                onChange={(event) => {
-                  setCalendarDetailDate(event.target.value);
-                  attendance.selectDate(event.target.value);
-                }}
-                disabled={attendance.loading || attendance.submitting}
-              />
-              <input
-                className="glass-input h-full min-h-[68px] self-start text-[14px] font-semibold"
-                type="month"
-                value={attendance.selectedMonth}
-                max={attendance.today.slice(0, 7)}
-                onChange={(event) => attendance.selectMonth(event.target.value)}
-                disabled={attendance.loading || attendance.submitting}
-              />
-          </div>
-          <div className="rounded-md border border-[#E2E7EE] bg-white p-3 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
-            <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
-              <span className="rounded-full bg-[#2456E6]/10 px-3 py-1 text-[12px] font-semibold text-[#2456E6]">{currentPeriodLabel}</span>
-              {todayRows.length === 0 ? (
-                <span className="rounded-full bg-[#F1F3F6] px-3 py-1 text-[12px] font-semibold text-[#5A6573]">Today status loading</span>
-              ) : (
-                todayRows.slice(0, 6).map((row) => (
+
+          <div className="relative">
+            <button
+              className="flex min-h-[72px] w-full items-center justify-between rounded-md border border-[#E2E7EE] bg-white px-4 text-left text-[14px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]"
+              disabled={attendance.loading || attendance.submitting}
+              onClick={() => {
+                setDatePickerOpen((open) => !open);
+                setMonthPickerOpen(false);
+              }}
+              type="button"
+            >
+              <span>{selectedDateLabel}</span>
+              <svg className="h-4 w-4 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+              </svg>
+            </button>
+            {datePickerOpen ? (
+              <div className="absolute left-0 top-[80px] z-30 w-72 rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]">
+                <div className="mb-3 flex items-center justify-between">
+                  <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => attendance.selectMonth(monthInputFromParts(monthYear, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
+                  <span className="text-[13px] font-bold text-[#1d1d1f]">{monthLabel(attendance.selectedMonth)}</span>
                   <button
-                    className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
-                      row.marked ? "bg-[#E1F5EA] text-[#0F8A4A]" : "bg-[#FFF2DC] text-[#B95A00]"
-                    }`}
-                    key={row.classId}
-                    onClick={() => attendance.selectClass(row.classId)}
+                    className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={monthInputFromParts(monthYear, monthNumber) > attendance.today.slice(0, 7)}
+                    onClick={() => attendance.selectMonth(monthInputFromParts(monthYear, monthNumber))}
                     type="button"
+                    aria-label="Next month"
                   >
-                    {row.className}: {row.marked ? "Marked" : "Unmarked"}
+                    &gt;
                   </button>
-                ))
-              )}
-            </div>
+                </div>
+                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[#86868b]">
+                  {["S", "M", "T", "W", "T", "F", "S"].map((weekday, index) => <span key={`${weekday}-${index}`}>{weekday}</span>)}
+                </div>
+                <div className="mt-2 grid grid-cols-7 gap-1">
+                  {calendarCells.map((cell) => {
+                    if (!cell.day) return <span aria-hidden="true" className="h-8" key={cell.key} />;
+                    const dateKey = `${attendance.selectedMonth}-${String(cell.day).padStart(2, "0")}`;
+                    const isFuture = dateKey > attendance.today;
+                    const selected = attendance.selectedDate === dateKey;
+                    return (
+                      <button
+                        className={`h-8 rounded-lg text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : "text-[#2A3340] hover:bg-[#F7F8FB]"}`}
+                        disabled={isFuture}
+                        key={cell.key}
+                        onClick={() => {
+                          setDatePickerOpen(false);
+                          setCalendarDetailDate(dateKey);
+                          attendance.selectDate(dateKey);
+                        }}
+                        type="button"
+                      >
+                        {cell.day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="relative">
+            <button
+              className="flex min-h-[72px] w-full items-center justify-between rounded-md border border-[#E2E7EE] bg-white px-4 text-left text-[14px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]"
+              disabled={attendance.loading || attendance.submitting}
+              onClick={() => {
+                setMonthPickerOpen((open) => !open);
+                setDatePickerOpen(false);
+              }}
+              type="button"
+            >
+              <span>{monthLabel(attendance.selectedMonth)}</span>
+              <svg className="h-4 w-4 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+              </svg>
+            </button>
+            {monthPickerOpen ? (
+              <div className="absolute left-0 top-[80px] z-30 w-72 rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]">
+                <div className="mb-3 flex items-center justify-between">
+                  <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setMonthPickerYear((year) => year - 1)} type="button" aria-label="Previous year">&lt;</button>
+                  <span className="text-[13px] font-bold text-[#1d1d1f]">{monthPickerYear}</span>
+                  <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-40" disabled={monthPickerYear >= Number(attendance.today.slice(0, 4))} onClick={() => setMonthPickerYear((year) => year + 1)} type="button" aria-label="Next year">&gt;</button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: 12 }, (_, index) => {
+                    const value = monthInputFromParts(monthPickerYear, index);
+                    const disabled = value > attendance.today.slice(0, 7);
+                    const selected = attendance.selectedMonth === value;
+                    return (
+                      <button
+                        className={`rounded-xl px-3 py-2 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : "bg-[#F7F8FB] text-[#2A3340] hover:bg-[#E8ECF3]"}`}
+                        disabled={disabled}
+                        key={value}
+                        onClick={() => {
+                          setMonthPickerOpen(false);
+                          attendance.selectMonth(value);
+                        }}
+                        type="button"
+                      >
+                        {new Intl.DateTimeFormat("en-IN", { month: "short" }).format(new Date(monthPickerYear, index, 1))}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(220px,25%)_minmax(0,1fr)]">
-      <AttendanceSummary
-        total={summary.total}
-        present={summary.present}
-        absent={summary.absent}
-        late={summary.late}
-        halfDay={summary.halfDay}
-        attended={summary.attended}
-        layout="rail"
-        pending={attendancePending}
-      />
+        <AttendanceSummary
+          total={summary.total}
+          present={summary.present}
+          absent={summary.absent}
+          late={summary.late}
+          halfDay={summary.halfDay}
+          attended={summary.attended}
+          layout="rail"
+          pending={attendancePending}
+        />
 
       <section className="min-w-0 space-y-3 rounded-md border border-[#E2E7EE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
