@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
+import { CustomSelect } from "@/components/ui/CustomSelect";
+import { MarqueeText } from "@/components/ui/KpiCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { apiFetch, communicationApi, studentsApi } from "@/lib/api";
@@ -192,6 +194,10 @@ function pendingAmountClass(amount: number | null) {
   if (amount === null) return "text-[#86868b]";
   if (amount === 0) return "text-[#0F8A4A]";
   return "text-[#C8242C]";
+}
+
+function sortDirectionLabel(direction: SortDirection) {
+  return direction === "asc" ? "A-Z" : "Z-A";
 }
 
 function roleCanViewFees(role?: string) {
@@ -395,6 +401,7 @@ function toStudentRows(items: ApiStudentItem[]): StudentRow[] {
 /* ── Component ── */
 export default function StudentsPage() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement | null>(null);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string; section: string }[]>([]);
   const [total, setTotal] = useState(0);
@@ -416,6 +423,7 @@ export default function StudentsPage() {
     busy?: boolean;
   }>({ isOpen: false, action: null, message: "", targetClassId: "" });
   const [notice, setNotice] = useState<string | null>(null);
+  const [domRowCount, setDomRowCount] = useState(0);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({ key: "name", direction: "asc" });
   const [importDialog, setImportDialog] = useState<{
     isOpen: boolean;
@@ -473,6 +481,8 @@ export default function StudentsPage() {
         const items = data?.items || [];
         if (items.length > 0) {
           const rows = toStudentRows(items);
+          const apiTotal = Number(data?.total ?? 0);
+          const fallbackTotal = (page - 1) * perPage + rows.length;
           setStudents(rows);
           setSelectedRows((prev) => {
             const next = { ...prev };
@@ -481,10 +491,10 @@ export default function StudentsPage() {
             });
             return next;
           });
-          setTotal(data?.total || 0);
+          setTotal(Math.max(apiTotal, fallbackTotal));
         } else {
           setStudents([]);
-          setTotal(data?.total || 0);
+          setTotal(Number(data?.total ?? 0));
         }
       })
       .catch(() => {
@@ -525,23 +535,32 @@ export default function StudentsPage() {
     [filtered, sort.direction, sort.key]
   );
 
-  const totalPages = Math.ceil(total / perPage);
+  useEffect(() => {
+    setDomRowCount(tableBodyRef.current?.querySelectorAll("[data-student-row]").length ?? sortedFiltered.length);
+  }, [loadingList, page, perPage, sortedFiltered.length]);
+
+  const visibleCount = Math.max(sortedFiltered.length, domRowCount);
+  const visibleFloorTotal = visibleCount > 0 ? (page - 1) * perPage + visibleCount : 0;
+  const resolvedTotal = Math.max(total, visibleFloorTotal);
+  const displayStart = visibleCount > 0 ? (page - 1) * perPage + 1 : 0;
+  const displayEnd = visibleCount > 0 ? (page - 1) * perPage + visibleCount : 0;
+  const totalPages = Math.max(1, Math.ceil(resolvedTotal / perPage));
   const tableHeaders: { label: string; sortKey?: SortKey }[] = canViewFees
     ? [
         { label: "" },
         { label: "#" },
-        { label: "Student Name", sortKey: "name" },
+        { label: "Student", sortKey: "name" },
         { label: "Class", sortKey: "class" },
-        { label: "Fees Status", sortKey: "feeStatus" },
-        { label: "Pending Amt", sortKey: "pendingAmount" },
-        { label: "Last Payment", sortKey: "lastPayment" },
+        { label: "Fee status", sortKey: "feeStatus" },
+        { label: "Balance", sortKey: "pendingAmount" },
+        { label: "Last paid", sortKey: "lastPayment" },
         { label: "Attendance", sortKey: "attendance" },
         { label: "Actions" }
       ]
     : [
         { label: "" },
         { label: "#" },
-        { label: "Student Name", sortKey: "name" },
+        { label: "Student", sortKey: "name" },
         { label: "Class", sortKey: "class" },
         { label: "Attendance", sortKey: "attendance" },
         { label: "Actions" }
@@ -551,9 +570,30 @@ export default function StudentsPage() {
     .filter((student): student is StudentRow => Boolean(student));
   const visibleIds = sortedFiltered.map((student) => student.id);
   const visibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
-  const allFilteredSelected = total > 0 && selectedIds.length >= total;
+  const allFilteredSelected = resolvedTotal > 0 && selectedIds.length >= resolvedTotal;
   const selectedCount = selectedIds.length;
-  const selectAllLabel = statusFilter && canViewFees ? "Select all matching students" : `Select all ${total} students`;
+  const selectAllLabel = resolvedTotal === 0
+    ? "No students to select"
+    : statusFilter && canViewFees ? "Select all matching students" : `Select all ${resolvedTotal} students`;
+  const classOptions = [
+    { label: "All classes", value: "" },
+    ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))
+  ];
+  const feeStatusOptions = [
+    { label: "All fee statuses", value: "" },
+    { label: "Paid fees", value: "PAID" },
+    { label: "Pending fees", value: "PENDING" },
+    { label: "Overdue fees", value: "OVERDUE" }
+  ];
+  const perPageOptions = [10, 25, 50].map((value) => ({ label: `${value} / page`, value: String(value) }));
+  const importClassOptions = [
+    { label: "No default class", value: "" },
+    ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))
+  ];
+  const pageNumbers = useMemo(() => {
+    const first = Math.max(1, Math.min(page - 2, Math.max(1, totalPages - 4)));
+    return Array.from({ length: Math.min(5, totalPages) }, (_, index) => first + index);
+  }, [page, totalPages]);
 
   const handleDelete = (id: string) => {
     setConfirmDialog({ isOpen: true, action: 'deactivate', studentId: id });
@@ -606,7 +646,7 @@ export default function StudentsPage() {
         await apiFetch(`/students/${studentId}/activate`, { method: "PATCH" });
       }
       setStudents((prev) => prev.filter((s) => s.id !== studentId));
-      setTotal((prev) => prev - 1);
+      setTotal((prev) => Math.max(0, prev - 1));
       setConfirmDialog({ isOpen: false, action: 'deactivate', studentId: null });
     } catch (e: any) {
       setConfirmDialog((prev) => ({ ...prev, error: e?.message || `Failed to ${action} student` }));
@@ -904,57 +944,55 @@ export default function StudentsPage() {
       </div>
 
       {/* ── Filters ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative sm:w-72">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="grid gap-3 sm:grid-cols-2 lg:flex lg:items-center">
+          <div className="relative sm:col-span-2 lg:w-72">
             <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"><circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="m21 21-4.35-4.35" /></svg>
             <input
-              className="glass-input pl-10 sm:w-72"
+              className="glass-input pl-10 lg:w-72"
               placeholder="Search student..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <select
-              className="glass-input sm:w-36 text-[13px]"
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2 lg:flex lg:items-center">
+            <CustomSelect
+              ariaLabel="Filter by class"
+              className="h-12 w-full rounded-[8px] text-[13px] lg:w-40"
+              menuClassName="left-0 right-auto w-52"
+              onChange={(value) => { setClassId(value); setPage(1); }}
+              options={classOptions}
               value={classId}
-              onChange={(e) => { setClassId(e.target.value); setPage(1); }}
-            >
-              <option value="">All classes</option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>{cls.name}-{cls.section}</option>
-              ))}
-            </select>
+              wrapperClassName="block w-full lg:w-auto"
+            />
             {canViewFees ? (
-              <select
-                className="glass-input sm:w-36 text-[13px]"
+              <CustomSelect
+                ariaLabel="Filter by fee status"
+                className="h-12 w-full rounded-[8px] text-[13px] lg:w-44"
+                menuClassName="left-0 right-auto w-52"
+                onChange={(value) => { setStatusFilter(value); setPage(1); }}
+                options={feeStatusOptions}
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              >
-                <option value="">All fee statuses</option>
-                <option value="PAID">Paid fees</option>
-                <option value="PENDING">Pending fees</option>
-                <option value="OVERDUE">Overdue fees</option>
-              </select>
+                wrapperClassName="block w-full lg:w-auto"
+              />
             ) : null}
             <button
               onClick={() => { setShowInactive(!showInactive); setPage(1); }}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-[13px] font-medium ${
+              className={`flex h-12 min-w-0 items-center gap-2 rounded-[8px] border px-3 text-[13px] font-medium transition-all ${canViewFees ? "col-span-2 lg:w-44" : "lg:w-44"} ${
                 showInactive 
                   ? "bg-[#0071e3] border-[#0071e3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.3)]" 
                   : "bg-white border-[rgba(0,0,0,0.08)] text-[#1d1d1f] hover:bg-[#f5f5f7]"
               }`}
             >
               <div className={`h-2 w-2 rounded-full ${showInactive ? "bg-white animate-pulse" : "bg-[#86868b]"}`} />
-              {showInactive ? "Showing Inactive" : "Show Inactive Only"}
+              <MarqueeText text={showInactive ? "Showing Inactive" : "Show Inactive Only"} className="min-w-0 flex-1 text-left" />
             </button>
           </div>
         </div>
         {selectedCount === 0 && (
           <button
-            className="rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3.5 py-2.5 text-[13px] font-medium text-[#1d1d1f] hover:bg-[#f5f5f7] disabled:opacity-40 disabled:hover:bg-white transition-all duration-200"
-            disabled={loadingList || total === 0}
+            className="h-12 rounded-[8px] border border-[rgba(0,0,0,0.08)] bg-white px-3.5 text-[13px] font-medium text-[#1d1d1f] transition-all duration-200 hover:bg-[#f5f5f7] disabled:opacity-40 disabled:hover:bg-white"
+            disabled={loadingList || resolvedTotal === 0}
             onClick={toggleAllPagesSelection}
             type="button"
           >
@@ -991,64 +1029,66 @@ export default function StudentsPage() {
       )}
 
       {/* ── Table ── */}
-      <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.06)] shadow-[0_2px_20px_-4px_rgba(0,0,0,0.04)] backdrop-blur-xl bg-white/80">
+      <div className="overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="relative">
           {loadingList && (
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center z-10 rounded-2xl">
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[6px] bg-white/60 backdrop-blur-[2px]">
               <div className="h-5 w-5 rounded-full border-2 border-[#0071e3] border-t-transparent animate-spin" />
             </div>
           )}
-          <div className="overflow-x-auto">
-            <table className={`w-full text-left text-[13px] ${canViewFees ? "min-w-[900px]" : "min-w-[780px]"}`}>
+          <div className="p-3 sm:p-5">
+            <div className="overflow-x-auto rounded-[5px] border border-[#C9D3DE]">
+            <table className={`w-full border-collapse text-center text-[14px] text-[#001B33] ${canViewFees ? "min-w-[960px]" : "min-w-[780px]"}`}>
               <thead>
-                <tr className="bg-gradient-to-r from-[#1a3c4d] to-[#2a7a94]">
+                <tr className="bg-[#DDECF8]">
                   {tableHeaders.map((head, index) => (
                     <th
                       aria-sort={head.sortKey ? (sort.key === head.sortKey ? (sort.direction === "asc" ? "ascending" : "descending") : "none") : undefined}
                       key={`${head.label}-${index}`}
-                      className="px-5 py-3.5 text-[12px] font-semibold text-white/90 tracking-wide whitespace-nowrap"
+                      className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]"
                     >
                       {index === 0 ? (
                         <input
                           aria-label="Select all visible students"
                           checked={visibleSelected}
-                          className="h-4 w-4 rounded border-white/60"
+                          className="h-4 w-4 rounded border-[#7A8390]"
                           onChange={toggleVisibleSelection}
                           type="checkbox"
                         />
                       ) : head.sortKey ? (
                         <button
-                          className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-left hover:bg-white/10"
+                          className="inline-flex items-center justify-center gap-1.5 rounded-md px-1 py-0.5 hover:text-[#2456E6]"
                           onClick={() => handleSort(head.sortKey!)}
                           type="button"
+                          title={`${head.label} ${sort.key === head.sortKey ? sortDirectionLabel(sort.direction) : ""}`.trim()}
                         >
                           {head.label}
-                          <span aria-hidden="true" className="text-[10px]">
-                            {sort.key === head.sortKey ? (sort.direction === "asc" ? "Asc" : "Desc") : "Sort"}
-                          </span>
+                          <svg className={`h-3.5 w-3.5 text-[#52687D] ${sort.key === head.sortKey && sort.direction === "desc" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24">
+                            <path d="m8 14 4-4 4 4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                          </svg>
                         </button>
                       ) : head.label}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+              <tbody ref={tableBodyRef}>
                 {loading && students.length === 0 ? (
                   Array.from({ length: 7 }).map((_, i) => (
                     <tr key={`skel-${i}`} className="animate-pulse">
-                      <td className="px-5 py-4"><Skeleton className="h-4 w-6 rounded-md" /></td>
-                      <td className="px-5 py-4"><Skeleton className="h-4 w-6 rounded-md" /></td>
-                      <td className="px-5 py-4"><Skeleton className="h-4 w-32 rounded-md" /></td>
-                      <td className="px-5 py-4"><Skeleton className="h-4 w-12 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-6 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-6 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-32 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-12 rounded-md" /></td>
                       {canViewFees ? (
                         <>
-                          <td className="px-5 py-4"><Skeleton className="h-6 w-16 rounded-full" /></td>
-                          <td className="px-5 py-4"><Skeleton className="h-4 w-20 rounded-md" /></td>
-                          <td className="px-5 py-4"><Skeleton className="h-4 w-24 rounded-md" /></td>
+                          <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-6 w-16 rounded-full" /></td>
+                          <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-20 rounded-md" /></td>
+                          <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-24 rounded-md" /></td>
                         </>
                       ) : null}
-                      <td className="px-5 py-4"><Skeleton className="h-4 w-12 rounded-md" /></td>
-                      <td className="px-5 py-4"><div className="flex gap-2"><Skeleton className="h-7 w-14 rounded-lg" /><Skeleton className="h-7 w-14 rounded-lg" /></div></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-12 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-5"><div className="flex justify-center gap-2"><Skeleton className="h-7 w-14 rounded-lg" /><Skeleton className="h-7 w-14 rounded-lg" /></div></td>
                     </tr>
                   ))
                 ) : sortedFiltered.length === 0 ? (
@@ -1064,8 +1104,8 @@ export default function StudentsPage() {
                     const openUpward = sortedFiltered.length > 3 && idx >= sortedFiltered.length - 2;
 
                     return (
-                      <tr key={student.id} className="group transition-colors duration-200 hover:bg-[#f5f5f7]/60">
-                        <td className="px-5 py-4">
+                      <tr key={student.id} className="group transition-colors duration-200 hover:bg-[#F8FBFD]" data-student-row>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                           <input
                             aria-label={`Select ${student.fullName}`}
                             checked={selectedIds.includes(student.id)}
@@ -1074,38 +1114,38 @@ export default function StudentsPage() {
                             type="checkbox"
                           />
                         </td>
-                        <td className="px-5 py-4 text-[#86868b] font-medium">{rowNum}</td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-medium text-[#52687D]">{rowNum}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
+                          <div className="mx-auto flex max-w-[240px] items-center justify-center gap-3">
                             <InitialsAvatar name={student.fullName} size="sm" />
-                            <div>
+                            <div className="min-w-0 text-left">
                               <Link className="font-semibold text-[#1d1d1f] transition-colors hover:text-[#2456E6]" href={`/students/${student.id}`}>
-                                {student.fullName}
+                                <MarqueeText text={student.fullName} className="max-w-[160px]" />
                               </Link>
                               <p className="mt-0.5 font-mono text-[11px] font-medium text-[#86868b]">{student.admissionNumber}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-4 text-[#6e6e73] font-medium">{student.class.name}{student.class.section}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-medium text-[#424B57]">{student.class.name}{student.class.section}</td>
                         {canViewFees ? (
                           <>
-                            <td className="px-5 py-4">
+                            <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                               {student.feeStatus ? (
                                 <StatusPill label={student.feeStatus} tone={feeStatusTone(student.feeStatus)} />
                               ) : (
                                 <span className="text-[#86868b]">Not available</span>
                               )}
                             </td>
-                            <td className={`px-5 py-4 font-semibold ${pendingAmountClass(student.pendingAmount)}`}>
+                            <td className={`whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold ${pendingAmountClass(student.pendingAmount)}`}>
                               {student.pendingAmount === null ? "-" : formatINR(student.pendingAmount)}
                             </td>
-                            <td className="px-5 py-4 text-[#6e6e73]">
+                            <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">
                               <span>{student.lastPayment ? formatDateShort(student.lastPayment) : "-"}</span>
                               {student.lastPayment ? <span className="ml-1 text-[11px] text-[#86868b]">({timeAgo(student.lastPayment)})</span> : null}
                             </td>
                           </>
                         ) : null}
-                        <td className="px-5 py-4">
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center">
                           {student.attendancePercentage === null ? (
                             <span className="text-[#86868b]">-</span>
                           ) : (
@@ -1114,8 +1154,8 @@ export default function StudentsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2">
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <Link
                               href={`/students/${student.id}`}
                               className="inline-flex items-center rounded-lg bg-[#2a7a94] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#1a5f74] transition-colors"
@@ -1212,59 +1252,49 @@ export default function StudentsPage() {
           </div>
         </div>
 
+        </div>
+
         {/* ── Pagination ── */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 border-t border-[rgba(0,0,0,0.06)] px-5 py-3 text-[12px] text-[#86868b]">
-          <span>
-            Showing <span className="font-medium text-[#1d1d1f]">{sortedFiltered.length}</span> of <span className="font-medium text-[#1d1d1f]">{total}</span> students
-          </span>
-          <span className="hidden sm:inline">·</span>
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-4 px-5 pb-5 pt-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
+            Showing <span className="text-[#0F1419]">{displayStart}</span> to <span className="text-[#0F1419]">{displayEnd}</span> of <span className="text-[#0F1419]">{resolvedTotal}</span> students
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <CustomSelect
+              ariaLabel="Students per page"
+              className="h-11 min-w-[120px] rounded-[5px] text-[14px]"
+              menuClassName="left-0 right-auto"
+              onChange={(value) => { setPerPage(Number(value)); setPage(1); }}
+              options={perPageOptions}
+              value={String(perPage)}
+              wrapperClassName="min-w-[120px]"
+            />
             <button
               disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
-              className="px-2.5 py-1 rounded-md text-[#0071e3] hover:bg-[#f5f5f7] transition-colors disabled:opacity-30 disabled:text-[#86868b] font-medium"
+              className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[14px] font-semibold text-[#7A8390] transition hover:bg-[#F8FBFD] disabled:opacity-50"
+              type="button"
             >
-              ← Prev
+              Previous
             </button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-              const pg = i + 1;
-              return (
-                <button
-                  key={pg}
-                  onClick={() => setPage(pg)}
-                  className={`h-7 w-7 rounded-md text-[12px] font-medium transition-colors ${page === pg ? "bg-[#0071e3] text-white" : "text-[#1d1d1f] hover:bg-[#f5f5f7]"}`}
-                >
-                  {pg}
-                </button>
-              );
-            })}
-            {totalPages > 5 && <span className="px-1">…</span>}
-            {totalPages > 5 && (
+            {pageNumbers.map((pg) => (
               <button
-                onClick={() => setPage(totalPages)}
-                className={`h-7 w-7 rounded-md text-[12px] font-medium transition-colors ${page === totalPages ? "bg-[#0071e3] text-white" : "text-[#1d1d1f] hover:bg-[#f5f5f7]"}`}
+                key={pg}
+                onClick={() => setPage(pg)}
+                className={`min-h-[44px] min-w-[44px] rounded-[5px] border px-3 text-[14px] font-semibold transition ${page === pg ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#2456E6] hover:bg-[#F8FBFD]"}`}
+                type="button"
               >
-                {totalPages}
+                {pg}
               </button>
-            )}
+            ))}
             <button
-              disabled={page >= totalPages}
+              disabled={page >= totalPages || resolvedTotal === 0}
               onClick={() => setPage((p) => p + 1)}
-              className="px-2.5 py-1 rounded-md text-[#0071e3] hover:bg-[#f5f5f7] transition-colors disabled:opacity-30 disabled:text-[#86868b] font-medium"
+              className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[14px] font-semibold text-[#2456E6] transition hover:bg-[#F8FBFD] disabled:opacity-50"
+              type="button"
             >
-              Next →
+              Next
             </button>
-          </div>
-          <span className="hidden sm:inline">·</span>
-          <div className="flex items-center gap-1.5">
-            <span>Per page:</span>
-            <select
-              value={perPage}
-              onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-              className="rounded-md border border-[#e5e5ea] bg-white px-2 py-0.5 text-[12px] font-medium text-[#1d1d1f] outline-none"
-            >
-              {[10, 25, 50].map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
           </div>
         </div>
       </div>
@@ -1303,16 +1333,15 @@ export default function StudentsPage() {
               </div>
               <label className="block">
                 <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Default class for unmatched rows</span>
-                <select
-                  className="mt-2 h-11 w-full rounded-xl border border-[#DCE1E8] bg-white px-3 text-[14px] outline-none focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
-                  onChange={(event) => setImportDialog((prev) => ({ ...prev, defaultClassId: event.target.value }))}
+                <CustomSelect
+                  ariaLabel="Default class for unmatched rows"
+                  className="mt-2 h-11 w-full rounded-xl text-[14px]"
+                  menuClassName="left-0 right-auto w-full"
+                  onChange={(value) => setImportDialog((prev) => ({ ...prev, defaultClassId: value }))}
+                  options={importClassOptions}
                   value={importDialog.defaultClassId}
-                >
-                  <option value="">No default class</option>
-                  {classes.map((cls) => (
-                    <option key={cls.id} value={cls.id}>{cls.name}-{cls.section}</option>
-                  ))}
-                </select>
+                  wrapperClassName="block w-full"
+                />
               </label>
               {importDialog.error ? <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{importDialog.error}</div> : null}
               {importDialog.rows.length > 0 ? (
@@ -1434,16 +1463,15 @@ export default function StudentsPage() {
               {bulkDialog.action === "promote" ? (
                 <label className="block">
                   <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Target class</span>
-                  <select
-                    className="mt-2 h-11 w-full rounded-xl border border-[#DCE1E8] bg-white px-3 text-[14px] outline-none focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
-                    onChange={(e) => setBulkDialog((prev) => ({ ...prev, targetClassId: e.target.value }))}
+                  <CustomSelect
+                    ariaLabel="Target class"
+                    className="mt-2 h-11 w-full rounded-xl text-[14px]"
+                    menuClassName="left-0 right-auto w-full"
+                    onChange={(value) => setBulkDialog((prev) => ({ ...prev, targetClassId: value }))}
+                    options={[{ label: "Select class", value: "" }, ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))]}
                     value={bulkDialog.targetClassId}
-                  >
-                    <option value="">Select class</option>
-                    {classes.map((cls) => (
-                      <option key={cls.id} value={cls.id}>{cls.name}-{cls.section}</option>
-                    ))}
-                  </select>
+                    wrapperClassName="block w-full"
+                  />
                 </label>
               ) : null}
 

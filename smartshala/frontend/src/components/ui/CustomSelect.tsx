@@ -14,13 +14,14 @@ type CustomSelectProps = {
   onChange: (value: string) => void;
   options: CustomSelectOption[];
   value: string;
+  wrapperClassName?: string;
 };
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export function CustomSelect({ ariaLabel, className, menuClassName, onChange, options, value }: CustomSelectProps) {
+export function CustomSelect({ ariaLabel, className, menuClassName, onChange, options, value, wrapperClassName }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
@@ -47,7 +48,7 @@ export function CustomSelect({ ariaLabel, className, menuClassName, onChange, op
   }, [open]);
 
   return (
-    <div className="relative inline-block" ref={rootRef}>
+    <div className={cx("relative inline-block min-w-0", wrapperClassName)} ref={rootRef}>
       <button
         aria-expanded={open}
         aria-haspopup="listbox"
