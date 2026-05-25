@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { whatsappApi, type StudentDetail } from "@/lib/api";
+import { communicationApi, type StudentDetail } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 
 export type HomeworkTabPanelProps = {
@@ -47,8 +47,10 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
     setError(null);
 
     try {
-      await whatsappApi.send({
-        phone: student.parentPhone,
+      await communicationApi.sendMessage({
+        targetType: "STUDENT",
+        studentId: student.id,
+        type: "HOMEWORK_REMINDER",
         message: `Dear parent, ${student.fullName} has not submitted "${assignment.title}" for ${assignment.subject}. Due date: ${formatDateShort(assignment.dueDate)}. Please help them complete it.`
       });
       setNotice(`Nudge sent for ${assignment.title}.`);

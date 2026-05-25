@@ -883,7 +883,7 @@ export default function StudentsPage() {
       if (bulkDialog.action === "whatsapp") {
         const message = bulkDialog.message.trim();
         if (message.length < 3) throw new Error("Message must be at least 3 characters.");
-        await Promise.all(selectedStudents.map((student) =>
+        const results = await Promise.allSettled(selectedStudents.map((student) =>
           communicationApi.sendMessage({
             targetType: "STUDENT",
             studentId: student.id,
@@ -891,7 +891,16 @@ export default function StudentsPage() {
             message
           })
         ));
-        setNotice(`Queued WhatsApp message for ${selectedCount} parents.`);
+        const queuedCount = results.filter((result) => result.status === "fulfilled").length;
+        if (queuedCount === 0) {
+          const failure = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+          throw new Error(failure?.reason instanceof Error ? failure.reason.message : "Unable to queue WhatsApp messages.");
+        }
+        setNotice(
+          queuedCount === selectedCount
+            ? `Queued WhatsApp message for ${selectedCount} parents.`
+            : `Queued WhatsApp message for ${queuedCount} of ${selectedCount} parents.`
+        );
       }
 
       if (bulkDialog.action === "promote") {

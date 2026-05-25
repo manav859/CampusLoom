@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { truncateText } from "@/lib/formatters";
-import { whatsappApi, type StudentDetail } from "@/lib/api";
+import { communicationApi, type StudentDetail } from "@/lib/api";
 import { formatDateTimeShort } from "@/lib/formatters";
 
 export type CommunicationTabPanelProps = {
@@ -71,7 +71,12 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
     setError("");
     setNotice("");
     try {
-      await whatsappApi.send({ phone: log.recipientPhone, message: log.summary });
+      await communicationApi.sendMessage({
+        targetType: "STUDENT",
+        studentId: student.id,
+        type: "CUSTOM",
+        message: log.summary
+      });
       setNotice(`Retry sent to ${log.recipientPhone}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to retry WhatsApp message");

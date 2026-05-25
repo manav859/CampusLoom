@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { studentsApi, whatsappApi, type BehaviourRecordPayload, type StudentDetail } from "@/lib/api";
+import { communicationApi, studentsApi, type BehaviourRecordPayload, type StudentDetail } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 import { invalidateCache } from "@/lib/prefetchCache";
 
@@ -144,8 +144,10 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
     setNotice("");
     setNotifyError("");
     try {
-      await whatsappApi.send({
-        phone: student.parentPhone,
+      await communicationApi.sendMessage({
+        targetType: "STUDENT",
+        studentId: student.id,
+        type: "CUSTOM",
         message: `SmartShala update for ${student.fullName}: ${typeLabel(record.type)} - ${record.title}. ${record.summary}`
       });
       setNotice(`Parent notified on WhatsApp for "${record.title}".`);
