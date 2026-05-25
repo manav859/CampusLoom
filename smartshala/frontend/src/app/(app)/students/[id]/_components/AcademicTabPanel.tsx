@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -70,7 +70,30 @@ function marksDistribution(rows: { percentage: number }[]) {
   }));
 }
 
+type ChartTooltipProps = {
+  active?: boolean;
+  label?: string;
+  payload?: Array<{ name?: string; value?: number; color?: string }>;
+};
+
+function ChartTooltip({ active, label, payload }: ChartTooltipProps) {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-2 text-[12px] shadow-[0_12px_30px_-18px_rgba(15,20,25,0.45)]">
+      <p className="mb-1 max-w-[180px] truncate font-semibold text-[#0F1419]">{label}</p>
+      {payload.map((item) => (
+        <p className="flex items-center gap-2 font-medium text-[#44515F]" key={item.name}>
+          <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: item.color }} />
+          <span>{item.name}: {item.value}%</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export default function AcademicTabPanel({ student, attendance, pendingFees, paidFees }: AcademicTabPanelProps) {
+  const [isMobileChart, setIsMobileChart] = useState(false);
   const analytics = student.academicAnalytics;
   const hasExams = analytics.exams.length > 0;
   const hasTrend = analytics.trend.length > 0;
@@ -96,19 +119,27 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
   const insightHelp =
     "How is this generated? It uses latest exam average, homework completion, attendance count, and pending fees from this profile.";
 
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 640px)");
+    const sync = () => setIsMobileChart(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
   return (
     <section className="space-y-4">
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="glass-card-interactive p-6">
+        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Profile</h2>
           <dl className="mt-4 space-y-3 text-[13px]">
             {profileRows.map((row) => (
-              <div key={row.label} className="flex justify-between gap-4">
+              <div key={row.label} className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
                 <dt className="text-[#86868b]">{row.label}</dt>
-                <dd className="text-right font-medium text-[#1d1d1f]">{row.value}</dd>
+                <dd className="break-words font-medium text-[#1d1d1f] sm:text-right">{row.value}</dd>
               </div>
             ))}
-            <div className="flex justify-between gap-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:justify-between sm:gap-4">
               <dt className="text-[#86868b]">Status</dt>
               <dd>
                 <StatusPill label={student.isActive ? "Active" : "Inactive"} tone={student.isActive ? "good" : "neutral"} />
@@ -117,7 +148,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
           </dl>
         </div>
 
-        <div className="glass-card-interactive p-6">
+        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
               <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#7e53db]/20 bg-[#7e53db]/10 text-[11px] font-bold tracking-normal text-[#6341ac]">
@@ -127,7 +158,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
             </div>
             <button
               aria-label="How is this generated?"
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-black/10 bg-white/70 text-[12px] font-bold text-[#6e6e73] transition-colors hover:bg-[#f5f5f7]"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-[#DCE1E8] bg-white text-[12px] font-bold text-[#6e6e73] transition-colors hover:bg-[#F7F8FB]"
               title={insightHelp}
               type="button"
             >
@@ -154,8 +185,8 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
         </div>
       </div>
 
-      <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-        <div className="flex flex-col gap-1 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 sm:flex-row sm:items-end sm:justify-between">
+      <section className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+        <div className="flex flex-col gap-3 border-b border-[#E7EBF0] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
           <div>
             <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam analytics</h2>
             <p className="text-[12px] font-medium text-[#86868b]">Each mark includes class average, grade, and rank.</p>
@@ -200,7 +231,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam score comparison</h2>
@@ -211,17 +242,27 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
             <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#2456E6]" /> Student</span>
             <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#0F8A4A]" /> Class average</span>
           </div>
-          <div className="mt-4 h-[320px]">
+          <div
+            className="mt-4 h-[280px] outline-none sm:h-[320px] [&_.recharts-bar-rectangle]:outline-none [&_.recharts-layer]:outline-none [&_.recharts-rectangle]:outline-none [&_.recharts-surface]:outline-none [&_*:focus]:outline-none"
+            onMouseDown={(event) => event.preventDefault()}
+          >
             {hasTrend ? (
               <ResponsiveContainer height="100%" width="100%">
-                <BarChart data={trendRows} margin={{ bottom: 8, left: -22, right: 8, top: 12 }}>
+                <BarChart barCategoryGap={isMobileChart ? 12 : 18} data={trendRows} margin={{ bottom: isMobileChart ? 0 : 8, left: -22, right: 8, top: 12 }}>
                   <CartesianGrid stroke="rgba(0,0,0,0.06)" vertical={false} />
-                  <XAxis dataKey="label" interval={0} tick={{ fontSize: 11, fill: "#86868b" }} tickLine={false} />
+                  <XAxis
+                    axisLine={false}
+                    dataKey="label"
+                    height={isMobileChart ? 8 : 42}
+                    interval={0}
+                    tick={isMobileChart ? false : { fontSize: 11, fill: "#5A6573" }}
+                    tickLine={false}
+                  />
                   <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#86868b" }} tickLine={false} unit="%" />
-                  <Tooltip formatter={(value) => `${value}%`} />
+                  <Tooltip content={<ChartTooltip />} cursor={false} />
                   <Legend iconType="circle" />
-                  <Bar dataKey="student" fill="#2456E6" name="Student" radius={[6, 6, 0, 0]} />
-                  <Bar dataKey="classAverage" fill="#0F8A4A" name="Class avg" radius={[6, 6, 0, 0]} />
+                  <Bar activeBar={false} dataKey="student" fill="#2456E6" isAnimationActive={false} name="Student" radius={[4, 4, 0, 0]} />
+                  <Bar activeBar={false} dataKey="classAverage" fill="#0F8A4A" isAnimationActive={false} name="Class avg" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -230,7 +271,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Subject analysis</h2>
@@ -245,7 +286,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
                   <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-[#0F8A4A]" /> Class avg</span>
                 </div>
                 {subjectRows.map((subject) => (
-                  <div key={subject.subject} className="rounded-xl border border-[rgba(0,0,0,0.05)] bg-[#fbfbfd] p-4">
+                  <div key={subject.subject} className="rounded-[6px] border border-[#E7EBF0] bg-[#F7F8FB] p-4">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[13px] font-semibold text-[#1d1d1f]">{subject.subject}</p>
                       <p className="text-[12px] font-semibold text-[#6e6e73]">
@@ -282,7 +323,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Marks distribution</h2>
@@ -293,7 +334,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
           <div className="mt-5 grid h-[220px] grid-cols-4 items-end gap-3">
             {distributionRows.map((bucket) => (
               <div className="flex h-full flex-col justify-end gap-2" key={bucket.label}>
-                <div className="flex min-h-[160px] items-end rounded-xl bg-[#F7F8FB] px-3 py-2">
+                <div className="flex min-h-[160px] items-end rounded-[6px] bg-[#F7F8FB] px-3 py-2">
                   <div
                     aria-label={`${bucket.count} exams in ${bucket.label}`}
                     className={`w-full rounded-t-lg ${bucket.tone}`}
@@ -309,15 +350,15 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
           </div>
         </div>
 
-        <aside className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+        <aside className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">At-risk signals</h2>
           <p className="mt-1 text-[12px] font-medium text-[#86868b]">Signals combine attendance, fees, marks, and homework.</p>
           <div className="mt-5 space-y-3">
             {riskSignals.length === 0 ? (
-              <div className="rounded-xl bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">No active academic risk signal.</div>
+              <div className="rounded-[6px] bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">No active academic risk signal.</div>
             ) : (
               riskSignals.map((signal) => (
-                <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5]/60 p-4" key={signal}>
+                <div className="rounded-[6px] border border-[#FCE3E5] bg-[#FCE3E5]/60 p-4" key={signal}>
                   <p className="text-[13px] font-semibold text-[#C8242C]">{signal}</p>
                 </div>
               ))
@@ -326,14 +367,14 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
         </aside>
       </section>
 
-      <section className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+      <section className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
         <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Homework completion by subject</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {!hasSubjects ? (
-            <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4 text-[13px] font-medium text-[#86868b]">No subject homework data recorded yet.</div>
+            <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No subject homework data recorded yet.</div>
           ) : (
             analytics.subjects.map((subject) => (
-              <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4" key={subject.subject}>
+              <div className="rounded-[6px] bg-[#F7F8FB] p-4" key={subject.subject}>
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[13px] font-semibold text-[#1d1d1f]">{subject.subject}</p>
                   <p className="text-[13px] font-semibold text-[#0071e3]">{subject.homeworkCompletion}%</p>

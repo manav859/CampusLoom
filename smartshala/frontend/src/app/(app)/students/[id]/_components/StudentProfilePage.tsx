@@ -21,11 +21,11 @@ function StudentProfileLoading() {
   return (
     <div className="space-y-4">
       {/* ── Header skeleton ── */}
-      <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-white/70 overflow-hidden">
+      <div className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white">
         {/* Top row: identity + actions */}
         <div className="flex flex-col gap-3 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4 min-w-0">
-            <Skeleton className="hidden sm:block h-11 w-11 rounded-[10px] shrink-0" />
+            <Skeleton className="hidden h-11 w-11 shrink-0 rounded-[6px] sm:block" />
             <div className="min-w-0 space-y-2">
               <div className="flex items-center gap-2">
                 <Skeleton className="h-5 w-40 rounded-md" />
@@ -39,9 +39,9 @@ function StudentProfileLoading() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-24 rounded-lg" />
-            <Skeleton className="h-9 w-24 rounded-lg" />
-            <Skeleton className="h-9 w-24 rounded-lg" />
+            <Skeleton className="h-9 w-24 rounded-[6px]" />
+            <Skeleton className="h-9 w-24 rounded-[6px]" />
+            <Skeleton className="h-9 w-24 rounded-[6px]" />
           </div>
         </div>
 
@@ -51,7 +51,7 @@ function StudentProfileLoading() {
         {/* Bottom row: KPI mini-cards */}
         <div className="grid grid-cols-2 gap-2.5 px-5 py-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-[10px] border border-[rgba(0,0,0,0.04)] bg-[#f5f5f7]/50 pl-[18px] pr-3 py-2.5">
+            <div key={i} className="rounded-[6px] border border-[#E7EBF0] bg-[#F7F8FB] py-2.5 pl-[18px] pr-3">
               <Skeleton className="h-5 w-16 rounded-md" />
               <Skeleton className="mt-1.5 h-3 w-20 rounded-md" />
             </div>
@@ -60,22 +60,22 @@ function StudentProfileLoading() {
       </div>
 
       {/* ── Tabs skeleton ── */}
-      <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-1.5">
+      <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-1.5">
         <div className="flex gap-1">
           {Array.from({ length: 7 }).map((_, i) => (
-            <Skeleton key={i} className="h-9 w-20 rounded-lg" />
+            <Skeleton key={i} className="h-9 w-20 rounded-[6px]" />
           ))}
         </div>
       </div>
 
       {/* ── Tab panel skeleton ── */}
-      <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-6 space-y-4">
+      <div className="space-y-4 rounded-[6px] border border-[#DCE1E8] bg-white p-4 sm:p-6">
         <Skeleton className="h-5 w-36 rounded-md" />
         <div className="grid gap-3 sm:grid-cols-2">
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-[6px]" />
+          <Skeleton className="h-24 rounded-[6px]" />
         </div>
-        <Skeleton className="h-40 rounded-xl" />
+        <Skeleton className="h-40 rounded-[6px]" />
       </div>
     </div>
   );
@@ -113,11 +113,11 @@ export function StudentProfilePage() {
   }
 
   if (error) {
-    return <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div>;
+    return <div className="rounded-[6px] border border-[#FCE3E5] bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div>;
   }
 
   if (!student) {
-    return <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-12 text-center text-[13px] text-[#86868b] shadow-apple-sm">Student not found.</div>;
+    return <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-12 text-center text-[13px] text-[#86868b] shadow-[0_1px_2px_rgba(15,20,25,0.04)]">Student not found.</div>;
   }
 
   const attendance = attendanceSummary(student.attendanceRecords);

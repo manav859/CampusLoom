@@ -80,11 +80,11 @@ const EmptyPanel = dynamic(() => import("./EmptyTabPanel"), {
 
 function TabPanelSkeleton() {
   return (
-    <section className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-6 shadow-apple-sm">
+    <section className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
       <Skeleton className="h-5 w-36 rounded-md" />
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <Skeleton className="h-24 rounded-xl" />
-        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-24 rounded-[6px]" />
+        <Skeleton className="h-24 rounded-[6px]" />
       </div>
     </section>
   );
@@ -107,15 +107,15 @@ export function StudentProfileTabs({ student, attendance, pendingFees, paidFees 
 
   return (
     <section className="space-y-4">
-      <div className="overflow-x-auto rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-1.5 shadow-apple-sm">
-        <div className="flex gap-1" role="tablist" aria-label="Student profile sections">
+      <div className="overflow-x-auto rounded-[6px] border border-[#DCE1E8] bg-white p-1.5 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+        <div className="flex min-w-max gap-1 sm:min-w-0" role="tablist" aria-label="Student profile sections">
           {availableTabs.map((tab) => {
             const selected = activeTab === tab.key;
             return (
               <button
                 aria-controls={`student-tab-panel-${tab.key}`}
                 aria-selected={selected}
-                className={`flex-1 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition-all duration-200 ${
+                className={`min-w-[106px] flex-1 rounded-[6px] px-3 py-2.5 text-[13px] font-semibold transition-all duration-200 sm:min-w-0 ${
                   selected
                     ? "bg-[#1d1d1f] text-white shadow-sm"
                     : "text-[#6e6e73] hover:bg-[rgba(0,0,0,0.04)] hover:text-[#1d1d1f]"

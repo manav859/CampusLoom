@@ -66,7 +66,7 @@ const kpiToneStyles: Record<KpiTone, { hover: string; accent: string; iconBg: st
 function MiniKpiCard({ label, value, tone = "neutral" }: { label: string; value: string; tone?: KpiTone }) {
   const s = kpiToneStyles[tone];
   return (
-    <div className={`flex h-[112px] items-center gap-4 rounded-[6px] border border-[#E2E7EE] bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 ${s.hover}`}>
+    <div className={`flex min-h-[96px] items-center gap-3 rounded-[6px] border border-[#E2E7EE] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,20,25,0.04)] transition-colors duration-200 sm:h-[112px] sm:gap-4 sm:px-5 sm:py-4 ${s.hover}`}>
       <div className={`hidden h-14 w-14 shrink-0 items-center justify-center rounded-[8px] sm:flex ${s.iconBg}`}>
         <KpiIcon label={label} className={`h-6 w-6 ${s.accent}`} />
       </div>
@@ -184,18 +184,18 @@ export function StickyHeader({
 
   return (
     <div className="py-1.5">
-      <section className="overflow-hidden rounded-[14px] border border-white/60 bg-white/70 shadow-[0_2px_20px_rgba(0,0,0,0.06)] backdrop-blur-2xl">
+      <section className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         {/* ── Top row: Identity + Tags + Actions ── */}
-        <div className="flex flex-col gap-3 px-5 py-3.5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
           {/* Left: avatar, name, meta, status tags */}
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[14px] border border-[#DCE1E8] bg-gradient-to-br from-[#E2F0FB] to-white text-[16px] font-bold text-[#0F2557] shadow-sm sm:flex">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[6px] border border-[#DCE1E8] bg-[#EAF3FB] text-[16px] font-bold text-[#0F2557] sm:flex">
               {initials(student.fullName)}
             </div>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="truncate text-[20px] font-semibold tracking-tight text-[#1d1d1f] sm:text-[22px]">{student.fullName}</h1>
+              <div className="flex min-w-0 items-center gap-2">
+                <h1 className="truncate text-[18px] font-semibold tracking-tight text-[#1d1d1f] sm:text-[22px]">{student.fullName}</h1>
                 <span className="hidden sm:inline text-[12px] font-medium text-[#86868b]">
                   {classLabel(student)} · <span className="type-code">{student.admissionNumber}</span>
                 </span>
@@ -209,10 +209,10 @@ export function StickyHeader({
           </div>
 
           {/* Right: Action buttons */}
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 lg:shrink-0">
             {canEditStudent ? (
               <Link
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#005bb5]"
+                className="inline-flex items-center justify-center gap-1.5 rounded-[6px] bg-[#0071e3] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#005bb5]"
                 href={`/students/${student.id}/edit`}
               >
                 <EditIcon />
@@ -222,14 +222,14 @@ export function StickyHeader({
             {canContactParent ? (
               <>
                 <a
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]"
                   href={`tel:${student.parentPhone}`}
                 >
                   <PhoneIcon />
                   Call parent
                 </a>
                 <a
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#25d366] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#20bd5a]"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-[6px] bg-[#25d366] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#20bd5a]"
                   href={whatsappLink(student.parentPhone)}
                   rel="noreferrer"
                   target="_blank"
@@ -238,7 +238,7 @@ export function StickyHeader({
                   WhatsApp
                 </a>
                 <a
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]"
                   href={`${whatsappLink(student.parentPhone)}?text=${parentShareMessage}`}
                   rel="noreferrer"
                   target="_blank"
@@ -249,7 +249,7 @@ export function StickyHeader({
               </>
             ) : null}
             <button
-              className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
+              className="inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]"
               onClick={() => window.print()}
               type="button"
             >
@@ -258,7 +258,7 @@ export function StickyHeader({
             </button>
             {canViewFees ? (
               <Link
-                className="inline-flex items-center gap-1.5 rounded-lg border border-transparent bg-[#f5f5f7] px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#e8e8ed]"
+                className="inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]"
                 href={`/fees/${student.id}`}
               >
                 <LedgerIcon />
@@ -269,10 +269,10 @@ export function StickyHeader({
         </div>
 
         {/* ── Divider ── */}
-        <div className="mx-5 border-t border-[rgba(0,0,0,0.05)]" />
+        <div className="mx-4 border-t border-[#E7EBF0] sm:mx-5" />
 
         {/* ── Bottom row: KPI mini-cards ── */}
-        <div className="grid grid-cols-2 gap-2.5 px-5 py-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2.5 px-4 py-3 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
           {canViewAttendance ? <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} /> : null}
           {canViewAcademic ? <MiniKpiCard label="Current rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" /> : null}
           {canViewFees ? <MiniKpiCard label="Fee balance" value={money(feeBalance)} tone={feeTone} /> : null}
