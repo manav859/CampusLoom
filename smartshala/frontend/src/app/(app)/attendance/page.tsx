@@ -86,7 +86,6 @@ export default function TeacherAttendancePage() {
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [monthPickerYear, setMonthPickerYear] = useState(new Date().getFullYear());
   const [calendarDetailDate, setCalendarDetailDate] = useState("");
-  const [selectedClassDisplay, setSelectedClassDisplay] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -103,11 +102,9 @@ export default function TeacherAttendancePage() {
   const selectedClassRecord = attendance.selectedClass ?? classOptions.find((classItem) => classItem.id === attendance.selectedClassId);
   const firstAvailableClass = classOptions[0] ?? null;
   const displayClassRecord = selectedClassRecord ?? firstAvailableClass;
-  const classLabel = selectedClassDisplay || (selectedClassRecord
-    ? classOptionLabel(selectedClassRecord)
-    : displayClassRecord
-      ? classOptionLabel(displayClassRecord)
-      : attendance.classesLoading ? "Loading classes..." : "No assigned class");
+  const classLabel = displayClassRecord
+    ? classOptionLabel(displayClassRecord)
+    : attendance.classesLoading ? "Loading classes..." : "No assigned class";
   const hasAssignedClasses = classOptions.length > 0;
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0 || !hasAssignedClasses;
   const selectedDateLabel = formatDateShort(attendance.selectedDate);
@@ -156,7 +153,6 @@ export default function TeacherAttendancePage() {
 
   useEffect(() => {
     if (attendance.classesLoading || attendance.selectedClassId || !firstAvailableClass) return;
-    setSelectedClassDisplay(classOptionLabel(firstAvailableClass));
     void attendance.selectClass(firstAvailableClass.id);
   }, [attendance.classesLoading, attendance.selectedClassId, firstAvailableClass, attendance.selectClass]);
 
@@ -170,14 +166,6 @@ export default function TeacherAttendancePage() {
   useEffect(() => {
     setCalendarDetailDate(attendance.selectedDate);
   }, [attendance.selectedDate]);
-
-  useEffect(() => {
-    if (selectedClassRecord) {
-      setSelectedClassDisplay(classOptionLabel(selectedClassRecord));
-      return;
-    }
-    if (!attendance.selectedClassId) setSelectedClassDisplay("");
-  }, [attendance.selectedClassId, selectedClassRecord]);
 
   useEffect(() => {
     const [year = new Date().getFullYear()] = attendance.selectedMonth.split("-").map(Number);
@@ -229,7 +217,7 @@ export default function TeacherAttendancePage() {
             <button
               aria-expanded={classPickerOpen}
               className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DCE1E8] bg-white px-3 py-2.5 text-left text-[15px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#AAB4C2] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={attendance.classesLoading || attendance.submitting}
+              disabled={(!hasAssignedClasses && attendance.classesLoading) || attendance.submitting}
               onClick={() => setClassPickerOpen((open) => !open)}
               type="button"
             >
@@ -257,7 +245,6 @@ export default function TeacherAttendancePage() {
                               }`}
                               key={classItem.id}
                               onClick={() => {
-                                setSelectedClassDisplay(className);
                                 setClassPickerOpen(false);
                                 attendance.selectClass(classItem.id);
                               }}

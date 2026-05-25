@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { attendanceApi, classesApi, type AttendanceMarkStatus, type ClassMonthlyAttendance, type ClassSummary } from "@/lib/api";
 
 export type AttendanceStudent = {
@@ -86,6 +86,7 @@ export function useAttendance() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const loadRequestId = useRef(0);
 
   const selectedClass = classes.find((classItem) => classItem.id === selectedClassId);
 
@@ -101,27 +102,30 @@ export function useAttendance() {
     [students]
   );
 
-  const loadMonth = useCallback(async (classId: string, month: string) => {
+  const loadMonth = useCallback(async (classId: string, month: string, requestId = loadRequestId.current) => {
     if (!classId) {
       setMonthly(null);
       return;
     }
     try {
       const result = await attendanceApi.classMonth(classId, month);
+      if (requestId !== loadRequestId.current) return;
       setMonthly(result);
     } catch (err) {
+      if (requestId !== loadRequestId.current) return;
       setMonthly(null);
       setError(err instanceof Error ? err.message : "Unable to load monthly attendance");
     }
   }, []);
 
-  const loadClass = useCallback(async (classId: string, date: string) => {
+  const loadClass = useCallback(async (classId: string, date: string, requestId = loadRequestId.current) => {
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
       const roster = await attendanceApi.roster(classId, date);
+      if (requestId !== loadRequestId.current) return;
 
       setStudents(
         roster.students.map((student) => ({
@@ -135,12 +139,13 @@ export function useAttendance() {
       setCanEdit(roster.canEdit);
       if (roster.session) setSuccess("Attendance loaded. You can edit and save changes.");
     } catch (err) {
+      if (requestId !== loadRequestId.current) return;
       setError(err instanceof Error ? err.message : "Unable to load attendance");
       setStudents([]);
       setMarked(false);
       setCanEdit(false);
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestId.current) setLoading(false);
     }
   }, []);
 
@@ -153,6 +158,8 @@ export function useAttendance() {
       setError("");
 
       try {
+        const initialDate = todayAsDateInput();
+        const initialMonth = monthInputFromDate(initialDate);
         const [classResult, dailyResult] = await Promise.allSettled([
           withTimeout(classesApi.list(), 6000),
           withTimeout(attendanceApi.daily(), 6000)
@@ -169,10 +176,13 @@ export function useAttendance() {
 
         const rememberedClassId = window.localStorage.getItem(attendanceClassStorageKey());
         const firstClassId = availableClasses.some((classItem) => classItem.id === rememberedClassId) ? rememberedClassId! : availableClasses[0]?.id ?? "";
+        const requestId = loadRequestId.current + 1;
+        loadRequestId.current = requestId;
         setSelectedClassId(firstClassId);
-        setClassesLoading(false);
         if (firstClassId) {
-          void Promise.all([loadClass(firstClassId, selectedDate), loadMonth(firstClassId, selectedMonth)]);
+          setSelectedDate(initialDate);
+          setSelectedMonth(initialMonth);
+          void Promise.all([loadClass(firstClassId, initialDate, requestId), loadMonth(firstClassId, initialMonth, requestId)]);
         }
         else {
           setStudents([]);
@@ -183,8 +193,9 @@ export function useAttendance() {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : "Unable to load classes");
         setClasses([]);
-        setClassesLoading(false);
         setLoading(false);
+      } finally {
+        if (!cancelled) setClassesLoading(false);
       }
     }
 
@@ -196,28 +207,36 @@ export function useAttendance() {
 
   const selectClass = useCallback(
     async (classId: string) => {
+      const requestId = loadRequestId.current + 1;
+      loadRequestId.current = requestId;
       setSelectedClassId(classId);
       if (classId) window.localStorage.setItem(attendanceClassStorageKey(), classId);
-      if (classId) await Promise.all([loadClass(classId, selectedDate), loadMonth(classId, selectedMonth)]);
+      if (classId) await Promise.all([loadClass(classId, selectedDate, requestId), loadMonth(classId, selectedMonth, requestId)]);
       else {
         setStudents([]);
         setMarked(false);
+        setMonthly(null);
       }
     },
     [loadClass, loadMonth, selectedDate, selectedMonth]
   );
 
   const selectDate = useCallback(async (date: string) => {
+    const requestId = loadRequestId.current + 1;
+    loadRequestId.current = requestId;
+    const month = monthInputFromDate(date);
     setSelectedDate(date);
-    setSelectedMonth(monthInputFromDate(date));
-    if (selectedClassId) await Promise.all([loadClass(selectedClassId, date), loadMonth(selectedClassId, monthInputFromDate(date))]);
+    setSelectedMonth(month);
+    if (selectedClassId) await Promise.all([loadClass(selectedClassId, date, requestId), loadMonth(selectedClassId, month, requestId)]);
   }, [loadClass, loadMonth, selectedClassId]);
 
   const selectMonth = useCallback(async (month: string) => {
+    const requestId = loadRequestId.current + 1;
+    loadRequestId.current = requestId;
     const nextDate = dateInMonth(selectedDate, month, todayAsDateInput());
     setSelectedMonth(month);
     setSelectedDate(nextDate);
-    if (selectedClassId) await Promise.all([loadClass(selectedClassId, nextDate), loadMonth(selectedClassId, month)]);
+    if (selectedClassId) await Promise.all([loadClass(selectedClassId, nextDate, requestId), loadMonth(selectedClassId, month, requestId)]);
   }, [loadClass, loadMonth, selectedClassId, selectedDate]);
 
   const setStudentStatus = useCallback((studentId: string, status: AttendanceMarkStatus) => {
