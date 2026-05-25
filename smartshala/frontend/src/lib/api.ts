@@ -51,7 +51,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetchWithRetry(`${tenantApiBase(env.apiBaseUrl)}${path}`, {
+  const response = await fetchWithRetry(`${tenantApiBase(env.apiBaseUrl, path)}${path}`, {
     ...options,
     headers,
     cache: "no-store"
@@ -89,7 +89,7 @@ export async function apiFormFetch<T>(path: string, body: FormData, options: Api
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetchWithRetry(`${tenantApiBase(env.apiBaseUrl)}${path}`, {
+  const response = await fetchWithRetry(`${tenantApiBase(env.apiBaseUrl, path)}${path}`, {
     ...options,
     method: options.method ?? "POST",
     headers,

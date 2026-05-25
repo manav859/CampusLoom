@@ -13,11 +13,17 @@ export function withResolvedSchoolPath(path: string, schoolId?: string | null) {
   return schoolId && /^[A-Z0-9]{8}$/.test(schoolId) ? `/${schoolId}${path}` : withSchoolPath(path);
 }
 
-export function tenantApiBase(baseUrl: string) {
+export function tenantApiBase(baseUrl: string, path?: string) {
   if (typeof window === "undefined") return baseUrl;
   let schoolId = schoolIdFromPath(window.location.pathname);
 
-  if (!schoolId) {
+  const cleanPath = path ? path.replace(/^\//, "") : "";
+  const isPublicAuth =
+    cleanPath.startsWith("auth/login") ||
+    cleanPath.startsWith("auth/register") ||
+    cleanPath.startsWith("auth/forgot-password");
+
+  if (!schoolId && !isPublicAuth) {
     try {
       const storedUser = window.localStorage.getItem("smartshala.user");
       if (storedUser) {

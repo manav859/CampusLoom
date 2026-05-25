@@ -240,21 +240,37 @@ async function tenantForLoginUser(identifier: string) {
     }
   });
 
-  for (const school of schools) {
-    const tenantPrisma = getTenantPrismaClient(school.dbUrl);
-    const user = await tenantPrisma.user.findFirst({
-      where: {
-        OR: [{ email: identifier }, { phone: identifier }],
-        status: UserStatus.ACTIVE,
-        isActive: true
-      },
-      select: { id: true }
-    });
+  const checkSchool = async (school: typeof schools[number]) => {
+    try {
+      const tenantPrisma = getTenantPrismaClient(school.dbUrl);
+      const user = await tenantPrisma.user.findFirst({
+        where: {
+          OR: [{ email: identifier }, { phone: identifier }],
+          status: UserStatus.ACTIVE,
+          isActive: true
+        },
+        select: { id: true }
+      });
+      return user ? school : null;
+    } catch (err) {
+      console.warn(`[Login] Failed to query tenant database for school ${school.schoolId}:`, err);
+      return null;
+    }
+  };
 
-    if (user) return school;
-  }
+  const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+    ]);
+  };
 
-  return null;
+  // Run all active tenant database queries in parallel, capped at 4 seconds.
+  // This prevents any slow/cold-starting database from stalling the entire login page.
+  const promises = schools.map((school) => withTimeout(checkSchool(school), 4000, null));
+  const results = await Promise.all(promises);
+
+  return results.find((s) => s !== null) ?? null;
 }
 
 async function loginWithClient(client: PrismaClient, identifier: string, password: string, tenantSchoolId?: string) {
