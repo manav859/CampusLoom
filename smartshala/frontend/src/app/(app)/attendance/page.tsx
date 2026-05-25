@@ -8,7 +8,7 @@ import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
-import { attendanceApi, type ClassSummary, type DailyAttendanceRow } from "@/lib/api";
+import type { ClassSummary } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 
 function calendarDayClasses(input: { selected: boolean; marked: boolean; isHoliday: boolean }) {
@@ -87,36 +87,24 @@ export default function TeacherAttendancePage() {
   const [monthPickerYear, setMonthPickerYear] = useState(new Date().getFullYear());
   const [calendarDetailDate, setCalendarDetailDate] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [todayRows, setTodayRows] = useState<DailyAttendanceRow[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
-  const classOptions = useMemo(
-    () =>
-      attendance.classes.length > 0
-        ? attendance.classes
-        : todayRows.map((row) => {
-            const [name = row.className, section = ""] = row.className.split("-");
-            return { id: row.classId, name, section, academicYear: "" };
-          }),
-    [attendance.classes, todayRows]
-  );
+  const classOptions = attendance.classes;
   const selectedClassRecord = attendance.selectedClass ?? classOptions.find((classItem) => classItem.id === attendance.selectedClassId);
   const firstAvailableClass = classOptions[0] ?? null;
-  const displayClassRecord = selectedClassRecord ?? firstAvailableClass;
-  const classLabel = displayClassRecord
-    ? classOptionLabel(displayClassRecord)
-    : attendance.classesLoading ? "Loading classes..." : "No assigned class";
-  const hasAssignedClasses = classOptions.length > 0;
+  const classLabel = attendance.selectedClassName || (
+    selectedClassRecord
+      ? classOptionLabel(selectedClassRecord)
+      : attendance.classesLoading ? "Loading classes..." : "No assigned class"
+  );
+  const hasAssignedClasses = classOptions.length > 0 || Boolean(attendance.selectedClassId);
   const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0 || !hasAssignedClasses;
   const selectedDateLabel = formatDateShort(attendance.selectedDate);
   const monthlyByDate = useMemo(() => new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day])), [attendance.monthly?.days]);
   const calendarDetailDateKey = calendarDetailDate || attendance.selectedDate;
   const calendarDetailLabel = formatDateShort(calendarDetailDateKey);
-  const selectedDateMonthDay = monthlyByDate.get(attendance.selectedDate);
   const selectedMonthDay = monthlyByDate.get(calendarDetailDateKey);
-  const attendancePending = !attendance.loading && !attendance.marked && !selectedDateMonthDay;
-  const summary = selectedDateMonthDay
-    ? summaryFromMonthlyDay(selectedDateMonthDay, attendance.monthly?.totalStudents ?? attendance.summary.total)
-    : attendance.summary;
+  const attendancePending = !attendance.loading && attendance.students.length > 0 && !attendance.marked;
+  const summary = attendance.summary;
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstWeekday = new Date(monthYear, monthNumber - 1, 1).getDay();
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
@@ -128,20 +116,6 @@ export default function TeacherAttendancePage() {
     [daysInMonth, firstWeekday]
   );
   const classGroups = useMemo(() => groupedClasses(classOptions), [classOptions]);
-
-  useEffect(() => {
-    let active = true;
-    attendanceApi.daily()
-      .then((rows) => {
-        if (active) setTodayRows(rows);
-      })
-      .catch(() => {
-        if (active) setTodayRows([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     const requestedClassId = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("classId") : null;
@@ -246,7 +220,7 @@ export default function TeacherAttendancePage() {
                               key={classItem.id}
                               onClick={() => {
                                 setClassPickerOpen(false);
-                                attendance.selectClass(classItem.id);
+                                attendance.selectClass(classItem.id, classItem);
                               }}
                               type="button"
                             >

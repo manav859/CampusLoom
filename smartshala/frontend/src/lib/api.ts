@@ -198,6 +198,7 @@ export type ClassTodayAttendance = {
 
 export type AttendanceRoster = {
   date: string;
+  className?: string;
   canEdit: boolean;
   session: { id: string; date: string } | null;
   students: {
@@ -1026,8 +1027,14 @@ export const activityApi = {
 
 export const attendanceApi = {
   classToday: (classId: string) => apiFetch<ClassTodayAttendance>(`/attendance/class/${classId}/today`),
-  roster: (classId: string, date: string) => apiFetch<AttendanceRoster>(`/attendance/roster?classId=${classId}&date=${date}`),
-  classMonth: (classId: string, month: string) => apiFetch<ClassMonthlyAttendance>(`/attendance/class/${classId}/month?month=${month}`),
+  roster: (classId: string, date: string) => {
+    const params = new URLSearchParams({ classId, date });
+    return apiFetch<AttendanceRoster>(`/attendance/roster?${params.toString()}`);
+  },
+  classMonth: (classId: string, month: string) => {
+    const params = new URLSearchParams({ month });
+    return apiFetch<ClassMonthlyAttendance>(`/attendance/class/${classId}/month?${params.toString()}`);
+  },
   mark: (payload: { classId: string; date: string; records: { studentId: string; status: AttendanceMarkStatus }[] }) =>
     apiFetch("/attendance/mark", {
       method: "POST",

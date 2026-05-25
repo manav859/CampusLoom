@@ -18,6 +18,19 @@ function todayAsDateInput() {
   return `${year}-${month}-${day}`;
 }
 
+function isDateInput(value: string | null | undefined) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+function isMonthInput(value: string | null | undefined) {
+  if (!value || !/^\d{4}-\d{2}$/.test(value)) return false;
+  const [year, month] = value.split("-").map(Number);
+  return year >= 2000 && month >= 1 && month <= 12;
+}
+
 function monthInputFromDate(date: string) {
   return date.slice(0, 7);
 }
@@ -28,6 +41,44 @@ function dateInMonth(currentDate: string, month: string, today: string) {
   const lastDay = new Date(year, monthNumber, 0).getDate();
   const nextDate = `${month}-${String(Math.min(currentDay, lastDay)).padStart(2, "0")}`;
   return nextDate > today ? today : nextDate;
+}
+
+function readInitialDate() {
+  const today = todayAsDateInput();
+  if (typeof window === "undefined") return today;
+
+  const params = new URLSearchParams(window.location.search);
+  const date = params.get("date");
+  if (isDateInput(date)) return date! > today ? today : date!;
+
+  const month = params.get("month");
+  if (isMonthInput(month)) return dateInMonth(today, month!, today);
+
+  return today;
+}
+
+function readInitialClassId() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("classId") ?? "";
+}
+
+function classOptionLabel(classItem: Pick<ClassSummary, "name" | "section">) {
+  return classItem.section ? `${classItem.name}-${classItem.section}` : classItem.name;
+}
+
+function nextClassName(current: string, incoming: string | undefined) {
+  if (current && current !== "Selected class") return current;
+  return incoming || current || "Selected class";
+}
+
+function updateAttendanceUrl(classId: string, date: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (classId) url.searchParams.set("classId", classId);
+  else url.searchParams.delete("classId");
+  url.searchParams.set("date", date);
+  url.searchParams.set("month", monthInputFromDate(date));
+  window.history.replaceState(window.history.state, "", url);
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -73,10 +124,12 @@ function attendanceClassStorageKey() {
 }
 
 export function useAttendance() {
+  const initialDate = readInitialDate();
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [selectedClassId, setSelectedClassId] = useState("");
-  const [selectedDate, setSelectedDate] = useState(todayAsDateInput());
-  const [selectedMonth, setSelectedMonth] = useState(monthInputFromDate(todayAsDateInput()));
+  const [selectedClassName, setSelectedClassName] = useState("");
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [selectedMonth, setSelectedMonth] = useState(monthInputFromDate(initialDate));
   const [students, setStudents] = useState<AttendanceStudent[]>([]);
   const [monthly, setMonthly] = useState<ClassMonthlyAttendance | null>(null);
   const [marked, setMarked] = useState(false);
@@ -89,6 +142,7 @@ export function useAttendance() {
   const loadRequestId = useRef(0);
 
   const selectedClass = classes.find((classItem) => classItem.id === selectedClassId);
+  const displayClassName = selectedClass ? classOptionLabel(selectedClass) : selectedClassName;
 
   const summary = useMemo(
     () => ({
@@ -111,6 +165,7 @@ export function useAttendance() {
       const result = await attendanceApi.classMonth(classId, month);
       if (requestId !== loadRequestId.current) return;
       setMonthly(result);
+      setSelectedClassName((current) => nextClassName(current, result.className));
     } catch (err) {
       if (requestId !== loadRequestId.current) return;
       setMonthly(null);
@@ -127,6 +182,7 @@ export function useAttendance() {
       const roster = await attendanceApi.roster(classId, date);
       if (requestId !== loadRequestId.current) return;
 
+      setSelectedClassName((current) => nextClassName(current, roster.className));
       setStudents(
         roster.students.map((student) => ({
           id: student.id,
@@ -158,8 +214,9 @@ export function useAttendance() {
       setError("");
 
       try {
-        const initialDate = todayAsDateInput();
+        const initialDate = readInitialDate();
         const initialMonth = monthInputFromDate(initialDate);
+        const requestedClassId = readInitialClassId();
         const [classResult, dailyResult] = await Promise.allSettled([
           withTimeout(classesApi.list(), 6000),
           withTimeout(attendanceApi.daily(), 6000)
@@ -175,13 +232,22 @@ export function useAttendance() {
         setClasses(availableClasses);
 
         const rememberedClassId = window.localStorage.getItem(attendanceClassStorageKey());
-        const firstClassId = availableClasses.some((classItem) => classItem.id === rememberedClassId) ? rememberedClassId! : availableClasses[0]?.id ?? "";
+        const requestedClass = availableClasses.find((classItem) => classItem.id === requestedClassId);
+        const rememberedClass = availableClasses.find((classItem) => classItem.id === rememberedClassId);
+        const firstClass =
+          requestedClass ??
+          rememberedClass ??
+          availableClasses[0] ??
+          null;
+        const firstClassId = (firstClass?.id ?? requestedClassId) || rememberedClassId || "";
         const requestId = loadRequestId.current + 1;
         loadRequestId.current = requestId;
         setSelectedClassId(firstClassId);
+        setSelectedClassName(firstClass ? classOptionLabel(firstClass) : firstClassId ? "Selected class" : "");
         if (firstClassId) {
           setSelectedDate(initialDate);
           setSelectedMonth(initialMonth);
+          updateAttendanceUrl(firstClassId, initialDate);
           void Promise.all([loadClass(firstClassId, initialDate, requestId), loadMonth(firstClassId, initialMonth, requestId)]);
         }
         else {
@@ -206,11 +272,14 @@ export function useAttendance() {
   }, [loadClass, loadMonth]);
 
   const selectClass = useCallback(
-    async (classId: string) => {
+    async (classId: string, classItem?: ClassSummary) => {
       const requestId = loadRequestId.current + 1;
       loadRequestId.current = requestId;
       setSelectedClassId(classId);
+      const knownClass = classItem ?? classes.find((item) => item.id === classId);
+      setSelectedClassName(knownClass ? classOptionLabel(knownClass) : classId ? "Selected class" : "");
       if (classId) window.localStorage.setItem(attendanceClassStorageKey(), classId);
+      updateAttendanceUrl(classId, selectedDate);
       if (classId) await Promise.all([loadClass(classId, selectedDate, requestId), loadMonth(classId, selectedMonth, requestId)]);
       else {
         setStudents([]);
@@ -218,26 +287,36 @@ export function useAttendance() {
         setMonthly(null);
       }
     },
-    [loadClass, loadMonth, selectedDate, selectedMonth]
+    [classes, loadClass, loadMonth, selectedDate, selectedMonth]
   );
 
   const selectDate = useCallback(async (date: string) => {
+    if (!isDateInput(date)) return;
+    const nextDate = date > todayAsDateInput() ? todayAsDateInput() : date;
     const requestId = loadRequestId.current + 1;
     loadRequestId.current = requestId;
-    const month = monthInputFromDate(date);
-    setSelectedDate(date);
+    const month = monthInputFromDate(nextDate);
+    setSelectedDate(nextDate);
     setSelectedMonth(month);
-    if (selectedClassId) await Promise.all([loadClass(selectedClassId, date, requestId), loadMonth(selectedClassId, month, requestId)]);
+    updateAttendanceUrl(selectedClassId, nextDate);
+    if (selectedClassId) await Promise.all([loadClass(selectedClassId, nextDate, requestId), loadMonth(selectedClassId, month, requestId)]);
   }, [loadClass, loadMonth, selectedClassId]);
 
   const selectMonth = useCallback(async (month: string) => {
+    if (!isMonthInput(month)) return;
     const requestId = loadRequestId.current + 1;
     loadRequestId.current = requestId;
     const nextDate = dateInMonth(selectedDate, month, todayAsDateInput());
     setSelectedMonth(month);
     setSelectedDate(nextDate);
+    updateAttendanceUrl(selectedClassId, nextDate);
     if (selectedClassId) await Promise.all([loadClass(selectedClassId, nextDate, requestId), loadMonth(selectedClassId, month, requestId)]);
   }, [loadClass, loadMonth, selectedClassId, selectedDate]);
+
+  useEffect(() => {
+    if (!selectedClass) return;
+    setSelectedClassName(classOptionLabel(selectedClass));
+  }, [selectedClass]);
 
   const setStudentStatus = useCallback((studentId: string, status: AttendanceMarkStatus) => {
     if (!canEdit || submitting) return;
@@ -305,6 +384,7 @@ export function useAttendance() {
     classes,
     selectedClass,
     selectedClassId,
+    selectedClassName: displayClassName,
     selectedDate,
     selectedMonth,
     students,

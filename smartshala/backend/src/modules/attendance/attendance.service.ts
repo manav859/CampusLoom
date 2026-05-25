@@ -105,7 +105,7 @@ async function assertClassAccess(user: AttendanceUser, classId: string) {
 }
 
 export async function getMarkingRoster(user: Express.UserContext, classId: string, date: Date) {
-  await assertClassAccess(user, classId);
+  const classRecord = await assertClassAccess(user, classId);
   const normalizedDate = startOfDay(date);
   const [students, existingSession] = await Promise.all([
     prisma.student.findMany({
@@ -119,7 +119,8 @@ export async function getMarkingRoster(user: Express.UserContext, classId: strin
   ]);
 
   return {
-    date: normalizedDate,
+    date: formatDate(normalizedDate),
+    className: `${classRecord.name}-${classRecord.section}`,
     canEdit: true,
     session: existingSession,
     students: students.map((student) => ({
