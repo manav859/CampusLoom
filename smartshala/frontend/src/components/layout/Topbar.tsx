@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { SessionUser } from "@/types";
 import { clearCache, invalidateCache } from "@/lib/prefetchCache";
-import { whatsappApi, type NotificationLog } from "@/lib/api";
+import { settingsApi, whatsappApi, type NotificationLog } from "@/lib/api";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { LanguageToggle } from "./PlatformLanguage";
 import { NotificationPanel, isPrincipalNotification } from "./NotificationPanel";
@@ -56,6 +56,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifLogs, setNotifLogs] = useState<NotificationLog[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -113,6 +114,30 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
     loadNotifications();
   }, [loadNotifications]);
 
+  useEffect(() => {
+    let active = true;
+    settingsApi.schoolProfile()
+      .then((profile) => {
+        if (active) setSchoolLogo(profile.logoUrl ?? null);
+      })
+      .catch(() => {
+        if (active) setSchoolLogo(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleLogoChange(event: Event) {
+      const detail = (event as CustomEvent<{ logoUrl?: string | null }>).detail;
+      setSchoolLogo(detail?.logoUrl ?? null);
+    }
+
+    window.addEventListener("smartshala:school-logo", handleLogoChange);
+    return () => window.removeEventListener("smartshala:school-logo", handleLogoChange);
+  }, []);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const notifCount = notifLogs.filter((log) => isPrincipalNotification(log) && new Date(log.createdAt).getTime() >= today.getTime()).length;
@@ -151,7 +176,13 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
             {/* School Identity Group */}
             <div className="ml-1 flex min-w-0 flex-1 items-center gap-2 md:ml-4 md:gap-2.5">
               {/* School Logo */}
-              <span className="text-[20px] shrink-0" role="img" aria-label="School">🏫</span>
+              {schoolLogo ? (
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white">
+                  <img alt="School logo" className="h-full w-full object-contain" src={schoolLogo} />
+                </span>
+              ) : (
+                <span className="text-[20px] shrink-0" role="img" aria-label="School">🏫</span>
+              )}
 
               <div className="min-w-0 flex-1">
                 <div className="mobile-school-marquee md:hidden">
