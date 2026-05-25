@@ -57,20 +57,20 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
         )}
       </div>
 
-      <div className="hidden max-h-[520px] overflow-auto sm:block">
-        <table className="w-full min-w-[860px] table-fixed text-left text-[13px]">
+      <div className="hidden max-h-[520px] overflow-y-auto overflow-x-hidden sm:block">
+        <table className="w-full table-fixed text-left text-[13px]">
           <colgroup>
-            <col className="w-[28%]" />
+            <col className="w-[27%]" />
+            <col className="w-[11%]" />
             <col className="w-[12%]" />
+            <col className="w-[15%]" />
+            <col className="w-[22%]" />
             <col className="w-[13%]" />
-            <col className="w-[15%]" />
-            <col className="w-[15%]" />
-            <col className="w-[9%]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-[var(--brand-secondary)] text-white">
             <tr>
               {["Student", "Class", "Paid", "Balance", "Status", "Ledger"].map((head) => (
-                <th className="px-6 py-3.5 font-semibold" key={head}>{head}</th>
+                <th className="px-3 py-3.5 font-semibold xl:px-4" key={head}>{head}</th>
               ))}
             </tr>
           </thead>
@@ -82,22 +82,22 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
             ) : (
               rows.map((row) => (
                 <tr key={row.id} className="table-row">
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-4 xl:px-4">
                     <Link className="block font-semibold text-[#1d1d1f] transition-colors duration-200 hover:text-[#0071e3]" href={`/fees/${row.studentId}`}>
                       {row.student.fullName}
                     </Link>
                     <p className="mt-0.5 truncate whitespace-nowrap text-[11px] text-[#86868b]" title={row.feeStructure.name}>{row.feeStructure.name}</p>
                   </td>
-                  <td className="px-6 py-4 text-[#6e6e73]">{classLabel(row.student.class)}</td>
-                  <td className="whitespace-nowrap px-6 py-4 text-[#6e6e73]">{formatINR(row.paidAmount)}</td>
-                  <td className="whitespace-nowrap px-6 py-4 font-semibold text-[#1d1d1f]">{formatINR(row.pendingAmount)}</td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 py-4 text-[#6e6e73] xl:px-4">{classLabel(row.student.class)}</td>
+                  <td className="whitespace-nowrap px-3 py-4 text-[#6e6e73] xl:px-4">{formatINR(row.paidAmount)}</td>
+                  <td className="whitespace-nowrap px-3 py-4 font-semibold text-[#1d1d1f] xl:px-4">{formatINR(row.pendingAmount)}</td>
+                  <td className="px-3 py-4 xl:px-4">
                     <StatusPill label={row.status} tone={toneForStatus(row.status)} />
                     {row.status === "PARTIAL" ? (
                       <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {formatINR(row.paidAmount, { compact: false })} of {formatINR(row.totalAmount, { compact: false })} - {formatINR(row.pendingAmount, { compact: false })} pending</p>
                     ) : null}
                   </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-right">
+                  <td className="whitespace-nowrap px-3 py-4 text-right xl:px-4">
                     <Link className="text-[13px] font-medium text-[#0071e3] transition-colors hover:text-[#0077ed]" href={`/fees/${row.studentId}`}>
                       Ledger
                     </Link>

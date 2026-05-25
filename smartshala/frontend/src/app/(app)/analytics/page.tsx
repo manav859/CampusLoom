@@ -191,6 +191,7 @@ export default function AnalyticsPage() {
   const [error, setError] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [bulkSending, setBulkSending] = useState(false);
+  const [openActionMenuId, setOpenActionMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("smartshala.resolvedRiskIds");
@@ -230,10 +231,12 @@ export default function AnalyticsPage() {
     const next = Array.from(new Set([...resolvedIds, id]));
     setResolvedIds(next);
     window.localStorage.setItem("smartshala.resolvedRiskIds", JSON.stringify(next));
+    setOpenActionMenuId(null);
     setNotice("Priority row marked resolved for this device.");
   }
 
   async function messageParent(row: RiskRow) {
+    setOpenActionMenuId(null);
     if (!row.parentPhone) {
       setError(`${row.studentName} does not have a parent phone number.`);
       return;
@@ -315,9 +318,51 @@ export default function AnalyticsPage() {
             {visibleRisks.length === 0 ? (
               <div className="rounded-[8px] bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">No open priority risks.</div>
             ) : visibleRisks.map((row) => (
-              <div key={row.studentId} className="rounded-[8px] border border-[#DCE1E8] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,20,25,0.03)]">
+              <div key={row.studentId} className="relative rounded-[8px] border border-[#DCE1E8] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,20,25,0.03)]">
+                <button
+                  aria-expanded={openActionMenuId === row.studentId}
+                  aria-label={`Open actions for ${row.studentName}`}
+                  className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-[6px] border border-[#DCE1E8] bg-white text-[#5A6573] shadow-[0_1px_2px_rgba(15,20,25,0.04)] hover:bg-[#F7F8FB] sm:hidden"
+                  onClick={() => setOpenActionMenuId((current) => current === row.studentId ? null : row.studentId)}
+                  type="button"
+                >
+                  <svg aria-hidden="true" className="h-4 w-4" fill="currentColor" viewBox="0 0 16 16">
+                    <circle cx="8" cy="3" r="1.5" />
+                    <circle cx="8" cy="8" r="1.5" />
+                    <circle cx="8" cy="13" r="1.5" />
+                  </svg>
+                </button>
+                {openActionMenuId === row.studentId ? (
+                  <div className="absolute right-3 top-12 z-30 w-[min(230px,calc(100vw-3rem))] overflow-hidden rounded-[8px] border border-[#DCE1E8] bg-white p-1.5 shadow-[var(--shadow-menu)] sm:hidden">
+                    <button
+                      className="flex min-h-10 w-full items-center gap-2 rounded-[6px] px-3 text-left text-[13px] font-semibold text-[#2456E6] hover:bg-[#E2F0FB] disabled:cursor-not-allowed disabled:text-[#8C96A3]"
+                      disabled={!row.parentPhone || sendingId === row.studentId}
+                      onClick={() => messageParent(row)}
+                      type="button"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-[#2456E6]" />
+                      {sendingId === row.studentId ? "Sending..." : "Message parent"}
+                    </button>
+                    <Link
+                      className="flex min-h-10 w-full items-center gap-2 rounded-[6px] px-3 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]"
+                      href={`/students/${row.studentId}`}
+                      onClick={() => setOpenActionMenuId(null)}
+                    >
+                      <span className="h-2 w-2 rounded-full bg-[#5A6573]" />
+                      View profile
+                    </Link>
+                    <button
+                      className="flex min-h-10 w-full items-center gap-2 rounded-[6px] px-3 text-left text-[13px] font-semibold text-[#0F8A4A] hover:bg-[#E1F5EA]"
+                      onClick={() => markResolved(row.studentId)}
+                      type="button"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-[#0F8A4A]" />
+                      Mark resolved
+                    </button>
+                  </div>
+                ) : null}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
+                  <div className="min-w-0 pr-9 sm:pr-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[13px] font-semibold text-[#1d1d1f]">{row.studentName}</p>
                       <StatusPill label={row.severity} tone={severityTone[row.severity]} />
@@ -331,7 +376,7 @@ export default function AnalyticsPage() {
                       {row.flags.map((flag) => <span className="rounded-md bg-[#F7F8FB] px-2 py-1 text-[11px] font-semibold text-[#5A6573]" key={flag}>{flagLabel(flag)}</span>)}
                     </div>
                   </div>
-                  <div className="grid shrink-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                  <div className="hidden shrink-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                     <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={!row.parentPhone || sendingId === row.studentId} onClick={() => messageParent(row)} type="button">
                       {sendingId === row.studentId ? "Sending..." : "Message parent"}
                     </button>
