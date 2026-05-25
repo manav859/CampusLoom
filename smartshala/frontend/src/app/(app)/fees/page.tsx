@@ -9,7 +9,6 @@ import { DataTable } from "@/components/ui/DataTable";
 import { DropdownItem, DropdownMenu } from "@/components/ui/DropdownMenu";
 import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, TableSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, type FeeDefaulter, type FeeStructure, type FeesDashboard } from "@/lib/api";
@@ -35,6 +34,20 @@ function agingBuckets(rows: FeeDefaulter[]) {
     { label: "61-90", value: rows.filter((row) => row.daysOverdue > 60 && row.daysOverdue <= 90).length },
     { label: "90+", value: rows.filter((row) => row.daysOverdue > 90).length }
   ];
+}
+
+function SnapshotBar({ color, label, max, value }: { color: string; label: string; max: number; value: number }) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3 text-[13px]">
+        <span className="font-semibold text-[#1d1d1f]">{label}</span>
+        <span className="truncate font-semibold text-[#5A6573]">{formatINR(value)}</span>
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-[#E8EDF3]">
+        <div className={`h-full rounded-full ${color}`} style={{ width: value > 0 ? `${Math.max(4, Math.min((value / max) * 100, 100))}%` : "0%" }} />
+      </div>
+    </div>
+  );
 }
 
 export default function FeesDashboardPage() {
@@ -82,6 +95,7 @@ export default function FeesDashboardPage() {
   }, []);
 
   const buckets = useMemo(() => agingBuckets(defaulters), [defaulters]);
+  const snapshotMax = Math.max(data?.totalCollected ?? 0, data?.totalPending ?? 0, 1);
 
   function openEditor(structure: FeeStructure) {
     setEditing(structure);
@@ -144,7 +158,7 @@ export default function FeesDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader
         eyebrow="Fees"
         title="Collection command center"
@@ -161,7 +175,7 @@ export default function FeesDashboardPage() {
       {notice ? <div className="rounded-xl bg-[#E1F5EA] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
       {error ? <div className="rounded-xl bg-[#FCE3E5] px-4 py-3 text-[13px] font-medium text-[#C8242C]">{error}</div> : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
@@ -174,7 +188,7 @@ export default function FeesDashboardPage() {
         )}
       </div>
 
-      <section className="grid gap-4 xl:grid-cols-[1fr_0.75fr]">
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.75fr)]">
         {loading ? (
           <>
             <TableSkeleton rows={5} cols={4} />
@@ -183,34 +197,37 @@ export default function FeesDashboardPage() {
         ) : (
           <>
             <FeesTable rows={data?.topDefaulters ?? []} loading={false} />
-            <div className="glass-card-interactive p-6">
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Collection snapshot</h2>
-              <p className="mt-0.5 text-[13px] text-[#86868b]">Collected versus outstanding for the current fee ledger.</p>
-              <div className="mt-5">
-                <SimpleBarChart
-                  items={[
-                    { label: "Collected", value: data?.totalCollected ?? 0 },
-                    { label: "Outstanding", value: data?.totalPending ?? 0 }
-                  ]}
-                />
+            <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)] sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Collection snapshot</h2>
+                  <p className="mt-0.5 text-[13px] text-[#86868b]">Collected versus outstanding for the current fee ledger.</p>
+                </div>
+                <Link className="inline-flex min-h-9 items-center justify-center rounded-[6px] border border-[#C2C9D4] px-3 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/defaulters">
+                  Defaulters
+                </Link>
               </div>
-              <div className="mt-5 grid grid-cols-2 gap-2">
+              <div className="mt-5 space-y-4 rounded-[8px] border border-[#E2E7EE] bg-[#FAFBFC] p-4">
+                <SnapshotBar color="bg-[#0F8A4A]" label="Collected" max={snapshotMax} value={data?.totalCollected ?? 0} />
+                <SnapshotBar color="bg-[#B95A00]" label="Outstanding" max={snapshotMax} value={data?.totalPending ?? 0} />
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 {buckets.map((bucket) => (
-                  <div className="rounded-xl border border-[#DCE1E8] bg-white px-3 py-3" key={bucket.label} title="Aging bucket by days overdue">
+                  <div className="rounded-[8px] border border-[#DCE1E8] bg-white px-3 py-3" key={bucket.label} title="Aging bucket by days overdue">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">{bucket.label} days</p>
                     <p className="mt-1 text-[20px] font-bold text-[#0F1419]">{bucket.value}</p>
                   </div>
                 ))}
               </div>
-              <div className="mt-5 grid gap-2">
-                <Link className="flex items-center justify-between rounded-xl bg-[rgba(0,0,0,0.02)] px-4 py-3.5 text-[13px] font-medium text-[#2456E6] transition-colors hover:bg-[rgba(0,0,0,0.04)]" href="/fees/defaulters" title="Queue of students needing fee follow-up">
+              <div className="mt-4 grid gap-2">
+                <Link className="flex min-h-11 items-center justify-between rounded-[6px] border border-[#DCE1E8] bg-white px-4 py-3 text-[13px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB]" href="/fees/defaulters" title="Queue of students needing fee follow-up">
                   Open defaulter follow-up queue
-                  <span className="text-[#86868b]">-</span>
+                  <span className="text-[#86868b]">View</span>
                 </Link>
                 {isAdmin ? (
-                  <Link className="flex items-center justify-between rounded-xl bg-[rgba(0,0,0,0.02)] px-4 py-3.5 text-[13px] font-medium text-[#2456E6] transition-colors hover:bg-[rgba(0,0,0,0.04)]" href="/notifications" title="Receipt and WhatsApp delivery audit trail">
+                  <Link className="flex min-h-11 items-center justify-between rounded-[6px] border border-[#DCE1E8] bg-white px-4 py-3 text-[13px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB]" href="/notifications" title="Receipt and WhatsApp delivery audit trail">
                     Review WhatsApp receipts
-                    <span className="text-[#86868b]">-</span>
+                    <span className="text-[#86868b]">Open</span>
                   </Link>
                 ) : null}
               </div>
@@ -223,40 +240,81 @@ export default function FeesDashboardPage() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Fee structures</h2>
-            <p className="text-[13px] text-[#86868b]">Edit active structures, duplicate drafts, archive old plans, or add fee staff.</p>
+            <p className="text-[13px] text-[#86868b]">Edit active structures, duplicate drafts, or archive old plans.</p>
           </div>
           {isAdmin ? (
             <div className="flex flex-wrap gap-2">
-              <Link className="btn-secondary min-h-10 px-4 text-[13px]" href="/fees/accountants/new">Add accountant</Link>
               <Link className="btn-secondary min-h-10 px-4 text-[13px]" href="/fees/new">Create new</Link>
             </div>
           ) : null}
         </div>
-        <DataTable
-          rows={structures}
-          getRowKey={(row) => row.id}
-          columns={[
-            { key: "name", header: "Structure", render: (row) => <span className="font-semibold text-[#1d1d1f]">{row.name}</span> },
-            { key: "year", header: "Academic year", render: (row) => row.academicYear },
-            { key: "amount", header: "Total", render: (row) => formatINR(Number(row.totalAmount)) },
-            { key: "frequency", header: "Frequency", render: (row) => humanizeConstant(row.frequency) },
-            { key: "class", header: "Class", render: (row) => row.class ? `${row.class.name}-${row.class.section}` : "All classes" },
-            { key: "status", header: "Status", render: (row) => <StatusPill label={row.isActive ? "Active" : "Archived"} tone={row.isActive ? "good" : "neutral"} /> },
-            {
-              key: "actions",
-              header: "Actions",
-              align: "right",
-              render: (row) => isAdmin ? (
-                <DropdownMenu label="Manage">
-                  <DropdownItem onClick={() => openEditor(row)}>Edit</DropdownItem>
-                  <DropdownItem onClick={() => duplicateStructure(row.id)}>Duplicate</DropdownItem>
-                  <DropdownItem destructive onClick={() => archiveStructure(row.id)}>Archive</DropdownItem>
-                </DropdownMenu>
-              ) : "-"
-            }
-          ]}
-          empty="No fee structures found. Create one to get started."
-        />
+        <div className="space-y-3 sm:hidden">
+          {loading ? (
+            <TableSkeleton rows={3} cols={2} />
+          ) : structures.length === 0 ? (
+            <div className="rounded-[8px] border border-[#DCE1E8] bg-white px-4 py-10 text-center text-[13px] text-[#86868b]">No fee structures found. Create one to get started.</div>
+          ) : (
+            structures.map((row) => (
+              <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)]" key={row.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] font-semibold text-[#1d1d1f]">{row.name}</p>
+                    <p className="mt-1 text-[12px] text-[#86868b]">{row.academicYear} - {humanizeConstant(row.frequency)}</p>
+                  </div>
+                  <StatusPill label={row.isActive ? "Active" : "Archived"} tone={row.isActive ? "good" : "neutral"} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-[13px]">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">Total</p>
+                    <p className="mt-1 font-semibold text-[#0F1419]">{formatINR(Number(row.totalAmount))}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">Class</p>
+                    <p className="mt-1 font-semibold text-[#0F1419]">{row.class ? `${row.class.name}-${row.class.section}` : "All classes"}</p>
+                  </div>
+                </div>
+                {isAdmin ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button className="min-h-9 rounded-[6px] border border-[#C2C9D4] px-3 text-[12px] font-semibold text-[#2A3340]" onClick={() => openEditor(row)} type="button">Edit</button>
+                    <button className="min-h-9 rounded-[6px] border border-[#C2C9D4] px-3 text-[12px] font-semibold text-[#2A3340]" onClick={() => duplicateStructure(row.id)} type="button">Duplicate</button>
+                    <button className="min-h-9 rounded-[6px] border border-[#F0B8BE] px-3 text-[12px] font-semibold text-[#C8242C]" onClick={() => archiveStructure(row.id)} type="button">Archive</button>
+                  </div>
+                ) : null}
+              </div>
+            ))
+          )}
+        </div>
+        <div className="hidden sm:block">
+          {loading ? (
+            <TableSkeleton rows={4} cols={6} />
+          ) : (
+            <DataTable
+              rows={structures}
+              getRowKey={(row) => row.id}
+              columns={[
+                { key: "name", header: "Structure", render: (row) => <span className="font-semibold text-[#1d1d1f]">{row.name}</span> },
+                { key: "year", header: "Academic year", render: (row) => row.academicYear },
+                { key: "amount", header: "Total", render: (row) => formatINR(Number(row.totalAmount)) },
+                { key: "frequency", header: "Frequency", render: (row) => humanizeConstant(row.frequency) },
+                { key: "class", header: "Class", render: (row) => row.class ? `${row.class.name}-${row.class.section}` : "All classes" },
+                { key: "status", header: "Status", render: (row) => <StatusPill label={row.isActive ? "Active" : "Archived"} tone={row.isActive ? "good" : "neutral"} /> },
+                {
+                  key: "actions",
+                  header: "Actions",
+                  align: "right",
+                  render: (row) => isAdmin ? (
+                    <DropdownMenu label="Manage">
+                      <DropdownItem onClick={() => openEditor(row)}>Edit</DropdownItem>
+                      <DropdownItem onClick={() => duplicateStructure(row.id)}>Duplicate</DropdownItem>
+                      <DropdownItem destructive onClick={() => archiveStructure(row.id)}>Archive</DropdownItem>
+                    </DropdownMenu>
+                  ) : "-"
+                }
+              ]}
+              empty="No fee structures found. Create one to get started."
+            />
+          )}
+        </div>
       </section>
 
       <Modal
