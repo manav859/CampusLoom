@@ -7,7 +7,7 @@ import { clearCache } from "@/lib/prefetchCache";
 import { whatsappApi, type NotificationLog } from "@/lib/api";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { LanguageToggle } from "./PlatformLanguage";
-import { NotificationPanel } from "./NotificationPanel";
+import { NotificationPanel, isPrincipalNotification } from "./NotificationPanel";
 
 /* ── Live Clock ── */
 function LiveClock() {
@@ -103,7 +103,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const notifCount = notifLogs.filter((log) => new Date(log.createdAt).getTime() >= today.getTime()).length;
+  const notifCount = notifLogs.filter((log) => isPrincipalNotification(log) && new Date(log.createdAt).getTime() >= today.getTime()).length;
 
   return (
     <>

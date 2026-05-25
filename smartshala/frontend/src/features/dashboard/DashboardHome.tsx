@@ -293,10 +293,10 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       tone: "amber" as const
     },
     {
-      label: "AI Alerts",
-      value: data?.alerts?.length || 0,
+      label: "Alerts",
+      value: kpis.alerts ?? data?.alerts?.length ?? 0,
       helper: "Opens risk insights",
-      formula: "Open risk and behaviour signals from dashboard analytics.",
+      formula: "Below 75% attendance + repeat absentees + high severity risks.",
       href: "/analytics",
       tone: "purple" as const
     }

@@ -34,6 +34,12 @@ function mapLog(log: NotificationLog): PanelNotification {
   };
 }
 
+export function isPrincipalNotification(log: NotificationLog) {
+  if (log.kind === "ABSENCE" || log.kind === "PAYMENT_RECEIPT") return false;
+  if (log.status === "FAILED") return true;
+  return ["LOW_ATTENDANCE", "FEE_REMINDER", "OVERDUE_FEE", "SCHOOL_ALERT", "MONTHLY_REPORT"].includes(log.kind);
+}
+
 const typeStyles: Record<PanelNotification["type"], { bg: string; text: string }> = {
   URGENT: { bg: "bg-[#ff3b30]", text: "text-white" },
   PAYMENT: { bg: "bg-[#34c759]", text: "text-white" },
@@ -77,7 +83,7 @@ export function NotificationPanel({
   loading?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const notifications = logs.slice(0, 20).map(mapLog);
+  const notifications = logs.filter(isPrincipalNotification).slice(0, 20).map(mapLog);
 
   useEffect(() => {
     if (!open) return;
@@ -122,7 +128,7 @@ export function NotificationPanel({
             {loading ? (
               <div className="px-3 py-8 text-center text-[13px] font-medium text-[#86868b]">Loading notifications...</div>
             ) : notifications.length === 0 ? (
-              <div className="px-3 py-8 text-center text-[13px] font-medium text-[#86868b]">No notifications yet.</div>
+              <div className="px-3 py-8 text-center text-[13px] font-medium text-[#86868b]">No important notifications yet.</div>
             ) : (
               notifications.map((n) => {
                 const style = typeStyles[n.type];

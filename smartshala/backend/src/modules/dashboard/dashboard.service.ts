@@ -83,6 +83,7 @@ async function principalDashboard(user: Express.UserContext) {
   const markedClasses = attendance.filter((item) => item.marked).length;
   const totalPresent = attendance.reduce((sum, item) => sum + item.present, 0);
   const totalMarked = attendance.reduce((sum, item) => sum + item.present + item.absent, 0);
+  const alertCount = risks.lowAttendanceCount + risks.repeatAbsenteeCount + risks.severityCounts.HIGH;
 
   const behaviourAlerts = behaviourActions.map((record) => ({
     type: "BEHAVIOUR_INCIDENT",
@@ -122,7 +123,8 @@ async function principalDashboard(user: Express.UserContext) {
       classesPending: Math.max(classCount - markedClasses, 0),
       absentToday,
       totalFeesPending: feeSummary.totalPending,
-      overdueInstallments: feeSummary.overdueInstallments
+      overdueInstallments: feeSummary.overdueInstallments,
+      alerts: alertCount
     },
     attendance,
     feeSummary,

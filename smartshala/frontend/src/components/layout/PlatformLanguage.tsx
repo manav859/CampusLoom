@@ -341,7 +341,11 @@ function applyLanguage(language: PlatformLanguage) {
     let original = storedOriginal ?? current;
 
     if (language === "en") {
-      originalText.set(node, current);
+      if (storedOriginal && current !== storedOriginal) {
+        node.nodeValue = storedOriginal;
+      } else {
+        originalText.set(node, current);
+      }
       return;
     }
 
