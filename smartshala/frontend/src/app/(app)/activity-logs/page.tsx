@@ -364,7 +364,7 @@ export default function ActivityLogsPage() {
     const days = calendarDays(calendarMonth);
 
     return (
-      <div className="w-[308px] rounded-[6px] border border-[#C9D3DE] bg-white p-3">
+      <div className="w-full rounded-[6px] border border-[#C9D3DE] bg-white p-3 sm:w-[308px]">
         <div className="mb-3 flex items-center justify-between">
           <button className="flex h-8 w-8 items-center justify-center rounded-[5px] border border-[#D7DEE8] text-[#2456E6] hover:bg-[#F2F7FC]" onClick={() => setCalendarMonth((value) => addMonths(value, -1))} type="button">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -432,17 +432,17 @@ export default function ActivityLogsPage() {
   return (
     <div className="space-y-5 print:bg-white">
       <section className="overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
-        <div className="border-b border-[#C9D3DE] px-6 py-6">
+        <div className="border-b border-[#C9D3DE] px-4 py-5 sm:px-6 sm:py-6">
           <h1 className="text-[22px] font-semibold text-[#031526]">
             Activity Logs <span className="text-[#2456E6]" data-count-fix="dom-v2" ref={headerCountRef}>{headerCount}</span>
           </h1>
         </div>
 
-        <div className="flex flex-col gap-4 border-b border-[#C9D3DE] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative">
+        <div className="flex flex-col gap-4 border-b border-[#C9D3DE] px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid w-full gap-3 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center">
+            <div className="relative sm:col-span-2 lg:col-span-1">
               <button
-                className="flex min-h-[48px] min-w-[300px] items-center justify-between gap-3 rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-[15px] font-semibold text-[#031526] transition hover:border-[#2456E6]"
+                className="flex min-h-[48px] w-full items-center justify-between gap-3 rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-left text-[14px] font-semibold text-[#031526] transition hover:border-[#2456E6] sm:text-[15px] lg:min-w-[300px]"
                 onClick={() => {
                   const anchorDate = parseDateValue(dateFrom || dateTo) ?? new Date();
                   setCalendarMonth(startOfMonthDate(anchorDate));
@@ -496,7 +496,7 @@ export default function ActivityLogsPage() {
               ) : null}
             </div>
             <input
-              className="min-h-[48px] w-[280px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-medium outline-none transition focus:border-[#2456E6]"
+              className="min-h-[48px] w-full rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-medium outline-none transition focus:border-[#2456E6] lg:w-[280px]"
               onChange={(event) => { setPage(1); setSearch(event.target.value); }}
               placeholder="Search logs"
               value={search}
@@ -508,7 +508,7 @@ export default function ActivityLogsPage() {
 
           <div className="relative print:hidden">
             <button
-              className="inline-flex min-h-[48px] items-center gap-2 rounded-[5px] border border-[#C9D3DE] bg-white px-5 text-[16px] font-semibold text-[#031526] transition hover:border-[#2456E6]"
+              className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[5px] border border-[#C9D3DE] bg-white px-5 text-[16px] font-semibold text-[#031526] transition hover:border-[#2456E6] sm:w-auto"
               onClick={() => setActionsOpen((value) => !value)}
               type="button"
             >
@@ -526,9 +526,49 @@ export default function ActivityLogsPage() {
           </div>
         </div>
 
-        {error ? <div className="mx-6 mt-5 rounded-md bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
+        {error ? <div className="mx-4 mt-5 rounded-md bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C] sm:mx-6">{error}</div> : null}
 
-        <div className="px-5 py-5">
+        <div className="space-y-3 px-4 py-4 md:hidden">
+          {loading ? (
+            Array.from({ length: Math.min(limit, 6) }).map((_, index) => (
+              <div className="animate-pulse rounded-xl border border-[#DCE1E8] bg-white p-4" key={`activity-mobile-skeleton-${index}`}>
+                <div className="h-4 w-24 rounded bg-[#E8EDF3]" />
+                <div className="mt-3 h-4 w-48 rounded bg-[#E8EDF3]" />
+                <div className="mt-4 h-16 rounded bg-[#F2F5F8]" />
+              </div>
+            ))
+          ) : rows.length === 0 ? (
+            <div className="rounded-xl border border-[#DCE1E8] bg-white px-4 py-10 text-center text-[13px] font-medium text-[#52687D]">No activity logs found for this filter.</div>
+          ) : (
+            rows.map((log) => {
+              const desc = description(log);
+              const lines = diffLines(log).slice(0, 4);
+              return (
+                <article className="rounded-xl border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`activity-mobile-${log.id}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-[#0F1419]">{moduleLabel(log)}</p>
+                      <p className="mt-1 text-[12px] font-medium text-[#6E7A88]">{formatDateShort(log.createdAt)} at {logTime(log.createdAt)}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-[#EEF3FF] px-2.5 py-1 text-[11px] font-bold text-[#2456E6]">{actionLabel(log.action)}</span>
+                  </div>
+                  <p className="mt-3 text-[14px] font-semibold leading-5 text-[#1D2733]">{desc}</p>
+                  <div className="mt-3 rounded-lg bg-[#F7F8FB] px-3 py-3">
+                    {lines.map((line) => (
+                      <p className="text-[12px] font-medium leading-5 text-[#52687D]" key={line}>{line}</p>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-[#EEF1F5] pt-3">
+                    <span className="text-[12px] font-semibold text-[#52687D]">Action by</span>
+                    <span className="truncate text-right text-[12px] font-semibold text-[#0F1419]">{actorName(log)}</span>
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </div>
+
+        <div className="hidden px-5 py-5 md:block">
           <div className="overflow-x-auto rounded-[5px] border border-[#C9D3DE]">
             <table className="w-full min-w-[980px] border-collapse text-left text-[15px] text-[#001B33]">
               <thead>
@@ -618,21 +658,21 @@ export default function ActivityLogsPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 px-2 pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="px-3 text-[15px] font-semibold text-[#52687D]">
+        <div className="flex flex-col gap-4 px-4 pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left sm:text-[15px]">
             Showing <span className="text-[#0F1419]" ref={footerStartRef}>{start}</span> to <span className="text-[#0F1419]" ref={footerEndRef}>{end}</span> of <span className="text-[#0F1419]" ref={footerTotalRef}>{total}</span> Results
           </p>
-          <div className="flex flex-wrap items-center gap-3 print:hidden">
-            <select className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-[15px] font-semibold outline-none" onChange={(event) => { setLimit(Number(event.target.value)); setPage(1); }} value={limit}>
+          <div className="flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-1 print:hidden sm:w-auto sm:flex-wrap sm:gap-3 sm:pb-0">
+            <select className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] bg-white px-3 text-[14px] font-semibold outline-none sm:px-4 sm:text-[15px]" onChange={(event) => { setLimit(Number(event.target.value)); setPage(1); }} value={limit}>
               {[10, 25, 50, 100].map((item) => <option key={item} value={item}>{item} / Page</option>)}
             </select>
-            <button className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-semibold text-[#7A8390] disabled:opacity-50" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">Previous</button>
+            <button className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#7A8390] disabled:opacity-50 sm:px-4 sm:text-[15px]" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">Previous</button>
             {pageNumbers.map((item) => (
-              <button className={`min-h-[44px] min-w-[44px] rounded-[5px] border px-3 text-[15px] font-semibold ${item === page ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#2456E6]"}`} key={item} onClick={() => setPage(item)} type="button">
+              <button className={`min-h-[44px] min-w-[44px] shrink-0 rounded-[5px] border px-3 text-[14px] font-semibold sm:text-[15px] ${item === page ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#2456E6]"}`} key={item} onClick={() => setPage(item)} type="button">
                 {item}
               </button>
             ))}
-            <button className="min-h-[44px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-semibold text-[#2456E6] disabled:opacity-50" disabled={!data || page >= data.meta.totalPages} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
+            <button className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#2456E6] disabled:opacity-50 sm:px-4 sm:text-[15px]" disabled={!data || page >= data.meta.totalPages} onClick={() => setPage((value) => value + 1)} type="button">Next</button>
           </div>
         </div>
         {tooltip ? (() => {
