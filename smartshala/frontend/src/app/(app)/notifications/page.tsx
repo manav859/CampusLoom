@@ -60,6 +60,10 @@ function senderName(log: NotificationLog) {
   return log.sentBy?.fullName ?? "System";
 }
 
+function senderRole(log: NotificationLog) {
+  return log.sentBy?.role ? humanizeConstant(log.sentBy.role) : "System";
+}
+
 function isToday(value: string | null) {
   if (!value) return false;
   const date = new Date(value);
@@ -96,6 +100,7 @@ export default function NotificationsPage() {
   const [time, setTime] = useState<TimeFilter>("all");
   const [selectedLog, setSelectedLog] = useState<NotificationLog | null>(null);
   const [hoveredLog, setHoveredLog] = useState<{ message: string; x: number; y: number } | null>(null);
+  const [hoveredSender, setHoveredSender] = useState<{ name: string; role: string; x: number; y: number } | null>(null);
   const [retryingId, setRetryingId] = useState("");
   const [deletingId, setDeletingId] = useState("");
   const [clearing, setClearing] = useState(false);
@@ -167,6 +172,10 @@ export default function NotificationsPage() {
 
   function showMessageTooltip(event: MouseEvent<HTMLElement>, message: string) {
     setHoveredLog({ message, x: event.clientX, y: event.clientY });
+  }
+
+  function showSenderTooltip(event: MouseEvent<HTMLElement>, log: NotificationLog) {
+    setHoveredSender({ name: senderName(log), role: senderRole(log), x: event.clientX, y: event.clientY });
   }
 
   function openFilterMenu(event: MouseEvent<HTMLButtonElement>, key: FilterKey) {
@@ -312,7 +321,13 @@ export default function NotificationsPage() {
                     <p className="mt-1 truncate text-[12px] font-medium text-[#5A6573]">
                       {maskPhoneNumber(log.recipientPhone)}{log.student ? ` · ${log.student.fullName}` : ""}
                     </p>
-                    <p className="mt-1 truncate text-[12px] font-medium text-[#5A6573]">Sent by {senderName(log)}</p>
+                    <button
+                      className="mt-1 truncate text-left text-[12px] font-medium text-[#2456E6]"
+                      onClick={() => setHoveredSender({ name: senderName(log), role: senderRole(log), x: window.innerWidth / 2, y: 180 })}
+                      type="button"
+                    >
+                      Sent by {senderRole(log)}
+                    </button>
                   </div>
                   <StatusPill label={displayStatus} tone={statusTone(displayStatus)} />
                 </div>
@@ -386,7 +401,17 @@ export default function NotificationsPage() {
                         <span className="font-medium text-[#1d1d1f]">{maskPhoneNumber(log.recipientPhone)}</span>
                         {log.student ? <span className="ml-2 text-[11px] text-[#86868b]">{log.student.fullName}</span> : null}
                       </td>
-                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-medium text-[#2A3340]">{senderName(log)}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-medium text-[#2A3340]">
+                        <button
+                          className="rounded-md px-2 py-1 font-semibold text-[#2456E6] hover:bg-[#EEF3FF]"
+                          onMouseEnter={(event) => showSenderTooltip(event, log)}
+                          onMouseLeave={() => setHoveredSender(null)}
+                          onMouseMove={(event) => showSenderTooltip(event, log)}
+                          type="button"
+                        >
+                          {senderRole(log)}
+                        </button>
+                      </td>
                       <td className="border-b border-[#C9D3DE] px-4 py-4 text-[#6e6e73]">
                         <button
                           className="mx-auto block max-w-[380px] truncate text-center hover:text-[#2456E6]"
@@ -439,7 +464,7 @@ export default function NotificationsPage() {
               <div>
                 <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{humanizeConstant(selectedLog.kind)}</h2>
                 <p className="mt-1 text-[13px] text-[#86868b]">
-                  {maskPhoneNumber(selectedLog.recipientPhone)} | {formatTime(selectedLog.sentAt ?? selectedLog.createdAt)} | Sent by {senderName(selectedLog)}
+                  {maskPhoneNumber(selectedLog.recipientPhone)} | {formatTime(selectedLog.sentAt ?? selectedLog.createdAt)} | Sent by {senderRole(selectedLog)} ({senderName(selectedLog)})
                 </p>
               </div>
               <StatusPill label={deliveryStatus(selectedLog)} tone={statusTone(deliveryStatus(selectedLog))} />
@@ -497,6 +522,23 @@ export default function NotificationsPage() {
           >
             <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
             <span className="relative block whitespace-normal">{hoveredLog.message}</span>
+          </div>
+        );
+      })() : null}
+      {hoveredSender ? (() => {
+        const width = Math.min(320, window.innerWidth - 32);
+        const height = 96;
+        const left = Math.min(Math.max(16, hoveredSender.x - width / 2), window.innerWidth - width - 16);
+        const top = hoveredSender.y + height + 24 > window.innerHeight ? Math.max(16, hoveredSender.y - height - 18) : hoveredSender.y + 18;
+
+        return (
+          <div
+            className="pointer-events-none fixed z-[235] rounded-[6px] bg-[#001827] px-4 py-3 text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)]"
+            style={{ left, top, width }}
+          >
+            <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
+            <span className="relative block text-[12px] font-semibold uppercase tracking-[0.06em] text-white/70">{hoveredSender.role}</span>
+            <span className="relative mt-1 block text-[14px] font-semibold">{hoveredSender.name}</span>
           </div>
         );
       })() : null}
