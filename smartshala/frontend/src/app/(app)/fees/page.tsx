@@ -203,7 +203,7 @@ export default function FeesDashboardPage() {
                   <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Collection snapshot</h2>
                   <p className="mt-0.5 text-[13px] text-[#86868b]">Collected versus outstanding for the current fee ledger.</p>
                 </div>
-                <Link className="inline-flex min-h-9 items-center justify-center rounded-[6px] border border-[#C2C9D4] px-3 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/defaulters">
+                <Link className="inline-flex min-h-9 items-center justify-center rounded-[6px] border border-[#C8242C] bg-[#C8242C] px-3 text-[12px] font-semibold text-white hover:bg-[#A91D24]" href="/fees/defaulters">
                   Defaulters
                 </Link>
               </div>

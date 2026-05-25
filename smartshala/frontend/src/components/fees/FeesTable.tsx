@@ -43,11 +43,11 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-[6px] bg-[#F7F8FB] px-3 py-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">Paid</p>
-                    <p className="mt-1 truncate text-[14px] font-semibold text-[#0F1419]">{formatINR(row.paidAmount)}</p>
+                    <p className="mt-1 truncate whitespace-nowrap text-[14px] font-semibold text-[#0F1419]">{formatINR(row.paidAmount)}</p>
                   </div>
                   <div className="rounded-[6px] bg-[#FFF2DC] px-3 py-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#B95A00]">Balance</p>
-                    <p className="mt-1 truncate text-[14px] font-semibold text-[#0F1419]">{formatINR(row.pendingAmount)}</p>
+                    <p className="mt-1 truncate whitespace-nowrap text-[14px] font-semibold text-[#0F1419]">{formatINR(row.pendingAmount)}</p>
                   </div>
                 </div>
                 <p className="mt-3 text-[12px] font-semibold text-[#2456E6]">Open ledger</p>
@@ -58,10 +58,18 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
       </div>
 
       <div className="hidden max-h-[520px] overflow-auto sm:block">
-        <table className="w-full min-w-[720px] text-left text-[13px]">
+        <table className="w-full min-w-[860px] table-fixed text-left text-[13px]">
+          <colgroup>
+            <col className="w-[28%]" />
+            <col className="w-[12%]" />
+            <col className="w-[13%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
+            <col className="w-[9%]" />
+          </colgroup>
           <thead className="sticky top-0 z-10 bg-[var(--brand-secondary)] text-white">
             <tr>
-              {["Student", "Class", "Paid", "Balance", "Status", ""].map((head) => (
+              {["Student", "Class", "Paid", "Balance", "Status", "Ledger"].map((head) => (
                 <th className="px-6 py-3.5 font-semibold" key={head}>{head}</th>
               ))}
             </tr>
@@ -78,18 +86,18 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
                     <Link className="block font-semibold text-[#1d1d1f] transition-colors duration-200 hover:text-[#0071e3]" href={`/fees/${row.studentId}`}>
                       {row.student.fullName}
                     </Link>
-                    <p className="mt-0.5 text-[11px] text-[#86868b]">{row.feeStructure.name}</p>
+                    <p className="mt-0.5 truncate whitespace-nowrap text-[11px] text-[#86868b]" title={row.feeStructure.name}>{row.feeStructure.name}</p>
                   </td>
                   <td className="px-6 py-4 text-[#6e6e73]">{classLabel(row.student.class)}</td>
-                  <td className="px-6 py-4 text-[#6e6e73]">{formatINR(row.paidAmount)}</td>
-                  <td className="px-6 py-4 font-semibold text-[#1d1d1f]">{formatINR(row.pendingAmount)}</td>
+                  <td className="whitespace-nowrap px-6 py-4 text-[#6e6e73]">{formatINR(row.paidAmount)}</td>
+                  <td className="whitespace-nowrap px-6 py-4 font-semibold text-[#1d1d1f]">{formatINR(row.pendingAmount)}</td>
                   <td className="px-6 py-4">
                     <StatusPill label={row.status} tone={toneForStatus(row.status)} />
                     {row.status === "PARTIAL" ? (
                       <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Paid {formatINR(row.paidAmount, { compact: false })} of {formatINR(row.totalAmount, { compact: false })} - {formatINR(row.pendingAmount, { compact: false })} pending</p>
                     ) : null}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="whitespace-nowrap px-6 py-4 text-right">
                     <Link className="text-[13px] font-medium text-[#0071e3] transition-colors hover:text-[#0077ed]" href={`/fees/${row.studentId}`}>
                       Ledger
                     </Link>
