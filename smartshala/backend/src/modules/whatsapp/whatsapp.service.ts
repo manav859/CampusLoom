@@ -92,6 +92,42 @@ export async function getLogs(schoolId: string) {
   });
 }
 
+export async function getStats(schoolId: string, range: { dateFrom?: string; dateTo?: string } = {}) {
+  const dateFrom = range.dateFrom ? new Date(range.dateFrom) : null;
+  const dateTo = range.dateTo ? new Date(range.dateTo) : null;
+  const hasValidRange = dateFrom && dateTo && !Number.isNaN(dateFrom.getTime()) && !Number.isNaN(dateTo.getTime());
+  const todayRange = hasValidRange ? { gte: dateFrom, lt: dateTo } : undefined;
+
+  const [sentToday, failedCount, todaysUsage] = await Promise.all([
+    prisma.notification.count({
+      where: {
+        schoolId,
+        status: NotificationStatus.SENT,
+        ...(todayRange ? { sentAt: todayRange } : {})
+      }
+    }),
+    prisma.notification.count({
+      where: {
+        schoolId,
+        status: NotificationStatus.FAILED
+      }
+    }),
+    prisma.notification.count({
+      where: {
+        schoolId,
+        ...(todayRange ? { createdAt: todayRange } : {})
+      }
+    })
+  ]);
+
+  return {
+    sentToday,
+    failedCount,
+    todaysUsage,
+    creditsRemaining: Math.max(0, 5000 - todaysUsage)
+  };
+}
+
 export async function retryNotification(schoolId: string, notificationId: string) {
   const notification = await prisma.notification.findFirst({
     where: { id: notificationId, schoolId },

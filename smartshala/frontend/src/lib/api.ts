@@ -287,6 +287,13 @@ export type NotificationLog = {
   } | null;
 };
 
+export type NotificationStats = {
+  sentToday: number;
+  failedCount: number;
+  todaysUsage: number;
+  creditsRemaining: number;
+};
+
 export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE" | "DD" | "ONLINE_GATEWAY" | "OTHER";
 export type FeeComponent = "SCHOOL_FEE" | "TRANSPORTATION_FEE";
 
@@ -1139,6 +1146,13 @@ export const usersApi = {
 
 export const whatsappApi = {
   logs: () => apiFetch<NotificationLog[]>("/wa/logs"),
+  stats: (range?: { dateFrom?: string; dateTo?: string }) => {
+    const params = new URLSearchParams();
+    if (range?.dateFrom) params.set("dateFrom", range.dateFrom);
+    if (range?.dateTo) params.set("dateTo", range.dateTo);
+    const query = params.toString();
+    return apiFetch<NotificationStats>(`/wa/stats${query ? `?${query}` : ""}`);
+  },
   send: (payload: { phone: string; message: string }) =>
     apiFetch<{ success: boolean }>("/wa/send", {
       method: "POST",

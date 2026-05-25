@@ -13,10 +13,15 @@ const sendMessageSchema = z.object({
   message: z.string().trim().min(1)
 });
 const sendBulkSchema = z.array(sendMessageSchema).min(1);
+const statsQuerySchema = z.object({
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional()
+});
 
 whatsappRouter.use(requireAuth, requireRole(adminRoles));
 whatsappRouter.post("/send", validate({ body: sendMessageSchema }), controller.sendMessage);
 whatsappRouter.post("/bulk", validate({ body: sendBulkSchema }), controller.sendBulk);
+whatsappRouter.get("/stats", validate({ query: statsQuerySchema }), controller.getStats);
 whatsappRouter.get("/logs", controller.getLogs);
 whatsappRouter.delete("/logs", controller.clearNotifications);
 whatsappRouter.post("/logs/:id/retry", validate({ params: z.object({ id: z.string().uuid() }) }), controller.retryNotification);

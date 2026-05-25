@@ -32,6 +32,10 @@ export const getLogs = asyncHandler(async (req: Request, res: Response) => {
   res.json(await whatsappService.getLogs(req.user!.schoolId));
 });
 
+export const getStats = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await whatsappService.getStats(req.user!.schoolId, req.query));
+});
+
 export const retryNotification = asyncHandler(async (req: Request, res: Response) => {
   res.json(await whatsappService.retryNotification(req.user!.schoolId, req.params.id));
 });

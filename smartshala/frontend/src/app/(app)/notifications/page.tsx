@@ -5,12 +5,12 @@ import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { StatCardSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
-import { type NotificationLog, whatsappApi } from "@/lib/api";
+import { type NotificationLog, type NotificationStats, whatsappApi } from "@/lib/api";
 import { formatDateTimeShort, humanizeConstant, maskPhoneNumber, truncateText } from "@/lib/formatters";
 import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 
 type TypeFilter = "all" | NotificationLog["kind"];
-type DeliveryStatus = "Queued" | "Sent" | "Delivered" | "Read" | "Failed";
+type DeliveryStatus = "Queued" | "Sent" | "Failed";
 type StatusFilter = "all" | DeliveryStatus;
 type TimeFilter = "all" | "today" | "3d" | "1w" | "1m";
 type FilterKey = "type" | "status" | "time";
@@ -24,7 +24,7 @@ const notificationKinds: NotificationLog["kind"][] = [
   "MONTHLY_REPORT",
   "SCHOOL_ALERT"
 ];
-const statusOptions = ["Sent", "Delivered", "Read", "Failed", "Queued"] as DeliveryStatus[];
+const statusOptions = ["Sent", "Failed", "Queued"] as DeliveryStatus[];
 const timeOptions: { label: string; value: TimeFilter }[] = [
   { label: "Today", value: "today" },
   { label: "Past 3 days", value: "3d" },
@@ -42,14 +42,11 @@ const filterLabels: Record<FilterKey, string> = {
 function deliveryStatus(log: NotificationLog): DeliveryStatus {
   if (log.status === "FAILED") return "Failed";
   if (log.status === "QUEUED") return "Queued";
-  const seed = log.id.charCodeAt(0) + log.id.charCodeAt(log.id.length - 1);
-  if (seed % 5 === 0) return "Read";
-  if (seed % 2 === 0) return "Delivered";
   return "Sent";
 }
 
 function statusTone(status: DeliveryStatus) {
-  if (status === "Read" || status === "Delivered" || status === "Sent") return "good";
+  if (status === "Sent") return "good";
   if (status === "Failed") return "danger";
   return "warn";
 }
@@ -64,6 +61,14 @@ function isToday(value: string | null) {
   const date = new Date(value);
   const now = new Date();
   return date.toDateString() === now.toDateString();
+}
+
+function todayRange() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
 }
 
 function timeMatches(value: string | null, filter: TimeFilter) {
@@ -81,6 +86,7 @@ function timeMatches(value: string | null, filter: TimeFilter) {
 
 export default function NotificationsPage() {
   const [logs, setLogs] = useState<NotificationLog[]>([]);
+  const [stats, setStats] = useState<NotificationStats | null>(null);
   const [type, setType] = useState<TypeFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [time, setTime] = useState<TimeFilter>("all");
@@ -97,9 +103,16 @@ export default function NotificationsPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    cachedFetch("notifications:logs", () => whatsappApi.logs())
-      .then((data) => {
-        if (active) setLogs(data);
+    const range = todayRange();
+    Promise.all([
+      cachedFetch("notifications:logs", () => whatsappApi.logs()),
+      cachedFetch(`notifications:stats:${range.dateFrom}:${range.dateTo}`, () => whatsappApi.stats(range))
+    ])
+      .then(([data, nextStats]) => {
+        if (active) {
+          setLogs(data);
+          setStats(nextStats);
+        }
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Unable to load WhatsApp logs");
@@ -120,9 +133,18 @@ export default function NotificationsPage() {
     return typeMatches && statusMatches && timeFilterMatches;
   }), [logs, status, time, type]);
 
-  const sentToday = logs.filter((log) => log.status === "SENT" && isToday(log.sentAt ?? log.createdAt)).length;
-  const failedCount = logs.filter((log) => log.status === "FAILED").length;
-  const creditsRemaining = Math.max(0, 5000 - logs.filter((log) => isToday(log.createdAt)).length);
+  const sentToday = stats?.sentToday ?? logs.filter((log) => log.status === "SENT" && isToday(log.sentAt ?? log.createdAt)).length;
+  const failedCount = stats?.failedCount ?? logs.filter((log) => log.status === "FAILED").length;
+  const creditsRemaining = stats?.creditsRemaining ?? Math.max(0, 5000 - logs.filter((log) => isToday(log.createdAt)).length);
+
+  async function refreshLogsAndStats() {
+    const range = todayRange();
+    const [nextLogs, nextStats] = await Promise.all([whatsappApi.logs(), whatsappApi.stats(range)]);
+    invalidateCache("notifications:logs");
+    invalidateCache(`notifications:stats:${range.dateFrom}:${range.dateTo}`);
+    setLogs(nextLogs);
+    setStats(nextStats);
+  }
 
   async function retryLog(log: NotificationLog) {
     setRetryingId(log.id);
@@ -130,7 +152,7 @@ export default function NotificationsPage() {
     setNotice("");
     try {
       await whatsappApi.retry(log.id);
-      setLogs(await whatsappApi.logs());
+      await refreshLogsAndStats();
       setNotice(`Retry queued for ${maskPhoneNumber(log.recipientPhone)}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to retry WhatsApp message");
@@ -195,8 +217,7 @@ export default function NotificationsPage() {
     setNotice("");
     try {
       await whatsappApi.delete(log.id);
-      invalidateCache("notifications:logs");
-      setLogs((current) => current.filter((item) => item.id !== log.id));
+      await refreshLogsAndStats();
       setNotice("Notification cleared.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to clear notification");
@@ -213,6 +234,7 @@ export default function NotificationsPage() {
       const result = await whatsappApi.clear();
       invalidateCache("notifications:logs");
       setLogs([]);
+      setStats({ sentToday: 0, failedCount: 0, todaysUsage: 0, creditsRemaining: 5000 });
       setNotice(`Cleared ${result.count} notification${result.count === 1 ? "" : "s"}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to clear notifications");
@@ -227,7 +249,7 @@ export default function NotificationsPage() {
         eyebrow="WhatsApp"
         title="Parent notification logs"
         action={(
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <button className="rounded-lg border border-[#D6DCE5] bg-white px-4 py-2 text-[13px] font-semibold text-[#D92D20] hover:bg-[#FFF1F0] disabled:opacity-50" disabled={logs.length === 0 || clearing} onClick={clearLogs} type="button">
               {clearing ? "Clearing..." : "Clear notifications"}
             </button>
@@ -264,7 +286,68 @@ export default function NotificationsPage() {
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
       {notice ? <div className="rounded-xl bg-[#34c759]/10 px-4 py-3 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
-      <div className="overflow-x-auto">
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <div className="animate-pulse rounded-xl border border-[#DCE1E8] bg-white p-4" key={`mobile-skeleton-${index}`}>
+              <div className="h-4 w-28 rounded bg-[#E8EDF3]" />
+              <div className="mt-3 h-4 w-44 rounded bg-[#E8EDF3]" />
+              <div className="mt-4 h-16 rounded bg-[#F2F5F8]" />
+            </div>
+          ))
+        ) : filteredLogs.length === 0 ? (
+          <div className="rounded-xl border border-[#DCE1E8] bg-white px-4 py-10 text-center text-[13px] font-medium text-[#86868b]">No notification logs found.</div>
+        ) : (
+          filteredLogs.map((log) => {
+            const displayStatus = deliveryStatus(log);
+            return (
+              <article className="rounded-xl border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-${log.id}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-[#0F1419]">{humanizeConstant(log.kind)}</p>
+                    <p className="mt-1 truncate text-[12px] font-medium text-[#5A6573]">
+                      {maskPhoneNumber(log.recipientPhone)}{log.student ? ` · ${log.student.fullName}` : ""}
+                    </p>
+                  </div>
+                  <StatusPill label={displayStatus} tone={statusTone(displayStatus)} />
+                </div>
+                <button
+                  className="mt-3 block w-full rounded-lg bg-[#F7F8FB] px-3 py-3 text-left text-[13px] font-medium leading-5 text-[#2A3340]"
+                  onClick={() => { setHoveredLog(null); setSelectedLog(log); }}
+                  type="button"
+                >
+                  {truncateText(log.message, 130)}
+                </button>
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-[12px] font-medium text-[#6e6e73]">{formatTime(log.sentAt ?? log.createdAt)}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="rounded-lg border border-[#F2B8B5] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#D92D20] disabled:opacity-50"
+                      disabled={deletingId === log.id}
+                      onClick={() => deleteLog(log)}
+                      type="button"
+                    >
+                      {deletingId === log.id ? "Clearing..." : "Clear"}
+                    </button>
+                    {log.status === "FAILED" ? (
+                      <button
+                        className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] disabled:opacity-50"
+                        disabled={retryingId === log.id}
+                        onClick={() => retryLog(log)}
+                        type="button"
+                      >
+                        {retryingId === log.id ? "Retrying..." : "Retry"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1120px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
             <thead>
               <tr className="bg-[#DDECF8]">
@@ -341,10 +424,10 @@ export default function NotificationsPage() {
           </table>
       </div>
 
-      {selectedLog ? (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4">
+      {selectedLog && typeof document !== "undefined" ? createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-[1px]">
           <button aria-label="Close message" className="absolute inset-0" onClick={() => setSelectedLog(null)} type="button" />
-          <div className="relative w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl">
+          <div className="relative max-h-[calc(100vh-48px)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{humanizeConstant(selectedLog.kind)}</h2>
@@ -359,7 +442,8 @@ export default function NotificationsPage() {
               <button className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white" onClick={() => setSelectedLog(null)} type="button">Close</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
       {filterMenu && typeof document !== "undefined" ? createPortal(
         <div className="fixed inset-0 z-[220]" onClick={() => setFilterMenu(null)}>
