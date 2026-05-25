@@ -158,8 +158,31 @@ async function enrichAttendanceLog<T extends { action: string; afterJson: Prisma
   };
 }
 
+async function enrichNotificationDeleteLog<T extends { action: string; afterJson: Prisma.JsonValue | null; entityType: string; schoolId: string; summary: string }>(log: T): Promise<T> {
+  if (log.entityType !== "WA" || log.action !== "DELETE" || !/\/wa\/logs(?:\?|$|\/)/.test(log.summary)) return log;
+
+  const after = log.afterJson && typeof log.afterJson === "object" && !Array.isArray(log.afterJson)
+    ? log.afterJson as Record<string, unknown>
+    : {};
+  const params = after.params && typeof after.params === "object" && !Array.isArray(after.params)
+    ? after.params as Record<string, unknown>
+    : {};
+  const deletedOne = typeof params.id === "string";
+
+  return {
+    ...log,
+    entityType: "NOTIFICATIONS",
+    summary: deletedOne ? "Deleted notification" : "Deleted notifications",
+    afterJson: {
+      notification: {
+        action: deletedOne ? "Deleted notification" : "Cleared all notifications"
+      }
+    }
+  };
+}
+
 async function enrichLog<T extends { action: string; afterJson: Prisma.JsonValue | null; entityType: string; schoolId: string; summary: string }>(log: T): Promise<T> {
-  return enrichAttendanceLog(await enrichFeeLog(log));
+  return enrichNotificationDeleteLog(await enrichAttendanceLog(await enrichFeeLog(log)));
 }
 
 export async function listActivityLogs(user: Express.UserContext, query: ActivityQuery) {

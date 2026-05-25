@@ -7,8 +7,8 @@ import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { FeeOverviewChart } from "@/components/dashboard/FeeOverviewChart";
 import { ActivityFeed, type ActivityEvent } from "@/components/dashboard/ActivityFeed";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
-import { apiFetch, studentsApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
-import { formatINR } from "@/lib/formatters";
+import { activityApi, apiFetch, studentsApi, whatsappApi, type ActivityLog, type FeeDefaulter, type FeesDashboard } from "@/lib/api";
+import { formatINR, humanizeConstant } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 import type { Kpi } from "@/types";
 
@@ -45,46 +45,70 @@ function relativeTime(value?: string | Date | null) {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-function notificationType(kind: NotificationLog["kind"]): ActivityEvent["type"] {
-  if (kind === "PAYMENT_RECEIPT") return "fee";
-  if (kind === "ABSENCE" || kind === "LOW_ATTENDANCE") return "attendance";
-  if (kind === "FEE_REMINDER" || kind === "OVERDUE_FEE") return "alert";
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function actionLabel(action: string) {
+  if (action === "CREATE_OR_RUN") return "Create";
+  if (action === "REPLACE") return "Update";
+  return humanizeConstant(action);
+}
+
+function moduleLabel(entityType: string) {
+  const label = humanizeConstant(entityType);
+  if (label.toLowerCase() === "students") return "Student";
+  if (label.toLowerCase() === "notifications") return "Notifications";
+  return label;
+}
+
+function activityType(log: ActivityLog): ActivityEvent["type"] {
+  if (log.entityType === "ATTENDANCE") return "attendance";
+  if (log.entityType === "FEE" || log.entityType === "FEES") return "fee";
+  if (log.entityType === "NOTIFICATIONS" || log.entityType === "WA" || log.entityType === "COMMUNICATION") return "message";
+  if (log.action === "DELETE") return "alert";
   return "message";
 }
 
-function buildActivityEvents(data: DashboardResponse | null, logs: NotificationLog[]): ActivityEvent[] {
-  const notificationEvents = logs.slice(0, 8).map((log) => ({
-    id: `notification-${log.id}`,
-    text: log.student?.fullName ? `${log.student.fullName}: ${log.message}` : log.message,
-    time: relativeTime(log.sentAt ?? log.createdAt),
-    type: notificationType(log.kind)
+function bodyOf(log: ActivityLog) {
+  return (log.afterJson?.body ?? {}) as Record<string, unknown>;
+}
+
+function targetName(log: ActivityLog) {
+  const before = (log.beforeJson ?? {}) as Record<string, unknown>;
+  const after = (log.afterJson ?? {}) as Record<string, unknown>;
+  const body = bodyOf(log);
+  const candidates = [after.fullName, body.fullName, before.fullName, after.name, body.name, body.studentName, body.title];
+  const value = candidates.find((item) => typeof item === "string" && item.trim());
+  return typeof value === "string" ? value : "";
+}
+
+function activityDescription(log: ActivityLog) {
+  if (!log.summary.includes(" /") && !log.summary.includes(" PATCH ") && !log.summary.includes(" POST ") && !log.summary.includes(" PUT ") && !log.summary.includes(" DELETE ")) {
+    return log.summary;
+  }
+
+  const target = targetName(log);
+  const module = moduleLabel(log.entityType).toLowerCase();
+  const action = actionLabel(log.action).toLowerCase();
+  return `${action.charAt(0).toUpperCase() + action.slice(1)} ${module}${target ? ` ${target}` : ""}`;
+}
+
+function buildActivityEvents(logs: ActivityLog[]): ActivityEvent[] {
+  return logs.slice(0, 12).map((log) => ({
+    id: log.id,
+    text: activityDescription(log),
+    time: relativeTime(log.createdAt),
+    type: activityType(log),
+    details: [
+      `Module: ${moduleLabel(log.entityType)}`,
+      `Action: ${actionLabel(log.action)}`,
+      `By: ${log.actor?.fullName ?? "System"}`
+    ]
   }));
-
-  const alertEvents = (data?.alerts ?? []).slice(0, 4).map((alert, index) => ({
-    id: `alert-${alert.studentId ?? index}`,
-    text: alert.studentName && alert.message ? `${alert.studentName}: ${alert.message}` : alert.message ?? "Dashboard alert",
-    time: "Current",
-    type: "alert" as const
-  }));
-
-  const attendanceEvents = (data?.attendance ?? [])
-    .filter((item) => item.marked)
-    .slice(0, 4)
-    .map((item) => ({
-      id: `attendance-${item.className}`,
-      text: `${item.className} attendance marked (${item.attendancePercentage}%)`,
-      time: "Today",
-      type: item.attendancePercentage < 75 ? "alert" as const : "attendance" as const
-    }));
-
-  const feeEvents = (data?.defaulters ?? []).slice(0, 3).map((item) => ({
-    id: `fee-${item.studentId}`,
-    text: `${item.name} has ${formatINR(item.balance, { compact: false })} pending`,
-    time: item.daysOverdue > 0 ? `${item.daysOverdue} days overdue` : "Pending",
-    type: "fee" as const
-  }));
-
-  return [...notificationEvents, ...alertEvents, ...attendanceEvents, ...feeEvents].slice(0, 8);
 }
 
 const dashboardKpiStyles = [
@@ -182,7 +206,8 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sendingReminderId, setSendingReminderId] = useState("");
-  const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([]);
+  const [activityDate, setActivityDate] = useState(() => dateInputValue(new Date()));
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -218,18 +243,18 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   useEffect(() => {
     let active = true;
 
-    cachedFetch("notifications:logs", () => whatsappApi.logs())
-      .then((logs) => {
-        if (active) setNotificationLogs(logs);
+    cachedFetch(`dashboard:activity:${activityDate}`, () => activityApi.logs({ dateFrom: activityDate, dateTo: activityDate, limit: 12, page: 1 }))
+      .then((result) => {
+        if (active) setActivityLogs(result.items);
       })
       .catch(() => {
-        if (active) setNotificationLogs([]);
+        if (active) setActivityLogs([]);
       });
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [activityDate]);
 
   /* ── KPI row ── */
   const kpis = data?.kpis ?? {};
@@ -369,7 +394,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     { label: "Unmarked", value: pendingClasses, color: "#ff9500" },
     { label: "Homework", value: teacherPendingHomework, color: "#7c3aed" }
   ];
-  const activityEvents = buildActivityEvents(data, notificationLogs);
+  const activityEvents = buildActivityEvents(activityLogs);
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -443,7 +468,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         ) : (
           <>
             <AlertPanel alerts={actionAlerts} loading={false} />
-            <ActivityFeed events={activityEvents} />
+            <ActivityFeed events={activityEvents} onDateChange={setActivityDate} selectedDate={activityDate} />
           </>
         )}
       </section>

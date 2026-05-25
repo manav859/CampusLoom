@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { attendanceApi, type ClassesTodayReportRow } from "@/lib/api";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 
@@ -27,7 +27,7 @@ function isoDate(offsetDays = 0) {
 export function AttendanceChart({ data, title = "Attendance trend", classes = [] }: { data?: ChartPoint[]; title?: string; classes?: string[] }) {
   const [filter, setFilter] = useState("All");
   const [on, setOn] = useState(false);
-  const [tooltip, setTooltip] = useState<ChartPoint | null>(null);
+  const [tooltip, setTooltip] = useState<{ point: ChartPoint; x: number; y: number } | null>(null);
   const [pastWeekOpen, setPastWeekOpen] = useState(false);
   const [pastWeekRows, setPastWeekRows] = useState<ClassesTodayReportRow[]>([]);
   const [pastWeekLoading, setPastWeekLoading] = useState(false);
@@ -112,6 +112,10 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
     return "bg-[#C8242C]";
   }
 
+  function showTooltip(event: MouseEvent<HTMLElement>, point: ChartPoint) {
+    setTooltip({ point, x: event.clientX, y: event.clientY });
+  }
+
   const plotted = d.map((point) => ({ ...point, value: attendanceValue(point) }));
   const gridLines = [
     { value: 100, className: "border-[#E8EBF2]" },
@@ -151,9 +155,13 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
                   aria-label={`${point.label} attendance ${point.value}%`}
                   className="flex h-[150px] w-full items-end justify-center rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2456E6]/40 focus:ring-offset-2"
                   onBlur={() => setTooltip(null)}
-                  onFocus={() => setTooltip(point)}
-                  onMouseEnter={() => setTooltip(point)}
+                  onFocus={(event) => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setTooltip({ point, x: rect.left + rect.width / 2, y: rect.top + 24 });
+                  }}
+                  onMouseEnter={(event) => showTooltip(event, point)}
                   onMouseLeave={() => setTooltip(null)}
+                  onMouseMove={(event) => showTooltip(event, point)}
                   type="button"
                 >
                   <span
@@ -161,7 +169,7 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
                     style={{ height: `${height}%`, transitionDelay: `${index * 60}ms` }}
                   />
                 </button>
-                <span className={`mt-3 block w-full text-center text-[11px] font-semibold transition-colors duration-200 ${tooltip?.label === point.label ? "text-[#1d1d1f]" : "text-[#86868b]"}`}>
+                <span className={`mt-3 block w-full text-center text-[11px] font-semibold transition-colors duration-200 ${tooltip?.point.label === point.label ? "text-[#1d1d1f]" : "text-[#86868b]"}`}>
                   {point.label}
                 </span>
               </div>
@@ -171,19 +179,30 @@ export function AttendanceChart({ data, title = "Attendance trend", classes = []
       </div>
 
       {/* Floating Tooltip */}
-      {tooltip && (
-        <div className="absolute right-5 top-20 z-[100] pointer-events-none rounded-[10px] border border-white/10 bg-[#1d1d1f]/90 px-3 py-2 text-[12px] font-medium text-white shadow-xl backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <span className="text-[#a1a1a6]">{tooltip.label}</span>
-            <span className="font-bold text-white">{tooltip.value}%</span>
+      {tooltip ? (() => {
+        const width = 180;
+        const height = 86;
+        const left = Math.min(Math.max(16, tooltip.x + 18), window.innerWidth - width - 16);
+        const top = tooltip.y + height + 24 > window.innerHeight ? Math.max(16, tooltip.y - height - 18) : tooltip.y + 18;
+        const point = tooltip.point;
+
+        return (
+          <div
+            className="pointer-events-none fixed z-[230] rounded-[10px] border border-white/10 bg-[#1d1d1f]/90 px-3 py-2 text-[12px] font-medium text-white shadow-xl backdrop-blur-md"
+            style={{ left, top, width }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-[#a1a1a6]">{point.label}</span>
+              <span className="font-bold text-white">{point.value}%</span>
+            </div>
+            {typeof point.present === "number" || typeof point.halfDay === "number" ? (
+              <p className="mt-1 text-[11px] text-white/70">
+                Present {point.present ?? 0}, half day {point.halfDay ?? 0}
+              </p>
+            ) : null}
           </div>
-          {typeof tooltip.present === "number" || typeof tooltip.halfDay === "number" ? (
-            <p className="mt-1 text-[11px] text-white/70">
-              Present {tooltip.present ?? 0}, half day {tooltip.halfDay ?? 0}
-            </p>
-          ) : null}
-        </div>
-      )}
+        );
+      })() : null}
       <PastWeekModal
         error={pastWeekError}
         loading={pastWeekLoading}

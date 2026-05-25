@@ -1049,16 +1049,16 @@ export default function StudentsPage() {
       )}
 
       {/* ── Table ── */}
-      <div className="overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+      <div className="bg-transparent">
         <div className="relative">
           {loadingList && (
             <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[6px] bg-white/60 backdrop-blur-[2px]">
               <div className="h-5 w-5 rounded-full border-2 border-[#0071e3] border-t-transparent animate-spin" />
             </div>
           )}
-          <div className="p-3 sm:p-5">
-            <div className="overflow-x-auto rounded-[5px] border border-[#C9D3DE]">
-            <table className={`w-full border-collapse text-center text-[14px] text-[#001B33] ${canViewFees ? "min-w-[960px]" : "min-w-[780px]"}`}>
+          <div>
+            <div className="overflow-x-auto">
+            <table className={`w-full border-collapse bg-white text-center text-[14px] text-[#001B33] ${canViewFees ? "min-w-[1120px]" : "min-w-[860px]"}`}>
               <thead>
                 <tr className="bg-[#DDECF8]">
                   {tableHeaders.map((head, index) => (
@@ -1096,19 +1096,19 @@ export default function StudentsPage() {
                 {(loading || isInitialListLoading) && students.length === 0 ? (
                   Array.from({ length: 7 }).map((_, i) => (
                     <tr key={`skel-${i}`} className="animate-pulse">
-                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-6 rounded-md" /></td>
-                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-6 rounded-md" /></td>
-                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-32 rounded-md" /></td>
-                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-12 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4"><Skeleton className="mx-auto h-4 w-6 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4"><Skeleton className="mx-auto h-4 w-6 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4"><Skeleton className="mx-auto h-4 w-32 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4"><Skeleton className="mx-auto h-4 w-12 rounded-md" /></td>
                       {canViewFees ? (
                         <>
-                          <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-6 w-16 rounded-full" /></td>
-                          <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-20 rounded-md" /></td>
-                          <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-24 rounded-md" /></td>
+                          <td className="border-b border-[#C9D3DE] px-4 py-4"><Skeleton className="mx-auto h-6 w-16 rounded-full" /></td>
+                          <td className="border-b border-[#C9D3DE] px-4 py-4"><Skeleton className="mx-auto h-4 w-20 rounded-md" /></td>
+                          <td className="border-b border-[#C9D3DE] px-4 py-4"><Skeleton className="mx-auto h-4 w-24 rounded-md" /></td>
                         </>
                       ) : null}
-                      <td className="border-b border-[#C9D3DE] px-4 py-5"><Skeleton className="mx-auto h-4 w-12 rounded-md" /></td>
-                      <td className="border-b border-[#C9D3DE] px-4 py-5"><div className="flex justify-center gap-2"><Skeleton className="h-7 w-14 rounded-lg" /><Skeleton className="h-7 w-14 rounded-lg" /></div></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4"><Skeleton className="mx-auto h-4 w-12 rounded-md" /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4"><div className="flex justify-center gap-2"><Skeleton className="h-7 w-14 rounded-lg" /><Skeleton className="h-7 w-14 rounded-lg" /></div></td>
                     </tr>
                   ))
                 ) : sortedFiltered.length === 0 ? (
@@ -1275,7 +1275,7 @@ export default function StudentsPage() {
         </div>
 
         {/* ── Pagination ── */}
-        <div className="flex flex-col gap-4 px-5 pb-5 pt-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
           {resolvedTotal > 0 ? (
             <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
               Showing <span className="text-[#0F1419]">{displayStart}</span> to <span className="text-[#0F1419]">{displayEnd}</span> of <span className="text-[#0F1419]">{resolvedTotal}</span> students
