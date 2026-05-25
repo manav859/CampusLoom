@@ -12,6 +12,7 @@ export default function OnboardPage() {
   const planType: PlanType = "TRIAL";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState({
     schoolName: "",
     ownerName: "",
@@ -25,16 +26,115 @@ export default function OnboardPage() {
     termsAccepted: false
   });
 
+  const updateField = (field: keyof typeof form, value: string | boolean) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    const schoolName = form.schoolName.trim();
+    if (!schoolName) {
+      newErrors.schoolName = "School name is required";
+    } else if (schoolName.length < 2) {
+      newErrors.schoolName = "School name must be at least 2 characters";
+    } else if (schoolName.length > 160) {
+      newErrors.schoolName = "School name cannot exceed 160 characters";
+    }
+
+    const ownerName = form.ownerName.trim();
+    if (!ownerName) {
+      newErrors.ownerName = "Principal/Owner name is required";
+    } else if (ownerName.length < 2) {
+      newErrors.ownerName = "Principal/Owner name must be at least 2 characters";
+    } else if (ownerName.length > 120) {
+      newErrors.ownerName = "Principal/Owner name cannot exceed 120 characters";
+    }
+
+    const email = form.email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email) {
+      newErrors.email = "Email address is required";
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    const phone = form.phone.trim();
+    if (!phone) {
+      newErrors.phone = "Phone number is required";
+    } else if (phone.length < 10) {
+      newErrors.phone = "Phone number must be at least 10 characters";
+    } else if (phone.length > 20) {
+      newErrors.phone = "Phone number cannot exceed 20 characters";
+    }
+
+    if (!form.adminPassword) {
+      newErrors.adminPassword = "Password is required";
+    } else if (form.adminPassword.length < 8) {
+      newErrors.adminPassword = "Password must be at least 8 characters";
+    } else if (form.adminPassword.length > 72) {
+      newErrors.adminPassword = "Password cannot exceed 72 characters";
+    }
+
+    if (!form.confirmPassword) {
+      newErrors.confirmPassword = "Please confirm your password";
+    } else if (form.adminPassword !== form.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+    }
+
+    const studentsVal = Number(form.numberOfStudents);
+    if (!form.numberOfStudents) {
+      newErrors.numberOfStudents = "Number of students is required";
+    } else if (isNaN(studentsVal) || !Number.isInteger(studentsVal)) {
+      newErrors.numberOfStudents = "Must be a valid integer";
+    } else if (studentsVal < 1 || studentsVal > 10000) {
+      newErrors.numberOfStudents = "Must be between 1 and 10,000";
+    }
+
+    const staffVal = Number(form.numberOfStaff);
+    if (!form.numberOfStaff) {
+      newErrors.numberOfStaff = "Number of staff is required";
+    } else if (isNaN(staffVal) || !Number.isInteger(staffVal)) {
+      newErrors.numberOfStaff = "Must be a valid integer";
+    } else if (staffVal < 1 || staffVal > 1000) {
+      newErrors.numberOfStaff = "Must be between 1 and 1,000";
+    }
+
+    const address = form.address.trim();
+    if (!address) {
+      newErrors.address = "Address is required";
+    } else if (address.length < 5) {
+      newErrors.address = "Address must be at least 5 characters";
+    } else if (address.length > 500) {
+      newErrors.address = "Address cannot exceed 500 characters";
+    }
+
+    if (!form.termsAccepted) {
+      newErrors.termsAccepted = "You must agree to the terms to proceed";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError("");
 
-    try {
-      if (form.adminPassword !== form.confirmPassword) {
-        throw new Error("Passwords do not match");
-      }
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
 
+    try {
       const response = await fetch(`${env.apiBaseUrl}/onboarding`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,12 +156,17 @@ export default function OnboardPage() {
         // Extract field-level validation errors if available
         const details = payload?.error?.details;
         if (details?.fieldErrors && typeof details.fieldErrors === "object") {
-          const fieldMessages = Object.entries(details.fieldErrors)
-            .filter(([, msgs]) => Array.isArray(msgs) && (msgs as string[]).length > 0)
-            .map(([field, msgs]) => `${field} — ${(msgs as string[]).join(", ")}`)
-            .join("\n");
-          if (fieldMessages) {
-            throw new Error(fieldMessages);
+          const mappedErrors: Record<string, string> = {};
+          let hasMapped = false;
+          Object.entries(details.fieldErrors).forEach(([field, msgs]) => {
+            if (Array.isArray(msgs) && msgs.length > 0) {
+              mappedErrors[field] = msgs[0];
+              hasMapped = true;
+            }
+          });
+          if (hasMapped) {
+            setErrors(mappedErrors);
+            throw new Error("Please correct the highlighted errors.");
           }
         }
         throw new Error(payload?.error?.message ?? "Onboarding failed");
@@ -121,42 +226,113 @@ export default function OnboardPage() {
             </div>
           </div>
 
-          <form className="mt-6 grid gap-4" onSubmit={submit}>
+          <form className="mt-6 grid gap-4" onSubmit={submit} noValidate>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="School Name" onChange={(value) => setForm({ ...form, schoolName: value })} value={form.schoolName} />
-              <Input label="Principal/Owner Name" onChange={(value) => setForm({ ...form, ownerName: value })} value={form.ownerName} />
-              <Input label="Email" onChange={(value) => setForm({ ...form, email: value })} type="email" value={form.email} />
-              <Input label="Phone" onChange={(value) => setForm({ ...form, phone: value })} value={form.phone} />
-              <Input label="Initial Password" onChange={(value) => setForm({ ...form, adminPassword: value })} type="password" value={form.adminPassword} />
-              <Input label="Confirm Password" onChange={(value) => setForm({ ...form, confirmPassword: value })} type="password" value={form.confirmPassword} />
-              <Input label="Number of Students" onChange={(value) => setForm({ ...form, numberOfStudents: value })} type="number" value={form.numberOfStudents} />
-              <Input label="Number of Staff" onChange={(value) => setForm({ ...form, numberOfStaff: value })} type="number" value={form.numberOfStaff} />
+              <Input
+                label="School Name"
+                onChange={(value) => updateField("schoolName", value)}
+                value={form.schoolName}
+                error={errors.schoolName}
+              />
+              <Input
+                label="Principal/Owner Name"
+                onChange={(value) => updateField("ownerName", value)}
+                value={form.ownerName}
+                error={errors.ownerName}
+              />
+              <Input
+                label="Email"
+                onChange={(value) => updateField("email", value)}
+                type="email"
+                value={form.email}
+                error={errors.email}
+              />
+              <Input
+                label="Phone"
+                onChange={(value) => updateField("phone", value)}
+                value={form.phone}
+                error={errors.phone}
+              />
+              <Input
+                label="Initial Password"
+                onChange={(value) => updateField("adminPassword", value)}
+                type="password"
+                value={form.adminPassword}
+                error={errors.adminPassword}
+              />
+              <Input
+                label="Confirm Password"
+                onChange={(value) => updateField("confirmPassword", value)}
+                type="password"
+                value={form.confirmPassword}
+                error={errors.confirmPassword}
+              />
+              <Input
+                label="Number of Students"
+                onChange={(value) => updateField("numberOfStudents", value)}
+                type="number"
+                value={form.numberOfStudents}
+                error={errors.numberOfStudents}
+              />
+              <Input
+                label="Number of Staff"
+                onChange={(value) => updateField("numberOfStaff", value)}
+                type="number"
+                value={form.numberOfStaff}
+                error={errors.numberOfStaff}
+              />
             </div>
 
-            <label className="grid gap-2 text-sm font-semibold text-[#424245]">
-              Address
+            <div className="grid gap-2">
+              <label className="text-sm font-semibold text-[#424245]">
+                Address
+              </label>
               <textarea
-                className="min-h-24 rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-[15px] font-medium outline-none transition focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10"
-                onChange={(event) => setForm({ ...form, address: event.target.value })}
-                required
+                className={`min-h-24 rounded-2xl border bg-white/80 px-4 py-3 text-[15px] font-medium outline-none transition focus:ring-4 ${
+                  errors.address
+                    ? "border-[#c8242c] focus:border-[#c8242c] focus:ring-[#c8242c]/10"
+                    : "border-black/10 focus:border-[#0071e3] focus:ring-[#0071e3]/10"
+                }`}
+                onChange={(event) => updateField("address", event.target.value)}
                 value={form.address}
               />
-            </label>
+              {errors.address && (
+                <motion.p
+                  animate={{ opacity: 1, y: 0 }}
+                  className="px-1 text-xs font-semibold text-[#c8242c]"
+                  initial={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {errors.address}
+                </motion.p>
+              )}
+            </div>
 
             <div className="rounded-2xl border border-[#0071e3] bg-[#e7f1ff] px-4 py-3 text-sm font-bold text-[#0057b8]">
               Start 1 Month Free Trial
             </div>
 
-            <label className="flex items-start gap-3 text-sm font-semibold text-[#424245]">
-              <input
-                checked={form.termsAccepted}
-                className="mt-1 h-4 w-4 accent-[#0071e3]"
-                onChange={(event) => setForm({ ...form, termsAccepted: event.target.checked })}
-                required
-                type="checkbox"
-              />
-              I agree to activate this school workspace and receive login credentials.
-            </label>
+            <div className="grid gap-2">
+              <label className="flex items-start gap-3 text-sm font-semibold text-[#424245] cursor-pointer">
+                <input
+                  checked={form.termsAccepted}
+                  className="mt-1 h-4 w-4 accent-[#0071e3]"
+                  onChange={(event) => updateField("termsAccepted", event.target.checked)}
+                  type="checkbox"
+                />
+                I agree to activate this school workspace and receive login credentials.
+              </label>
+              {errors.termsAccepted && (
+                <motion.p
+                  animate={{ opacity: 1, y: 0 }}
+                  className="px-1 text-xs font-semibold text-[#c8242c]"
+                  initial={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {errors.termsAccepted}
+                </motion.p>
+              )}
+            </div>
 
             {error ? <div className="whitespace-pre-line rounded-2xl bg-[#fce3e5] px-4 py-3 text-sm font-semibold text-[#c8242c]">{error}</div> : null}
 
@@ -189,24 +365,39 @@ function Input({
   value,
   onChange,
   type = "text",
-  required = true
+  error
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
-  required?: boolean;
+  error?: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-semibold text-[#424245]">
-      {label}
+    <div className="grid gap-2">
+      <label className="text-sm font-semibold text-[#424245]">
+        {label}
+      </label>
       <input
-        className="min-h-12 rounded-2xl border border-black/10 bg-white/80 px-4 text-[15px] font-medium outline-none transition focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10"
+        className={`min-h-12 rounded-2xl border bg-white/80 px-4 text-[15px] font-medium outline-none transition focus:ring-4 ${
+          error
+            ? "border-[#c8242c] focus:border-[#c8242c] focus:ring-[#c8242c]/10"
+            : "border-black/10 focus:border-[#0071e3] focus:ring-[#0071e3]/10"
+        }`}
         onChange={(event) => onChange(event.target.value)}
-        required={required}
         type={type}
         value={value}
       />
-    </label>
+      {error && (
+        <motion.p
+          animate={{ opacity: 1, y: 0 }}
+          className="px-1 text-xs font-semibold text-[#c8242c]"
+          initial={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.15 }}
+        >
+          {error}
+        </motion.p>
+      )}
+    </div>
   );
 }
