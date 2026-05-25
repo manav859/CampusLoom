@@ -52,7 +52,20 @@ export default function OnboardPage() {
         })
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error?.message ?? "Onboarding failed");
+      if (!response.ok) {
+        // Extract field-level validation errors if available
+        const details = payload?.error?.details;
+        if (details?.fieldErrors && typeof details.fieldErrors === "object") {
+          const fieldMessages = Object.entries(details.fieldErrors)
+            .filter(([, msgs]) => Array.isArray(msgs) && (msgs as string[]).length > 0)
+            .map(([field, msgs]) => `${field} — ${(msgs as string[]).join(", ")}`)
+            .join("\n");
+          if (fieldMessages) {
+            throw new Error(fieldMessages);
+          }
+        }
+        throw new Error(payload?.error?.message ?? "Onboarding failed");
+      }
       router.replace(`/onboarding-success?schoolId=${payload.schoolId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Onboarding failed");
@@ -145,7 +158,7 @@ export default function OnboardPage() {
               I agree to activate this school workspace and receive login credentials.
             </label>
 
-            {error ? <p className="rounded-2xl bg-[#fce3e5] px-4 py-3 text-sm font-semibold text-[#c8242c]">{error}</p> : null}
+            {error ? <div className="whitespace-pre-line rounded-2xl bg-[#fce3e5] px-4 py-3 text-sm font-semibold text-[#c8242c]">{error}</div> : null}
 
             <button
               className="min-h-12 rounded-full bg-[#0071e3] px-6 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#b8c7d9]"
