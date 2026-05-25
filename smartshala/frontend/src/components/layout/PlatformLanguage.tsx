@@ -341,11 +341,7 @@ function applyLanguage(language: PlatformLanguage) {
     let original = storedOriginal ?? current;
 
     if (language === "en") {
-      if (storedOriginal && current !== storedOriginal) {
-        node.nodeValue = storedOriginal;
-      } else {
-        originalText.set(node, current);
-      }
+      originalText.set(node, current);
       return;
     }
 
@@ -362,9 +358,24 @@ function applyLanguage(language: PlatformLanguage) {
   });
 
   document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[placeholder]").forEach((element) => {
-    const original = element.dataset.originalPlaceholder ?? element.getAttribute("placeholder") ?? "";
+    const current = element.getAttribute("placeholder") ?? "";
+    const storedOriginal = element.dataset.originalPlaceholder;
+    let original = storedOriginal ?? current;
+
+    if (language === "en") {
+      element.dataset.originalPlaceholder = current;
+      return;
+    }
+
+    if (storedOriginal) {
+      const translatedOriginal = translate(storedOriginal);
+      if (current !== storedOriginal && current !== translatedOriginal) {
+        original = current;
+      }
+    }
+
     element.dataset.originalPlaceholder = original;
-    element.setAttribute("placeholder", language === "hi" ? translate(original) : original);
+    element.setAttribute("placeholder", translate(original));
   });
 }
 
