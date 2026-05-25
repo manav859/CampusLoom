@@ -6,30 +6,49 @@ import { useState, useEffect, useRef } from "react";
 import type { Role } from "@/types";
 import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
 
+type NavIconName = "dashboard" | "students" | "teachers" | "classes" | "attendance" | "reports" | "fees" | "analytics" | "notifications" | "activity" | "settings";
+
 type NavLink = {
   label: string;
   href: string;
-  icon: "dashboard" | "students" | "teachers" | "classes" | "attendance" | "reports" | "fees" | "analytics" | "notifications" | "activity" | "settings";
+  icon: NavIconName;
 };
 
-const adminLinks: NavLink[] = [
+type NavItem = NavLink | {
+  children: NavLink[];
+  icon: NavIconName;
+  label: string;
+};
+
+const adminLinks: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
-  { label: "Students", href: "/students", icon: "students" },
-  { label: "Teachers", href: "/teachers", icon: "teachers" },
-  { label: "Classes", href: "/classes", icon: "classes" },
-  { label: "Attendance", href: "/attendance", icon: "attendance" },
-  { label: "Homework", href: "/teacher/homework", icon: "reports" },
-  { label: "Marks", href: "/teacher/marks", icon: "analytics" },
-  { label: "Comms hub", href: "/teacher/communication", icon: "notifications" },
+  { label: "Student", href: "/students", icon: "students" },
+  {
+    label: "Teacher",
+    icon: "teachers",
+    children: [
+      { label: "Teacher", href: "/teachers", icon: "teachers" },
+      { label: "Classes", href: "/classes", icon: "classes" },
+      { label: "Attendance", href: "/attendance", icon: "attendance" },
+      { label: "Homework", href: "/teacher/homework", icon: "reports" }
+    ]
+  },
+  { label: "Communication", href: "/teacher/communication", icon: "notifications" },
   { label: "Reports", href: "/reports", icon: "reports" },
   { label: "Fees", href: "/fees", icon: "fees" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
-  { label: "Message logs", href: "/notifications", icon: "notifications" },
-  { label: "Activity logs", href: "/activity-logs", icon: "activity" },
-  { label: "Settings", href: "/settings", icon: "settings" }
+  {
+    label: "Logs",
+    icon: "activity",
+    children: [
+      { label: "Message logs", href: "/notifications", icon: "notifications" },
+      { label: "Activity Logs", href: "/activity-logs", icon: "activity" }
+    ]
+  },
+  { label: "Setting", href: "/settings", icon: "settings" }
 ];
 
-const teacherLinks: NavLink[] = [
+const teacherLinks: NavItem[] = [
   { label: "Dashboard", href: "/teacher", icon: "dashboard" },
   { label: "Classes", href: "/teacher/classes", icon: "classes" },
   { label: "Homework", href: "/teacher/homework", icon: "reports" },
@@ -39,13 +58,13 @@ const teacherLinks: NavLink[] = [
   { label: "Students", href: "/students", icon: "students" }
 ];
 
-const accountantLinks: NavLink[] = [
+const accountantLinks: NavItem[] = [
   { label: "Fees", href: "/fees", icon: "fees" },
-  { label: "Students", href: "/students", icon: "students" }
+  { label: "Student", href: "/students", icon: "students" }
 ];
 
-const parentLinks: NavLink[] = [
-  { label: "Students", href: "/students", icon: "students" }
+const parentLinks: NavItem[] = [
+  { label: "Student", href: "/students", icon: "students" }
 ];
 
 function isAdminRole(role: Role) {
@@ -67,7 +86,11 @@ function isActiveLink(pathname: string, href: string) {
   return normalized === href || normalized.startsWith(`${href}/`);
 }
 
-function NavIcon({ icon, active }: { icon: NavLink["icon"]; active: boolean }) {
+function hasChildren(item: NavItem): item is Extract<NavItem, { children: NavLink[] }> {
+  return "children" in item;
+}
+
+function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
   const color = active ? "#ffffff" : "#86868b";
 
   if (icon === "dashboard") {
@@ -170,6 +193,7 @@ export function Sidebar({
   const links = linksForRole(role);
 
   const [isHovered, setIsHovered] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const asideRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -190,6 +214,18 @@ export function Sidebar({
 
   const isOpenDesktop = isHovered || isPinned;
   const isExpanded = open || isOpenDesktop;
+
+  useEffect(() => {
+    setOpenGroups((current) => {
+      const next = { ...current };
+      for (const item of links) {
+        if (hasChildren(item) && item.children.some((child) => isActiveLink(pathname, child.href))) {
+          next[item.label] = true;
+        }
+      }
+      return next;
+    });
+  }, [links, pathname]);
 
   const labelClass = `transition-all duration-300 ease-in-out whitespace-nowrap truncate md:transition-all ${
     isExpanded ? "opacity-100 max-w-[150px] ml-2.5" : "opacity-100 max-w-[150px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
@@ -240,13 +276,62 @@ export function Sidebar({
         <nav className={`mt-3 flex-1 space-y-0.5 px-2.5 pb-3 ${
           isExpanded ? "overflow-y-auto" : "overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         }`}>
-          {links.map(({ label, href, icon }) => {
-            const active = isActiveLink(pathname, href);
+          {links.map((item) => {
+            if (hasChildren(item)) {
+              const active = item.children.some((child) => isActiveLink(pathname, child.href));
+              const groupOpen = isExpanded && (openGroups[item.label] ?? active);
+
+              return (
+                <div key={item.label}>
+                  <button
+                    className={`group flex min-h-[42px] w-full items-center rounded-lg border py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
+                      isExpanded ? "justify-start px-3" : "justify-center px-0"
+                    } ${
+                      active
+                        ? "border-[#0071e3] bg-[#0071e3] text-white shadow-md shadow-blue-500/20"
+                        : "border-transparent text-[#424245] hover:border-[#0071e3] hover:text-[#1d1d1f]"
+                    }`}
+                    onClick={() => setOpenGroups((current) => ({ ...current, [item.label]: !(current[item.label] ?? active) }))}
+                    type="button"
+                  >
+                    <NavIcon active={active} icon={item.icon} />
+                    <span className={labelClass}>{item.label}</span>
+                    <svg className={`ml-auto h-3.5 w-3.5 transition-transform duration-300 ${isExpanded ? "block" : "hidden"} ${groupOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 16 16">
+                      <path d="m4 6 4 4 4-4" stroke={active ? "#ffffff" : "#86868b"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+                    </svg>
+                  </button>
+                  <div className={`grid transition-all duration-300 ease-in-out ${groupOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                    <div className="overflow-hidden">
+                      <div className="ml-5 mt-1 space-y-1 rounded-[10px] border border-[#E2E7EE] bg-[#F7F8FB] p-1.5">
+                        {item.children.map((child) => {
+                          const childActive = isActiveLink(pathname, child.href);
+                          return (
+                            <Link
+                              className={`flex min-h-9 items-center gap-2 rounded-[7px] px-3 text-[12px] font-semibold transition-colors ${
+                                childActive ? "bg-white text-[#2456E6] shadow-[0_1px_2px_rgba(15,20,25,0.06)]" : "text-[#5A6573] hover:bg-white hover:text-[#1d1d1f]"
+                              }`}
+                              href={withSchoolPath(child.href, pathname)}
+                              key={child.href}
+                              onClick={onClose}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${childActive ? "bg-[#2456E6]" : "bg-[#A0A7B2]"}`} />
+                              <span className="truncate">{child.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            const active = isActiveLink(pathname, item.href);
 
             return (
               <Link
-                key={href}
-                href={withSchoolPath(href, pathname)}
+                key={item.href}
+                href={withSchoolPath(item.href, pathname)}
                 onClick={onClose}
                 className={`group flex min-h-[42px] items-center rounded-lg border py-2 text-[13px] font-semibold transition-all duration-300 ease-apple ${
                   isExpanded ? "justify-start px-3" : "justify-center px-0"
@@ -256,8 +341,8 @@ export function Sidebar({
                     : "border-transparent text-[#424245] hover:border-[#0071e3] hover:text-[#1d1d1f]"
                 }`}
               >
-                <NavIcon active={active} icon={icon} />
-                <span className={labelClass}>{label}</span>
+                <NavIcon active={active} icon={item.icon} />
+                <span className={labelClass}>{item.label}</span>
               </Link>
             );
           })}

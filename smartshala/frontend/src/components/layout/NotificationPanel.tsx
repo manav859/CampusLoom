@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import type { NotificationLog } from "@/lib/api";
 
 type PanelNotification = {
+  href: string;
   id: string;
   icon: "absence" | "payment" | "alert";
   message: string;
@@ -20,12 +22,28 @@ function formatTime(value: string | null) {
   }).format(new Date(value));
 }
 
+function hrefForLog(log: NotificationLog) {
+  if ((log.kind === "FEE_REMINDER" || log.kind === "OVERDUE_FEE" || log.kind === "PAYMENT_RECEIPT") && log.student?.id) {
+    return `/fees/${log.student.id}`;
+  }
+
+  if ((log.kind === "LOW_ATTENDANCE" || log.kind === "ABSENCE") && log.student?.id) {
+    return `/students/${log.student.id}`;
+  }
+
+  if (log.kind === "LOW_ATTENDANCE") return "/analytics";
+  if (log.kind === "FEE_REMINDER" || log.kind === "OVERDUE_FEE") return "/fees/defaulters";
+  if (log.kind === "MONTHLY_REPORT") return "/reports";
+  return "/notifications";
+}
+
 function mapLog(log: NotificationLog): PanelNotification {
   const isAttendance = log.kind === "ABSENCE" || log.kind === "LOW_ATTENDANCE";
   const isPayment = log.kind === "PAYMENT_RECEIPT";
   const isFeeAlert = log.kind === "FEE_REMINDER" || log.kind === "OVERDUE_FEE";
 
   return {
+    href: hrefForLog(log),
     id: log.id,
     icon: isAttendance ? "absence" : isPayment ? "payment" : "alert",
     message: log.student?.fullName ? `${log.student.fullName}: ${log.message}` : log.message,
@@ -133,13 +151,16 @@ export function NotificationPanel({
               notifications.map((n) => {
                 const style = typeStyles[n.type];
                 return (
-                  <div
+                  <Link
                     key={n.id}
-                    className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-[#f5f5f7]/80 transition-colors cursor-pointer group"
+                    className="group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-[#f5f5f7]/80"
+                    href={n.href}
+                    onClick={onClose}
+                    title={n.message}
                   >
                     {iconMap[n.icon]}
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium text-[#1d1d1f] truncate">{n.message}</p>
+                      <p className="truncate text-[13px] font-medium text-[#1d1d1f] group-hover:whitespace-normal group-hover:break-words">{n.message}</p>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
                       <span className="text-[11px] text-[#86868b] font-medium">{n.time}</span>
@@ -147,7 +168,7 @@ export function NotificationPanel({
                         {n.type}
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 );
               })
             )}
