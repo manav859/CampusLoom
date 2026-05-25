@@ -193,35 +193,75 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
           </div>
           <StatusPill label={`${analytics.exams.length} marks`} tone={hasExams ? "good" : "neutral"} />
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left text-[13px]">
-            <thead className="table-head">
-              <tr>
+        <div className="space-y-3 p-4 md:hidden">
+          {!hasExams ? (
+            <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4">
+              <EmptyState headline="No exam marks" description="No exam marks have been recorded for this student yet." />
+            </div>
+          ) : (
+            examRows.map((exam) => (
+              <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-exam-${exam.id}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-[14px] font-semibold text-[#0F1419]">{exam.displayExamName}</h3>
+                    <p className="mt-1 text-[12px] font-medium text-[#5A6573]">{exam.subject}</p>
+                  </div>
+                  <StatusPill label={exam.grade} tone={exam.percentage >= 70 ? "good" : exam.percentage >= 50 ? "warn" : "danger"} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3">
+                    <p className="font-semibold text-[#7A8390]">Marks</p>
+                    <p className="mt-1 text-[15px] font-bold text-[#0F1419]">{exam.marks}</p>
+                  </div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3">
+                    <p className="font-semibold text-[#7A8390]">Score</p>
+                    <p className="mt-1 text-[15px] font-bold text-[#0F1419]">{exam.percentage}%</p>
+                  </div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3">
+                    <p className="font-semibold text-[#7A8390]">Class avg</p>
+                    <p className="mt-1 text-[15px] font-bold text-[#0F1419]">{exam.classAverage}%</p>
+                  </div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3">
+                    <p className="font-semibold text-[#7A8390]">Rank</p>
+                    <p className="mt-1 text-[15px] font-bold text-[#0F1419]">{exam.rank ? `#${exam.rank}` : "-"}</p>
+                  </div>
+                </div>
+                <p className={`mt-3 text-[12px] font-semibold ${comparisonTone(exam.percentage, exam.classAverage)}`}>
+                  {comparisonText(exam.percentage, exam.classAverage)}
+                </p>
+              </article>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[860px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
+            <thead>
+              <tr className="bg-[#DDECF8]">
                 {["Exam Name", "Subject", "Marks", "%", "Class Average", "Vs class", "Grade", "Rank"].map((head) => (
-                  <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+            <tbody>
               {!hasExams ? (
                 <tr>
-                  <td className="px-5 py-8" colSpan={8}>
+                  <td className="px-5 py-12 text-center" colSpan={8}>
                     <EmptyState headline="No exam marks" description="No exam marks have been recorded for this student yet." />
                   </td>
                 </tr>
               ) : (
                 examRows.map((exam) => (
-                  <tr key={exam.id} className="table-row">
-                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{exam.displayExamName}</td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{exam.subject}</td>
-                    <td className="px-5 py-4 text-[#1d1d1f]">{exam.marks}</td>
-                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{exam.percentage}%</td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{exam.classAverage}%</td>
-                    <td className={`px-5 py-4 text-[12px] font-semibold ${comparisonTone(exam.percentage, exam.classAverage)}`}>
+                  <tr key={exam.id} className="transition-colors duration-200 hover:bg-[#F8FBFD]">
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#1d1d1f]">{exam.displayExamName}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{exam.subject}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#1d1d1f]">{exam.marks}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#1d1d1f]">{exam.percentage}%</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{exam.classAverage}%</td>
+                    <td className={`border-b border-[#C9D3DE] px-4 py-4 text-center text-[12px] font-semibold ${comparisonTone(exam.percentage, exam.classAverage)}`}>
                       {comparisonText(exam.percentage, exam.classAverage)}
                     </td>
-                    <td className="px-5 py-4"><StatusPill label={exam.grade} tone={exam.percentage >= 70 ? "good" : exam.percentage >= 50 ? "warn" : "danger"} /></td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{exam.rank ? `#${exam.rank}` : "Not ranked"}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center"><StatusPill label={exam.grade} tone={exam.percentage >= 70 ? "good" : exam.percentage >= 50 ? "warn" : "danger"} /></td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{exam.rank ? `#${exam.rank}` : "Not ranked"}</td>
                   </tr>
                 ))
               )}
