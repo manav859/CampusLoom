@@ -8,8 +8,18 @@ import { isRetryableError } from "../core/prisma.js";
 
 export function errorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (error instanceof ZodError) {
+    const flat = error.flatten();
+    const fieldMessages = Object.entries(flat.fieldErrors)
+      .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(", ")}`)
+      .join("; ");
+    const formMessages = flat.formErrors.length > 0 ? flat.formErrors.join("; ") : "";
+    const summary = [fieldMessages, formMessages].filter(Boolean).join("; ");
     return res.status(400).json({
-      error: { code: "VALIDATION_ERROR", message: "Invalid request input", details: error.flatten() }
+      error: {
+        code: "VALIDATION_ERROR",
+        message: summary || "Invalid request input",
+        details: flat
+      }
     });
   }
 
