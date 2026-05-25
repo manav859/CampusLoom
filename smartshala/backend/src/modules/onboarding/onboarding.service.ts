@@ -1,4 +1,4 @@
-import { PaymentStatus, PlanType } from "../../../node_modules/@smartshala/master-client/index.js";
+import { PaymentStatus, PlanType, TenantDeletionStatus } from "../../../node_modules/@smartshala/master-client/index.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
 import { logger } from "../../config/logger.js";
@@ -25,9 +25,12 @@ type OnboardingInput = {
 export async function onboardSchool(input: OnboardingInput) {
   if (!env.MASTER_DATABASE_URL) throw new AppError(503, "Master database is not configured", "MASTER_DB_NOT_CONFIGURED");
 
-  // Check for duplicate email
+  // Check for duplicate email (only among non-deleted schools)
   const existingSchool = await masterPrisma.school.findFirst({
-    where: { email: input.email.trim().toLowerCase() },
+    where: {
+      email: input.email.trim().toLowerCase(),
+      deletionStatus: { not: TenantDeletionStatus.DELETED }
+    },
     select: { schoolId: true, schoolName: true }
   });
   if (existingSchool) {

@@ -68,6 +68,7 @@ export async function listSchoolsForSuperAdmin() {
   assertMasterConfigured();
   await expireTrials();
   const schools = await masterPrisma.school.findMany({
+    where: { deletionStatus: { not: TenantDeletionStatus.DELETED } },
     orderBy: { createdAt: "desc" },
     select: {
       schoolId: true,
