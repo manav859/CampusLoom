@@ -37,3 +37,11 @@ export const updateSchoolStatusSchema = z.object({
 export const extendSchoolAccessSchema = z.object({
   days: z.coerce.number().int().min(1).max(365).default(30)
 });
+
+export const createTenantUserSchema = z.object({
+  fullName: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().optional(),
+  phone: z.string().trim().min(10).max(20),
+  password: z.string().min(8).max(72),
+  role: z.nativeEnum(UserRole)
+});

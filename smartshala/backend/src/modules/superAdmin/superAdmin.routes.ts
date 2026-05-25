@@ -5,6 +5,7 @@ import { rateLimit } from "../../middleware/rateLimit.js";
 import { requireSuperAdmin } from "./superAdmin.middleware.js";
 import {
   completePasswordResetRequest,
+  createTenantUser,
   deleteSchool,
   dismissPasswordResetRequest,
   extendSchoolAccess,
@@ -18,6 +19,7 @@ import {
   updateTenantUserStatus
 } from "./superAdmin.service.js";
 import {
+  createTenantUserSchema,
   passwordResetRequestParamSchema,
   extendSchoolAccessSchema,
   resetUserPasswordSchema,
@@ -93,6 +95,14 @@ superAdminRouter.get(
   validate({ params: schoolIdParamSchema }),
   asyncHandler(async (req, res) => {
     res.json(await listSchoolUsers(req.params.schoolId));
+  })
+);
+
+superAdminRouter.post(
+  "/schools/:schoolId/users",
+  validate({ params: schoolIdParamSchema, body: createTenantUserSchema }),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await createTenantUser(req.params.schoolId, req.body));
   })
 );
 

@@ -259,6 +259,43 @@ export async function updateTenantUserRole(schoolId: string, userId: string, rol
   });
 }
 
+export async function createTenantUser(
+  schoolId: string,
+  data: { fullName: string; email?: string; phone: string; password: string; role: UserRole }
+) {
+  const school = await tenantSchoolOrThrow(schoolId);
+  const tenantPrisma = getTenantPrismaClient(school.dbUrl);
+  const passwordHash = await bcrypt.hash(data.password, 10);
+
+  // Get the school record inside the tenant DB to set the schoolId FK
+  const tenantSchool = await tenantPrisma.school.findFirst({ select: { id: true } });
+  if (!tenantSchool) {
+    throw new AppError(500, "Tenant school record not found in the school database", "TENANT_SCHOOL_NOT_FOUND");
+  }
+
+  return tenantPrisma.user.create({
+    data: {
+      schoolId: tenantSchool.id,
+      fullName: data.fullName,
+      email: data.email || null,
+      phone: data.phone,
+      passwordHash,
+      role: data.role,
+      isActive: true,
+      status: UserStatus.ACTIVE
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      role: true,
+      status: true,
+      isActive: true
+    }
+  });
+}
+
 export async function updateSchoolActiveStatus(schoolId: string, isActive: boolean) {
   assertMasterConfigured();
   const school = await masterPrisma.school.findUnique({ where: { schoolId } });
@@ -317,14 +354,48 @@ export async function extendSchoolAccess(schoolId: string, days: number) {
 
 export async function deleteSchool(schoolId: string) {
   assertMasterConfigured();
-  const school = await masterPrisma.school.findUnique({ where: { schoolId } });
+
+  let school;
+  try {
+    school = await masterPrisma.school.findUnique({ where: { schoolId } });
+  } catch (err) {
+    logger.error({ err, schoolId }, "Failed to look up school for deletion");
+    throw new AppError(500, "Failed to look up school. Please try again.", "SCHOOL_LOOKUP_FAILED");
+  }
+
   if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
 
   if (school.deletionStatus === TenantDeletionStatus.DELETED) {
     throw new AppError(409, "School is already deleted", "SCHOOL_ALREADY_DELETED");
   }
 
-  // Try to drop the Neon database if configured
+  // Step 1: Mark as deleted in master DB first (so it's consistent even if Neon fails)
+  const now = new Date();
+  let updated;
+  try {
+    updated = await masterPrisma.school.update({
+      where: { schoolId },
+      data: {
+        isActive: false,
+        deletionStatus: TenantDeletionStatus.DELETED,
+        deletionExecutedAt: now,
+        deletionRequestedAt: school.deletionRequestedAt ?? now,
+        deletionScheduledAt: null
+      },
+      select: {
+        schoolId: true,
+        schoolName: true,
+        isActive: true,
+        dbName: true,
+        deletionStatus: true
+      }
+    });
+  } catch (err) {
+    logger.error({ err, schoolId }, "Failed to mark school as deleted in master DB");
+    throw new AppError(500, "Failed to update school record. Please try again.", "SCHOOL_UPDATE_FAILED");
+  }
+
+  // Step 2: Try to drop the Neon database (best-effort, don't fail the operation)
   if (env.NEON_API_KEY && env.NEON_PROJECT_ID && env.NEON_BRANCH_ID) {
     try {
       const url = `https://console.neon.tech/api/v2/projects/${env.NEON_PROJECT_ID}/branches/${env.NEON_BRANCH_ID}/databases/${encodeURIComponent(school.dbName)}`;
@@ -339,29 +410,11 @@ export async function deleteSchool(schoolId: string) {
         logger.warn({ status: response.status, dbName: school.dbName }, "Neon database deletion returned non-ok status during super admin delete");
       }
     } catch (error) {
-      logger.warn({ err: error, dbName: school.dbName }, "Neon database deletion failed during super admin delete — continuing with record cleanup");
+      logger.warn({ err: error, dbName: school.dbName }, "Neon database deletion failed during super admin delete — school record already marked as deleted");
     }
   }
 
-  const now = new Date();
-  const updated = await masterPrisma.school.update({
-    where: { schoolId },
-    data: {
-      isActive: false,
-      deletionStatus: TenantDeletionStatus.DELETED,
-      deletionExecutedAt: now,
-      deletionRequestedAt: school.deletionRequestedAt ?? now,
-      deletionScheduledAt: null
-    },
-    select: {
-      schoolId: true,
-      schoolName: true,
-      isActive: true,
-      dbName: true,
-      deletionStatus: true
-    }
-  });
-
+  // Step 3: Log the deletion
   await masterPrisma.onboardingLog.create({
     data: {
       schoolId,

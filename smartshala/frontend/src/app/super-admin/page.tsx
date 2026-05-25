@@ -104,7 +104,10 @@ async function superAdminFetch<T>(path: string, options: RequestInit = {}): Prom
     throw new Error(payload?.error?.message ?? "Request failed");
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 export default function SuperAdminPage() {
@@ -122,6 +125,8 @@ export default function SuperAdminPage() {
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUser, setNewUser] = useState({ fullName: "", email: "", phone: "", password: "", role: "TEACHER" as TenantUser["role"] });
 
   useEffect(() => {
     const storedToken = window.localStorage.getItem("smartshala.superAdminToken");
@@ -356,6 +361,37 @@ export default function SuperAdminPage() {
     }
   }
 
+  async function createUser() {
+    if (!selectedSchoolId) return;
+    if (!newUser.fullName.trim() || !newUser.phone.trim() || newUser.password.length < 8) {
+      setError("Name, phone, and password (min 8 chars) are required.");
+      return;
+    }
+    setBusyId("new-user");
+    setError("");
+    setNotice("");
+    try {
+      await superAdminFetch(`/schools/${selectedSchoolId}/users`, {
+        method: "POST",
+        body: JSON.stringify({
+          fullName: newUser.fullName.trim(),
+          email: newUser.email.trim() || undefined,
+          phone: newUser.phone.trim(),
+          password: newUser.password,
+          role: newUser.role
+        })
+      });
+      setNewUser({ fullName: "", email: "", phone: "", password: "", role: "TEACHER" });
+      setShowAddUser(false);
+      await loadUsers(selectedSchoolId);
+      setNotice(`User ${newUser.fullName} created successfully.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create user");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   function logout() {
     window.localStorage.removeItem("smartshala.superAdminToken");
     setToken(null);
@@ -524,8 +560,74 @@ export default function SuperAdminPage() {
                   <h2 className="text-lg font-semibold">Users</h2>
                   <p className="text-sm text-[#64748b]">{usersPayload?.school.schoolName ?? "Select a school"}</p>
                 </div>
-                <span className="text-sm font-semibold text-[#64748b]">{usersPayload?.users.length ?? 0} users</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-[#64748b]">{usersPayload?.users.length ?? 0} users</span>
+                  {selectedSchoolId ? (
+                    <button
+                      className="min-h-9 rounded-lg bg-[#2456e6] px-4 text-xs font-bold text-white disabled:opacity-60"
+                      disabled={!selectedSchoolId}
+                      onClick={() => setShowAddUser((v) => !v)}
+                      type="button"
+                    >
+                      {showAddUser ? "Cancel" : "+ Add user"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
+              {showAddUser && selectedSchoolId ? (
+                <div className="border-b border-[#eef2f7] bg-[#f8fafc] p-4">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <input
+                      className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+                      disabled={busyId === "new-user"}
+                      onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
+                      placeholder="Full name *"
+                      value={newUser.fullName}
+                    />
+                    <input
+                      className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+                      disabled={busyId === "new-user"}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                      placeholder="Email (optional)"
+                      type="email"
+                      value={newUser.email}
+                    />
+                    <input
+                      className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+                      disabled={busyId === "new-user"}
+                      onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                      placeholder="Phone *"
+                      value={newUser.phone}
+                    />
+                    <input
+                      className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+                      disabled={busyId === "new-user"}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                      placeholder="Password (min 8 chars) *"
+                      type="password"
+                      value={newUser.password}
+                    />
+                    <select
+                      className="min-h-10 rounded-lg border border-[#dce3ef] bg-white px-3 text-sm font-semibold"
+                      disabled={busyId === "new-user"}
+                      onChange={(e) => setNewUser({ ...newUser, role: e.target.value as TenantUser["role"] })}
+                      value={newUser.role}
+                    >
+                      {roles.map((role) => (
+                        <option key={role} value={role}>{role}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="min-h-10 rounded-lg bg-[#2456e6] px-4 text-sm font-bold text-white disabled:opacity-60"
+                      disabled={busyId === "new-user"}
+                      onClick={createUser}
+                      type="button"
+                    >
+                      {busyId === "new-user" ? "Creating..." : "Create user"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[860px] border-collapse text-sm">
                   <thead className="bg-[#f8fafc] text-left text-xs uppercase tracking-wide text-[#64748b]">
