@@ -6,11 +6,11 @@ import { AlertPanel } from "@/components/dashboard/AlertPanel";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { FeeOverviewChart } from "@/components/dashboard/FeeOverviewChart";
 import { ActivityFeed, type ActivityEvent } from "@/components/dashboard/ActivityFeed";
-import { KpiCard } from "@/components/ui/KpiCard";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch, studentsApi, whatsappApi, type FeeDefaulter, type FeesDashboard, type NotificationLog } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
+import type { Kpi } from "@/types";
 
 type DashboardResponse = {
   role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
@@ -85,6 +85,93 @@ function buildActivityEvents(data: DashboardResponse | null, logs: NotificationL
   }));
 
   return [...notificationEvents, ...alertEvents, ...attendanceEvents, ...feeEvents].slice(0, 8);
+}
+
+const dashboardKpiStyles = [
+  { bg: "bg-[#F1E4FF]", icon: "text-[#A96BF4]" },
+  { bg: "bg-[#E5F7FF]", icon: "text-[#67C3F4]" },
+  { bg: "bg-[#FFF0E8]", icon: "text-[#FF9867]" },
+  { bg: "bg-[#EAF9EB]", icon: "text-[#55C979]" },
+  { bg: "bg-[#F0E8FF]", icon: "text-[#8B6CF6]" }
+];
+
+function DashboardKpiIcon({ label, className }: { label: string; className: string }) {
+  const key = label.toLowerCase();
+
+  if (key.includes("student")) {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 48 48">
+        <path d="m24 7 17 7-17 7-17-7 17-7Z" fill="currentColor" opacity=".95" />
+        <path d="M13 18v8c0 5 4.9 9 11 9s11-4 11-9v-8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+        <path d="M9 16v10" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
+        <path d="M16 39c2.2-4 5-6 8-6s5.8 2 8 6" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
+      </svg>
+    );
+  }
+
+  if (key.includes("teacher") || key.includes("marked") || key.includes("attendance")) {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 48 48">
+        <circle cx="24" cy="13" r="7" fill="currentColor" />
+        <path d="M12 40c1.2-10 6.2-15 12-15s10.8 5 12 15H12Z" fill="currentColor" opacity=".85" />
+        <path d="m20 27 4 11 4-11" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+      </svg>
+    );
+  }
+
+  if (key.includes("parent") || key.includes("defaulter") || key.includes("homework")) {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 48 48">
+        <circle cx="24" cy="15" r="7" fill="currentColor" />
+        <circle cx="12" cy="19" r="5" fill="currentColor" opacity=".85" />
+        <circle cx="36" cy="19" r="5" fill="currentColor" opacity=".85" />
+        <path d="M11 39c1-8 5.6-12 13-12s12 4 13 12" fill="currentColor" opacity=".95" />
+        <path d="M4 38c.7-6 3.6-9 8.5-9 2.2 0 4 .6 5.4 1.8" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
+        <path d="M30.1 30.8c1.4-1.2 3.2-1.8 5.4-1.8 4.9 0 7.8 3 8.5 9" stroke="currentColor" strokeLinecap="round" strokeWidth="4" />
+      </svg>
+    );
+  }
+
+  if (key.includes("earning") || key.includes("collected") || key.includes("fee")) {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 48 48">
+        <path d="M16 13h16l-4 7h-8l-4-7Z" fill="currentColor" opacity=".85" />
+        <path d="M11 38c0-10 5.8-18 13-18s13 8 13 18c0 3-2.3 5-5.2 5H16.2c-2.9 0-5.2-2-5.2-5Z" fill="currentColor" />
+        <path d="M24 28v9M20.5 31c0-1.7 1.6-3 3.7-3 1.4 0 2.6.5 3.3 1.3M27.5 35.7c-.7.8-1.9 1.3-3.3 1.3-2.1 0-3.7-1.3-3.7-3" stroke="white" strokeLinecap="round" strokeWidth="2.5" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 48 48">
+      <path d="M24 7 43 40H5L24 7Z" fill="currentColor" opacity=".95" />
+      <path d="M24 18v10M24 34h.01" stroke="white" strokeLinecap="round" strokeWidth="4" />
+    </svg>
+  );
+}
+
+function DashboardKpiCard({ kpi, index }: { kpi: Kpi; index: number }) {
+  const style = dashboardKpiStyles[index % dashboardKpiStyles.length];
+  const content = (
+    <div
+      className={`relative flex h-[112px] items-center justify-between overflow-hidden rounded-[8px] px-5 py-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] transition-transform duration-200 hover:-translate-y-0.5 ${style.bg}`}
+      title={kpi.formula}
+    >
+      <div className="min-w-0 pr-3">
+        <p className="truncate text-[15px] font-medium leading-5 text-[#6F7480]">{kpi.label}</p>
+        <p className="mt-2 truncate text-[27px] font-bold leading-8 tracking-normal text-[#111827] [font-variant-numeric:tabular-nums]">{kpi.value}</p>
+      </div>
+      <DashboardKpiIcon label={kpi.label} className={`h-12 w-12 shrink-0 sm:h-14 sm:w-14 ${style.icon}`} />
+    </div>
+  );
+
+  if (!kpi.href) return content;
+
+  return (
+    <Link aria-label={`${kpi.label} details`} className="block rounded-[8px] focus:outline-none focus:ring-2 focus:ring-[#2456E6]/40 focus:ring-offset-2" href={kpi.href}>
+      {content}
+    </Link>
+  );
 }
 
 export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
@@ -310,7 +397,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
-          adminKpis.map((kpi) => <KpiCard key={kpi.label} {...kpi} />)
+          adminKpis.map((kpi, index) => <DashboardKpiCard index={index} key={kpi.label} kpi={kpi} />)
         )}
       </div>
 
