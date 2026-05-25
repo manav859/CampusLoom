@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { StatCardSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { type NotificationLog, whatsappApi } from "@/lib/api";
@@ -11,6 +12,7 @@ import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 type TypeFilter = "all" | NotificationLog["kind"];
 type DeliveryStatus = "Queued" | "Sent" | "Delivered" | "Read" | "Failed";
 type StatusFilter = "all" | DeliveryStatus;
+type TimeFilter = "all" | "today" | "3d" | "1w" | "1m";
 
 const notificationKinds: NotificationLog["kind"][] = [
   "ABSENCE",
@@ -20,6 +22,14 @@ const notificationKinds: NotificationLog["kind"][] = [
   "PAYMENT_RECEIPT",
   "MONTHLY_REPORT",
   "SCHOOL_ALERT"
+];
+const statusOptions = ["Sent", "Delivered", "Read", "Failed", "Queued"] as DeliveryStatus[];
+const timeOptions: { label: string; value: TimeFilter }[] = [
+  { label: "Today", value: "today" },
+  { label: "Past 3 days", value: "3d" },
+  { label: "Past one week", value: "1w" },
+  { label: "Past one month", value: "1m" },
+  { label: "All time", value: "all" }
 ];
 
 function deliveryStatus(log: NotificationLog): DeliveryStatus {
@@ -49,10 +59,24 @@ function isToday(value: string | null) {
   return date.toDateString() === now.toDateString();
 }
 
+function timeMatches(value: string | null, filter: TimeFilter) {
+  if (filter === "all") return true;
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  if (filter === "today") return date.getTime() >= start.getTime();
+  const days = filter === "3d" ? 3 : filter === "1w" ? 7 : 30;
+  start.setDate(start.getDate() - (days - 1));
+  return date.getTime() >= start.getTime();
+}
+
 export default function NotificationsPage() {
   const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [type, setType] = useState<TypeFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [time, setTime] = useState<TimeFilter>("all");
   const [selectedLog, setSelectedLog] = useState<NotificationLog | null>(null);
   const [hoveredLog, setHoveredLog] = useState<{ message: string; x: number; y: number } | null>(null);
   const [retryingId, setRetryingId] = useState("");
@@ -84,8 +108,9 @@ export default function NotificationsPage() {
   const filteredLogs = useMemo(() => logs.filter((log) => {
     const typeMatches = type === "all" || log.kind === type;
     const statusMatches = status === "all" || deliveryStatus(log) === status;
-    return typeMatches && statusMatches;
-  }), [logs, status, type]);
+    const timeFilterMatches = timeMatches(log.sentAt ?? log.createdAt, time);
+    return typeMatches && statusMatches && timeFilterMatches;
+  }), [logs, status, time, type]);
 
   const sentToday = logs.filter((log) => log.status === "SENT" && isToday(log.sentAt ?? log.createdAt)).length;
   const failedCount = logs.filter((log) => log.status === "FAILED").length;
@@ -182,39 +207,81 @@ export default function NotificationsPage() {
         )}
       </section>
 
-      <div className="glass-card-interactive p-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-[13px] font-semibold text-[#1d1d1f]">Type</span>
-            <select className="glass-input mt-2 w-full" onChange={(event) => setType(event.target.value as TypeFilter)} value={type}>
-              <option value="all">All types</option>
-              {notificationKinds.map((kind) => (
-                <option key={kind} value={kind}>{humanizeConstant(kind)}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="text-[13px] font-semibold text-[#1d1d1f]">Status</span>
-            <select className="glass-input mt-2 w-full" onChange={(event) => setStatus(event.target.value as StatusFilter)} value={status}>
-              <option value="all">All status</option>
-              {(["Sent", "Delivered", "Read", "Failed", "Queued"] as DeliveryStatus[]).map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
+      <div className="rounded-[6px] border border-[#C9D3DE] bg-white p-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <CustomSelect
+            ariaLabel="Filter notification type"
+            className="h-11 w-full rounded-[6px] text-[13px]"
+            menuClassName="left-0 right-auto w-full"
+            onChange={(value) => setType(value as TypeFilter)}
+            options={[{ label: "All types", value: "all" }, ...notificationKinds.map((kind) => ({ label: humanizeConstant(kind), value: kind }))]}
+            value={type}
+            wrapperClassName="block w-full"
+          />
+          <CustomSelect
+            ariaLabel="Filter notification status"
+            className="h-11 w-full rounded-[6px] text-[13px]"
+            menuClassName="left-0 right-auto w-full"
+            onChange={(value) => setStatus(value as StatusFilter)}
+            options={[{ label: "All status", value: "all" }, ...statusOptions.map((item) => ({ label: item, value: item }))]}
+            value={status}
+            wrapperClassName="block w-full"
+          />
+          <CustomSelect
+            ariaLabel="Filter notification time"
+            className="h-11 w-full rounded-[6px] text-[13px]"
+            menuClassName="left-0 right-auto w-full"
+            onChange={(value) => setTime(value as TimeFilter)}
+            options={timeOptions}
+            value={time}
+            wrapperClassName="block w-full"
+          />
         </div>
       </div>
 
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
       {notice ? <div className="rounded-xl bg-[#34c759]/10 px-4 py-3 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
-      <div className="overflow-hidden rounded-2xl bg-white border border-[rgba(0,0,0,0.04)] shadow-apple">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-[13px]">
-            <thead className="table-head">
-              <tr>{["Type", "Recipient", "Message", "Status", "Time", "Action"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
+      <div className="overflow-x-auto">
+          <table className="w-full min-w-[1120px] border-collapse bg-white text-left text-[14px] text-[#001B33]">
+            <thead>
+              <tr className="bg-[#DDECF8]">
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#031526]">
+                  <CustomSelect
+                    ariaLabel="Filter type from table"
+                    className="h-8 w-[150px] rounded-[5px] bg-white text-[12px]"
+                    menuClassName="left-0 right-auto w-52"
+                    onChange={(value) => setType(value as TypeFilter)}
+                    options={[{ label: "All types", value: "all" }, ...notificationKinds.map((kind) => ({ label: humanizeConstant(kind), value: kind }))]}
+                    value={type}
+                  />
+                </th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#031526]">Recipient</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#031526]">Message</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#031526]">
+                  <CustomSelect
+                    ariaLabel="Filter status from table"
+                    className="h-8 w-[136px] rounded-[5px] bg-white text-[12px]"
+                    menuClassName="left-0 right-auto w-44"
+                    onChange={(value) => setStatus(value as StatusFilter)}
+                    options={[{ label: "All status", value: "all" }, ...statusOptions.map((item) => ({ label: item, value: item }))]}
+                    value={status}
+                  />
+                </th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#031526]">
+                  <CustomSelect
+                    ariaLabel="Filter time from table"
+                    className="h-8 w-[150px] rounded-[5px] bg-white text-[12px]"
+                    menuClassName="left-0 right-auto w-48"
+                    onChange={(value) => setTime(value as TimeFilter)}
+                    options={timeOptions}
+                    value={time}
+                  />
+                </th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#031526]">Action</th>
+              </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+            <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
               ) : filteredLogs.length === 0 ? (
@@ -223,15 +290,15 @@ export default function NotificationsPage() {
                 filteredLogs.map((log) => {
                   const displayStatus = deliveryStatus(log);
                   return (
-                    <tr key={log.id} className="table-row">
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{humanizeConstant(log.kind)}</td>
-                      <td className="px-5 py-4">
-                        <p className="font-medium text-[#1d1d1f]">{maskPhoneNumber(log.recipientPhone)}</p>
-                        {log.student ? <p className="text-[11px] text-[#86868b]">{log.student.fullName}</p> : null}
+                    <tr key={log.id} className="transition-colors hover:bg-[#F8FBFD]">
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#1d1d1f]">{humanizeConstant(log.kind)}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">
+                        <span className="font-medium text-[#1d1d1f]">{maskPhoneNumber(log.recipientPhone)}</span>
+                        {log.student ? <span className="ml-2 text-[11px] text-[#86868b]">{log.student.fullName}</span> : null}
                       </td>
-                      <td className="max-w-sm px-5 py-4 text-[#6e6e73]">
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-[#6e6e73]">
                         <button
-                          className="text-left hover:text-[#2456E6]"
+                          className="block max-w-[380px] truncate text-left hover:text-[#2456E6]"
                           onClick={() => { setHoveredLog(null); setSelectedLog(log); }}
                           onMouseEnter={(event) => showMessageTooltip(event, log.message)}
                           onMouseLeave={() => setHoveredLog(null)}
@@ -240,13 +307,10 @@ export default function NotificationsPage() {
                         >
                           {truncateText(log.message, 80)}
                         </button>
-                        {log.message.length > 80 ? (
-                          <button className="ml-2 text-[12px] font-semibold text-[#2456E6]" onClick={() => setSelectedLog(log)} type="button">View full</button>
-                        ) : null}
                       </td>
-                      <td className="px-5 py-4"><StatusPill label={displayStatus} tone={statusTone(displayStatus)} /></td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatTime(log.sentAt ?? log.createdAt)}</td>
-                      <td className="px-5 py-4">
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4"><StatusPill label={displayStatus} tone={statusTone(displayStatus)} /></td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#6e6e73]">{formatTime(log.sentAt ?? log.createdAt)}</td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">
                         <div className="flex items-center gap-2">
                           <button
                             className="rounded-lg border border-[#F2B8B5] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#D92D20] hover:bg-[#FFF1F0] disabled:opacity-50"
@@ -274,7 +338,6 @@ export default function NotificationsPage() {
               )}
             </tbody>
           </table>
-        </div>
       </div>
 
       {selectedLog ? (
