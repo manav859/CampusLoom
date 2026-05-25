@@ -62,6 +62,15 @@ function readInitialClassId() {
   return new URLSearchParams(window.location.search).get("classId") ?? "";
 }
 
+function readRememberedClassId() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(attendanceClassStorageKey()) ?? "";
+}
+
+function readBootstrapClassId() {
+  return readInitialClassId() || readRememberedClassId();
+}
+
 function classOptionLabel(classItem: Pick<ClassSummary, "name" | "section">) {
   return classItem.section ? `${classItem.name}-${classItem.section}` : classItem.name;
 }
@@ -125,9 +134,10 @@ function attendanceClassStorageKey() {
 
 export function useAttendance() {
   const initialDate = readInitialDate();
+  const initialClassId = readBootstrapClassId();
   const [classes, setClasses] = useState<ClassSummary[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState("");
-  const [selectedClassName, setSelectedClassName] = useState("");
+  const [selectedClassId, setSelectedClassId] = useState(initialClassId);
+  const [selectedClassName, setSelectedClassName] = useState(initialClassId ? "Selected class" : "");
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [selectedMonth, setSelectedMonth] = useState(monthInputFromDate(initialDate));
   const [students, setStudents] = useState<AttendanceStudent[]>([]);
@@ -217,6 +227,24 @@ export function useAttendance() {
         const initialDate = readInitialDate();
         const initialMonth = monthInputFromDate(initialDate);
         const requestedClassId = readInitialClassId();
+        const rememberedClassId = readRememberedClassId();
+        const bootstrapClassId = requestedClassId || rememberedClassId;
+        let activeRequestId = loadRequestId.current;
+
+        if (bootstrapClassId) {
+          activeRequestId = loadRequestId.current + 1;
+          loadRequestId.current = activeRequestId;
+          setSelectedClassId(bootstrapClassId);
+          setSelectedClassName("Selected class");
+          setSelectedDate(initialDate);
+          setSelectedMonth(initialMonth);
+          updateAttendanceUrl(bootstrapClassId, initialDate);
+          void Promise.all([
+            loadClass(bootstrapClassId, initialDate, activeRequestId),
+            loadMonth(bootstrapClassId, initialMonth, activeRequestId)
+          ]);
+        }
+
         const [classResult, dailyResult] = await Promise.allSettled([
           withTimeout(classesApi.list(), 6000),
           withTimeout(attendanceApi.daily(), 6000)
@@ -231,20 +259,34 @@ export function useAttendance() {
         const availableClasses = [...mergedClasses.values()];
         setClasses(availableClasses);
 
-        const rememberedClassId = window.localStorage.getItem(attendanceClassStorageKey());
         const requestedClass = availableClasses.find((classItem) => classItem.id === requestedClassId);
         const rememberedClass = availableClasses.find((classItem) => classItem.id === rememberedClassId);
+        const bootstrapClass = availableClasses.find((classItem) => classItem.id === bootstrapClassId);
         const firstClass =
           requestedClass ??
           rememberedClass ??
           availableClasses[0] ??
           null;
-        const firstClassId = (firstClass?.id ?? requestedClassId) || rememberedClassId || "";
-        const requestId = loadRequestId.current + 1;
-        loadRequestId.current = requestId;
-        setSelectedClassId(firstClassId);
-        setSelectedClassName(firstClass ? classOptionLabel(firstClass) : firstClassId ? "Selected class" : "");
+
+        if (bootstrapClassId) {
+          if (bootstrapClass) setSelectedClassName(classOptionLabel(bootstrapClass));
+          if (!requestedClassId && !bootstrapClass && firstClass) {
+            const requestId = loadRequestId.current + 1;
+            loadRequestId.current = requestId;
+            setSelectedClassId(firstClass.id);
+            setSelectedClassName(classOptionLabel(firstClass));
+            updateAttendanceUrl(firstClass.id, initialDate);
+            void Promise.all([loadClass(firstClass.id, initialDate, requestId), loadMonth(firstClass.id, initialMonth, requestId)]);
+          }
+          return;
+        }
+
+        const firstClassId = firstClass?.id ?? "";
         if (firstClassId) {
+          const requestId = activeRequestId + 1;
+          loadRequestId.current = requestId;
+          setSelectedClassId(firstClassId);
+          setSelectedClassName(firstClass ? classOptionLabel(firstClass) : "Selected class");
           setSelectedDate(initialDate);
           setSelectedMonth(initialMonth);
           updateAttendanceUrl(firstClassId, initialDate);
