@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { KpiCard } from "@/components/ui/KpiCard";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -82,6 +81,108 @@ function downloadCsv(rows: RiskRow[]) {
   URL.revokeObjectURL(url);
 }
 
+type AnalyticsKpi = {
+  helper?: string;
+  icon: "attendance" | "combined" | "repeat" | "high" | "medium" | "low";
+  label: string;
+  tone: "danger" | "warn" | "neutral";
+  value: number | string;
+};
+
+const kpiToneStyles = {
+  danger: {
+    border: "border-[#C8242C]",
+    iconBg: "bg-[#FCE3E5]",
+    iconText: "text-[#C8242C]"
+  },
+  warn: {
+    border: "border-[#B95A00]",
+    iconBg: "bg-[#FFF2DC]",
+    iconText: "text-[#B95A00]"
+  },
+  neutral: {
+    border: "border-[#8C96A3]",
+    iconBg: "bg-[#F2F5F8]",
+    iconText: "text-[#5A6573]"
+  }
+};
+
+function AnalyticsKpiIcon({ type, className }: { type: AnalyticsKpi["icon"]; className: string }) {
+  if (type === "attendance") {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 32 32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+        <rect x="6" y="7" width="20" height="19" rx="3" />
+        <path d="M11 5v5M21 5v5M6 13h20" />
+        <path d="m11 21 3 3 7-8" />
+      </svg>
+    );
+  }
+
+  if (type === "combined") {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 32 32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+        <path d="M16 5 29 27H3L16 5Z" />
+        <path d="M16 12v7M16 23h.01" />
+        <circle cx="8" cy="24" r="2" />
+        <circle cx="24" cy="24" r="2" />
+      </svg>
+    );
+  }
+
+  if (type === "repeat") {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 32 32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+        <path d="M25 10a10 10 0 1 0 2 11" />
+        <path d="M25 5v5h-5" />
+        <path d="M16 10v7l5 3" />
+      </svg>
+    );
+  }
+
+  if (type === "high") {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 32 32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+        <path d="M9 24V13a7 7 0 0 1 14 0v11" />
+        <path d="M5 24h22M12 28h8" />
+        <path d="M6 10 3 7M26 10l3-3M16 3V1" />
+      </svg>
+    );
+  }
+
+  if (type === "medium") {
+    return (
+      <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 32 32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+        <path d="M16 6 28 27H4L16 6Z" />
+        <path d="M16 13v6M16 23h.01" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 32 32" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2">
+      <path d="M16 4 26 8v8c0 6-4.2 10-10 12C10.2 26 6 22 6 16V8l10-4Z" />
+      <path d="m11 16 3 3 7-8" />
+    </svg>
+  );
+}
+
+function AnalyticsKpiCard({ helper, icon, label, tone, value }: AnalyticsKpi) {
+  const styles = kpiToneStyles[tone];
+
+  return (
+    <div className={`flex h-[112px] min-w-0 items-center gap-3 rounded-[8px] border bg-white p-4 shadow-[var(--shadow-card)] sm:gap-4 sm:p-5 ${styles.border}`}>
+      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] sm:h-14 sm:w-14 ${styles.iconBg}`}>
+        <AnalyticsKpiIcon type={icon} className={`h-6 w-6 sm:h-7 sm:w-7 ${styles.iconText}`} />
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-[14px] font-semibold leading-5 text-[#52687D] sm:text-[15px]">{label}</p>
+        <p className="mt-1 truncate text-[26px] font-bold leading-8 text-[#0F1419] [font-variant-numeric:tabular-nums]">{value}</p>
+        {helper ? <p className="mt-0.5 truncate text-[12px] font-semibold leading-4 text-[#5A6573]" title={helper}>{helper}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const [risk, setRisk] = useState<RiskSummary | null>(null);
   const [classes, setClasses] = useState<ClassPerformance[]>([]);
@@ -116,6 +217,14 @@ export default function AnalyticsPage() {
     () => (risk?.studentRisks ?? []).filter((row) => !resolvedIds.includes(row.studentId)),
     [resolvedIds, risk?.studentRisks]
   );
+  const kpis: AnalyticsKpi[] = [
+    { icon: "attendance", label: "Below 75%", value: risk?.lowAttendanceCount ?? "...", helper: risk ? trendText(risk.trends.lowAttendance) : undefined, tone: "danger" },
+    { icon: "combined", label: "Combined risk", value: risk?.combinedRiskCount ?? "...", tone: "danger" },
+    { icon: "repeat", label: "Repeat absentees", value: risk?.repeatAbsenteeCount ?? "...", tone: "warn" },
+    { icon: "high", label: "High severity", value: risk?.severityCounts.HIGH ?? "...", tone: "danger" },
+    { icon: "medium", label: "Medium severity", value: risk?.severityCounts.MEDIUM ?? "...", tone: "warn" },
+    { icon: "low", label: "Low severity", value: risk?.severityCounts.LOW ?? "...", helper: risk ? trendText(risk.trends.totalRisk) : undefined, tone: "neutral" }
+  ];
 
   function markResolved(id: string) {
     const next = Array.from(new Set([...resolvedIds, id]));
@@ -166,7 +275,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <PageHeader
         eyebrow="AI analytics"
         title="Attendance and fee risk insights"
@@ -182,38 +291,33 @@ export default function AnalyticsPage() {
       {notice ? <div className="rounded-xl bg-[#E1F5EA] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
       {error ? <div className="rounded-xl bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
 
-      <p className="max-w-3xl text-[14px] leading-6 text-[#5A6573]">
+      <p className="rounded-[8px] border border-[#DCE1E8] bg-white px-4 py-3 text-[14px] leading-6 text-[#5A6573] shadow-[var(--shadow-card)]">
         {risk?.principalSummary ?? "Loading risk signals..."}
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Below 75%" value={risk?.lowAttendanceCount ?? "..."} helper={risk ? trendText(risk.trends.lowAttendance) : undefined} tone="danger" />
-        <KpiCard label="Combined risk" value={risk?.combinedRiskCount ?? "..."} tone="danger" />
-        <KpiCard label="Repeat absentees" value={risk?.repeatAbsenteeCount ?? "..."} tone="warn" />
-        <KpiCard label="High severity" value={risk?.severityCounts.HIGH ?? "..."} tone="danger" />
-        <KpiCard label="Medium severity" value={risk?.severityCounts.MEDIUM ?? "..."} tone="warn" />
-        <KpiCard label="Low severity" value={risk?.severityCounts.LOW ?? "..."} helper={risk ? trendText(risk.trends.totalRisk) : undefined} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 2xl:grid-cols-6">
+        {kpis.map((item) => <AnalyticsKpiCard key={item.label} {...item} />)}
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="glass-card-interactive p-6">
+        <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)] sm:p-6">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Class performance</h2>
-          <div className="mt-5">
+          <div className="mt-5 max-h-[420px] overflow-y-auto pr-1">
             <SimpleBarChart items={classes.map((item) => ({ label: item.className, value: item.attendancePercentage }))} />
           </div>
         </div>
-        <div className="glass-card-interactive p-6">
+        <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)] sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Priority students</h2>
             <StatusPill label={`${visibleRisks.length} open`} tone={visibleRisks.length ? "warn" : "good"} />
           </div>
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 max-h-[560px] space-y-3 overflow-y-auto pr-1">
             {visibleRisks.length === 0 ? (
-              <div className="rounded-xl bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">No open priority risks.</div>
+              <div className="rounded-[8px] bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">No open priority risks.</div>
             ) : visibleRisks.map((row) => (
-              <div key={row.studentId} className="rounded-xl border border-[#DCE1E8] bg-white px-4 py-3">
+              <div key={row.studentId} className="rounded-[8px] border border-[#DCE1E8] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,20,25,0.03)]">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-[13px] font-semibold text-[#1d1d1f]">{row.studentName}</p>
                       <StatusPill label={row.severity} tone={severityTone[row.severity]} />
@@ -227,7 +331,7 @@ export default function AnalyticsPage() {
                       {row.flags.map((flag) => <span className="rounded-md bg-[#F7F8FB] px-2 py-1 text-[11px] font-semibold text-[#5A6573]" key={flag}>{flagLabel(flag)}</span>)}
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
+                  <div className="grid shrink-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                     <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={!row.parentPhone || sendingId === row.studentId} onClick={() => messageParent(row)} type="button">
                       {sendingId === row.studentId ? "Sending..." : "Message parent"}
                     </button>
