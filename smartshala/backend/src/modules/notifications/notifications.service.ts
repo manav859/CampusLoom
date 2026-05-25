@@ -7,7 +7,10 @@ const provider = new WhatsAppCloudProvider();
 export async function listNotifications(schoolId: string) {
   return prisma.notification.findMany({
     where: { schoolId },
-    include: { student: { select: { id: true, fullName: true, admissionNumber: true } } },
+    include: {
+      student: { select: { id: true, fullName: true, admissionNumber: true } },
+      sentBy: { select: { id: true, fullName: true, role: true } }
+    },
     orderBy: { createdAt: "desc" },
     take: 100
   });
@@ -15,10 +18,11 @@ export async function listNotifications(schoolId: string) {
 
 export async function queueNotification(
   schoolId: string,
+  sentById: string,
   data: { studentId?: string; kind: "ABSENCE" | "LOW_ATTENDANCE" | "FEE_REMINDER" | "OVERDUE_FEE" | "PAYMENT_RECEIPT" | "MONTHLY_REPORT" | "SCHOOL_ALERT"; recipientPhone: string; message: string }
 ) {
   const notification = await prisma.notification.create({
-    data: { schoolId, ...data, status: NotificationStatus.QUEUED }
+    data: { schoolId, sentById, ...data, status: NotificationStatus.QUEUED }
   });
 
   setImmediate(async () => {
@@ -38,4 +42,3 @@ export async function queueNotification(
 
   return notification;
 }
-

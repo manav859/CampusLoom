@@ -255,6 +255,7 @@ export async function sendTeacherMessage(user: Express.UserContext, input: SendT
           data: {
             schoolId: user.schoolId,
             studentId: recipient.id,
+            sentById: user.id,
             kind: notificationKindFor(input.type),
             recipientPhone: recipient.parentPhone,
             message: input.message,

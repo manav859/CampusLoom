@@ -56,6 +56,10 @@ function formatTime(value: string | null) {
   return formatDateTimeShort(value);
 }
 
+function senderName(log: NotificationLog) {
+  return log.sentBy?.fullName ?? "System";
+}
+
 function isToday(value: string | null) {
   if (!value) return false;
   const date = new Date(value);
@@ -308,6 +312,7 @@ export default function NotificationsPage() {
                     <p className="mt-1 truncate text-[12px] font-medium text-[#5A6573]">
                       {maskPhoneNumber(log.recipientPhone)}{log.student ? ` · ${log.student.fullName}` : ""}
                     </p>
+                    <p className="mt-1 truncate text-[12px] font-medium text-[#5A6573]">Sent by {senderName(log)}</p>
                   </div>
                   <StatusPill label={displayStatus} tone={statusTone(displayStatus)} />
                 </div>
@@ -348,13 +353,14 @@ export default function NotificationsPage() {
       </div>
 
       <div className="hidden overflow-x-auto md:block">
-          <table className="w-full min-w-[1120px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
+          <table className="w-full min-w-[1240px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
             <thead>
               <tr className="bg-[#DDECF8]">
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">
                   <FilterHeader filterKey="type" label="Type" />
                 </th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">Recipient</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">Sent by</th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">Message</th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">
                   <FilterHeader filterKey="status" label="Status" />
@@ -367,9 +373,9 @@ export default function NotificationsPage() {
             </thead>
             <tbody>
               {loading ? (
-                Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={6} />)
+                Array.from({ length: 5 }).map((_, i) => <TableRowSkeleton key={i} cols={7} />)
               ) : filteredLogs.length === 0 ? (
-                <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>No notification logs found.</td></tr>
+                <tr><td className="px-5 py-12 text-center text-[#86868b]" colSpan={7}>No notification logs found.</td></tr>
               ) : (
                 filteredLogs.map((log) => {
                   const displayStatus = deliveryStatus(log);
@@ -380,6 +386,7 @@ export default function NotificationsPage() {
                         <span className="font-medium text-[#1d1d1f]">{maskPhoneNumber(log.recipientPhone)}</span>
                         {log.student ? <span className="ml-2 text-[11px] text-[#86868b]">{log.student.fullName}</span> : null}
                       </td>
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-medium text-[#2A3340]">{senderName(log)}</td>
                       <td className="border-b border-[#C9D3DE] px-4 py-4 text-[#6e6e73]">
                         <button
                           className="mx-auto block max-w-[380px] truncate text-center hover:text-[#2456E6]"
@@ -432,7 +439,7 @@ export default function NotificationsPage() {
               <div>
                 <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{humanizeConstant(selectedLog.kind)}</h2>
                 <p className="mt-1 text-[13px] text-[#86868b]">
-                  {maskPhoneNumber(selectedLog.recipientPhone)} | {formatTime(selectedLog.sentAt ?? selectedLog.createdAt)}
+                  {maskPhoneNumber(selectedLog.recipientPhone)} | {formatTime(selectedLog.sentAt ?? selectedLog.createdAt)} | Sent by {senderName(selectedLog)}
                 </p>
               </div>
               <StatusPill label={deliveryStatus(selectedLog)} tone={statusTone(deliveryStatus(selectedLog))} />

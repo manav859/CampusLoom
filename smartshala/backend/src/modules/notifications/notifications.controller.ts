@@ -7,6 +7,5 @@ export const listNotifications = asyncHandler(async (req: Request, res: Response
 });
 
 export const queueNotification = asyncHandler(async (req: Request, res: Response) => {
-  res.status(202).json(await notificationsService.queueNotification(req.user!.schoolId, req.body));
+  res.status(202).json(await notificationsService.queueNotification(req.user!.schoolId, req.user!.id, req.body));
 });
-

@@ -54,6 +54,12 @@ function actionFor(method: string) {
   return method;
 }
 
+function isNotificationSendAudit(path: string) {
+  return /\/api(?:\/v1)?\/wa\/(send|bulk)(?:\?|$|\/)/.test(path)
+    || /\/api(?:\/v1)?\/wa\/logs\/[0-9a-f-]+\/retry(?:\?|$|\/)/i.test(path)
+    || (path.includes("/communication/messages") && /\/api(?:\/v1)?\/communication\/messages(?:\?|$|\/)/.test(path));
+}
+
 export function auditMutatingRequest(req: Request, res: Response, next: NextFunction) {
   const startedAt = Date.now();
 
@@ -64,6 +70,7 @@ export function auditMutatingRequest(req: Request, res: Response, next: NextFunc
     if (req.originalUrl.includes("/activity-logs")) return;
     if (/\/api(?:\/v1)?\/students(?:\/|$)/.test(req.originalUrl)) return;
     if (/\/api(?:\/v1)?\/fees\/(payment|payments|adjustments|fee-adjustments)(?:\/|$)/.test(req.originalUrl)) return;
+    if (isNotificationSendAudit(req.originalUrl)) return;
 
     const entityType = entityFromPath(req.originalUrl);
     const entityId = findUuid(req.params) ?? findUuid(req.body) ?? req.user.id ?? req.user.schoolId;

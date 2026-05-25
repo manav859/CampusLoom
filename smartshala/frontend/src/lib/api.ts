@@ -285,6 +285,11 @@ export type NotificationLog = {
     fullName: string;
     admissionNumber: string;
   } | null;
+  sentBy?: {
+    id: string;
+    fullName: string;
+    role: Role;
+  } | null;
 };
 
 export type NotificationStats = {

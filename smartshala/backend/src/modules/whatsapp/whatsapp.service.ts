@@ -10,12 +10,14 @@ export type WhatsAppMessage = {
 type SendMessageOptions = {
   schoolId?: string;
   studentId?: string;
+  sentById?: string;
   kind?: NotificationKind;
 };
 
 type SendBulkOptions = {
   schoolId?: string;
   studentId?: string;
+  sentById?: string;
   kind?: NotificationKind;
 };
 
@@ -30,6 +32,7 @@ async function logNotification(phone: string, message: string, options: SendMess
     data: {
       schoolId: options.schoolId,
       studentId: options.studentId,
+      sentById: options.sentById,
       kind: options.kind ?? NotificationKind.SCHOOL_ALERT,
       recipientPhone: phone,
       message,
@@ -85,6 +88,13 @@ export async function getLogs(schoolId: string) {
           fullName: true,
           admissionNumber: true
         }
+      },
+      sentBy: {
+        select: {
+          id: true,
+          fullName: true,
+          role: true
+        }
       }
     },
     orderBy: { createdAt: "desc" },
@@ -128,12 +138,13 @@ export async function getStats(schoolId: string, range: { dateFrom?: string; dat
   };
 }
 
-export async function retryNotification(schoolId: string, notificationId: string) {
+export async function retryNotification(schoolId: string, notificationId: string, sentById?: string) {
   const notification = await prisma.notification.findFirst({
     where: { id: notificationId, schoolId },
     select: {
       id: true,
       studentId: true,
+      sentById: true,
       kind: true,
       recipientPhone: true,
       message: true,
@@ -146,6 +157,7 @@ export async function retryNotification(schoolId: string, notificationId: string
   const result = await sendMessage(notification.recipientPhone, notification.message, {
     schoolId,
     studentId: notification.studentId ?? undefined,
+    sentById: sentById ?? notification.sentById ?? undefined,
     kind: notification.kind
   });
 
@@ -156,7 +168,8 @@ export async function retryNotification(schoolId: string, notificationId: string
         status: NotificationStatus.SENT,
         sentAt: new Date(),
         errorMessage: null,
-        providerMessageId: "mock-whatsapp-retry"
+        providerMessageId: "mock-whatsapp-retry",
+        sentById: notification.sentById ?? sentById
       }
     });
   }

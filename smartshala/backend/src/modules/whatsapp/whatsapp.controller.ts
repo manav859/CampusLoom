@@ -14,6 +14,7 @@ export const sendMessage = asyncHandler<Request<Record<string, never>, unknown, 
   res.json(
     await whatsappService.sendMessage(req.body.phone, req.body.message, {
       schoolId: req.user!.schoolId,
+      sentById: req.user!.id,
       kind: NotificationKind.SCHOOL_ALERT
     })
   );
@@ -23,6 +24,7 @@ export const sendBulk = asyncHandler<Request<Record<string, never>, unknown, Bul
   res.json(
     await whatsappService.sendBulk(req.body, {
       schoolId: req.user!.schoolId,
+      sentById: req.user!.id,
       kind: NotificationKind.SCHOOL_ALERT
     })
   );
@@ -37,7 +39,7 @@ export const getStats = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const retryNotification = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await whatsappService.retryNotification(req.user!.schoolId, req.params.id));
+  res.json(await whatsappService.retryNotification(req.user!.schoolId, req.params.id, req.user!.id));
 });
 
 export const deleteNotification = asyncHandler(async (req: Request, res: Response) => {

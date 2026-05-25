@@ -76,6 +76,17 @@ function logSearchText(log: { action: string; actor?: { fullName: string; role: 
   ].join(" ").toLowerCase();
 }
 
+function notificationSendAuditExclusion() {
+  return {
+    NOT: [
+      { entityType: "WA", summary: { contains: "/wa/send", mode: "insensitive" as const } },
+      { entityType: "WA", summary: { contains: "/wa/bulk", mode: "insensitive" as const } },
+      { entityType: "WA", summary: { contains: "/retry", mode: "insensitive" as const } },
+      { entityType: "COMMUNICATION", summary: { contains: "/communication/messages", mode: "insensitive" as const } }
+    ]
+  } satisfies Prisma.AuditLogWhereInput;
+}
+
 async function enrichFeeLog<T extends { action: string; afterJson: Prisma.JsonValue | null; entityType: string; schoolId: string; summary: string }>(log: T): Promise<T> {
   const isFeePayment = /\/fees\/(payment|payments)(?:\?|$|\/)/.test(log.summary);
   const isFeeAdjustment = /\/fees\/(adjustments|fee-adjustments)(?:\?|$|\/)/.test(log.summary);
@@ -194,7 +205,8 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
   const dateTo = query.dateTo ? new Date(query.dateTo) : null;
   if (dateTo) dateTo.setHours(23, 59, 59, 999);
   const baseWhere = {
-    schoolId: user.schoolId
+    schoolId: user.schoolId,
+    ...notificationSendAuditExclusion()
   } satisfies Prisma.AuditLogWhereInput;
   const whereWithoutSearch = {
     ...baseWhere,

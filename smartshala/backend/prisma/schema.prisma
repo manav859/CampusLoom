@@ -67,6 +67,7 @@ model User {
   feeAdjustmentsRecorded   FeeAdjustment[]           @relation("FeeAdjustmentRecordedBy")
   refreshTokens            RefreshToken[]
   auditLogs                AuditLog[]                 @relation("AuditActor")
+  sentNotifications        Notification[]            @relation("NotificationSentBy")
   uploadedStudentDocuments StudentDocument[]         @relation("StudentDocumentUploadedBy")
   teachingSubjects         Subject[]                 @relation("SubjectTeacher")
   periodAssignments        TeacherPeriodAssignment[] @relation("TeacherPeriodAssignmentTeacher")
@@ -586,6 +587,7 @@ model Notification {
   id                String             @id @default(uuid()) @db.Uuid
   schoolId          String             @db.Uuid
   studentId         String?            @db.Uuid
+  sentById          String?            @db.Uuid
   kind              NotificationKind
   recipientPhone    String
   message           String
@@ -597,9 +599,11 @@ model Notification {
   updatedAt         DateTime           @updatedAt
   school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   student           Student?           @relation(fields: [studentId], references: [id])
+  sentBy            User?              @relation("NotificationSentBy", fields: [sentById], references: [id], onDelete: SetNull)
 
   @@index([schoolId, status, createdAt])
   @@index([schoolId, createdAt])
+  @@index([schoolId, sentById, createdAt])
   @@map("notifications")
 }
 
