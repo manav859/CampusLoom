@@ -341,6 +341,13 @@ function applyLanguage(language: PlatformLanguage) {
     let original = storedOriginal ?? current;
 
     if (language === "en") {
+      if (storedOriginal) {
+        const translatedOriginal = translate(storedOriginal);
+        if (current === translatedOriginal && current !== storedOriginal) {
+          node.nodeValue = storedOriginal;
+          return;
+        }
+      }
       originalText.set(node, current);
       return;
     }
@@ -363,6 +370,13 @@ function applyLanguage(language: PlatformLanguage) {
     let original = storedOriginal ?? current;
 
     if (language === "en") {
+      if (storedOriginal) {
+        const translatedOriginal = translate(storedOriginal);
+        if (current === translatedOriginal && current !== storedOriginal) {
+          element.setAttribute("placeholder", storedOriginal);
+          return;
+        }
+      }
       element.dataset.originalPlaceholder = current;
       return;
     }
