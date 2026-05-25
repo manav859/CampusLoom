@@ -234,6 +234,24 @@ export default function SuperAdminPage() {
     }
   }
 
+  async function handleDeleteSchool(school: SchoolRow) {
+    const confirmed = window.confirm(`Are you sure you want to permanently delete "${school.schoolName}" (${school.schoolId})?\n\nThis will remove the school database and cannot be undone.`);
+    if (!confirmed) return;
+    setBusyId(school.schoolId);
+    setError("");
+    setNotice("");
+    try {
+      await superAdminFetch(`/schools/${school.schoolId}`, { method: "DELETE" });
+      setSelectedSchoolId("");
+      await loadSchools();
+      setNotice(`${school.schoolName} has been deleted.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete school");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   async function updateUserStatus(user: TenantUser) {
     if (!selectedSchoolId) return;
     setBusyId(user.id);
@@ -493,6 +511,7 @@ export default function SuperAdminPage() {
             {selectedSchoolId ? (
               <SchoolSummary
                 busy={busyId === selectedSchoolId}
+                onDelete={handleDeleteSchool}
                 onExtend={extendAccess}
                 onToggle={updateSchoolStatus}
                 school={schools.find((row) => row.schoolId === selectedSchoolId) ?? null}
@@ -588,11 +607,13 @@ export default function SuperAdminPage() {
 function SchoolSummary({
   school,
   busy,
+  onDelete,
   onExtend,
   onToggle
 }: {
   school: SchoolRow | null;
   busy: boolean;
+  onDelete: (school: SchoolRow) => void;
   onExtend: (school: SchoolRow) => void;
   onToggle: (school: SchoolRow) => void;
 }) {
@@ -647,6 +668,16 @@ function SchoolSummary({
           >
             {school.isActive ? "Revoke access" : "Grant access"}
           </button>
+          {school.deletionStatus !== "DELETED" ? (
+            <button
+              className="min-h-10 rounded-lg border border-red-300 bg-red-50 px-4 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+              disabled={busy}
+              onClick={() => onDelete(school)}
+              type="button"
+            >
+              Delete school
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

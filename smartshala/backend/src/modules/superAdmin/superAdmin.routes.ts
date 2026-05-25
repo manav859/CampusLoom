@@ -5,6 +5,7 @@ import { rateLimit } from "../../middleware/rateLimit.js";
 import { requireSuperAdmin } from "./superAdmin.middleware.js";
 import {
   completePasswordResetRequest,
+  deleteSchool,
   dismissPasswordResetRequest,
   extendSchoolAccess,
   loginSuperAdmin,
@@ -116,5 +117,13 @@ superAdminRouter.patch(
   validate({ params: userActionParamSchema, body: updateUserRoleSchema }),
   asyncHandler(async (req, res) => {
     res.json(await updateTenantUserRole(req.params.schoolId, req.params.userId, req.body.role));
+  })
+);
+
+superAdminRouter.delete(
+  "/schools/:schoolId",
+  validate({ params: schoolIdParamSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await deleteSchool(req.params.schoolId));
   })
 );

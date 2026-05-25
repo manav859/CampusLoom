@@ -2,9 +2,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserStatus } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
-import { PasswordResetStatus, PaymentStatus } from "../../../node_modules/@smartshala/master-client/index.js";
+import { PasswordResetStatus, PaymentStatus, TenantDeletionStatus } from "../../../node_modules/@smartshala/master-client/index.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
+import { logger } from "../../config/logger.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
 import { expireTrials, trialEndsFrom } from "../../services/trial.service.js";
@@ -312,4 +313,63 @@ export async function extendSchoolAccess(schoolId: string, days: number) {
       trialEndsAt: true
     }
   });
+}
+
+export async function deleteSchool(schoolId: string) {
+  assertMasterConfigured();
+  const school = await masterPrisma.school.findUnique({ where: { schoolId } });
+  if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
+
+  if (school.deletionStatus === TenantDeletionStatus.DELETED) {
+    throw new AppError(409, "School is already deleted", "SCHOOL_ALREADY_DELETED");
+  }
+
+  // Try to drop the Neon database if configured
+  if (env.NEON_API_KEY && env.NEON_PROJECT_ID && env.NEON_BRANCH_ID) {
+    try {
+      const url = `https://console.neon.tech/api/v2/projects/${env.NEON_PROJECT_ID}/branches/${env.NEON_BRANCH_ID}/databases/${encodeURIComponent(school.dbName)}`;
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${env.NEON_API_KEY}`
+        }
+      });
+      if (!response.ok && response.status !== 404 && response.status !== 204) {
+        logger.warn({ status: response.status, dbName: school.dbName }, "Neon database deletion returned non-ok status during super admin delete");
+      }
+    } catch (error) {
+      logger.warn({ err: error, dbName: school.dbName }, "Neon database deletion failed during super admin delete — continuing with record cleanup");
+    }
+  }
+
+  const now = new Date();
+  const updated = await masterPrisma.school.update({
+    where: { schoolId },
+    data: {
+      isActive: false,
+      deletionStatus: TenantDeletionStatus.DELETED,
+      deletionExecutedAt: now,
+      deletionRequestedAt: school.deletionRequestedAt ?? now,
+      deletionScheduledAt: null
+    },
+    select: {
+      schoolId: true,
+      schoolName: true,
+      isActive: true,
+      dbName: true,
+      deletionStatus: true
+    }
+  });
+
+  await masterPrisma.onboardingLog.create({
+    data: {
+      schoolId,
+      status: "DATABASE_DELETED",
+      message: `School ${school.schoolName} (${school.dbName}) deleted by super admin`
+    }
+  }).catch(() => undefined);
+
+  logger.warn({ schoolId, dbName: school.dbName }, "School deleted by super admin");
+  return updated;
 }

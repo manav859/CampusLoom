@@ -181,6 +181,23 @@ export async function login(identifier: string, password: string) {
     return loginWithClient(getTenantPrismaClient(tenant.dbUrl), normalizedIdentifier, password, tenant.schoolId);
   }
 
+  // Check if the school exists but is inactive (pending approval)
+  if (isMasterDbConfigured()) {
+    const pendingSchool = await masterPrisma.school.findFirst({
+      where: {
+        OR: [{ email: normalizedIdentifier }, { phone: normalizedIdentifier }],
+        isActive: false
+      },
+      select: { schoolId: true, paymentStatus: true, deletionStatus: true }
+    });
+    if (pendingSchool) {
+      if (pendingSchool.deletionStatus === "DELETED") {
+        throw new AppError(403, "This school has been deleted. Please contact support.", "SCHOOL_DELETED");
+      }
+      throw new AppError(403, "Your school activation is pending. Please wait for admin approval.", "ACTIVATION_PENDING");
+    }
+  }
+
   return loginWithClient(prisma, normalizedIdentifier, password);
 }
 

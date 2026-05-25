@@ -25,6 +25,15 @@ type OnboardingInput = {
 export async function onboardSchool(input: OnboardingInput) {
   if (!env.MASTER_DATABASE_URL) throw new AppError(503, "Master database is not configured", "MASTER_DB_NOT_CONFIGURED");
 
+  // Check for duplicate email
+  const existingSchool = await masterPrisma.school.findFirst({
+    where: { email: input.email.trim().toLowerCase() },
+    select: { schoolId: true, schoolName: true }
+  });
+  if (existingSchool) {
+    throw new AppError(409, `A school already exists with this email (${existingSchool.schoolName}). Please use a different email or contact support.`, "DUPLICATE_EMAIL");
+  }
+
   const coupon = await previewCoupon(input.couponCode);
   if (input.couponCode && !coupon.valid) {
     throw new AppError(400, coupon.message, "INVALID_COUPON");
