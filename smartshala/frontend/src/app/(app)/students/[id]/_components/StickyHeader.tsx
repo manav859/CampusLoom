@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { KpiIcon, MarqueeText } from "@/components/ui/KpiCard";
 import type { StudentDetail } from "@/lib/api";
@@ -50,6 +53,20 @@ function initials(name: string) {
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function StudentAvatar({ student, className }: { student: StudentDetail; className?: string }) {
+  const baseClass = className ?? "h-12 w-12";
+  return (
+    <div className={`${baseClass} shrink-0 overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-[#EAF3FB] text-[#0F2557]`}>
+      {student.profilePhotoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img alt={student.fullName} className="h-full w-full object-cover" src={student.profilePhotoUrl} />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-[16px] font-bold">{initials(student.fullName)}</div>
+      )}
+    </div>
+  );
 }
 
 /* ── Tone-styled KPI mini-cards (matching KpiCard aesthetics) ── */
@@ -167,6 +184,7 @@ export function StickyHeader({
   canViewAttendance,
   canViewFees
 }: StickyHeaderProps) {
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const academic = academicStatus(performanceClassification);
   const attendance = attendanceStatus(attendancePercentage);
   const fees = feesStatus(feeBalance);
@@ -181,6 +199,8 @@ export function StickyHeader({
   const parentShareMessage = encodeURIComponent(
     `SmartShala profile update for ${student.fullName}: attendance ${attendancePercentage}%, academic ${performanceClassification}, fee balance ${money(feeBalance)}.`
   );
+  const actionButtonClass =
+    "inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]";
 
   return (
     <div className="py-1.5">
@@ -188,12 +208,10 @@ export function StickyHeader({
         {/* ── Top row: Identity + Tags + Actions ── */}
         <div className="flex flex-col gap-3 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
           {/* Left: avatar, name, meta, status tags */}
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[6px] border border-[#DCE1E8] bg-[#EAF3FB] text-[16px] font-bold text-[#0F2557] sm:flex">
-              {initials(student.fullName)}
-            </div>
+          <div className="flex min-w-0 items-center justify-between gap-3 sm:gap-4 lg:flex-1">
+            <StudentAvatar student={student} className="hidden h-12 w-12 sm:block" />
 
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-2">
                 <h1 className="truncate text-[18px] font-semibold tracking-tight text-[#1d1d1f] sm:text-[22px]">{student.fullName}</h1>
                 <span className="hidden sm:inline text-[12px] font-medium text-[#86868b]">
@@ -206,10 +224,54 @@ export function StickyHeader({
                 {canViewFees ? <StatusTag label={fees.label} tone={fees.tone} /> : null}
               </div>
             </div>
+
+            <StudentAvatar student={student} className="h-14 w-14 sm:hidden" />
           </div>
 
           {/* Right: Action buttons */}
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-2 lg:shrink-0">
+          <div className="relative md:hidden">
+            <button
+              aria-expanded={mobileActionsOpen}
+              aria-label="Student actions"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-[6px] border border-[#DCE1E8] bg-white text-[20px] font-bold text-[#2A3340] hover:bg-[#F7F8FB]"
+              onClick={() => setMobileActionsOpen((open) => !open)}
+              type="button"
+            >
+              ...
+            </button>
+            {mobileActionsOpen ? (
+              <div className="absolute right-0 top-12 z-30 w-[210px] overflow-hidden rounded-[8px] border border-[#DCE1E8] bg-white p-1.5 shadow-[0_16px_38px_-16px_rgba(15,20,25,0.42)]">
+                {canEditStudent ? (
+                  <Link className="flex items-center gap-2 rounded-[6px] px-3 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`/students/${student.id}/edit`} onClick={() => setMobileActionsOpen(false)}>
+                    <EditIcon /> Edit
+                  </Link>
+                ) : null}
+                {canContactParent ? (
+                  <>
+                    <a className="flex items-center gap-2 rounded-[6px] px-3 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`tel:${student.parentPhone}`} onClick={() => setMobileActionsOpen(false)}>
+                      <PhoneIcon /> Call parent
+                    </a>
+                    <a className="flex items-center gap-2 rounded-[6px] px-3 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={whatsappLink(student.parentPhone)} rel="noreferrer" target="_blank" onClick={() => setMobileActionsOpen(false)}>
+                      <WhatsAppIcon /> WhatsApp
+                    </a>
+                    <a className="flex items-center gap-2 rounded-[6px] px-3 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`${whatsappLink(student.parentPhone)}?text=${parentShareMessage}`} rel="noreferrer" target="_blank" onClick={() => setMobileActionsOpen(false)}>
+                      <ShareIcon /> Share
+                    </a>
+                  </>
+                ) : null}
+                <button className="flex w-full items-center gap-2 rounded-[6px] px-3 py-2 text-left text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => { setMobileActionsOpen(false); window.print(); }} type="button">
+                  <PrintIcon /> Print profile
+                </button>
+                {canViewFees ? (
+                  <Link className="flex items-center gap-2 rounded-[6px] px-3 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`/fees/${student.id}`} onClick={() => setMobileActionsOpen(false)}>
+                    <LedgerIcon /> Fee ledger
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="hidden flex-wrap items-center justify-end gap-2 md:flex lg:shrink-0">
             {canEditStudent ? (
               <Link
                 className="inline-flex items-center justify-center gap-1.5 rounded-[6px] bg-[#0071e3] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#005bb5]"
@@ -222,7 +284,7 @@ export function StickyHeader({
             {canContactParent ? (
               <>
                 <a
-                  className="inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]"
+                  className={actionButtonClass}
                   href={`tel:${student.parentPhone}`}
                 >
                   <PhoneIcon />
@@ -238,7 +300,7 @@ export function StickyHeader({
                   WhatsApp
                 </a>
                 <a
-                  className="inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]"
+                  className={actionButtonClass}
                   href={`${whatsappLink(student.parentPhone)}?text=${parentShareMessage}`}
                   rel="noreferrer"
                   target="_blank"
@@ -249,7 +311,7 @@ export function StickyHeader({
               </>
             ) : null}
             <button
-              className="inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]"
+              className={actionButtonClass}
               onClick={() => window.print()}
               type="button"
             >
@@ -258,7 +320,7 @@ export function StickyHeader({
             </button>
             {canViewFees ? (
               <Link
-                className="inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]"
+                className={actionButtonClass}
                 href={`/fees/${student.id}`}
               >
                 <LedgerIcon />

@@ -103,7 +103,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
   return (
     <section className="space-y-4">
       {analytics.cbseWarning ? (
-        <div className="rounded-[18px] border border-[#ff3b30]/20 bg-[#ff3b30]/[0.08] p-5 shadow-apple-sm">
+        <div className="rounded-[6px] border border-[#F1B8BD] bg-[#FFF7F8] p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#c90011]">CBSE attendance warning</p>
@@ -171,12 +171,12 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
         </div>
 
         {/* Right Side: Calendar Card (7 columns) */}
-        <section className="flex flex-col rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-gradient-to-b from-[#fbfbfd] to-white p-5 sm:p-6 shadow-apple lg:col-span-7">
-          <div className="flex flex-col gap-4 border-b border-[rgba(0,0,0,0.06)] pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <section className="flex flex-col rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6 lg:col-span-7">
+          <div className="flex flex-col gap-4 border-b border-[#E7EBF0] pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Calendar</h2>
               <select
-                className="cursor-pointer rounded-lg border border-[rgba(0,0,0,0.08)] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#1d1d1f] shadow-sm outline-none transition-all hover:border-[#0071e3] focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20"
+                className="cursor-pointer rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#1d1d1f] outline-none transition-all hover:border-[#2456E6] focus:border-[#2456E6]"
                 value={selectedMonthKey}
                 onChange={(e) => setSelectedMonthKey(e.target.value)}
               >
@@ -222,7 +222,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-white p-5 sm:p-6 shadow-apple">
+        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Absent dates</h2>
@@ -233,13 +233,13 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
 
           <div className="mt-5">
             {absentDates.length === 0 ? (
-              <div className="rounded-[16px] border border-dashed border-[rgba(0,0,0,0.1)] bg-[rgba(0,0,0,0.01)] px-4 py-7 text-center text-[13px] font-medium text-[#86868b]">
+              <div className="rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] px-4 py-7 text-center text-[13px] font-medium text-[#86868b]">
                 No absences recorded in this period.
               </div>
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
                 {absentDates.slice(0, 8).map((record) => (
-                  <div className="flex items-center justify-between rounded-[14px] bg-[#ff3b30]/[0.06] px-4 py-3 ring-1 ring-inset ring-[#ff3b30]/15" key={record.date}>
+                  <div className="flex items-center justify-between rounded-[6px] border border-[#F1B8BD] bg-[#FFF7F8] px-4 py-3" key={record.date}>
                     <span className="text-[13px] font-semibold text-[#1d1d1f]">{formatDateShort(record.date)}</span>
                     <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#c90011]">Absent</span>
                   </div>
@@ -252,14 +252,14 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
           </div>
         </div>
 
-        <aside className="rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-white p-5 sm:p-6 shadow-apple">
+        <aside className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
           <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Class context</h2>
           <div className="mt-5 space-y-4">
-            <div className="rounded-[16px] bg-[#f5f5f7] p-4">
+            <div className="rounded-[6px] bg-[#F7F8FB] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Student</p>
               <p className="mt-1 text-[28px] font-bold leading-none text-[#1d1d1f]">{metrics.attendancePercentage}%</p>
             </div>
-            <div className="rounded-[16px] bg-[#E2F0FB] p-4">
+            <div className="rounded-[6px] bg-[#E2F0FB] p-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1F6FB8]">Class average</p>
               <p className="mt-1 text-[28px] font-bold leading-none text-[#0F2557]">
                 {metrics.classAverageAttendance === null ? "-" : `${metrics.classAverageAttendance}%`}
@@ -279,16 +279,16 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
       </section>
 
       {/* ── Pattern detection ── */}
-      <section className="rounded-[24px] border border-[rgba(0,0,0,0.04)] bg-white p-5 sm:p-6 shadow-apple">
+      <section className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
         <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Pattern detection</h2>
         <div className="mt-5 space-y-3">
           {analytics.repeatedWeekdayAbsences.length === 0 ? (
-            <div className="flex items-center justify-center rounded-[16px] border border-dashed border-[rgba(0,0,0,0.1)] bg-[rgba(0,0,0,0.01)] py-8 text-[13px] font-medium text-[#86868b]">
+            <div className="flex items-center justify-center rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] py-8 text-[13px] font-medium text-[#86868b]">
               No weekly absence pattern detected.
             </div>
           ) : (
             analytics.repeatedWeekdayAbsences.map((pattern) => (
-              <div className="rounded-[16px] bg-[#ff9500]/[0.08] p-4 ring-1 ring-inset ring-[#ff9500]/20" key={pattern.weekday}>
+              <div className="rounded-[6px] border border-[#FFE0B3] bg-[#FFF8ED] p-4" key={pattern.weekday}>
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-[13px] font-semibold text-[#1d1d1f]">{pattern.weekday}s</p>
                   <StatusPill label={`${pattern.count} absences`} tone="warn" />

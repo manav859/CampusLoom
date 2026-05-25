@@ -63,10 +63,10 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
 
   return (
     <section className="space-y-4">
-      {notice ? <div className="rounded-xl border border-[#0F8A4A]/20 bg-[#E1F5EA] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
-      {error ? <div className="rounded-xl border border-[#C8242C]/20 bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
+      {notice ? <div className="rounded-[6px] border border-[#0F8A4A]/20 bg-[#E1F5EA] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
+      {error ? <div className="rounded-[6px] border border-[#C8242C]/20 bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
 
-      <div className={`rounded-2xl border p-5 shadow-apple ${lowCompletion ? "border-[#ff3b30]/20 bg-[#ff3b30]/[0.06]" : "border-[rgba(0,0,0,0.04)] bg-white"}`}>
+      <div className={`rounded-[6px] border p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5 ${lowCompletion ? "border-[#F1B8BD] bg-[#FFF7F8]" : "border-[#DCE1E8] bg-white"}`}>
         <div className="grid gap-5 lg:grid-cols-[220px_1fr] lg:items-center">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Homework completion</p>
@@ -101,7 +101,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
         </div>
       </div>
 
-      <section className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+      <section className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Subject completion</h2>
@@ -111,12 +111,12 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {homework.subjects.length === 0 ? (
-            <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4 text-[13px] font-medium text-[#86868b]">No homework assignments recorded yet.</div>
+            <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No homework assignments recorded yet.</div>
           ) : (
             homework.subjects.map((subject) => {
               const subjectLow = subject.total > 0 && subject.completionPercentage < 50;
               return (
-                <div className={`rounded-xl p-4 ${subjectLow ? "bg-[#ff3b30]/[0.07]" : "bg-[rgba(0,0,0,0.02)]"}`} key={subject.subject}>
+                <div className={`rounded-[6px] p-4 ${subjectLow ? "bg-[#FFF7F8]" : "bg-[#F7F8FB]"}`} key={subject.subject}>
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[13px] font-semibold text-[#1d1d1f]">{subject.subject}</p>
                     <p className={`text-[13px] font-semibold ${subjectLow ? "text-[#c90011]" : "text-[#2456E6]"}`}>{subject.completionPercentage}%</p>
@@ -132,37 +132,65 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-        <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
+      <section className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+        <div className="border-b border-[#E7EBF0] px-5 py-4">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Assignment log</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-left text-[13px]">
-            <thead className="table-head">
-              <tr>
+        <div className="space-y-3 p-4 md:hidden">
+          {homework.assignments.length === 0 ? (
+            <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No assignment log found.</div>
+          ) : (
+            homework.assignments.map((assignment) => (
+              <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-assignment-${assignment.id}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-[14px] font-semibold text-[#0F1419]">{assignment.title}</h3>
+                    <p className="mt-1 text-[12px] font-medium text-[#5A6573]">{assignment.subject}</p>
+                  </div>
+                  <StatusPill label={statusLabel(assignment.status)} tone={statusTone(assignment.status)} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Assigned</p><p className="mt-1 font-bold text-[#0F1419]">{dateLabel(assignment.assignedDate)}</p></div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Due</p><p className="mt-1 font-bold text-[#0F1419]">{dateLabel(assignment.dueDate)}</p></div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Marks</p><p className="mt-1 font-bold text-[#0F1419]">{assignment.marks === null ? "-" : assignment.maxMarks === null ? assignment.marks : `${assignment.marks}/${assignment.maxMarks}`}</p></div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Note</p><p className="mt-1 truncate font-bold text-[#0F1419]">{assignment.teacherNote ?? "-"}</p></div>
+                </div>
+                {canNudgeParent && needsParentNudge(assignment.status) ? (
+                  <button className="mt-3 w-full rounded-[6px] border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB]" disabled={sendingAssignmentId === assignment.id} onClick={() => nudgeParent(assignment)} type="button">
+                    {sendingAssignmentId === assignment.id ? "Sending..." : "Nudge parent"}
+                  </button>
+                ) : null}
+              </article>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[920px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
+            <thead>
+              <tr className="bg-[#DDECF8]">
                 {["Assignment", "Subject", "Assigned", "Due", "Status", "Marks", "Teacher note", "Action"].map((head) => (
-                  <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+            <tbody>
               {homework.assignments.length === 0 ? (
                 <tr>
                   <td className="px-5 py-12 text-center text-[#86868b]" colSpan={8}>No assignment log found.</td>
                 </tr>
               ) : (
                 homework.assignments.map((assignment) => (
-                  <tr className="table-row" key={assignment.id}>
-                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{assignment.title}</td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{assignment.subject}</td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{dateLabel(assignment.assignedDate)}</td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{dateLabel(assignment.dueDate)}</td>
-                    <td className="px-5 py-4"><StatusPill label={statusLabel(assignment.status)} tone={statusTone(assignment.status)} /></td>
-                    <td className="px-5 py-4 text-[#6e6e73]">
+                  <tr className="transition-colors duration-200 hover:bg-[#F8FBFD]" key={assignment.id}>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#1d1d1f]">{assignment.title}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{assignment.subject}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{dateLabel(assignment.assignedDate)}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{dateLabel(assignment.dueDate)}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center"><StatusPill label={statusLabel(assignment.status)} tone={statusTone(assignment.status)} /></td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">
                       {assignment.marks === null ? "Not marked" : assignment.maxMarks === null ? assignment.marks : `${assignment.marks}/${assignment.maxMarks}`}
                     </td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{assignment.teacherNote ?? "-"}</td>
-                    <td className="px-5 py-4">
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{assignment.teacherNote ?? "-"}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                       {canNudgeParent && needsParentNudge(assignment.status) ? (
                         <button
                           className="rounded-md border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:text-[#7A8390]"

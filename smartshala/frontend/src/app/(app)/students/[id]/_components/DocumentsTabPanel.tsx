@@ -147,13 +147,13 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
-        <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-5 shadow-apple backdrop-blur-xl" onSubmit={handleUpload}>
+        <form className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5" onSubmit={handleUpload}>
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Upload document</h2>
           <div className="mt-5 space-y-4">
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Type</span>
               <select
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none transition focus:border-[#0071e3]"
+                className="mt-1.5 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none transition focus:border-[#2456E6]"
                 onChange={(event) => setType(event.target.value as DocumentType)}
                 value={type}
               >
@@ -166,7 +166,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Name</span>
               <input
-                className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none transition placeholder:text-[#86868b] focus:border-[#0071e3]"
+                className="mt-1.5 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none transition placeholder:text-[#86868b] focus:border-[#2456E6]"
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Document name"
                 type="text"
@@ -177,8 +177,8 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">File</span>
               <div
-                className={`mt-1.5 rounded-xl border border-dashed px-4 py-5 text-center transition ${
-                  dragActive ? "border-[#2456E6] bg-[#E2F0FB]" : "border-[rgba(0,0,0,0.14)] bg-[rgba(0,0,0,0.02)]"
+                className={`mt-1.5 rounded-[6px] border border-dashed px-4 py-5 text-center transition ${
+                  dragActive ? "border-[#2456E6] bg-[#E2F0FB]" : "border-[#C9D3DE] bg-[#F7F8FB]"
                 }`}
                 onDragEnter={(event) => {
                   event.preventDefault();
@@ -208,7 +208,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
               </div>
             </label>
 
-            <label className="flex items-start gap-3 rounded-xl border border-[rgba(0,0,0,0.08)] bg-[#f5f5f7] px-4 py-3">
+            <label className="flex items-start gap-3 rounded-[6px] border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-3">
               <input
                 checked={shareWithParent}
                 className="mt-1 h-4 w-4 accent-[#2456E6]"
@@ -222,13 +222,13 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
             </label>
 
             {status ? (
-              <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-3">
+              <div className="rounded-[6px] bg-[#F7F8FB] p-3">
                 <StatusPill label={status.message} tone={status.tone} />
               </div>
             ) : null}
 
             <button
-              className="w-full rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-[6px] bg-[#2456E6] px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50"
               disabled={uploading}
               type="submit"
             >
@@ -237,37 +237,61 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
           </div>
         </form>
 
-        <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 shadow-apple backdrop-blur-xl">
-          <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
+        <div className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+          <div className="border-b border-[#E7EBF0] px-5 py-4">
             <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Document audit trail</h2>
             <p className="mt-0.5 text-[13px] text-[#86868b]">Files are listed latest first with uploader and date metadata.</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-[13px]">
-              <thead className="table-head">
-                <tr>
+          <div className="space-y-3 p-4 md:hidden">
+            {documents.length === 0 ? (
+              <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No student documents uploaded yet.</div>
+            ) : (
+              documents.map((document) => (
+                <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-doc-${document.id}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-[14px] font-semibold text-[#0F1419]">{document.name}</h3>
+                      <p className="mt-1 truncate text-[12px] font-medium text-[#5A6573]">{document.originalName}</p>
+                    </div>
+                    <StatusPill label={typeLabel(document.type)} tone={typeTone(document.type)} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Uploaded by</p><p className="mt-1 truncate font-bold text-[#0F1419]">{document.uploadedBy.fullName}</p></div>
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Size</p><p className="mt-1 font-bold text-[#0F1419]">{formatBytes(document.sizeBytes)}</p></div>
+                  </div>
+                  <button className="mt-3 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-2 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB]" disabled={downloadingId === document.id} onClick={() => handleDownload(document)} type="button">
+                    {downloadingId === document.id ? "Opening..." : "Download"}
+                  </button>
+                </article>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[820px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
+              <thead>
+                <tr className="bg-[#DDECF8]">
                   {["Name", "Type", "Uploaded by", "Date", "Size", "Action"].map((head) => (
-                    <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+              <tbody>
                 {documents.length === 0 ? (
                   <tr>
                     <td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>No student documents uploaded yet.</td>
                   </tr>
                 ) : (
                   documents.map((document) => (
-                    <tr className="table-row" key={document.id}>
-                      <td className="px-5 py-4">
+                    <tr className="transition-colors duration-200 hover:bg-[#F8FBFD]" key={document.id}>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                         <p className="font-semibold text-[#1d1d1f]">{document.name}</p>
                         <p className="mt-1 text-[12px] text-[#86868b]">{document.originalName}</p>
                       </td>
-                      <td className="px-5 py-4"><StatusPill label={typeLabel(document.type)} tone={typeTone(document.type)} /></td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{document.uploadedBy.fullName}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateTimeShort(document.uploadedAt)}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatBytes(document.sizeBytes)}</td>
-                      <td className="px-5 py-4">
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center"><StatusPill label={typeLabel(document.type)} tone={typeTone(document.type)} /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{document.uploadedBy.fullName}</td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{formatDateTimeShort(document.uploadedAt)}</td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{formatBytes(document.sizeBytes)}</td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                         <button
                           className="rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition hover:bg-[rgba(0,0,0,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
                           disabled={downloadingId === document.id}

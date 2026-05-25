@@ -87,34 +87,55 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
   return (
     <section className="space-y-4">
       {notice ? (
-        <div className="rounded-xl bg-[#25D366]/10 px-4 py-3 text-[13px] font-medium text-[#128C7E]">{notice}</div>
+        <div className="rounded-[6px] border border-[#0F8A4A]/20 bg-[#E1F5EA] px-4 py-3 text-[13px] font-medium text-[#128C7E]">{notice}</div>
       ) : null}
       {error ? (
-        <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div>
+        <div className="rounded-[6px] border border-[#FCE3E5] bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div>
       ) : null}
 
-      <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-        <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
+      <section className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+        <div className="border-b border-[#E7EBF0] px-5 py-4">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Fee assignments</h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-[13px]">
-            <thead className="table-head">
-              <tr>
+        <div className="space-y-3 p-4 md:hidden">
+          {student.feeAssignments.length === 0 ? (
+            <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No fee assignments found.</div>
+          ) : (
+            student.feeAssignments.map((assignment) => (
+              <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-fee-${assignment.id}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-[14px] font-semibold text-[#0F1419]">{assignment.feeStructure.name}</h3>
+                    {Number(assignment.transportFeeAmount ?? 0) > 0 ? <p className="mt-1 text-[12px] font-medium text-[#2456E6]">Transport: {money(assignment.transportFeeAmount ?? 0)}</p> : null}
+                  </div>
+                  <StatusPill label={assignment.status} tone={assignment.status === "PAID" ? "good" : assignment.status === "PARTIAL" ? "warn" : "danger"} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Paid</p><p className="mt-1 font-bold text-[#0F1419]">{money(assignment.paidAmount)}</p></div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Pending</p><p className="mt-1 font-bold text-[#0F1419]">{money(assignment.pendingAmount)}</p></div>
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[640px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
+            <thead>
+              <tr className="bg-[#DDECF8]">
                 {["Fee", "Paid", "Pending", "Status"].map((head) => (
-                  <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+            <tbody>
               {student.feeAssignments.length === 0 ? (
                 <tr>
                   <td className="px-5 py-12 text-center text-[#86868b]" colSpan={4}>No fee assignments found.</td>
                 </tr>
               ) : (
                 student.feeAssignments.map((assignment) => (
-                  <tr key={assignment.id} className="table-row">
-                    <td className="px-5 py-4">
+                  <tr key={assignment.id} className="transition-colors duration-200 hover:bg-[#F8FBFD]">
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                       <p className="font-semibold text-[#1d1d1f]">{assignment.feeStructure.name}</p>
                       {Number(assignment.transportFeeAmount ?? 0) > 0 ? (
                         <div className="mt-1.5 space-y-0.5 text-[11px] font-medium text-[#6e6e73]">
@@ -123,9 +144,9 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                         </div>
                       ) : null}
                     </td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{money(assignment.paidAmount)}</td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{money(assignment.pendingAmount)}</td>
-                    <td className="px-5 py-4">
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{money(assignment.paidAmount)}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{money(assignment.pendingAmount)}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                       <StatusPill
                         label={assignment.status}
                         tone={assignment.status === "PAID" ? "good" : assignment.status === "PARTIAL" ? "warn" : "danger"}
@@ -143,15 +164,33 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-          <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
+        <div className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+          <div className="border-b border-[#E7EBF0] px-5 py-4">
             <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Transaction ledger</h2>
             <p className="mt-0.5 text-[13px] text-[#86868b]">Running balance is recalculated from posted payments.</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-[13px]">
-              <thead className="table-head">
-                <tr>{["Date", "Amount", "Mode", "Reference", "Receipt ID", "Balance After", "Fee", "Actions"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
+          <div className="space-y-3 p-4 md:hidden">
+            {recentTransactions.length === 0 ? (
+              <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No payments recorded yet.</div>
+            ) : (
+              recentTransactions.map((payment) => (
+                <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-payment-${payment.id}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[15px] font-bold text-[#0F8A4A]">{money(payment.amount)}</p>
+                      <p className="mt-1 text-[12px] font-medium text-[#5A6573]">{formatDateShort(payment.date)} - {humanizeConstant(payment.mode)}</p>
+                    </div>
+                    <p className="text-right text-[12px] font-semibold text-[#0F1419]">{money(payment.balanceAfter)}</p>
+                  </div>
+                  <p className="mt-3 text-[12px] font-medium text-[#5A6573]">{payment.feeStructureName}</p>
+                </article>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[820px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
+              <thead>
+                <tr className="bg-[#DDECF8]">{["Date", "Amount", "Mode", "Reference", "Receipt ID", "Balance After", "Fee", "Actions"].map((head) => <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                 {recentTransactions.length === 0 ? (
@@ -160,15 +199,15 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                   recentTransactions.map((payment) => {
                     const receiptId = payment.receiptId;
                     return (
-                      <tr key={payment.id} className="table-row">
-                        <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(payment.date)}</td>
-                        <td className="px-5 py-4">
+                      <tr key={payment.id} className="transition-colors duration-200 hover:bg-[#F8FBFD]">
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{formatDateShort(payment.date)}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                           <p className="font-semibold text-[#248a3d]">{money(payment.amount)}</p>
                           <p className="mt-1 text-[11px] font-semibold text-[#6e6e73]">{payment.feeComponent === "TRANSPORTATION_FEE" ? "Transportation fee" : "School fee"}</p>
                         </td>
-                        <td className="px-5 py-4 text-[#6e6e73]">{humanizeConstant(payment.mode)}</td>
-                        <td className="px-5 py-4 text-[#6e6e73]">{paymentReference(payment)}</td>
-                        <td className="px-5 py-4">
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{humanizeConstant(payment.mode)}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{paymentReference(payment)}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                           {receiptId ? (
                             <button
                               className="type-code text-[#2456E6] underline-offset-2 hover:underline disabled:opacity-50"
@@ -182,9 +221,9 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                             <span className="text-[#86868b]">Pending</span>
                           )}
                         </td>
-                        <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{money(payment.balanceAfter)}</td>
-                        <td className="px-5 py-4 text-[#6e6e73]">{payment.feeStructureName}</td>
-                        <td className="px-5 py-4">
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#1d1d1f]">{money(payment.balanceAfter)}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{payment.feeStructureName}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                           {receiptId ? (
                             <div className="flex flex-wrap gap-2">
                               <button
@@ -217,11 +256,11 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
           </div>
         </div>
 
-        <aside className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+        <aside className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Payment timeline</h2>
           <div className="mt-5 space-y-5">
             {transactionLedger.length === 0 ? (
-              <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4 text-[13px] font-medium text-[#86868b]">No payment timeline yet.</div>
+              <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No payment timeline yet.</div>
             ) : (
               transactionLedger.map((payment, index) => (
                 <div className="relative pl-7" key={payment.id}>

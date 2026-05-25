@@ -87,8 +87,8 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
 
   return (
     <section className="space-y-4">
-      {notice ? <div className="rounded-xl bg-[#25D366]/10 px-4 py-3 text-[13px] font-medium text-[#128C7E]">{notice}</div> : null}
-      {error ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
+      {notice ? <div className="rounded-[6px] border border-[#0F8A4A]/20 bg-[#E1F5EA] px-4 py-3 text-[13px] font-medium text-[#128C7E]">{notice}</div> : null}
+      {error ? <div className="rounded-[6px] border border-[#FCE3E5] bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="kpi-metric-card kpi-metric-card-good p-4">
@@ -109,8 +109,8 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-          <div className="flex flex-col gap-4 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+          <div className="flex flex-col gap-4 border-b border-[#E7EBF0] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Communication audit trail</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">Latest parent communication appears first.</p>
@@ -118,7 +118,7 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
             <div className="flex flex-wrap gap-2">
               {filters.map((item) => (
                 <button
-                  className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+                  className={`rounded-[6px] px-3 py-1.5 text-[12px] font-semibold transition-colors ${
                     filter === item.key ? "bg-[#2456E6] text-white" : "bg-[#F7F8FB] text-[#5A6573] hover:bg-[#E2F0FB]"
                   }`}
                   key={item.key}
@@ -130,35 +130,60 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
               ))}
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] text-left text-[13px]">
-              <thead className="table-head">
-                <tr>
+          <div className="space-y-3 p-4 md:hidden">
+            {filteredLogs.length === 0 ? (
+              <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No communication records for this filter.</div>
+            ) : (
+              filteredLogs.map((log) => (
+                <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-log-${log.source}-${log.id}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className={`inline-flex rounded-[6px] px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClasses(log.type)}`}>{typeLabel(log.type)}</span>
+                      <p className="mt-2 text-[12px] font-medium text-[#5A6573]">{formatDateTimeShort(log.timestamp)} - {channelLabel(log.channel)}</p>
+                    </div>
+                    <StatusPill label={log.status} tone={statusTone(log.status)} />
+                  </div>
+                  <button className="mt-3 block text-left text-[13px] font-medium leading-5 text-[#0F1419]" onClick={() => setSelectedLog(log)} type="button">
+                    {truncateText(log.summary, 140)}
+                  </button>
+                  {log.type === "WHATSAPP" && log.status === "FAILED" ? (
+                    <button className="mt-3 rounded-[6px] bg-[#25D366]/10 px-3 py-2 text-[12px] font-bold text-[#128C7E] hover:bg-[#25D366] hover:text-white disabled:opacity-50" disabled={retryingId === log.id} onClick={() => retryMessage(log)} type="button">
+                      {retryingId === log.id ? "Retrying..." : "Retry"}
+                    </button>
+                  ) : null}
+                </article>
+              ))
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[960px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
+              <thead>
+                <tr className="bg-[#DDECF8]">
                   {["Timestamp", "Type", "Channel", "Summary", "Status", "Actions"].map((head) => (
-                    <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+              <tbody>
                 {filteredLogs.length === 0 ? (
                   <tr>
                     <td className="px-5 py-12 text-center text-[#86868b]" colSpan={6}>No communication records for this filter.</td>
                   </tr>
                 ) : (
                   filteredLogs.map((log) => (
-                    <tr className="table-row" key={`${log.source}-${log.id}`}>
-                      <td className="px-5 py-4 text-[#6e6e73]">{formatDateTimeShort(log.timestamp)}</td>
-                      <td className="px-5 py-4">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClasses(log.type)}`}>{typeLabel(log.type)}</span>
+                    <tr className="transition-colors duration-200 hover:bg-[#F8FBFD]" key={`${log.source}-${log.id}`}>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{formatDateTimeShort(log.timestamp)}</td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
+                        <span className={`inline-flex rounded-[6px] px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClasses(log.type)}`}>{typeLabel(log.type)}</span>
                       </td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{channelLabel(log.channel)}</td>
-                      <td className="max-w-[360px] px-5 py-4 font-medium text-[#1d1d1f]">
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{channelLabel(log.channel)}</td>
+                      <td className="max-w-[360px] border-b border-[#C9D3DE] px-4 py-4 text-center font-medium text-[#1d1d1f]">
                         <button className="text-left hover:text-[#2456E6]" onClick={() => setSelectedLog(log)} type="button">
                           {truncateText(log.summary, 96)}
                         </button>
                       </td>
-                      <td className="px-5 py-4"><StatusPill label={log.status} tone={statusTone(log.status)} /></td>
-                      <td className="px-5 py-4">
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center"><StatusPill label={log.status} tone={statusTone(log.status)} /></td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                         <div className="flex flex-wrap gap-2">
                           <button className="rounded-lg bg-[#F7F8FB] px-3 py-1.5 text-[11px] font-bold text-[#2456E6] hover:bg-[#E2F0FB]" onClick={() => setSelectedLog(log)} type="button">
                             View full
@@ -183,11 +208,11 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
           </div>
         </div>
 
-        <aside className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+        <aside className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Timeline</h2>
           <div className="mt-5 space-y-5">
             {filteredLogs.length === 0 ? (
-              <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4 text-[13px] font-medium text-[#86868b]">No communication timeline yet.</div>
+              <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No communication timeline yet.</div>
             ) : (
               filteredLogs.slice(0, 12).map((log, index) => (
                 <div className="relative pl-7" key={`${log.source}-timeline-${log.id}`}>
@@ -204,8 +229,8 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
       </section>
 
       {selectedLog ? (
-        <div className="fixed inset-0 z-[200] flex items-end bg-black/40 p-4 backdrop-blur-sm sm:items-center sm:justify-center">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[200] flex items-end bg-black/40 p-4 sm:items-center sm:justify-center">
+          <div className="w-full max-w-xl rounded-[6px] bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">{typeLabel(selectedLog.type)} - {channelLabel(selectedLog.channel)}</p>
@@ -215,7 +240,7 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
                 Close
               </button>
             </div>
-            <div className="mt-5 rounded-xl bg-[#F7F8FB] p-4 text-[14px] leading-6 text-[#1d1d1f]">
+            <div className="mt-5 rounded-[6px] bg-[#F7F8FB] p-4 text-[14px] leading-6 text-[#1d1d1f]">
               {selectedLog.summary}
             </div>
             <div className="mt-4 flex items-center justify-between gap-3">

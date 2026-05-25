@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
-import { apiFetch, studentsApi } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
@@ -36,7 +36,7 @@ export default function NewStudentPage() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
-  const [studentPhoto, setStudentPhoto] = useState<File | null>(null);
+  const [studentPhotoUrl, setStudentPhotoUrl] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     fullName: "",
@@ -92,7 +92,6 @@ export default function NewStudentPage() {
 
   function selectPhoto(file: File | null) {
     if (!file) {
-      setStudentPhoto(null);
       return;
     }
 
@@ -108,7 +107,10 @@ export default function NewStudentPage() {
     }
 
     setErrorMsg("");
-    setStudentPhoto(file);
+    const reader = new FileReader();
+    reader.onload = () => setStudentPhotoUrl(typeof reader.result === "string" ? reader.result : null);
+    reader.onerror = () => setErrorMsg("Unable to read student photo.");
+    reader.readAsDataURL(file);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -160,19 +162,12 @@ export default function NewStudentPage() {
       if (!payload.aadhaar) delete payload.aadhaar;
       if (!payload.apaar) delete payload.apaar;
       if (!payload.previousSchool) delete payload.previousSchool;
+      payload.profilePhotoUrl = studentPhotoUrl;
       
-      const createdStudent = await apiFetch<{ id: string }>("/students", {
+      await apiFetch<{ id: string }>("/students", {
         method: "POST",
         body: JSON.stringify(payload),
       });
-
-      if (studentPhoto) {
-        await studentsApi.uploadDocument(createdStudent.id, {
-          type: "PHOTO",
-          name: `${payload.fullName} photo`,
-          file: studentPhoto
-        });
-      }
 
       router.push("/students");
       router.refresh();
@@ -186,7 +181,7 @@ export default function NewStudentPage() {
   return (
     <SideModal eyebrow="Students" onClose={() => router.back()} title="Register new student" width="lg">
       {errorMsg && (
-        <div className="p-4 rounded-xl bg-[rgba(255,59,48,0.1)] border border-[rgba(255,59,48,0.2)] text-[#d70015] text-[13px] font-medium flex items-center gap-3">
+        <div className="flex items-center gap-3 rounded-[6px] border border-[#FCE3E5] bg-[rgba(255,59,48,0.1)] p-4 text-[13px] font-medium text-[#d70015]">
           <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
@@ -203,7 +198,7 @@ export default function NewStudentPage() {
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Full Name <span className="text-[#ff3b30]">*</span></label>
               <input
                 required
-                className="glass-input w-full"
+                className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                 placeholder="Student's full name"
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
@@ -213,7 +208,7 @@ export default function NewStudentPage() {
             <div className="grid gap-5 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Admission Number</label>
-                <div className="glass-input w-full bg-[#f5f5f7]/50 text-[#86868b] flex items-center italic">
+                <div className="flex w-full items-center rounded-[6px] border border-[#C9D3DE] bg-[#F7F8FB] px-3 py-2.5 text-[14px] italic text-[#86868b]">
                   Auto-generated on save
                 </div>
               </div>
@@ -221,7 +216,7 @@ export default function NewStudentPage() {
                 <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Roll Number</label>
                 <input
                   type="number"
-                  className="glass-input w-full"
+                  className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                   placeholder="e.g. 15"
                   value={formData.rollNumber}
                   onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })}
@@ -231,7 +226,7 @@ export default function NewStudentPage() {
                 <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Gender <span className="text-[#ff3b30]">*</span></label>
                 <select
                   required
-                  className="glass-input w-full"
+                  className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                 >
@@ -248,7 +243,7 @@ export default function NewStudentPage() {
               <input
                 inputMode="numeric"
                 pattern="\d{2}/\d{2}/\d{4}"
-                className="glass-input w-full"
+                className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                 placeholder="dd/mm/yyyy"
                 value={formData.dateOfBirth}
                 onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
@@ -260,7 +255,7 @@ export default function NewStudentPage() {
               <div className="space-y-1.5">
                 <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Aadhaar Number</label>
                 <input
-                  className="glass-input w-full"
+                  className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                   placeholder="12-digit Aadhaar number"
                   value={formData.aadhaar}
                   onChange={(e) => setFormData({ ...formData, aadhaar: e.target.value })}
@@ -269,7 +264,7 @@ export default function NewStudentPage() {
               <div className="space-y-1.5">
                 <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">APAAR ID</label>
                 <input
-                  className="glass-input w-full"
+                  className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                   placeholder="12-digit APAAR ID"
                   value={formData.apaar}
                   onChange={(e) => setFormData({ ...formData, apaar: e.target.value })}
@@ -277,22 +272,40 @@ export default function NewStudentPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-dashed border-[#C2C9D4] bg-white/55 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+            <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-[#EAF3FB]">
+                    {studentPhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img alt="Student preview" className="h-full w-full object-cover" src={studentPhotoUrl} />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[13px] font-bold text-[#0F2557]">
+                        {formData.fullName.trim().split(" ").filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "ST"}
+                      </div>
+                    )}
+                  </div>
+                  <div>
                   <label className="text-[13px] font-semibold text-[#1d1d1f]">Student photo</label>
-                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">JPG or PNG up to 5MB. Stored in student documents as Photo.</p>
-                  {studentPhoto ? <p className="mt-2 text-[12px] font-semibold text-[#2456E6]">{studentPhoto.name}</p> : null}
+                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">JPG or PNG up to 5MB.</p>
+                  </div>
                 </div>
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-md border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB]">
-                  Choose photo
-                  <input
-                    accept="image/jpeg,image/png"
-                    className="sr-only"
-                    type="file"
-                    onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)}
-                  />
-                </label>
+                <div className="flex flex-wrap gap-2">
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-[6px] border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB]">
+                    {studentPhotoUrl ? "Change photo" : "Upload photo"}
+                    <input
+                      accept="image/jpeg,image/png"
+                      className="sr-only"
+                      type="file"
+                      onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {studentPhotoUrl ? (
+                    <button className="rounded-[6px] border border-[#F1B8BD] bg-white px-4 py-2 text-[13px] font-semibold text-[#C8242C] hover:bg-[#FCE3E5]" onClick={() => setStudentPhotoUrl(null)} type="button">
+                      Remove photo
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
@@ -305,7 +318,7 @@ export default function NewStudentPage() {
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Class & Section <span className="text-[#ff3b30]">*</span></label>
               <select
                 required
-                className="glass-input w-full"
+                className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                 value={formData.classId}
                 onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
               >
@@ -318,7 +331,7 @@ export default function NewStudentPage() {
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Assign Fee Structure</label>
               <select
-                className="glass-input w-full"
+                className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                 value={formData.feeStructureId}
                 onChange={(e) => setFormData({ ...formData, feeStructureId: e.target.value })}
               >
@@ -330,7 +343,7 @@ export default function NewStudentPage() {
             </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
-            <div className="flex items-center rounded-2xl border border-[#DCE1E8] bg-white/55 px-4 py-3">
+            <div className="flex items-center rounded-[6px] border border-[#DCE1E8] bg-white px-4 py-3">
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   checked={formData.transportRequired}
@@ -344,7 +357,7 @@ export default function NewStudentPage() {
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Transportation Fee</label>
               <input
-                className="glass-input w-full"
+                className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                 disabled={!formData.transportRequired}
                 inputMode="decimal"
                 min="0"
@@ -360,7 +373,7 @@ export default function NewStudentPage() {
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Previous School</label>
               <input
-                className="glass-input w-full"
+                className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                 placeholder="Name of previous school (if any)"
                 value={formData.previousSchool}
                 onChange={(e) => setFormData({ ...formData, previousSchool: e.target.value })}
@@ -383,7 +396,7 @@ export default function NewStudentPage() {
         {/* Parent Details */}
         <FormSection title="Guardian Details">
           <div className="space-y-5">
-            <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white/55 p-4">
+            <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
                 <h4 className="text-[14px] font-semibold text-[#1d1d1f]">Father</h4>
                 <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">Primary if first filled</span>
@@ -392,7 +405,7 @@ export default function NewStudentPage() {
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Name</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="Father name"
                     value={formData.fatherName}
                     onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
@@ -401,7 +414,7 @@ export default function NewStudentPage() {
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Phone</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="10-digit mobile"
                     value={formData.fatherPhone}
                     onChange={(e) => setFormData({ ...formData, fatherPhone: e.target.value })}
@@ -410,7 +423,7 @@ export default function NewStudentPage() {
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Occupation</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="e.g. Business"
                     value={formData.fatherOccupation}
                     onChange={(e) => setFormData({ ...formData, fatherOccupation: e.target.value })}
@@ -419,13 +432,13 @@ export default function NewStudentPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white/55 p-4">
+            <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4">
               <h4 className="mb-3 text-[14px] font-semibold text-[#1d1d1f]">Mother</h4>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Name</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="Mother name"
                     value={formData.motherName}
                     onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
@@ -434,7 +447,7 @@ export default function NewStudentPage() {
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Phone</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="10-digit mobile"
                     value={formData.motherPhone}
                     onChange={(e) => setFormData({ ...formData, motherPhone: e.target.value })}
@@ -443,7 +456,7 @@ export default function NewStudentPage() {
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Occupation</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="e.g. Teacher"
                     value={formData.motherOccupation}
                     onChange={(e) => setFormData({ ...formData, motherOccupation: e.target.value })}
@@ -452,13 +465,13 @@ export default function NewStudentPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white/55 p-4">
+            <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4">
               <h4 className="mb-3 text-[14px] font-semibold text-[#1d1d1f]">Other guardian</h4>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Name</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="Guardian name"
                     value={formData.guardianName}
                     onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })}
@@ -467,7 +480,7 @@ export default function NewStudentPage() {
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Phone</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="10-digit mobile"
                     value={formData.guardianPhone}
                     onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
@@ -476,7 +489,7 @@ export default function NewStudentPage() {
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Occupation</label>
                   <input
-                    className="glass-input w-full"
+                    className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                     placeholder="e.g. Retired"
                     value={formData.guardianOccupation}
                     onChange={(e) => setFormData({ ...formData, guardianOccupation: e.target.value })}
@@ -490,7 +503,7 @@ export default function NewStudentPage() {
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Address</label>
               <textarea
-                className="glass-input w-full min-h-[100px] py-3"
+                className="min-h-[100px] w-full rounded-[6px] border border-[#C9D3DE] px-3 py-3 text-[14px] outline-none focus:border-[#2456E6]"
                 placeholder="Residential address"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -504,14 +517,14 @@ export default function NewStudentPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-2.5 text-[14px] font-semibold text-[#1d1d1f] hover:bg-[#f5f5f7] rounded-xl transition-colors"
+            className="rounded-[6px] border border-[#C9D3DE] bg-white px-6 py-2.5 text-[14px] font-semibold text-[#1d1d1f] transition-colors hover:bg-[#F7F8FB]"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary gap-2 px-10 py-2.5 rounded-xl disabled:opacity-50"
+            className="btn-primary gap-2 rounded-[6px] px-10 py-2.5 disabled:opacity-50"
           >
             {loading ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
             {loading ? "Registering..." : "Register Student"}

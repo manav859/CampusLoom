@@ -12,6 +12,7 @@ export const studentSchema = z.object({
   rollNumber: z.coerce.number().int().positive().nullable().optional(),
   dateOfBirth: optionalDate,
   gender: z.nativeEnum(Gender).nullable().optional(),
+  profilePhotoUrl: z.string().nullable().optional(),
   parentName: z.string().min(2),
   parentPhone: z.string().min(10),
   alternatePhone: optionalPhone,

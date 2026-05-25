@@ -189,11 +189,11 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
 
   return (
     <section className="space-y-4">
-      {notice ? <div className="rounded-xl bg-[#25D366]/10 px-4 py-3 text-[13px] font-medium text-[#128C7E]">{notice}</div> : null}
-      {notifyError ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{notifyError}</div> : null}
+      {notice ? <div className="rounded-[6px] border border-[#0F8A4A]/20 bg-[#E1F5EA] px-4 py-3 text-[13px] font-medium text-[#128C7E]">{notice}</div> : null}
+      {notifyError ? <div className="rounded-[6px] border border-[#FCE3E5] bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{notifyError}</div> : null}
 
       {canWriteBehaviour ? (
-        <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-5 shadow-apple-sm backdrop-blur-xl" id="behaviour-form" onSubmit={handleSubmit}>
+        <form className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5" id="behaviour-form" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Add behaviour record</h2>
@@ -206,7 +206,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
             <label className="space-y-1.5">
               <span className="text-[12px] font-semibold text-[#6e6e73]">Type</span>
               <select
-                className="glass-input min-h-[44px] text-[14px]"
+                className="min-h-[44px] rounded-[6px] border border-[#C9D3DE] px-3 text-[14px] outline-none focus:border-[#2456E6]"
                 value={form.type}
                 onChange={(event) => {
                   const type = event.target.value as BehaviourRecordPayload["type"];
@@ -221,7 +221,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
             <label className="space-y-1.5">
               <span className="text-[12px] font-semibold text-[#6e6e73]">Rating</span>
               <select
-                className="glass-input min-h-[44px] text-[14px]"
+                className="min-h-[44px] rounded-[6px] border border-[#C9D3DE] px-3 text-[14px] outline-none focus:border-[#2456E6]"
                 value={form.severity ?? defaultSeverity(form.type)}
                 onChange={(event) => setForm((current) => ({ ...current, severity: event.target.value as BehaviourRecordPayload["severity"] }))}
               >
@@ -239,7 +239,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
             <label className="space-y-1.5">
               <span className="text-[12px] font-semibold text-[#6e6e73]">Title</span>
               <input
-                className="glass-input min-h-[44px] text-[14px]"
+                className="min-h-[44px] rounded-[6px] border border-[#C9D3DE] px-3 text-[14px] outline-none focus:border-[#2456E6]"
                 maxLength={160}
                 placeholder="Short behaviour title"
                 value={form.title}
@@ -252,7 +252,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
             <label className="space-y-1.5">
               <span className="text-[12px] font-semibold text-[#6e6e73]">Details</span>
               <textarea
-                className="glass-input min-h-[96px] resize-none text-[14px] leading-6"
+                className="min-h-[96px] w-full resize-none rounded-[6px] border border-[#C9D3DE] px-3 py-2 text-[14px] leading-6 outline-none focus:border-[#2456E6]"
                 maxLength={2000}
                 placeholder="What happened?"
                 value={form.summary}
@@ -261,7 +261,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
             </label>
           </div>
 
-          {formError ? <p className="mt-3 rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{formError}</p> : null}
+          {formError ? <p className="mt-3 rounded-[6px] border border-[#FCE3E5] bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{formError}</p> : null}
 
           <div className="mt-4 flex justify-end">
             <button className="btn-primary min-h-[44px] gap-2 px-5 text-[14px]" disabled={saving} type="submit">
@@ -292,7 +292,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
       </div>
 
       {!behaviour.canViewCounsellorNotes ? (
-        <div className="rounded-2xl border border-[#5856d6]/15 bg-[#5856d6]/[0.06] p-4 text-[13px] font-medium leading-6 text-[#5856d6]">
+        <div className="rounded-[6px] border border-[#D8D4FF] bg-[#F5F3FF] p-4 text-[13px] font-medium leading-6 text-[#5856d6]">
           Counsellor notes are restricted to Principal and Admin roles. Teacher view only includes incidents and positive achievements.
         </div>
       ) : null}
@@ -312,7 +312,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
       ) : (
       <>
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-5 shadow-apple backdrop-blur-xl">
+        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Recent incidents</h2>
@@ -325,7 +325,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               <div className="py-2"><EmptyState headline="No incidents" description="No recent incidents recorded." /></div>
             ) : (
               recentIncidents.map((record) => (
-                <div className="rounded-xl border border-[rgba(0,0,0,0.05)] p-4" key={`incident-${record.id}`}>
+                <div className="rounded-[6px] border border-[#DCE1E8] p-4" key={`incident-${record.id}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[14px] font-semibold text-[#1d1d1f]">{record.title}</p>
                     <StatusPill label={severityLabel(record.severity)} tone={severityTone(record)} />
@@ -351,7 +351,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 p-5 shadow-apple backdrop-blur-xl">
+        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Positive achievements</h2>
@@ -364,7 +364,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               <div className="py-2"><EmptyState headline="No achievements" description="No positive achievements yet." /></div>
             ) : (
               recentAchievements.map((record) => (
-                <div className="rounded-xl border border-[#34c759]/15 bg-[#34c759]/[0.04] p-4" key={`achievement-${record.id}`}>
+                <div className="rounded-[6px] border border-[#BFE9CC] bg-[#F4FBF6] p-4" key={`achievement-${record.id}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[14px] font-semibold text-[#1d1d1f]">{record.title}</p>
                     <StatusPill label={severityLabel(record.severity)} tone="good" />
@@ -383,36 +383,66 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
         </div>
       </section>
 
-      <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white/90 shadow-apple backdrop-blur-xl">
-        <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
+      <div className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+        <div className="border-b border-[#E7EBF0] px-5 py-4">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Behaviour record</h2>
           <p className="mt-0.5 text-[13px] text-[#86868b]">Latest entries first, with restricted notes protected by role.</p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-left text-[13px]">
-            <thead className="table-head">
-              <tr>
+        <div className="space-y-3 p-4 md:hidden">
+          {records.map((record) => (
+            <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-behaviour-${record.id}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[14px] font-semibold text-[#0F1419]">{record.title}</p>
+                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">{formatDateShort(record.occurredAt)} - {record.createdBy?.fullName ?? "System"}</p>
+                </div>
+                <StatusPill label={severityLabel(record.severity)} tone={severityTone(record)} />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className={`inline-flex rounded-[6px] px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClasses(record.type)}`}>{typeLabel(record.type)}</span>
+                {record.isRestricted ? <StatusPill label="Restricted" tone="warn" /> : null}
+              </div>
+              <p className="mt-3 text-[13px] leading-5 text-[#424B57]">{record.summary}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {canTakeAction && record.type === "INCIDENT" ? (
+                  <button className="btn-secondary min-h-[34px] px-3 text-[12px]" onClick={() => openActionModal(record)} type="button">
+                    {record.actionTaken ? "Update action" : "Take action"}
+                  </button>
+                ) : null}
+                {!record.isRestricted ? (
+                  <button className="btn-secondary min-h-[34px] px-3 text-[12px]" disabled={notifyingId === record.id} onClick={() => notifyParent(record)} type="button">
+                    {notifyingId === record.id ? "Notifying..." : "Notify parent"}
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[920px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
+            <thead>
+              <tr className="bg-[#DDECF8]">
                 {["Date", "Type", "Severity", "Details", "Action", "Logged by"].map((head) => (
-                  <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+            <tbody>
               {records.map((record) => (
-                  <tr className="table-row" key={record.id}>
-                    <td className="px-5 py-4 text-[#6e6e73]">{formatDateShort(record.occurredAt)}</td>
-                    <td className="px-5 py-4">
+                  <tr className="transition-colors duration-200 hover:bg-[#F8FBFD]" key={record.id}>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{formatDateShort(record.occurredAt)}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                       <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${typeBadgeClasses(record.type)}`}>{typeLabel(record.type)}</span>
                     </td>
-                    <td className="px-5 py-4"><StatusPill label={severityLabel(record.severity)} tone={severityTone(record)} /></td>
-                    <td className="max-w-[360px] px-5 py-4">
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center"><StatusPill label={severityLabel(record.severity)} tone={severityTone(record)} /></td>
+                    <td className="max-w-[360px] border-b border-[#C9D3DE] px-4 py-4 text-center">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-[#1d1d1f]">{record.title}</p>
                         {record.isRestricted ? <StatusPill label="Restricted" tone="warn" /> : null}
                       </div>
                       <p className="mt-1 text-[12px] leading-5 text-[#6e6e73]">{record.summary}</p>
                     </td>
-                    <td className="px-5 py-4 text-[#6e6e73]">
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">
                       <div className="flex max-w-[220px] flex-col gap-2">
                         <span>{record.actionTaken ?? "Not recorded"}</span>
                         {canTakeAction && record.type === "INCIDENT" ? (
@@ -427,7 +457,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                         ) : null}
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-[#6e6e73]">{record.createdBy?.fullName ?? "System"}</td>
+                    <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{record.createdBy?.fullName ?? "System"}</td>
                   </tr>
                 ))}
             </tbody>
@@ -438,8 +468,8 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
       )}
 
       {selectedIncident ? (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30 px-4 backdrop-blur-sm">
-          <form className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl" onSubmit={handleActionSubmit}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4">
+          <form className="w-full max-w-2xl rounded-[6px] bg-white p-6 shadow-2xl" onSubmit={handleActionSubmit}>
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Behaviour action</p>
@@ -449,7 +479,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               <StatusPill label={severityLabel(selectedIncident.severity)} tone={severityTone(selectedIncident)} />
             </div>
 
-            <div className="mt-5 grid gap-3 rounded-xl border border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/70 p-4 text-[13px] text-[#6e6e73]">
+            <div className="mt-5 grid gap-3 rounded-[6px] border border-[#DCE1E8] bg-[#F7F8FB] p-4 text-[13px] text-[#6e6e73]">
               <div>
                 <p className="font-semibold text-[#1d1d1f]">Incident details</p>
                 <p className="mt-1 leading-6">{selectedIncident.summary}</p>
@@ -470,7 +500,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               <span className="text-[12px] font-semibold text-[#6e6e73]">Action being taken</span>
               <textarea
                 autoFocus
-                className="glass-input min-h-[120px] resize-none text-[14px] leading-6"
+                className="min-h-[120px] w-full resize-none rounded-[6px] border border-[#C9D3DE] px-3 py-2 text-[14px] leading-6 outline-none focus:border-[#2456E6]"
                 maxLength={1000}
                 placeholder="Write the action taken by principal"
                 value={actionText}
@@ -478,7 +508,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               />
             </label>
 
-            {actionError ? <p className="mt-3 rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{actionError}</p> : null}
+            {actionError ? <p className="mt-3 rounded-[6px] border border-[#FCE3E5] bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{actionError}</p> : null}
 
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button className="btn-secondary min-h-[44px] px-5 text-[14px]" onClick={() => setSelectedIncident(null)} type="button">

@@ -128,6 +128,7 @@ model Student {
   rollNumber          Int?
   dateOfBirth         DateTime?
   gender              Gender?
+  profilePhotoUrl     String?
   parentName          String
   parentPhone         String
   alternatePhone      String?

@@ -455,6 +455,7 @@ export type StudentDetail = {
   rollNumber: number | null;
   dateOfBirth: string | null;
   gender: "MALE" | "FEMALE" | "OTHER" | null;
+  profilePhotoUrl: string | null;
   parentName: string;
   parentPhone: string;
   alternatePhone: string | null;

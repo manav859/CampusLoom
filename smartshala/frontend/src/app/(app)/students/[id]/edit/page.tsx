@@ -15,6 +15,7 @@ type StudentForm = {
   rollNumber: string;
   dateOfBirth: string;
   gender: string;
+  profilePhotoUrl: string | null;
   parentName: string;
   parentPhone: string;
   alternatePhone: string;
@@ -38,6 +39,7 @@ const emptyForm: StudentForm = {
   rollNumber: "",
   dateOfBirth: "",
   gender: "",
+  profilePhotoUrl: null,
   parentName: "",
   parentPhone: "",
   alternatePhone: "",
@@ -61,6 +63,16 @@ function dateInput(value: string | null | undefined) {
 function textOrNull(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "ST";
 }
 
 export default function EditStudentPage() {
@@ -99,6 +111,7 @@ export default function EditStudentPage() {
           rollNumber: student.rollNumber?.toString() ?? "",
           dateOfBirth: dateInput(student.dateOfBirth),
           gender: student.gender ?? "",
+          profilePhotoUrl: student.profilePhotoUrl ?? null,
           parentName: student.parentName,
           parentPhone: student.parentPhone,
           alternatePhone: student.alternatePhone ?? "",
@@ -133,6 +146,7 @@ export default function EditStudentPage() {
           rollNumber: formData.rollNumber ? Number(formData.rollNumber) : null,
           dateOfBirth: formData.dateOfBirth || null,
           gender: formData.gender || null,
+          profilePhotoUrl: formData.profilePhotoUrl,
           parentName: formData.parentName.trim(),
           parentPhone: formData.parentPhone.trim(),
           alternatePhone: textOrNull(formData.alternatePhone),
@@ -161,7 +175,24 @@ export default function EditStudentPage() {
   }
 
   if (loading) {
-    return <div className="rounded-xl bg-white p-6 text-[13px] font-medium text-[#86868b] shadow-apple-sm">Loading student...</div>;
+    return <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-6 text-[13px] font-medium text-[#86868b]">Loading student...</div>;
+  }
+
+  function selectPhoto(file: File | null) {
+    if (!file) return;
+    const allowedTypes = new Set(["image/jpeg", "image/png"]);
+    if (!allowedTypes.has(file.type)) {
+      setErrorMsg("Student photo must be a JPG or PNG file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg("Student photo must be 5MB or smaller.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setFormData((current) => ({ ...current, profilePhotoUrl: typeof reader.result === "string" ? reader.result : null }));
+    reader.onerror = () => setErrorMsg("Unable to read student photo.");
+    reader.readAsDataURL(file);
   }
 
   return (
@@ -169,26 +200,53 @@ export default function EditStudentPage() {
       <PageHeader eyebrow="Students" title="Edit student details" />
 
       {errorMsg ? (
-        <div className="rounded-xl border border-[rgba(255,59,48,0.2)] bg-[rgba(255,59,48,0.1)] p-4 text-[13px] font-medium text-[#d70015]">
+        <div className="rounded-[6px] border border-[#FCE3E5] bg-[rgba(255,59,48,0.1)] p-4 text-[13px] font-medium text-[#d70015]">
           {errorMsg}
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="glass-card space-y-8 p-8">
+      <form onSubmit={handleSubmit} className="space-y-8 rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-8">
         <section className="space-y-4">
           <h3 className="text-[15px] font-bold text-[#1d1d1f]">Student</h3>
+          <div className="flex flex-col gap-4 rounded-[6px] border border-[#DCE1E8] bg-[#F7F8FB] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-[#EAF3FB]">
+                {formData.profilePhotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt={formData.fullName} className="h-full w-full object-cover" src={formData.profilePhotoUrl} />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[14px] font-bold text-[#0F2557]">{initials(formData.fullName)}</div>
+                )}
+              </div>
+              <div>
+                <p className="text-[13px] font-semibold text-[#1d1d1f]">Student profile photo</p>
+                <p className="mt-1 text-[12px] font-medium text-[#5A6573]">JPG or PNG up to 5MB.</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="inline-flex cursor-pointer items-center justify-center rounded-[6px] border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB]">
+                {formData.profilePhotoUrl ? "Change photo" : "Upload photo"}
+                <input accept="image/jpeg,image/png" className="sr-only" type="file" onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)} />
+              </label>
+              {formData.profilePhotoUrl ? (
+                <button className="rounded-[6px] border border-[#F1B8BD] bg-white px-4 py-2 text-[13px] font-semibold text-[#C8242C] hover:bg-[#FCE3E5]" onClick={() => setFormData({ ...formData, profilePhotoUrl: null })} type="button">
+                  Remove photo
+                </button>
+              ) : null}
+            </div>
+          </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Full name</span>
-              <input required minLength={2} className="glass-input w-full" value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} />
+              <input required minLength={2} className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} />
             </label>
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Admission number</span>
-              <input required className="glass-input w-full" value={formData.admissionNumber} onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })} />
+              <input required className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.admissionNumber} onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })} />
             </label>
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Class & section</span>
-              <select required className="glass-input w-full" value={formData.classId} onChange={(e) => setFormData({ ...formData, classId: e.target.value })}>
+              <select required className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.classId} onChange={(e) => setFormData({ ...formData, classId: e.target.value })}>
                 <option value="">Select class</option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>{item.name} - Section {item.section}</option>
@@ -197,15 +255,15 @@ export default function EditStudentPage() {
             </label>
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Roll number</span>
-              <input className="glass-input w-full" min={1} type="number" value={formData.rollNumber} onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })} />
+              <input className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" min={1} type="number" value={formData.rollNumber} onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })} />
             </label>
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Date of birth</span>
-              <input className="glass-input w-full" type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} />
+              <input className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} />
             </label>
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Gender</span>
-              <select className="glass-input w-full" value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })}>
+              <select className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.gender} onChange={(e) => setFormData({ ...formData, gender: e.target.value })}>
                 <option value="">Select</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
@@ -237,7 +295,7 @@ export default function EditStudentPage() {
                 <input
                   required={Boolean(required)}
                   minLength={String(key).includes("Phone") ? 10 : undefined}
-                  className="glass-input w-full"
+                  className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                   value={String(formData[key as keyof StudentForm])}
                   onChange={(e) => setFormData({ ...formData, [key as string]: e.target.value } as StudentForm)}
                 />
@@ -246,7 +304,7 @@ export default function EditStudentPage() {
           </div>
           <label className="block space-y-1.5">
             <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Address</span>
-            <textarea className="glass-input min-h-[100px] w-full py-3" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
+            <textarea className="min-h-[100px] w-full rounded-[6px] border border-[#C9D3DE] px-3 py-3 text-[14px] outline-none focus:border-[#2456E6]" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} />
           </label>
           <label className="flex items-center gap-2 text-[13px] font-semibold text-[#1d1d1f]">
             <input checked={formData.isActive} className="rounded border-[rgba(0,0,0,0.1)]" type="checkbox" onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} />
@@ -254,11 +312,11 @@ export default function EditStudentPage() {
           </label>
         </section>
 
-        <div className="flex items-center justify-end gap-3 border-t border-[rgba(0,0,0,0.06)] pt-4">
-          <button className="rounded-xl px-6 py-2.5 text-[14px] font-semibold text-[#1d1d1f] transition-colors hover:bg-[#f5f5f7]" onClick={() => router.back()} type="button">
+        <div className="flex flex-col-reverse gap-3 border-t border-[#E7EBF0] pt-4 sm:flex-row sm:items-center sm:justify-end">
+          <button className="rounded-[6px] border border-[#C9D3DE] bg-white px-6 py-2.5 text-[14px] font-semibold text-[#1d1d1f] transition-colors hover:bg-[#F7F8FB]" onClick={() => router.back()} type="button">
             Cancel
           </button>
-          <button className="btn-primary gap-2 rounded-xl px-10 py-2.5 disabled:opacity-50" disabled={saving} type="submit">
+          <button className="btn-primary gap-2 rounded-[6px] px-10 py-2.5 disabled:opacity-50" disabled={saving} type="submit">
             {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
             {saving ? "Saving..." : "Save changes"}
           </button>
