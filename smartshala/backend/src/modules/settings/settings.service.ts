@@ -1,4 +1,6 @@
 import { prisma } from "../../core/prisma.js";
+import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
+import { getTenantContext } from "../../tenant/tenantContext.js";
 
 export type SchoolProfileInput = {
   name: string;
@@ -34,9 +36,26 @@ export async function getSchoolProfile(schoolId: string) {
 }
 
 export async function updateSchoolProfile(schoolId: string, input: SchoolProfileInput) {
-  return prisma.school.update({
+  const updatedSchool = await prisma.school.update({
     where: { id: schoolId },
     data: input,
     select: schoolProfileSelect
   });
+
+  if (isMasterDbConfigured()) {
+    const tenantSchoolId = getTenantContext()?.schoolId;
+    if (tenantSchoolId) {
+      await masterPrisma.school.update({
+        where: { schoolId: tenantSchoolId },
+        data: {
+          schoolName: input.name,
+          phone: input.phone ?? ""
+        }
+      }).catch((err) => {
+        console.error(`[SettingsSync] Failed to sync school details to master DB for schoolId ${tenantSchoolId}:`, err);
+      });
+    }
+  }
+
+  return updatedSchool;
 }

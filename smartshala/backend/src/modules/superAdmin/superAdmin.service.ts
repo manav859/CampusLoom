@@ -245,7 +245,7 @@ export async function updateTenantUserRole(schoolId: string, userId: string, rol
   const school = await tenantSchoolOrThrow(schoolId);
   const tenantPrisma = getTenantPrismaClient(school.dbUrl);
 
-  return tenantPrisma.user.update({
+  const updatedUser = await tenantPrisma.user.update({
     where: { id: userId },
     data: { role },
     select: {
@@ -258,6 +258,21 @@ export async function updateTenantUserRole(schoolId: string, userId: string, rol
       isActive: true
     }
   });
+
+  if (updatedUser.role === "PRINCIPAL" && isMasterDbConfigured()) {
+    await masterPrisma.school.update({
+      where: { schoolId },
+      data: {
+        ownerName: updatedUser.fullName,
+        email: updatedUser.email ?? "",
+        phone: updatedUser.phone
+      }
+    }).catch((err) => {
+      logger.error({ err, schoolId }, "Failed to sync principal details to master DB during role update");
+    });
+  }
+
+  return updatedUser;
 }
 
 export async function createTenantUser(
@@ -274,7 +289,7 @@ export async function createTenantUser(
     throw new AppError(500, "Tenant school record not found in the school database", "TENANT_SCHOOL_NOT_FOUND");
   }
 
-  return tenantPrisma.user.create({
+  const createdUser = await tenantPrisma.user.create({
     data: {
       schoolId: tenantSchool.id,
       fullName: data.fullName,
@@ -295,6 +310,21 @@ export async function createTenantUser(
       isActive: true
     }
   });
+
+  if (createdUser.role === "PRINCIPAL" && isMasterDbConfigured()) {
+    await masterPrisma.school.update({
+      where: { schoolId },
+      data: {
+        ownerName: createdUser.fullName,
+        email: createdUser.email ?? "",
+        phone: createdUser.phone
+      }
+    }).catch((err) => {
+      logger.error({ err, schoolId }, "Failed to sync principal details to master DB during user creation");
+    });
+  }
+
+  return createdUser;
 }
 
 export async function updateSchoolActiveStatus(schoolId: string, isActive: boolean) {

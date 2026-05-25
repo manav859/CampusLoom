@@ -4,6 +4,8 @@ import { UserRole } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { getPagination } from "../../core/pagination.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
+import { getTenantContext } from "../../tenant/tenantContext.js";
 
 type TeacherPeriodInput = {
   dayOfWeek?: string;
@@ -217,11 +219,29 @@ export async function updateUser(schoolId: string, id: string, data: Record<stri
     ...data,
     ...(data.status === "ACTIVE" ? { isActive: true } : data.status === "INACTIVE" ? { isActive: false } : {})
   };
-  return prisma.user.update({
+  const updatedUser = await prisma.user.update({
     where: { id },
     data: updateData,
     select: { id: true, fullName: true, email: true, phone: true, role: true, status: true }
   });
+
+  if (updatedUser.role === "PRINCIPAL" && isMasterDbConfigured()) {
+    const tenantSchoolId = getTenantContext()?.schoolId;
+    if (tenantSchoolId) {
+      await masterPrisma.school.update({
+        where: { schoolId: tenantSchoolId },
+        data: {
+          ownerName: updatedUser.fullName,
+          email: updatedUser.email ?? "",
+          phone: updatedUser.phone
+        }
+      }).catch((err) => {
+        console.error(`[UserSync] Failed to sync principal details to master DB for schoolId ${tenantSchoolId}:`, err);
+      });
+    }
+  }
+
+  return updatedUser;
 }
 
 export async function deleteUser(schoolId: string, id: string) {
