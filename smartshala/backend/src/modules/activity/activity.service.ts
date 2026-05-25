@@ -48,6 +48,22 @@ function readBody(log: { afterJson: Prisma.JsonValue | null }) {
   return body as Record<string, unknown>;
 }
 
+function countAttendance(records: unknown) {
+  const counts = { present: 0, absent: 0, halfDay: 0, late: 0 };
+  if (!Array.isArray(records)) return counts;
+
+  for (const record of records) {
+    if (!record || typeof record !== "object") continue;
+    const status = (record as Record<string, unknown>).status;
+    if (status === "PRESENT") counts.present += 1;
+    if (status === "ABSENT") counts.absent += 1;
+    if (status === "HALF_DAY") counts.halfDay += 1;
+    if (status === "LATE") counts.late += 1;
+  }
+
+  return counts;
+}
+
 function logSearchText(log: { action: string; actor?: { fullName: string; role: UserRole } | null; afterJson: Prisma.JsonValue | null; beforeJson: Prisma.JsonValue | null; entityType: string; summary: string }) {
   return [
     log.summary,
@@ -109,6 +125,41 @@ async function enrichFeeLog<T extends { action: string; afterJson: Prisma.JsonVa
       }
     }
   };
+}
+
+async function enrichAttendanceLog<T extends { action: string; afterJson: Prisma.JsonValue | null; entityType: string; schoolId: string; summary: string }>(log: T): Promise<T> {
+  const isAttendanceMark = log.entityType === "ATTENDANCE" && /\/attendance\/mark(?:\?|$|\/)/.test(log.summary);
+  if (!isAttendanceMark) return log;
+
+  const body = readBody(log);
+  const classId = typeof body.classId === "string" ? body.classId : null;
+  if (!classId) return log;
+
+  const classRecord = await prisma.class.findFirst({
+    where: { id: classId, schoolId: log.schoolId },
+    select: { name: true, section: true }
+  });
+  const className = classRecord ? `${classRecord.name}-${classRecord.section}` : "selected class";
+  const counts = countAttendance(body.records);
+
+  return {
+    ...log,
+    action: "CREATE",
+    summary: `Attendance Marked for class ${className}`,
+    afterJson: {
+      attendance: {
+        className,
+        present: counts.present,
+        absent: counts.absent,
+        halfDay: counts.halfDay,
+        late: counts.late
+      }
+    }
+  };
+}
+
+async function enrichLog<T extends { action: string; afterJson: Prisma.JsonValue | null; entityType: string; schoolId: string; summary: string }>(log: T): Promise<T> {
+  return enrichAttendanceLog(await enrichFeeLog(log));
 }
 
 export async function listActivityLogs(user: Express.UserContext, query: ActivityQuery) {
@@ -182,7 +233,7 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
       })
     ]);
     const searchText = search.toLowerCase();
-    const enriched = await Promise.all(dedupeLogs(candidateItems).map(enrichFeeLog));
+    const enriched = await Promise.all(dedupeLogs(candidateItems).map(enrichLog));
     const filtered = enriched.filter((item) => logSearchText(item).includes(searchText));
     const visibleItems = filtered.slice(skip, skip + limit);
     const resultTotal = Math.max(filtered.length, visibleItems.length);
@@ -243,7 +294,7 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
     })
   ]);
 
-  const visibleItems = await Promise.all(dedupeLogs(items).slice(0, limit).map(enrichFeeLog));
+  const visibleItems = await Promise.all(dedupeLogs(items).slice(0, limit).map(enrichLog));
   const resultTotal = Math.max(total, visibleItems.length);
   const totalCount = await prisma.auditLog.count({ where: baseWhere });
 

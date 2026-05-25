@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { StatCardSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { type NotificationLog, whatsappApi } from "@/lib/api";
 import { formatDateTimeShort, humanizeConstant, maskPhoneNumber, truncateText } from "@/lib/formatters";
-import { cachedFetch } from "@/lib/prefetchCache";
+import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 
 type TypeFilter = "all" | NotificationLog["kind"];
 type DeliveryStatus = "Queued" | "Sent" | "Delivered" | "Read" | "Failed";
@@ -54,7 +54,10 @@ export default function NotificationsPage() {
   const [type, setType] = useState<TypeFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [selectedLog, setSelectedLog] = useState<NotificationLog | null>(null);
+  const [hoveredLog, setHoveredLog] = useState<{ message: string; x: number; y: number } | null>(null);
   const [retryingId, setRetryingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
+  const [clearing, setClearing] = useState(false);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -103,9 +106,56 @@ export default function NotificationsPage() {
     }
   }
 
+  function showMessageTooltip(event: MouseEvent<HTMLElement>, message: string) {
+    setHoveredLog({ message, x: event.clientX, y: event.clientY });
+  }
+
+  async function deleteLog(log: NotificationLog) {
+    setDeletingId(log.id);
+    setError("");
+    setNotice("");
+    try {
+      await whatsappApi.delete(log.id);
+      invalidateCache("notifications:logs");
+      setLogs((current) => current.filter((item) => item.id !== log.id));
+      setNotice("Notification cleared.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to clear notification");
+    } finally {
+      setDeletingId("");
+    }
+  }
+
+  async function clearLogs() {
+    setClearing(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await whatsappApi.clear();
+      invalidateCache("notifications:logs");
+      setLogs([]);
+      setNotice(`Cleared ${result.count} notification${result.count === 1 ? "" : "s"}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to clear notifications");
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="WhatsApp" title="Parent notification logs" action={<button className="btn-primary">Send message</button>} />
+      <PageHeader
+        eyebrow="WhatsApp"
+        title="Parent notification logs"
+        action={(
+          <div className="flex items-center gap-2">
+            <button className="rounded-lg border border-[#D6DCE5] bg-white px-4 py-2 text-[13px] font-semibold text-[#D92D20] hover:bg-[#FFF1F0] disabled:opacity-50" disabled={logs.length === 0 || clearing} onClick={clearLogs} type="button">
+              {clearing ? "Clearing..." : "Clear notifications"}
+            </button>
+            <button className="btn-primary">Send message</button>
+          </div>
+        )}
+      />
 
       <section className="grid gap-4 sm:grid-cols-3">
         {loading ? (
@@ -180,7 +230,14 @@ export default function NotificationsPage() {
                         {log.student ? <p className="text-[11px] text-[#86868b]">{log.student.fullName}</p> : null}
                       </td>
                       <td className="max-w-sm px-5 py-4 text-[#6e6e73]">
-                        <button className="text-left hover:text-[#2456E6]" onClick={() => setSelectedLog(log)} title={log.message} type="button">
+                        <button
+                          className="text-left hover:text-[#2456E6]"
+                          onClick={() => { setHoveredLog(null); setSelectedLog(log); }}
+                          onMouseEnter={(event) => showMessageTooltip(event, log.message)}
+                          onMouseLeave={() => setHoveredLog(null)}
+                          onMouseMove={(event) => showMessageTooltip(event, log.message)}
+                          type="button"
+                        >
                           {truncateText(log.message, 80)}
                         </button>
                         {log.message.length > 80 ? (
@@ -190,18 +247,26 @@ export default function NotificationsPage() {
                       <td className="px-5 py-4"><StatusPill label={displayStatus} tone={statusTone(displayStatus)} /></td>
                       <td className="px-5 py-4 text-[#6e6e73]">{formatTime(log.sentAt ?? log.createdAt)}</td>
                       <td className="px-5 py-4">
-                        {log.status === "FAILED" ? (
+                        <div className="flex items-center gap-2">
                           <button
-                            className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB] disabled:opacity-50"
-                            disabled={retryingId === log.id}
-                            onClick={() => retryLog(log)}
+                            className="rounded-lg border border-[#F2B8B5] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#D92D20] hover:bg-[#FFF1F0] disabled:opacity-50"
+                            disabled={deletingId === log.id}
+                            onClick={() => deleteLog(log)}
                             type="button"
                           >
-                            {retryingId === log.id ? "Retrying..." : "Retry"}
+                            {deletingId === log.id ? "Clearing..." : "Clear"}
                           </button>
-                        ) : (
-                          <span className="text-[#86868b]">-</span>
-                        )}
+                          {log.status === "FAILED" ? (
+                            <button
+                              className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB] disabled:opacity-50"
+                              disabled={retryingId === log.id}
+                              onClick={() => retryLog(log)}
+                              type="button"
+                            >
+                              {retryingId === log.id ? "Retrying..." : "Retry"}
+                            </button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -232,6 +297,22 @@ export default function NotificationsPage() {
           </div>
         </div>
       ) : null}
+      {hoveredLog ? (() => {
+        const width = Math.min(520, window.innerWidth - 32);
+        const height = Math.min(320, 74 + Math.ceil(hoveredLog.message.length / 48) * 22);
+        const left = Math.min(Math.max(16, hoveredLog.x - width / 2), window.innerWidth - width - 16);
+        const top = hoveredLog.y + height + 24 > window.innerHeight ? Math.max(16, hoveredLog.y - height - 18) : hoveredLog.y + 18;
+
+        return (
+          <div
+            className="pointer-events-none fixed z-[230] max-h-[320px] overflow-y-auto rounded-[5px] bg-[#001827] px-4 py-3 text-[14px] font-semibold leading-6 text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)]"
+            style={{ left, top, width }}
+          >
+            <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
+            <span className="relative block whitespace-normal">{hoveredLog.message}</span>
+          </div>
+        );
+      })() : null}
     </div>
   );
 }

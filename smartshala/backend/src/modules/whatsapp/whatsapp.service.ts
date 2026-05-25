@@ -127,3 +127,20 @@ export async function retryNotification(schoolId: string, notificationId: string
 
   return result;
 }
+
+export async function deleteNotification(schoolId: string, notificationId: string) {
+  const notification = await prisma.notification.findFirst({
+    where: { id: notificationId, schoolId },
+    select: { id: true }
+  });
+
+  if (!notification) throw notFound("Notification");
+
+  await prisma.notification.delete({ where: { id: notification.id } });
+  return { success: true };
+}
+
+export async function clearNotifications(schoolId: string) {
+  const result = await prisma.notification.deleteMany({ where: { schoolId } });
+  return { success: true, count: result.count };
+}

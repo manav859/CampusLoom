@@ -18,4 +18,6 @@ whatsappRouter.use(requireAuth, requireRole(adminRoles));
 whatsappRouter.post("/send", validate({ body: sendMessageSchema }), controller.sendMessage);
 whatsappRouter.post("/bulk", validate({ body: sendBulkSchema }), controller.sendBulk);
 whatsappRouter.get("/logs", controller.getLogs);
+whatsappRouter.delete("/logs", controller.clearNotifications);
 whatsappRouter.post("/logs/:id/retry", validate({ params: z.object({ id: z.string().uuid() }) }), controller.retryNotification);
+whatsappRouter.delete("/logs/:id", validate({ params: z.object({ id: z.string().uuid() }) }), controller.deleteNotification);

@@ -27,6 +27,43 @@ function yearStart() {
   return dateInputValue(date);
 }
 
+function parseDateValue(value: string) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function startOfMonthDate(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function monthLabel(date: Date) {
+  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(date);
+}
+
+function calendarDays(month: Date) {
+  const first = startOfMonthDate(month);
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return date;
+  });
+}
+
+function dateRangeLabel(from: string, to: string) {
+  if (!from && !to) return "All dates";
+  if (from && to) return `${formatDateShort(from)} -> ${formatDateShort(to)}`;
+  if (from) return `${formatDateShort(from)} -> Select end`;
+  return `Until ${formatDateShort(to)}`;
+}
+
 function actorName(log: ActivityLog) {
   return log.actor?.fullName ?? "System";
 }
@@ -56,7 +93,37 @@ function targetName(log: ActivityLog) {
   return typeof value === "string" ? value : "";
 }
 
+function attendanceDetails(log: ActivityLog) {
+  const after = (log.afterJson ?? {}) as Record<string, unknown>;
+  const enriched = after.attendance && typeof after.attendance === "object" ? after.attendance as Record<string, unknown> : null;
+  const body = bodyOf(log);
+  const records = Array.isArray(body.records) ? body.records : [];
+  const isAttendanceMark = log.entityType === "ATTENDANCE" && (records.length > 0 || Boolean(enriched));
+  if (!isAttendanceMark) return null;
+
+  const counts = records.reduce((acc, item) => {
+    if (!item || typeof item !== "object") return acc;
+    const status = (item as Record<string, unknown>).status;
+    if (status === "PRESENT") acc.present += 1;
+    if (status === "ABSENT") acc.absent += 1;
+    if (status === "HALF_DAY") acc.halfDay += 1;
+    if (status === "LATE") acc.late += 1;
+    return acc;
+  }, { present: 0, absent: 0, halfDay: 0, late: 0 });
+
+  return {
+    className: typeof enriched?.className === "string" ? enriched.className : "selected class",
+    present: typeof enriched?.present === "number" ? enriched.present : counts.present,
+    absent: typeof enriched?.absent === "number" ? enriched.absent : counts.absent,
+    halfDay: typeof enriched?.halfDay === "number" ? enriched.halfDay : counts.halfDay,
+    late: typeof enriched?.late === "number" ? enriched.late : counts.late
+  };
+}
+
 function description(log: ActivityLog) {
+  const attendance = attendanceDetails(log);
+  if (attendance) return `Attendance Marked for class ${attendance.className}`;
+
   if (!log.summary.includes(" /") && !log.summary.includes(" PATCH ") && !log.summary.includes(" POST ") && !log.summary.includes(" PUT ")) {
     return log.summary;
   }
@@ -96,6 +163,17 @@ function flattenDetails(value: unknown, prefix = ""): [string, unknown][] {
 }
 
 function diffLines(log: ActivityLog) {
+  const attendance = attendanceDetails(log);
+  if (attendance) {
+    return [
+      `Class name: ${attendance.className}`,
+      `Total present: ${attendance.present}`,
+      `Absent: ${attendance.absent}`,
+      `Half day: ${attendance.halfDay}`,
+      `Late: ${attendance.late}`
+    ];
+  }
+
   const before = (log.beforeJson ?? {}) as Record<string, unknown>;
   const rawAfter = (log.afterJson ?? {}) as Record<string, unknown>;
   const body = bodyOf(log);
@@ -142,7 +220,8 @@ export default function ActivityLogsPage() {
   const [dateTo, setDateTo] = useState("");
   const [actionFilter, setActionFilter] = useState("");
   const [actorFilter, setActorFilter] = useState("");
-  const [openFilter, setOpenFilter] = useState<"action" | "actor" | "date" | null>(null);
+  const [openFilter, setOpenFilter] = useState<"action" | "actor" | "date" | "range" | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(() => startOfMonthDate(new Date()));
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
   const [actionsOpen, setActionsOpen] = useState(false);
@@ -259,6 +338,75 @@ export default function ActivityLogsPage() {
     }
   }
 
+  function pickCalendarDate(date: Date) {
+    const value = dateInputValue(date);
+    setPage(1);
+    if (!dateFrom || dateTo || value < dateFrom) {
+      setDateFrom(value);
+      setDateTo("");
+      return;
+    }
+    setDateTo(value);
+    setOpenFilter(null);
+  }
+
+  function isCalendarDateSelected(value: string) {
+    return value === dateFrom || value === dateTo;
+  }
+
+  function isCalendarDateInRange(value: string) {
+    return Boolean(dateFrom && dateTo && value > dateFrom && value < dateTo);
+  }
+
+  function CalendarGrid() {
+    const selectedMonth = calendarMonth.getMonth();
+    const selectedYear = calendarMonth.getFullYear();
+    const days = calendarDays(calendarMonth);
+
+    return (
+      <div className="w-[308px] rounded-[6px] border border-[#C9D3DE] bg-white p-3">
+        <div className="mb-3 flex items-center justify-between">
+          <button className="flex h-8 w-8 items-center justify-center rounded-[5px] border border-[#D7DEE8] text-[#2456E6] hover:bg-[#F2F7FC]" onClick={() => setCalendarMonth((value) => addMonths(value, -1))} type="button">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          <p className="text-[15px] font-semibold text-[#031526]">{monthLabel(calendarMonth)}</p>
+          <button className="flex h-8 w-8 items-center justify-center rounded-[5px] border border-[#D7DEE8] text-[#2456E6] hover:bg-[#F2F7FC]" onClick={() => setCalendarMonth((value) => addMonths(value, 1))} type="button">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold uppercase text-[#7A8390]">
+          {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
+        </div>
+        <div className="mt-2 grid grid-cols-7 gap-1">
+          {days.map((day) => {
+            const value = dateInputValue(day);
+            const selected = isCalendarDateSelected(value);
+            const inRange = isCalendarDateInRange(value);
+            const muted = day.getMonth() !== selectedMonth || day.getFullYear() !== selectedYear;
+            return (
+              <button
+                className={`h-9 rounded-[5px] text-[13px] font-semibold transition ${
+                  selected
+                    ? "bg-[#2456E6] text-white"
+                    : inRange
+                      ? "bg-[#EAF1FF] text-[#2456E6]"
+                      : muted
+                        ? "text-[#A7B1BD] hover:bg-[#F5F8FC]"
+                        : "text-[#031526] hover:bg-[#F2F7FC]"
+                }`}
+                key={value}
+                onClick={() => pickCalendarDate(day)}
+                type="button"
+              >
+                {day.getDate()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   function HeaderFilter({
     children,
     filterKey
@@ -292,10 +440,60 @@ export default function ActivityLogsPage() {
 
         <div className="flex flex-col gap-4 border-b border-[#C9D3DE] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex min-h-[48px] items-center gap-3 rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-[16px] font-medium text-[#031526]">
-              <input aria-label="From date" className="w-[136px] bg-transparent outline-none" onChange={(event) => { setPage(1); setDateFrom(event.target.value); }} type="date" value={dateFrom} />
-              <span className="text-[#9AA5B1]">-&gt;</span>
-              <input aria-label="To date" className="w-[136px] bg-transparent outline-none" onChange={(event) => { setPage(1); setDateTo(event.target.value); }} type="date" value={dateTo} />
+            <div className="relative">
+              <button
+                className="flex min-h-[48px] min-w-[300px] items-center justify-between gap-3 rounded-[5px] border border-[#C9D3DE] bg-white px-4 text-[15px] font-semibold text-[#031526] transition hover:border-[#2456E6]"
+                onClick={() => {
+                  const anchorDate = parseDateValue(dateFrom || dateTo) ?? new Date();
+                  setCalendarMonth(startOfMonthDate(anchorDate));
+                  setOpenFilter(openFilter === "range" ? null : "range");
+                }}
+                type="button"
+              >
+                <span className="flex items-center gap-2">
+                  <svg className="h-4 w-4 text-[#2456E6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path d="M8 2v4M16 2v4M4 10h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {dateRangeLabel(dateFrom, dateTo)}
+                </span>
+                <svg className={`h-4 w-4 text-[#52687D] transition ${openFilter === "range" ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {openFilter === "range" ? (
+                <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[calc(100vw-32px)] rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_14px_34px_rgba(15,20,25,0.18)] sm:w-[560px]">
+                  <div className="flex flex-col gap-4 sm:flex-row">
+                    <div className="flex min-w-[180px] flex-col gap-2">
+                      {([
+                        ["all", "All dates"],
+                        ["today", "Today"],
+                        ["month", "This month"],
+                        ["year", "This year"]
+                      ] as const).map(([preset, label]) => (
+                        <button
+                          className="rounded-[5px] border border-[#D7DEE8] px-3 py-2 text-left text-[14px] font-semibold text-[#031526] hover:border-[#2456E6] hover:bg-[#F2F7FC]"
+                          key={preset}
+                          onClick={() => setDatePreset(preset)}
+                          type="button"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      <div className="mt-2 rounded-[5px] bg-[#F5F8FC] p-3 text-[12px] font-semibold leading-5 text-[#52687D]">
+                        Select start date, then end date.
+                      </div>
+                    </div>
+                    <CalendarGrid />
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-[#E2E8F0] pt-3">
+                    <p className="text-[13px] font-semibold text-[#52687D]">{dateRangeLabel(dateFrom, dateTo)}</p>
+                    <div className="flex gap-2">
+                      <button className="rounded-[5px] border border-[#D7DEE8] px-3 py-2 text-[13px] font-semibold text-[#52687D] hover:bg-[#F2F7FC]" onClick={() => { setDateFrom(""); setDateTo(""); setPage(1); }} type="button">Reset</button>
+                      <button className="rounded-[5px] bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD]" onClick={() => setOpenFilter(null)} type="button">Done</button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <input
               className="min-h-[48px] w-[280px] rounded-[5px] border border-[#C9D3DE] px-4 text-[15px] font-medium outline-none transition focus:border-[#2456E6]"

@@ -302,19 +302,18 @@ export function Sidebar({
                   </button>
                   <div className={`grid transition-all duration-300 ease-in-out ${groupOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
                     <div className="overflow-hidden">
-                      <div className="ml-5 mt-1 space-y-1 rounded-[10px] border border-[#E2E7EE] bg-[#F7F8FB] p-1.5">
+                      <div className="ml-7 mt-1 space-y-0 border-l-2 border-[#D2D8E0] py-1 pl-6">
                         {item.children.map((child) => {
                           const childActive = isActiveLink(pathname, child.href);
                           return (
                             <Link
-                              className={`flex min-h-9 items-center gap-2 rounded-[7px] px-3 text-[12px] font-semibold transition-colors ${
-                                childActive ? "bg-white text-[#2456E6] shadow-[0_1px_2px_rgba(15,20,25,0.06)]" : "text-[#5A6573] hover:bg-white hover:text-[#1d1d1f]"
+                              className={`flex min-h-11 items-center px-1 text-[14px] font-medium transition-colors ${
+                                childActive ? "text-[#0071e3]" : "text-[#2F3136] hover:text-[#0071e3]"
                               }`}
                               href={withSchoolPath(child.href, pathname)}
                               key={child.href}
                               onClick={onClose}
                             >
-                              <span className={`h-1.5 w-1.5 rounded-full ${childActive ? "bg-[#2456E6]" : "bg-[#A0A7B2]"}`} />
                               <span className="truncate">{child.label}</span>
                             </Link>
                           );

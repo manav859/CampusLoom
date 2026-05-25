@@ -35,3 +35,11 @@ export const getLogs = asyncHandler(async (req: Request, res: Response) => {
 export const retryNotification = asyncHandler(async (req: Request, res: Response) => {
   res.json(await whatsappService.retryNotification(req.user!.schoolId, req.params.id));
 });
+
+export const deleteNotification = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await whatsappService.deleteNotification(req.user!.schoolId, req.params.id));
+});
+
+export const clearNotifications = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await whatsappService.clearNotifications(req.user!.schoolId));
+});

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { NotificationLog } from "@/lib/api";
 
 type PanelNotification = {
@@ -93,15 +93,48 @@ export function NotificationPanel({
   open,
   onClose,
   logs,
-  loading = false
+  loading = false,
+  onClear,
+  onDelete
 }: {
   open: boolean;
   onClose: () => void;
   logs: NotificationLog[];
   loading?: boolean;
+  onClear?: () => Promise<void> | void;
+  onDelete?: (id: string) => Promise<void> | void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [tooltip, setTooltip] = useState<{ message: string; x: number; y: number } | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
   const notifications = logs.filter(isPrincipalNotification).slice(0, 20).map(mapLog);
+
+  function showTooltip(event: MouseEvent<HTMLElement>, message: string) {
+    setTooltip({ message, x: event.clientX, y: event.clientY });
+  }
+
+  async function clearAll() {
+    if (!onClear) return;
+    setClearing(true);
+    try {
+      await onClear();
+      setTooltip(null);
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  async function deleteOne(id: string) {
+    if (!onDelete) return;
+    setDeletingId(id);
+    try {
+      await onDelete(id);
+      setTooltip(null);
+    } finally {
+      setDeletingId("");
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -130,14 +163,27 @@ export function NotificationPanel({
             </div>
             <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Notifications</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f5f5f7] transition-colors"
-          >
-            <svg className="h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {notifications.length > 0 ? (
+              <button
+                className="rounded-lg border border-[#D6DCE5] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#D92D20] transition hover:bg-[#FFF1F0] disabled:opacity-50"
+                disabled={clearing}
+                onClick={clearAll}
+                type="button"
+              >
+                {clearing ? "Clearing..." : "Clear all"}
+              </button>
+            ) : null}
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-[#f5f5f7] transition-colors"
+              type="button"
+            >
+              <svg className="h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto h-[calc(100%-73px)] px-4 py-3">
@@ -151,30 +197,59 @@ export function NotificationPanel({
               notifications.map((n) => {
                 const style = typeStyles[n.type];
                 return (
-                  <Link
+                  <div
                     key={n.id}
-                    className="group flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-[#f5f5f7]/80"
-                    href={n.href}
-                    onClick={onClose}
-                    title={n.message}
+                    className="group flex items-center gap-2 rounded-xl px-3 py-3 transition-colors hover:bg-[#f5f5f7]/80"
+                    onMouseEnter={(event) => showTooltip(event, n.message)}
+                    onMouseLeave={() => setTooltip(null)}
+                    onMouseMove={(event) => showTooltip(event, n.message)}
                   >
-                    {iconMap[n.icon]}
-                    <div className="flex-1 min-w-0">
-                      <p className="truncate text-[13px] font-medium text-[#1d1d1f] group-hover:whitespace-normal group-hover:break-words">{n.message}</p>
-                    </div>
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <span className="text-[11px] text-[#86868b] font-medium">{n.time}</span>
-                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${style.bg} ${style.text}`}>
-                        {n.type}
-                      </span>
-                    </div>
-                  </Link>
+                    <Link className="flex min-w-0 flex-1 items-center gap-3" href={n.href} onClick={onClose}>
+                      {iconMap[n.icon]}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-[#1d1d1f]">{n.message}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2.5">
+                        <span className="text-[11px] text-[#86868b] font-medium">{n.time}</span>
+                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide ${style.bg} ${style.text}`}>
+                          {n.type}
+                        </span>
+                      </div>
+                    </Link>
+                    <button
+                      aria-label="Delete notification"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#A0A7B2] opacity-0 transition hover:bg-[#FFF1F0] hover:text-[#D92D20] group-hover:opacity-100 disabled:opacity-50"
+                      disabled={deletingId === n.id}
+                      onClick={() => deleteOne(n.id)}
+                      type="button"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M10 11v6M14 11v6M9 7l1-2h4l1 2M8 7l1 13h6l1-13" />
+                      </svg>
+                    </button>
+                  </div>
                 );
               })
             )}
           </div>
         </div>
       </div>
+      {tooltip ? (() => {
+        const width = Math.min(420, window.innerWidth - 32);
+        const height = Math.min(260, 74 + Math.ceil(tooltip.message.length / 42) * 22);
+        const left = Math.min(Math.max(16, tooltip.x - width / 2), window.innerWidth - width - 16);
+        const top = tooltip.y + height + 24 > window.innerHeight ? Math.max(16, tooltip.y - height - 18) : tooltip.y + 18;
+
+        return (
+          <div
+            className="pointer-events-none fixed z-[230] max-h-[260px] overflow-y-auto rounded-[5px] bg-[#001827] px-4 py-3 text-[14px] font-semibold leading-6 text-white shadow-[0_14px_34px_rgba(0,0,0,0.28)]"
+            style={{ left, top, width }}
+          >
+            <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 bg-[#001827]" />
+            <span className="relative block whitespace-normal">{tooltip.message}</span>
+          </div>
+        );
+      })() : null}
     </>
   );
 }

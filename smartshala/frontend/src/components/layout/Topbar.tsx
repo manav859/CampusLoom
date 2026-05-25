@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { SessionUser } from "@/types";
-import { clearCache } from "@/lib/prefetchCache";
+import { clearCache, invalidateCache } from "@/lib/prefetchCache";
 import { whatsappApi, type NotificationLog } from "@/lib/api";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { LanguageToggle } from "./PlatformLanguage";
@@ -95,6 +95,18 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
     } finally {
       setNotifLoading(false);
     }
+  }, []);
+
+  const clearNotifications = useCallback(async () => {
+    await whatsappApi.clear();
+    invalidateCache("notifications:logs");
+    setNotifLogs([]);
+  }, []);
+
+  const deleteNotification = useCallback(async (id: string) => {
+    await whatsappApi.delete(id);
+    invalidateCache("notifications:logs");
+    setNotifLogs((current) => current.filter((log) => log.id !== id));
   }, []);
 
   useEffect(() => {
@@ -243,7 +255,14 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
       </header>
 
       {/* Notification Slide-out Panel */}
-      <NotificationPanel open={notifOpen} onClose={() => setNotifOpen(false)} logs={notifLogs} loading={notifLoading} />
+      <NotificationPanel
+        open={notifOpen}
+        onClear={clearNotifications}
+        onClose={() => setNotifOpen(false)}
+        onDelete={deleteNotification}
+        logs={notifLogs}
+        loading={notifLoading}
+      />
     </>
   );
 }

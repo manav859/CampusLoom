@@ -1137,7 +1137,9 @@ export const whatsappApi = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
-  retry: (id: string) => apiFetch<{ success: boolean }>(`/wa/logs/${id}/retry`, { method: "POST" })
+  retry: (id: string) => apiFetch<{ success: boolean }>(`/wa/logs/${id}/retry`, { method: "POST" }),
+  delete: (id: string) => apiFetch<{ success: boolean }>(`/wa/logs/${id}`, { method: "DELETE" }),
+  clear: () => apiFetch<{ success: boolean; count: number }>("/wa/logs", { method: "DELETE" })
 };
 
 export const studentsApi = {
