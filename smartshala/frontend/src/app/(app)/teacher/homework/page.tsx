@@ -62,6 +62,7 @@ function submissionLabel(status: HomeworkSubmissionStatus) {
 }
 
 type AssignmentFilter = "ALL" | "OVERDUE" | "DUE_SOON" | "CLOSED";
+type FlashTone = "success" | "info" | "warning" | "danger";
 
 function daysUntil(date: string | Date) {
   const due = new Date(date);
@@ -106,6 +107,7 @@ export default function TeacherHomeworkPage() {
   const [submissionDrafts, setSubmissionDrafts] = useState<Record<string, { marks: string; teacherNote: string }>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [flash, setFlash] = useState<{ message: string; tone: FlashTone } | null>(null);
   const [attachmentNames, setAttachmentNames] = useState<string[]>([]);
   const [rubricNames, setRubricNames] = useState<string[]>([]);
   const [estimatedTime, setEstimatedTime] = useState("");
@@ -195,6 +197,16 @@ export default function TeacherHomeworkPage() {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [submissionModalOpen]);
+
+  useEffect(() => {
+    if (!flash) return;
+    const timeout = window.setTimeout(() => setFlash(null), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [flash]);
+
+  function showFlash(message: string, tone: FlashTone = "success") {
+    setFlash({ message, tone });
+  }
 
   async function refreshAssignments(nextClassId = classId) {
     const rows = await homeworkApi.assignments(nextClassId || undefined);
@@ -320,11 +332,13 @@ export default function TeacherHomeworkPage() {
   async function nudgeNonSubmitters(assignment: HomeworkAssignment) {
     setError("");
     setNotice("");
+    showFlash("Sending WhatsApp nudges...", "info");
     try {
       const detail = selectedAssignment?.id === assignment.id ? selectedAssignment : await homeworkApi.assignment(assignment.id);
       const pending = detail.submissions.filter((submission) => submission.status !== "ON_TIME" && submission.status !== "LATE");
       if (pending.length === 0) {
         setNotice("No non-submitters to nudge.");
+        showFlash("No non-submitters to nudge.", "warning");
         return;
       }
       await Promise.all(pending.map((submission) => communicationApi.sendMessage({
@@ -334,8 +348,11 @@ export default function TeacherHomeworkPage() {
         message: `Dear parent, ${submission.studentName} has not submitted "${assignment.title}" yet. Please help complete it by ${formatDateShort(assignment.dueDate)}.`
       })));
       setNotice(`Queued WhatsApp nudges for ${pending.length} non-submitters.`);
+      showFlash(`Queued WhatsApp nudges for ${pending.length} non-submitters.`, "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to nudge non-submitters");
+      const message = err instanceof Error ? err.message : "Unable to nudge non-submitters";
+      setError(message);
+      showFlash(message, "danger");
     }
   }
 
@@ -450,8 +467,26 @@ export default function TeacherHomeworkPage() {
     );
   }
 
+  const flashToneClass =
+    flash?.tone === "success"
+      ? "border-[#BCE5C8] bg-[#E1F5EA] text-[#0F8A4A]"
+      : flash?.tone === "warning"
+        ? "border-[#F3D39A] bg-[#FFF2DC] text-[#B95A00]"
+        : flash?.tone === "danger"
+          ? "border-[#F3B8BD] bg-[#FCE3E5] text-[#C8242C]"
+          : "border-[#B9D8F2] bg-[#E2F0FB] text-[#1F6FB8]";
+
   return (
     <div className="space-y-5">
+      {flash && typeof document !== "undefined" ? createPortal((
+        <div className="fixed left-0 right-0 top-4 z-[300] flex justify-center px-4">
+          <div className={`flex w-full max-w-md items-center justify-between gap-3 rounded-[8px] border px-4 py-3 text-[13px] font-semibold shadow-[0_12px_32px_rgba(15,20,25,0.18)] ${flashToneClass}`} role="status">
+            <span>{flash.message}</span>
+            <button className="shrink-0 underline-offset-2 hover:underline" onClick={() => setFlash(null)} type="button">Dismiss</button>
+          </div>
+        </div>
+      ), document.body) : null}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Teacher workspace</p>
