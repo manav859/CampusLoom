@@ -100,6 +100,7 @@ export default function TeacherHomeworkPage() {
   const [saving, setSaving] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<HomeworkAssignmentDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [loadingDetailAssignmentId, setLoadingDetailAssignmentId] = useState("");
   const [savingSubmissionId, setSavingSubmissionId] = useState("");
   const [submissionDrafts, setSubmissionDrafts] = useState<Record<string, { marks: string; teacherNote: string }>>({});
   const [error, setError] = useState("");
@@ -109,6 +110,7 @@ export default function TeacherHomeworkPage() {
   const [estimatedTime, setEstimatedTime] = useState("");
   const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>("ALL");
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [submissionModalOpen, setSubmissionModalOpen] = useState(false);
   const [filterClassPickerOpen, setFilterClassPickerOpen] = useState(false);
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
@@ -179,6 +181,20 @@ export default function TeacherHomeworkPage() {
     setDuePickerMonth(dueDate.slice(0, 7));
   }, [dueDate]);
 
+  useEffect(() => {
+    if (!submissionModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSubmissionModalOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [submissionModalOpen]);
+
   async function refreshAssignments(nextClassId = classId) {
     const rows = await homeworkApi.assignments(nextClassId || undefined);
     setAssignments(rows);
@@ -186,6 +202,7 @@ export default function TeacherHomeworkPage() {
 
   async function openAssignment(assignmentId: string) {
     setLoadingDetail(true);
+    setLoadingDetailAssignmentId(assignmentId);
     setError("");
     try {
       const detail = await homeworkApi.assignment(assignmentId);
@@ -201,15 +218,18 @@ export default function TeacherHomeworkPage() {
           ])
         )
       );
+      setSubmissionModalOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load submission tracking");
     } finally {
       setLoadingDetail(false);
+      setLoadingDetailAssignmentId("");
     }
   }
 
   async function handleClassChange(nextClassId: string) {
     setClassId(nextClassId);
+    setSubmissionModalOpen(false);
     setError("");
     try {
       await refreshAssignments(nextClassId);
@@ -720,11 +740,11 @@ export default function TeacherHomeworkPage() {
                     <div className="mt-4 grid gap-2">
                       <button
                         className="min-h-10 rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[13px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={loadingDetail && selectedAssignment?.id === assignment.id}
+                        disabled={loadingDetail && loadingDetailAssignmentId === assignment.id}
                         onClick={() => openAssignment(assignment.id)}
                         type="button"
                       >
-                        {loadingDetail && selectedAssignment?.id === assignment.id ? "Loading..." : "View students"}
+                        {loadingDetail && loadingDetailAssignmentId === assignment.id ? "Loading..." : "View students"}
                       </button>
                       {assignment.notSubmittedCount > 0 ? (
                         <button
@@ -802,11 +822,11 @@ export default function TeacherHomeworkPage() {
                         <div className="flex flex-wrap gap-2">
                           <button
                             className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
-                            disabled={loadingDetail && selectedAssignment?.id === assignment.id}
+                            disabled={loadingDetail && loadingDetailAssignmentId === assignment.id}
                             onClick={() => openAssignment(assignment.id)}
                             type="button"
                           >
-                            {loadingDetail && selectedAssignment?.id === assignment.id ? "Loading..." : "View students"}
+                            {loadingDetail && loadingDetailAssignmentId === assignment.id ? "Loading..." : "View students"}
                           </button>
                           {assignment.notSubmittedCount > 0 ? (
                             <button
@@ -829,139 +849,79 @@ export default function TeacherHomeworkPage() {
         </div>
       </section>
 
-      {selectedAssignment ? (
-        <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-          <div className="flex flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Submission tracking</h2>
-              <p className="mt-0.5 text-[13px] text-[#86868b]">
-                {selectedAssignment.title} | Due {formatDateShort(selectedAssignment.dueDate)}
-              </p>
-              <div className="mt-3 h-2 max-w-md overflow-hidden rounded-full bg-[#F1F3F6]">
-                <div
-                  className="h-full rounded-full bg-[#2456E6]"
-                  style={{
-                    width: `${selectedAssignment.totalStudents ? Math.round(((selectedAssignment.submittedCount + selectedAssignment.lateCount) / selectedAssignment.totalStudents) * 100) : 0}%`
-                  }}
-                />
+      {submissionModalOpen && selectedAssignment ? (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-3 py-4 backdrop-blur-sm sm:px-4" role="dialog" aria-modal="true">
+          <button className="absolute inset-0 cursor-default" aria-label="Close submission tracking" onClick={() => setSubmissionModalOpen(false)} type="button" />
+          <div className="relative z-10 max-h-[calc(100dvh-2rem)] w-full max-w-6xl overflow-y-auto rounded-2xl">
+            <button
+              aria-label="Close submission tracking"
+              className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#DCE1E8] bg-white text-[#52687D] shadow-[0_4px_16px_rgba(15,20,25,0.14)] transition hover:bg-[#F7F8FB] hover:text-[#031526]"
+              onClick={() => setSubmissionModalOpen(false)}
+              type="button"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+            <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
+              <div className="flex flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 pr-14 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Submission tracking</h2>
+                  <p className="mt-0.5 text-[13px] text-[#86868b]">
+                    {selectedAssignment.title} | Due {formatDateShort(selectedAssignment.dueDate)}
+                  </p>
+                  <div className="mt-3 h-2 max-w-md overflow-hidden rounded-full bg-[#F1F3F6]">
+                    <div
+                      className="h-full rounded-full bg-[#2456E6]"
+                      style={{
+                        width: `${selectedAssignment.totalStudents ? Math.round(((selectedAssignment.submittedCount + selectedAssignment.lateCount) / selectedAssignment.totalStudents) * 100) : 0}%`
+                      }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">
+                    {selectedAssignment.submittedCount + selectedAssignment.lateCount} of {selectedAssignment.totalStudents} submitted - {selectedAssignment.totalStudents ? Math.round(((selectedAssignment.submittedCount + selectedAssignment.lateCount) / selectedAssignment.totalStudents) * 100) : 0}% complete
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <StatusPill label={`${selectedAssignment.submittedCount} completed`} tone="good" />
+                  <StatusPill label={`${selectedAssignment.lateCount} late`} tone="warn" />
+                  <StatusPill label={`${selectedAssignment.notSubmittedCount} not submitted`} tone="danger" />
+                  <StatusPill label={selectedAssignmentAverage !== null ? `Class avg ${selectedAssignmentAverage}/20` : "Class avg pending"} tone={selectedAssignmentAverage !== null ? "good" : "neutral"} />
+                </div>
               </div>
-              <p className="mt-1 text-[12px] font-medium text-[#5A6573]">
-                {selectedAssignment.submittedCount + selectedAssignment.lateCount} of {selectedAssignment.totalStudents} submitted - {selectedAssignment.totalStudents ? Math.round(((selectedAssignment.submittedCount + selectedAssignment.lateCount) / selectedAssignment.totalStudents) * 100) : 0}% complete
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <StatusPill label={`${selectedAssignment.submittedCount} completed`} tone="good" />
-              <StatusPill label={`${selectedAssignment.lateCount} late`} tone="warn" />
-              <StatusPill label={`${selectedAssignment.notSubmittedCount} not submitted`} tone="danger" />
-              <StatusPill label={selectedAssignmentAverage !== null ? `Class avg ${selectedAssignmentAverage}/20` : "Class avg pending"} tone={selectedAssignmentAverage !== null ? "good" : "neutral"} />
-            </div>
-          </div>
-          <div className="space-y-3 p-4 md:hidden">
-            {selectedAssignment.submissions.map((submission) => {
-              const draft = submissionDrafts[submission.studentId] ?? { marks: "", teacherNote: "" };
-              const savingRow = savingSubmissionId === submission.studentId;
-              return (
-                <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={submission.studentId}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-[#1d1d1f]">{submission.studentName}</p>
-                      <p className="mt-1 text-[12px] text-[#86868b]">Roll {submission.rollNumber ?? "-"} | <span className="type-code">{submission.admissionNumber}</span></p>
-                    </div>
-                    <StatusPill label={submissionLabel(submission.status)} tone={submissionTone(submission.status)} />
-                  </div>
-                  <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] p-1">
-                    {(["ON_TIME", "LATE", "NOT_SUBMITTED"] as HomeworkSubmissionStatus[]).map((status) => (
-                      <button
-                        className={`min-h-9 rounded-lg px-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                          submission.status === status
-                            ? `${submissionTone(status) === "good" ? "bg-[#E1F5EA] text-[#0F8A4A]" : submissionTone(status) === "warn" ? "bg-[#FFF2DC] text-[#B95A00]" : "bg-[#FCE3E5] text-[#C8242C]"} shadow-sm`
-                            : "text-[#5A6573]"
-                        }`}
-                        disabled={savingRow}
-                        key={status}
-                        onClick={() => updateSubmission(submission.studentId, status)}
-                        type="button"
-                      >
-                        {status === "NOT_SUBMITTED" ? "Missing" : submissionLabel(status)}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-4 grid gap-3">
-                    <input
-                      className="min-h-10 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 text-[13px] font-semibold outline-none focus:border-[#0071e3]"
-                      max={20}
-                      min={0}
-                      onChange={(event) =>
-                        setSubmissionDrafts((current) => ({
-                          ...current,
-                          [submission.studentId]: { ...draft, marks: event.target.value }
-                        }))
-                      }
-                      onBlur={() => autoSaveDraft(submission)}
-                      placeholder="Marks /20"
-                      type="number"
-                      value={draft.marks}
-                    />
-                    <input
-                      className="min-h-10 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 text-[13px] outline-none focus:border-[#0071e3]"
-                      onChange={(event) =>
-                        setSubmissionDrafts((current) => ({
-                          ...current,
-                          [submission.studentId]: { ...draft, teacherNote: event.target.value }
-                        }))
-                      }
-                      onBlur={() => autoSaveDraft(submission)}
-                      placeholder={`Note for ${submission.studentName}`}
-                      value={draft.teacherNote}
-                    />
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[980px] text-left text-[13px]">
-              <thead className="table-head">
-                <tr>
-                  {["Student", "Status", "Marks", "Teacher note"].map((head) => (
-                    <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+              <div className="space-y-3 p-4 md:hidden">
                 {selectedAssignment.submissions.map((submission) => {
                   const draft = submissionDrafts[submission.studentId] ?? { marks: "", teacherNote: "" };
                   const savingRow = savingSubmissionId === submission.studentId;
                   return (
-                    <tr className="table-row" key={submission.studentId}>
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-[#1d1d1f]">{submission.studentName}</p>
-                        <p className="mt-1 text-[12px] text-[#86868b]">Roll {submission.rollNumber ?? "-"} | <span className="type-code">{submission.admissionNumber}</span></p>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="inline-flex rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] p-1">
-                          {(["ON_TIME", "LATE", "NOT_SUBMITTED"] as HomeworkSubmissionStatus[]).map((status) => (
-                            <button
-                              className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                submission.status === status
-                                  ? `${submissionTone(status) === "good" ? "bg-[#E1F5EA] text-[#0F8A4A]" : submissionTone(status) === "warn" ? "bg-[#FFF2DC] text-[#B95A00]" : "bg-[#FCE3E5] text-[#C8242C]"} shadow-sm`
-                                  : "text-[#5A6573] hover:bg-white"
-                              }`}
-                              disabled={savingRow}
-                              key={status}
-                              onClick={() => updateSubmission(submission.studentId, status)}
-                              type="button"
-                            >
-                              {savingRow ? <span className="h-3.5 w-3.5 rounded-full border-2 border-current/40 border-t-current animate-spin" aria-hidden="true" /> : null}
-                              {savingRow ? "Saving..." : submissionLabel(status)}
-                            </button>
-                          ))}
+                    <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={submission.studentId}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[#1d1d1f]">{submission.studentName}</p>
+                          <p className="mt-1 text-[12px] text-[#86868b]">Roll {submission.rollNumber ?? "-"} | <span className="type-code">{submission.admissionNumber}</span></p>
                         </div>
-                        {submission.submittedAt ? <p className="mt-1 text-[11px] text-[#86868b]">{formatDateTimeShort(submission.submittedAt)}</p> : null}
-                      </td>
-                      <td className="px-5 py-4">
+                        <StatusPill label={submissionLabel(submission.status)} tone={submissionTone(submission.status)} />
+                      </div>
+                      <div className="mt-4 grid grid-cols-3 gap-1 rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] p-1">
+                        {(["ON_TIME", "LATE", "NOT_SUBMITTED"] as HomeworkSubmissionStatus[]).map((status) => (
+                          <button
+                            className={`min-h-9 rounded-lg px-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                              submission.status === status
+                                ? `${submissionTone(status) === "good" ? "bg-[#E1F5EA] text-[#0F8A4A]" : submissionTone(status) === "warn" ? "bg-[#FFF2DC] text-[#B95A00]" : "bg-[#FCE3E5] text-[#C8242C]"} shadow-sm`
+                                : "text-[#5A6573]"
+                            }`}
+                            disabled={savingRow}
+                            key={status}
+                            onClick={() => updateSubmission(submission.studentId, status)}
+                            type="button"
+                          >
+                            {status === "NOT_SUBMITTED" ? "Missing" : submissionLabel(status)}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="mt-4 grid gap-3">
                         <input
-                          className="w-24 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#0071e3]"
+                          className="min-h-10 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 text-[13px] font-semibold outline-none focus:border-[#0071e3]"
                           max={20}
                           min={0}
                           onChange={(event) =>
@@ -971,14 +931,12 @@ export default function TeacherHomeworkPage() {
                             }))
                           }
                           onBlur={() => autoSaveDraft(submission)}
-                          placeholder="/20"
+                          placeholder="Marks /20"
                           type="number"
                           value={draft.marks}
                         />
-                      </td>
-                      <td className="px-5 py-4">
                         <input
-                          className="w-full min-w-[240px] rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-2 text-[13px] outline-none focus:border-[#0071e3]"
+                          className="min-h-10 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 text-[13px] outline-none focus:border-[#0071e3]"
                           onChange={(event) =>
                             setSubmissionDrafts((current) => ({
                               ...current,
@@ -989,14 +947,91 @@ export default function TeacherHomeworkPage() {
                           placeholder={`Note for ${submission.studentName}`}
                           value={draft.teacherNote}
                         />
-                      </td>
-                    </tr>
+                      </div>
+                    </article>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[980px] text-left text-[13px]">
+                  <thead className="table-head">
+                    <tr>
+                      {["Student", "Status", "Marks", "Teacher note"].map((head) => (
+                        <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+                    {selectedAssignment.submissions.map((submission) => {
+                      const draft = submissionDrafts[submission.studentId] ?? { marks: "", teacherNote: "" };
+                      const savingRow = savingSubmissionId === submission.studentId;
+                      return (
+                        <tr className="table-row" key={submission.studentId}>
+                          <td className="px-5 py-4">
+                            <p className="font-semibold text-[#1d1d1f]">{submission.studentName}</p>
+                            <p className="mt-1 text-[12px] text-[#86868b]">Roll {submission.rollNumber ?? "-"} | <span className="type-code">{submission.admissionNumber}</span></p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="inline-flex rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] p-1">
+                              {(["ON_TIME", "LATE", "NOT_SUBMITTED"] as HomeworkSubmissionStatus[]).map((status) => (
+                                <button
+                                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    submission.status === status
+                                      ? `${submissionTone(status) === "good" ? "bg-[#E1F5EA] text-[#0F8A4A]" : submissionTone(status) === "warn" ? "bg-[#FFF2DC] text-[#B95A00]" : "bg-[#FCE3E5] text-[#C8242C]"} shadow-sm`
+                                      : "text-[#5A6573] hover:bg-white"
+                                  }`}
+                                  disabled={savingRow}
+                                  key={status}
+                                  onClick={() => updateSubmission(submission.studentId, status)}
+                                  type="button"
+                                >
+                                  {savingRow ? <span className="h-3.5 w-3.5 rounded-full border-2 border-current/40 border-t-current animate-spin" aria-hidden="true" /> : null}
+                                  {savingRow ? "Saving..." : submissionLabel(status)}
+                                </button>
+                              ))}
+                            </div>
+                            {submission.submittedAt ? <p className="mt-1 text-[11px] text-[#86868b]">{formatDateTimeShort(submission.submittedAt)}</p> : null}
+                          </td>
+                          <td className="px-5 py-4">
+                            <input
+                              className="w-24 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#0071e3]"
+                              max={20}
+                              min={0}
+                              onChange={(event) =>
+                                setSubmissionDrafts((current) => ({
+                                  ...current,
+                                  [submission.studentId]: { ...draft, marks: event.target.value }
+                                }))
+                              }
+                              onBlur={() => autoSaveDraft(submission)}
+                              placeholder="/20"
+                              type="number"
+                              value={draft.marks}
+                            />
+                          </td>
+                          <td className="px-5 py-4">
+                            <input
+                              className="w-full min-w-[240px] rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-2 text-[13px] outline-none focus:border-[#0071e3]"
+                              onChange={(event) =>
+                                setSubmissionDrafts((current) => ({
+                                  ...current,
+                                  [submission.studentId]: { ...draft, teacherNote: event.target.value }
+                                }))
+                              }
+                              onBlur={() => autoSaveDraft(submission)}
+                              placeholder={`Note for ${submission.studentName}`}
+                              value={draft.teacherNote}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
-        </section>
+        </div>
       ) : null}
     </div>
   );
