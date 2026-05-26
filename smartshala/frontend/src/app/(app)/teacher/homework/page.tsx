@@ -478,6 +478,7 @@ export default function TeacherHomeworkPage() {
       ) : null}
 
       <Modal
+        fullScreen
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         size="lg"
@@ -850,9 +851,9 @@ export default function TeacherHomeworkPage() {
       </section>
 
       {submissionModalOpen && selectedAssignment ? (
-        <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/40 px-0 py-0 backdrop-blur-sm sm:items-center sm:px-4 sm:py-4" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-[200] flex items-stretch justify-stretch bg-black/40 p-0 backdrop-blur-sm" role="dialog" aria-modal="true">
           <button className="absolute inset-0 cursor-default" aria-label="Close submission tracking" onClick={() => setSubmissionModalOpen(false)} type="button" />
-          <div className="relative z-10 max-h-[100dvh] w-full max-w-6xl overflow-y-auto rounded-none sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
+          <div className="relative z-10 h-[100dvh] max-h-[100dvh] w-full max-w-none overflow-y-auto rounded-none">
             <button
               aria-label="Close submission tracking"
               className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#DCE1E8] bg-white text-[#52687D] shadow-[0_4px_16px_rgba(15,20,25,0.14)] transition hover:bg-[#F7F8FB] hover:text-[#031526]"
@@ -863,7 +864,7 @@ export default function TeacherHomeworkPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6 6 18" />
               </svg>
             </button>
-            <section className="min-h-[100dvh] overflow-hidden rounded-none border border-[rgba(0,0,0,0.04)] bg-white shadow-apple sm:min-h-0 sm:rounded-2xl">
+            <section className="min-h-[100dvh] overflow-hidden rounded-none border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
               <div className="flex flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 pr-14 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Submission tracking</h2>
