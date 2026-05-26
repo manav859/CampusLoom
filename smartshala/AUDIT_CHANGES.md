@@ -1,4 +1,4 @@
-# SmartShala Website Audit Changes
+                                # SmartShala Website Audit Changes
 
 Source audit: `d:\siteonlab\smartshala\audit.pdf`  
 Audit date in file context: 2026 walkthrough/demo audit  

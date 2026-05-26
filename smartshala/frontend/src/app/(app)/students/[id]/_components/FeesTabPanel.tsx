@@ -113,7 +113,12 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
                 <div className="mt-4 grid grid-cols-2 gap-3 text-[12px]">
                   <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Paid</p><p className="mt-1 font-bold text-[#0F1419]">{money(assignment.paidAmount)}</p></div>
                   <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Pending</p><p className="mt-1 font-bold text-[#0F1419]">{money(assignment.pendingAmount)}</p></div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Total</p><p className="mt-1 font-bold text-[#0F1419]">{money(assignment.totalAmount)}</p></div>
+                  <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Base fee</p><p className="mt-1 font-bold text-[#0F1419]">{money(baseFeeAmount(assignment))}</p></div>
                 </div>
+                {assignment.status === "PARTIAL" ? (
+                  <p className="mt-3 text-[11px] font-medium text-[#86868b]">Paid {money(assignment.paidAmount)} of {money(assignment.totalAmount)} - {money(assignment.pendingAmount)} pending</p>
+                ) : null}
               </article>
             ))
           )}
@@ -176,13 +181,40 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
               recentTransactions.map((payment) => (
                 <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`mobile-payment-${payment.id}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[15px] font-bold text-[#0F8A4A]">{money(payment.amount)}</p>
-                      <p className="mt-1 text-[12px] font-medium text-[#5A6573]">{formatDateShort(payment.date)} - {humanizeConstant(payment.mode)}</p>
+                      <p className="mt-1 truncate text-[12px] font-medium text-[#5A6573]">{payment.feeStructureName}</p>
                     </div>
-                    <p className="text-right text-[12px] font-semibold text-[#0F1419]">{money(payment.balanceAfter)}</p>
+                    <span className="rounded-[6px] bg-[#E1F5EA] px-2 py-1 text-right text-[11px] font-bold text-[#0F8A4A]">{payment.feeComponent === "TRANSPORTATION_FEE" ? "Transport" : "School fee"}</span>
                   </div>
-                  <p className="mt-3 text-[12px] font-medium text-[#5A6573]">{payment.feeStructureName}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Date</p><p className="mt-1 font-bold text-[#0F1419]">{formatDateShort(payment.date)}</p></div>
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Mode</p><p className="mt-1 truncate font-bold text-[#0F1419]">{humanizeConstant(payment.mode)}</p></div>
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Reference</p><p className="mt-1 truncate font-bold text-[#0F1419]">{paymentReference(payment)}</p></div>
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Receipt ID</p><p className="mt-1 truncate font-bold text-[#0F1419]">{receiptLabel(payment)}</p></div>
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Balance after</p><p className="mt-1 font-bold text-[#0F1419]">{money(payment.balanceAfter)}</p></div>
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Fee</p><p className="mt-1 truncate font-bold text-[#0F1419]">{payment.feeStructureName}</p></div>
+                  </div>
+                  {payment.receiptId ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        className="rounded-[6px] bg-[#0F2557]/10 px-3 py-2 text-[12px] font-bold text-[#0F2557] transition-colors hover:bg-[#0F2557] hover:text-white disabled:opacity-50"
+                        disabled={previewingId === payment.receiptId}
+                        onClick={() => handlePreviewReceipt(payment.receiptId!)}
+                        type="button"
+                      >
+                        {previewingId === payment.receiptId ? "Opening..." : "Preview PDF"}
+                      </button>
+                      <button
+                        className="rounded-[6px] bg-[#25D366]/10 px-3 py-2 text-[12px] font-bold text-[#128C7E] transition-colors hover:bg-[#25D366] hover:text-white disabled:opacity-50"
+                        disabled={sendingId === payment.receiptId}
+                        onClick={() => handleSendReceipt(payment.receiptId!)}
+                        type="button"
+                      >
+                        {sendingId === payment.receiptId ? "Sending..." : "WhatsApp"}
+                      </button>
+                    </div>
+                  ) : null}
                 </article>
               ))
             )}

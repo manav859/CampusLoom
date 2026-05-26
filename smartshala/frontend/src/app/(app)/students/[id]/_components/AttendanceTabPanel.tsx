@@ -122,51 +122,51 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
         {/* Left Side: 2x2 Metrics Grid (5 columns) */}
         <div className="grid grid-cols-2 gap-3 lg:col-span-5">
           {/* Attendance % */}
-          <div className="kpi-metric-card flex flex-col justify-between p-4 sm:p-5">
-            <div>
+          <div className="kpi-metric-card flex min-w-0 flex-col justify-between overflow-hidden p-3 sm:p-5">
+            <div className="min-w-0">
               <p className="kpi-metric-label">Attendance %</p>
               <p className="kpi-metric-value">{metrics.attendancePercentage}%</p>
             </div>
-            <div className="mt-3">
+            <div className="mt-2 min-w-0">
               <StatusPill label={metrics.attendancePercentage >= 80 ? "Healthy" : "Watch"} tone={metricTone(metrics.attendancePercentage)} />
             </div>
             {metrics.classAverageAttendance !== null ? (
-              <p className="mt-3 text-[11px] font-medium text-[#86868b] sm:text-[12px]">
+              <p className="mt-2 truncate text-[10px] font-medium leading-4 text-[#86868b] sm:text-[12px]">
                 Class average: <span className="font-semibold text-[#1d1d1f]">{metrics.classAverageAttendance}%</span>
               </p>
             ) : null}
           </div>
 
           {/* Total days — present/total format */}
-          <div className="kpi-metric-card kpi-metric-card-good flex flex-col justify-between p-4 sm:p-5">
-            <div>
+          <div className="kpi-metric-card kpi-metric-card-good flex min-w-0 flex-col justify-between overflow-hidden p-3 sm:p-5">
+            <div className="min-w-0">
               <p className="kpi-metric-label">Total days</p>
-              <p className="kpi-metric-value">
+              <p className="kpi-metric-value text-[24px] leading-8 sm:text-[27px] sm:leading-9">
                 <span className="text-[#248a3d]">{presentDays}</span>
                 <span className="mx-0.5 font-medium text-[#aeaeb2]">/</span>
                 <span>{metrics.totalDays}</span>
               </p>
             </div>
-            <p className="mt-3 text-[11px] font-medium text-[#86868b] sm:text-[12px]">{metrics.late} late, {metrics.halfDays} half-day</p>
+            <p className="mt-2 truncate text-[10px] font-medium leading-4 text-[#86868b] sm:text-[12px]">{metrics.late} late, {metrics.halfDays} half-day</p>
           </div>
 
           {/* Absences */}
-          <div className="kpi-metric-card kpi-metric-card-danger flex flex-col justify-between p-4 sm:p-5">
-            <div>
+          <div className="kpi-metric-card kpi-metric-card-danger flex min-w-0 flex-col justify-between overflow-hidden p-3 sm:p-5">
+            <div className="min-w-0">
               <p className="kpi-metric-label">Absences</p>
               <p className="kpi-metric-value">{metrics.absences}</p>
             </div>
           </div>
 
           {/* Remaining before 75% */}
-          <div className={`kpi-metric-card flex flex-col justify-between p-4 sm:p-5 ${metrics.attendancePercentage < 75 ? "kpi-metric-card-danger" : "kpi-metric-card-good"}`}>
-            <div>
+          <div className={`kpi-metric-card flex min-w-0 flex-col justify-between overflow-hidden p-3 sm:p-5 ${metrics.attendancePercentage < 75 ? "kpi-metric-card-danger" : "kpi-metric-card-good"}`}>
+            <div className="min-w-0">
               <p className="kpi-metric-label">Buffer to 75%</p>
               <p className="kpi-metric-value">
                 {metrics.remainingBefore75}
               </p>
             </div>
-            <p className="mt-3 text-[11px] font-medium text-[#86868b] sm:text-[12px]">additional absences</p>
+            <p className="mt-2 truncate text-[10px] font-medium leading-4 text-[#86868b] sm:text-[12px]">additional absences</p>
           </div>
         </div>
 

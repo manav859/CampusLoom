@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
+import { MarqueeText } from "@/components/ui/KpiCard";
 import { studentsApi, type StudentDetail, type StudentDocumentUploadPayload } from "@/lib/api";
 import { formatDateTimeShort } from "@/lib/formatters";
 
@@ -138,10 +139,10 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
     <section className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {counts.map((item) => (
-          <div className="kpi-metric-card p-4" key={item.label}>
+          <div className="kpi-metric-card min-w-0 overflow-hidden p-4" key={item.label}>
             <p className="kpi-metric-label">{item.label}</p>
             <p className="kpi-metric-value">{item.count}</p>
-            <p className="mt-1 text-[11px] font-medium text-[#86868b]">{item.types.map(typeLabel).join(", ")}</p>
+            <MarqueeText text={item.types.map(typeLabel).join(", ")} className="mt-1 text-[11px] font-medium leading-4 text-[#86868b]" />
           </div>
         ))}
       </div>
