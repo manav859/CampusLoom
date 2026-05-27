@@ -117,7 +117,7 @@ select:not([multiple]) {
 
 select:not([multiple]) option {
   background: #ffffff;
-  color: #1d1d1f;
+  color: inherit;
 }
 
 [data-script="devanagari"],
@@ -496,7 +496,7 @@ samp,
   font-size: 15px;
   font-weight: 600;
   line-height: 20px;
-  color: #1d1d1f;
+  color: inherit;
   letter-spacing: 0;
 }
 
@@ -520,18 +520,23 @@ samp,
   max-width: 116px;
   overflow: hidden;
   white-space: nowrap;
+  color: #1d1d1f;
 }
 
 .sidebar-label-track {
   display: inline-block;
   min-width: max-content;
-  animation: sidebar-label-slide 8s ease-in-out infinite;
+  color: #1d1d1f;
+  font-weight: 600;
+  transform: translateZ(0);
+  animation: sidebar-label-slide 5.2s steps(42, end) infinite;
+  will-change: transform;
 }
 
 @keyframes sidebar-label-slide {
-  0%, 16% { transform: translateX(0); }
-  68%, 84% { transform: translateX(calc(116px - 100%)); }
-  85%, 100% { transform: translateX(0); }
+  0%, 14% { transform: translate3d(0, 0, 0); }
+  62%, 78% { transform: translate3d(calc(116px - 100%), 0, 0); }
+  79%, 100% { transform: translate3d(0, 0, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
