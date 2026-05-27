@@ -836,10 +836,13 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
   return withRetry(async () => {
     const pagination = getPagination(query);
     const accessFilter = await studentAccessFilter(user);
+    const allowedTabs = allowedTabsForRole(user.role);
+    const canViewAcademic = hasTab(allowedTabs, "academic");
+    const canViewHomework = hasTab(allowedTabs, "homework");
     const canViewFees = hasTab(allowedTabsForRole(user.role), "fees");
 
     const { classId, feeStatus } = (query || {}) as { classId?: string; feeStatus?: string };
-    const canViewAttendance = hasTab(allowedTabsForRole(user.role), "attendance");
+    const canViewAttendance = hasTab(allowedTabs, "attendance");
 
     const feeFilter = (canViewFees && feeStatus) ? getFeeStatusFilter(feeStatus) : {};
 
@@ -867,6 +870,8 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
         take: pagination.take,
         include: {
           class: { select: { id: true, name: true, section: true, academicYear: true } },
+          ...(canViewAcademic ? { examResults: { select: { marksObtained: true, maxMarks: true } } } : {}),
+          ...(canViewAcademic || canViewHomework ? { homeworkRecords: { select: { completionPercentage: true } } } : {}),
           ...(canViewFees
             ? {
                 feeAssignments: {
@@ -883,7 +888,7 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
                 }
               }
             : {}),
-          ...(canViewAttendance
+          ...(canViewAttendance || canViewAcademic
             ? {
                 attendanceRecords: {
                   take: 60,
@@ -905,6 +910,8 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
     const items = records.map((record) => {
       const student = record as typeof record & {
         attendanceRecords?: AttendanceForSnapshot[];
+        examResults?: ExamForPerformance[];
+        homeworkRecords?: HomeworkForPerformance[];
       };
       const feeRows = (student as unknown as {
         feeAssignments?: {
@@ -918,13 +925,28 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
         ?.flatMap((assignment) => assignment.payments ?? [])
         .sort((left, right) => right.paidAt.getTime() - left.paidAt.getTime())[0]?.paidAt ?? null;
       const feeAssignments = feeRows?.map(({ payments: _payments, ...assignment }) => assignment);
-      const { attendanceRecords: _attendanceRecords, feeAssignments: _feeAssignments, ...payload } = student as any;
+      const feeBalance = feeRows?.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0) ?? 0;
+      const attendancePercentage =
+        canViewAttendance || canViewAcademic
+          ? attendanceSnapshot(student.attendanceRecords ?? []).attendancePercentage
+          : 0;
+      const performance = canViewAcademic
+        ? performanceSnapshot(student.examResults ?? [], student.homeworkRecords ?? [], attendancePercentage)
+        : {
+            examAverage: null,
+            homeworkCompletion: null,
+            attendancePercentage,
+            performanceRate: null,
+            performanceClassification: null
+          };
+      const { attendanceRecords: _attendanceRecords, feeAssignments: _feeAssignments, examResults: _examResults, homeworkRecords: _homeworkRecords, ...payload } = student as any;
 
       return {
         ...payload,
-        ...(canViewFees ? { feeAssignments, lastPayment: latestPayment } : {}),
+        ...performance,
+        ...(canViewFees ? { feeAssignments, lastPayment: latestPayment, feeBalance } : {}),
         ...(canViewAttendance
-          ? { attendancePercentage: attendanceSnapshot(student.attendanceRecords ?? []).attendancePercentage }
+          ? { attendancePercentage }
           : {})
       };
     });
