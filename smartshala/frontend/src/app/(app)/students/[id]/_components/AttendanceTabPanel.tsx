@@ -25,18 +25,24 @@ function statusLabel(status: StudentDetail["attendanceAnalytics"]["calendar"][nu
 }
 
 function statusClasses(status: StudentDetail["attendanceAnalytics"]["calendar"][number]["status"]) {
-  if (status === "PRESENT") return "bg-[#34c759] text-white/60";
-  if (status === "ABSENT") return "bg-[#ff3b30] text-white/60";
-  if (status === "LATE") return "bg-[#ff9500] text-white/70";
-  if (status === "HALF_DAY") return "bg-[#7c3aed] text-white/70";
-  if (status === "HOLIDAY") return "bg-[#f5f5f7] text-[#1d1d1f]/30";
-  return "bg-[rgba(0,0,0,0.02)] text-[#1d1d1f]/20";
+  if (status === "PRESENT") return "bg-[#34c759] text-white";
+  if (status === "ABSENT") return "bg-[#ff3b30] text-white";
+  if (status === "LATE") return "bg-[#ff9500] text-white";
+  if (status === "HALF_DAY") return "bg-[#7c3aed] text-white";
+  if (status === "HOLIDAY") return "bg-white text-[#A7B0BD]";
+  return "bg-white text-[#C6CBD2]";
 }
 
 function metricTone(value: number) {
   if (value >= 80) return "good";
   if (value >= 75) return "warn";
   return "danger";
+}
+
+function metricAccent(tone: ReturnType<typeof metricTone>) {
+  if (tone === "good") return "border-[#B7E4C8] bg-[#F3FBF6]";
+  if (tone === "warn") return "border-[#FFD9A8] bg-[#FFF8ED]";
+  return "border-[#F1B8BD] bg-[#FFF7F8]";
 }
 
 /* ── Helpers to derive month options from calendar data ── */
@@ -117,66 +123,67 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
       ) : null}
 
       {/* ── Main Bento Grid ── */}
-      <div className="grid gap-4 lg:grid-cols-12">
+      <div className="grid items-start gap-4 xl:grid-cols-[420px_minmax(0,1fr)]">
         
         {/* Left Side: 2x2 Metrics Grid (5 columns) */}
-        <div className="grid grid-cols-2 gap-3 lg:col-span-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:self-start">
           {/* Attendance % */}
-          <div className="kpi-metric-card flex min-w-0 flex-col justify-between overflow-hidden p-3 sm:p-5">
-            <div className="min-w-0">
-              <p className="kpi-metric-label">Attendance %</p>
-              <p className="kpi-metric-value">{metrics.attendancePercentage}%</p>
-            </div>
-            <div className="mt-2 min-w-0">
+          <div className={`min-w-0 rounded-[8px] border p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] ${metricAccent(metricTone(metrics.attendancePercentage))}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-[#52687D]">Attendance %</p>
+                <p className="mt-1 text-[30px] font-bold leading-none text-[#0F2233]">{metrics.attendancePercentage}%</p>
+              </div>
               <StatusPill label={metrics.attendancePercentage >= 80 ? "Healthy" : "Watch"} tone={metricTone(metrics.attendancePercentage)} />
             </div>
             {metrics.classAverageAttendance !== null ? (
-              <p className="mt-2 truncate text-[10px] font-medium leading-4 text-[#86868b] sm:text-[12px]">
+              <p className="mt-3 truncate text-[12px] font-medium leading-4 text-[#5A6573]">
                 Class average: <span className="font-semibold text-[#1d1d1f]">{metrics.classAverageAttendance}%</span>
               </p>
             ) : null}
           </div>
 
           {/* Total days — present/total format */}
-          <div className="kpi-metric-card kpi-metric-card-good flex min-w-0 flex-col justify-between overflow-hidden p-3 sm:p-5">
+          <div className="min-w-0 rounded-[8px] border border-[#B7E4C8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
             <div className="min-w-0">
-              <p className="kpi-metric-label">Total days</p>
-              <p className="kpi-metric-value text-[24px] leading-8 sm:text-[27px] sm:leading-9">
+              <p className="text-[13px] font-semibold text-[#52687D]">Total days</p>
+              <p className="mt-1 text-[30px] font-bold leading-none text-[#0F2233]">
                 <span className="text-[#248a3d]">{presentDays}</span>
                 <span className="mx-0.5 font-medium text-[#aeaeb2]">/</span>
                 <span>{metrics.totalDays}</span>
               </p>
             </div>
-            <p className="mt-2 truncate text-[10px] font-medium leading-4 text-[#86868b] sm:text-[12px]">{metrics.late} late, {metrics.halfDays} half-day</p>
+            <p className="mt-3 truncate text-[12px] font-medium leading-4 text-[#5A6573]">{metrics.late} late, {metrics.halfDays} half-day</p>
           </div>
 
           {/* Absences */}
-          <div className="kpi-metric-card kpi-metric-card-danger flex min-w-0 flex-col justify-between overflow-hidden p-3 sm:p-5">
+          <div className="min-w-0 rounded-[8px] border border-[#F1B8BD] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
             <div className="min-w-0">
-              <p className="kpi-metric-label">Absences</p>
-              <p className="kpi-metric-value">{metrics.absences}</p>
+              <p className="text-[13px] font-semibold text-[#52687D]">Absences</p>
+              <p className="mt-1 text-[30px] font-bold leading-none text-[#0F2233]">{metrics.absences}</p>
             </div>
+            <p className="mt-3 text-[12px] font-medium text-[#5A6573]">Recorded absent days</p>
           </div>
 
           {/* Remaining before 75% */}
-          <div className={`kpi-metric-card flex min-w-0 flex-col justify-between overflow-hidden p-3 sm:p-5 ${metrics.attendancePercentage < 75 ? "kpi-metric-card-danger" : "kpi-metric-card-good"}`}>
+          <div className={`min-w-0 rounded-[8px] border p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] ${metrics.attendancePercentage < 75 ? "border-[#F1B8BD] bg-[#FFF7F8]" : "border-[#B7E4C8] bg-white"}`}>
             <div className="min-w-0">
-              <p className="kpi-metric-label">Buffer to 75%</p>
-              <p className="kpi-metric-value">
+              <p className="text-[13px] font-semibold text-[#52687D]">Buffer to 75%</p>
+              <p className="mt-1 text-[30px] font-bold leading-none text-[#0F2233]">
                 {metrics.remainingBefore75}
               </p>
             </div>
-            <p className="mt-2 truncate text-[10px] font-medium leading-4 text-[#86868b] sm:text-[12px]">additional absences</p>
+            <p className="mt-3 truncate text-[12px] font-medium leading-4 text-[#5A6573]">additional absences</p>
           </div>
         </div>
 
         {/* Right Side: Calendar Card (7 columns) */}
-        <section className="flex flex-col rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6 lg:col-span-7">
-          <div className="flex flex-col gap-4 border-b border-[#E7EBF0] pb-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
+        <section className="flex flex-col rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
+          <div className="flex flex-col gap-4 border-b border-[#E7EBF0] pb-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Calendar</h2>
               <select
-                className="cursor-pointer rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#1d1d1f] outline-none transition-all hover:border-[#2456E6] focus:border-[#2456E6]"
+                className="min-h-10 cursor-pointer rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[13px] font-semibold text-[#1d1d1f] outline-none transition-all hover:border-[#2456E6] focus:border-[#2456E6]"
                 value={selectedMonthKey}
                 onChange={(e) => setSelectedMonthKey(e.target.value)}
               >
@@ -186,31 +193,31 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
                 ))}
               </select>
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-[#6e6e73]">
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#34c759] shadow-sm" /> Present</div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#ff3b30] shadow-sm" /> Absent</div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#ff9500] shadow-sm" /> Late</div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#7c3aed] shadow-sm" /> Half day</div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full border border-black/10 bg-[#f5f5f7]" /> Holiday</div>
+            <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-[#6e6e73] sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+              <div className="flex items-center gap-1.5 rounded-full bg-[#F3FBF6] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#34c759] shadow-sm" /> Present</div>
+              <div className="flex items-center gap-1.5 rounded-full bg-[#FFF7F8] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#ff3b30] shadow-sm" /> Absent</div>
+              <div className="flex items-center gap-1.5 rounded-full bg-[#FFF8ED] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#ff9500] shadow-sm" /> Late</div>
+              <div className="flex items-center gap-1.5 rounded-full bg-[#F4F0FF] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#7c3aed] shadow-sm" /> Half day</div>
+              <div className="flex items-center gap-1.5 rounded-full bg-[#F7F8FB] px-2 py-1"><span className="h-2 w-2 rounded-full border border-black/10 bg-[#f5f5f7]" /> Holiday</div>
             </div>
           </div>
 
-          <div className="flex flex-1 items-center justify-center overflow-x-auto pt-6 pb-2">
-          <div className="inline-grid grid-cols-7 gap-1.5 sm:gap-2">
+          <div className="overflow-x-auto pt-5">
+          <div className="mx-auto inline-grid min-w-[336px] grid-cols-7 gap-2 rounded-[10px] bg-[#F7F8FB] p-3 sm:min-w-[448px] sm:gap-2.5 sm:p-4">
               {weekdays.map((day) => (
-                <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-[#86868b]" key={day}>{day}</div>
+                <div className="mb-1 text-center text-[10px] font-bold uppercase tracking-wider text-[#86868b]" key={day}>{day}</div>
               ))}
               {calendarSlots.map((slot) => {
-                if (slot.type === "blank") return <div key={slot.id} className="h-10 w-8 rounded-[8px] bg-transparent sm:h-12 sm:w-10" />;
+                if (slot.type === "blank") return <div key={slot.id} className="h-11 w-10 rounded-[8px] bg-transparent sm:h-12 sm:w-12" />;
                 const date = new Date(slot.date);
                 const letter = slot.status === "PRESENT" ? "P" : slot.status === "ABSENT" ? "A" : slot.status === "LATE" ? "L" : slot.status === "HALF_DAY" ? "HD" : slot.status === "HOLIDAY" ? "H" : "";
                 return (
                   <div
-                    className={`flex h-10 w-8 flex-col items-center justify-center rounded-[8px] shadow-sm ring-1 ring-inset ring-black/[0.04] transition-all duration-200 hover:scale-110 hover:shadow-md sm:h-12 sm:w-10 ${statusClasses(slot.status)}`}
+                    className={`flex h-11 w-10 flex-col items-center justify-center rounded-[10px] shadow-sm ring-1 ring-inset ring-black/[0.05] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:h-12 sm:w-12 ${statusClasses(slot.status)}`}
                     key={slot.date}
                     title={`${dateLabel(slot.date)} - ${statusLabel(slot.status)}`}
                   >
-                    <span className="text-[11px] font-bold leading-none sm:text-[13px]">{date.getDate()}</span>
+                    <span className="text-[13px] font-bold leading-none sm:text-[14px]">{date.getDate()}</span>
                     {letter ? <span className="mt-0.5 text-[8px] font-bold uppercase leading-none opacity-80 sm:text-[9px]">{letter}</span> : null}
                   </div>
                 );
@@ -221,25 +228,25 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
 
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
+      <section className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Absent dates</h2>
-              <p className="mt-1 text-[13px] text-[#86868b]">Most recent absences from recorded attendance days.</p>
+              <p className="mt-1 text-[13px] text-[#86868b]">Recent recorded absences.</p>
             </div>
             <StatusPill label={`${absentDates.length} absences`} tone={absentDates.length > 0 ? "danger" : "good"} />
           </div>
 
-          <div className="mt-5">
+          <div className="mt-4">
             {absentDates.length === 0 ? (
               <div className="rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] px-4 py-7 text-center text-[13px] font-medium text-[#86868b]">
                 No absences recorded in this period.
               </div>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {absentDates.slice(0, 8).map((record) => (
-                  <div className="flex items-center justify-between rounded-[6px] border border-[#F1B8BD] bg-[#FFF7F8] px-4 py-3" key={record.date}>
+                  <div className="flex min-h-12 items-center justify-between gap-3 rounded-[6px] border border-[#F1B8BD] bg-[#FFF7F8] px-3 py-2.5" key={record.date}>
                     <span className="text-[13px] font-semibold text-[#1d1d1f]">{formatDateShort(record.date)}</span>
                     <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#c90011]">Absent</span>
                   </div>
@@ -252,7 +259,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
           </div>
         </div>
 
-        <aside className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
+        <aside className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Class context</h2>
           <div className="mt-5 space-y-4">
             <div className="rounded-[6px] bg-[#F7F8FB] p-4">
