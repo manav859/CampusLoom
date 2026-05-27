@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import type { CSSProperties } from "react";
 import type { Role } from "@/types";
 import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
 
@@ -102,12 +103,14 @@ function hasChildren(item: NavItem): item is Extract<NavItem, { children: NavLin
 function SidebarLabel({ expanded, label, withMargin = true }: { expanded: boolean; label: string; withMargin?: boolean }) {
   const shouldScroll = label.length > 13;
   const marginClass = withMargin ? "ml-2.5" : "";
+  const labelStyle = shouldScroll ? { "--sidebar-label-duration": `${Math.max(4.2, label.length * 0.24)}s` } as CSSProperties : undefined;
 
   return (
     <span
       className={`sidebar-label-shell transition-all duration-300 ease-in-out md:transition-all ${
-        expanded ? `${marginClass} w-[116px] opacity-100` : `${marginClass} w-[116px] opacity-100 md:ml-0 md:w-0 md:opacity-0`
+        expanded ? `${marginClass} w-[131px] opacity-100` : `${marginClass} w-[131px] opacity-100 md:ml-0 md:w-0 md:opacity-0`
       }`}
+      style={labelStyle}
       title={label}
     >
       {shouldScroll ? (
@@ -282,9 +285,9 @@ export function Sidebar({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className={`fixed inset-y-0 left-0 z-[160] flex flex-col bg-white border-r border-[var(--apple-card-border)] transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen md:pt-16 ${
-          open ? "w-[200px] translate-x-0" : "-translate-x-full md:translate-x-0"
+          open ? "w-[215px] translate-x-0" : "-translate-x-full md:translate-x-0"
         } ${
-          isOpenDesktop ? "md:w-[200px]" : "md:w-[60px]"
+          isOpenDesktop ? "md:w-[215px]" : "md:w-[60px]"
         }`}
       >
         {/* Brand */}

@@ -517,7 +517,7 @@ samp,
 .sidebar-label-shell {
   display: inline-flex;
   min-width: 0;
-  max-width: 116px;
+  max-width: 131px;
   overflow: hidden;
   white-space: nowrap;
   color: inherit;
@@ -529,14 +529,14 @@ samp,
   color: inherit;
   font-weight: 600;
   transform: translateZ(0);
-  animation: sidebar-label-slide 3.8s linear infinite;
+  animation: sidebar-label-slide var(--sidebar-label-duration, 4.2s) ease-in-out infinite;
   will-change: transform;
 }
 
 @keyframes sidebar-label-slide {
-  0%, 14% { transform: translate3d(0, 0, 0); }
-  62%, 78% { transform: translate3d(calc(116px - 100%), 0, 0); }
-  79%, 100% { transform: translate3d(0, 0, 0); }
+  0%, 16% { transform: translate3d(0, 0, 0); }
+  66%, 82% { transform: translate3d(calc(131px - 100%), 0, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {

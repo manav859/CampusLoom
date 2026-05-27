@@ -66,6 +66,16 @@ function classKey(row: StudentPerformanceRow) {
   return `${row.class.name}-${row.class.section}`;
 }
 
+function FilterIcon() {
+  return (
+    <span className="inline-flex w-3.5 flex-col items-end gap-[3px]" aria-hidden>
+      <span className="h-[1.5px] w-3.5 rounded-full bg-current" />
+      <span className="h-[1.5px] w-2.5 rounded-full bg-current" />
+      <span className="h-[1.5px] w-1.5 rounded-full bg-current" />
+    </span>
+  );
+}
+
 export default function StudentPerformanceReportPage() {
   const [rows, setRows] = useState<StudentPerformanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,15 +224,54 @@ export default function StudentPerformanceReportPage() {
                 <th className="px-5 py-3.5 font-semibold">Student</th>
                 <th className="px-5 py-3.5 font-semibold">Admission no</th>
                 <th className="px-5 py-3.5 font-semibold">
-                  <button
-                    className="inline-flex items-center gap-2 font-semibold text-white"
-                    onClick={() => setClassFilterOpen((open) => !open)}
-                    type="button"
-                  >
-                    Class
-                    {selectedClasses.length ? <span className="rounded-full bg-white/20 px-1.5 text-[11px]">{selectedClasses.length}</span> : null}
-                    <span aria-hidden>{classFilterOpen ? "^" : "v"}</span>
-                  </button>
+                  <span className="relative inline-flex" ref={classFilterRef}>
+                    <button
+                      className="inline-flex items-center gap-2 font-semibold text-white"
+                      onClick={() => setClassFilterOpen((open) => !open)}
+                      type="button"
+                    >
+                      Class
+                      {selectedClasses.length ? <span className="rounded-full bg-white/20 px-1.5 text-[11px]">{selectedClasses.length}</span> : null}
+                      <FilterIcon />
+                    </button>
+                    {classFilterOpen ? (
+                      <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-56 rounded-[8px] border border-[#DCE1E8] bg-white p-2 text-[#1d1d1f] shadow-[var(--shadow-menu)]">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="text-[12px] font-semibold">Filter class</p>
+                          {selectedClasses.length ? (
+                            <button className="text-[12px] font-semibold text-[#2456E6]" onClick={() => setSelectedClasses([])} type="button">
+                              Clear
+                            </button>
+                          ) : null}
+                        </div>
+                        <div className="max-h-52 space-y-1 overflow-y-auto">
+                          {classOptions.map((option) => {
+                            const checked = selectedClasses.includes(option);
+                            return (
+                              <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-[6px] px-2 text-[13px] font-semibold hover:bg-[#F7F8FB]" key={option}>
+                                <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border text-[10px] ${checked ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#A7B0BD] bg-white"}`}>
+                                  {checked ? <span>&#10003;</span> : null}
+                                </span>
+                                <input
+                                  checked={checked}
+                                  className="sr-only"
+                                  onChange={() =>
+                                    setSelectedClasses((current) =>
+                                      current.includes(option)
+                                        ? current.filter((item) => item !== option)
+                                        : [...current, option]
+                                    )
+                                  }
+                                  type="checkbox"
+                                />
+                                <span className="truncate">{option}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+                  </span>
                 </th>
                 <th className="px-5 py-3.5 font-semibold">Attendance</th>
                 <th className="px-5 py-3.5 font-semibold">
@@ -240,52 +289,6 @@ export default function StudentPerformanceReportPage() {
                 </th>
                 <th className="px-5 py-3.5 font-semibold">Action</th>
               </tr>
-              {classFilterOpen ? (
-                <tr>
-                  <td className="border-b border-[#DCE1E8] bg-white px-5 py-4 text-[#1d1d1f]" colSpan={6}>
-                    <div className="flex flex-col gap-3" ref={classFilterRef}>
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[13px] font-semibold">Filter classes</p>
-                        <div className="flex items-center gap-2">
-                          {selectedClasses.length ? (
-                            <button className="rounded-[5px] border border-[#C9D3DE] px-2.5 py-1.5 text-[12px] font-semibold text-[#2456E6]" onClick={() => setSelectedClasses([])} type="button">
-                              Clear
-                            </button>
-                          ) : null}
-                          <button className="rounded-[5px] border border-[#C9D3DE] px-2.5 py-1.5 text-[12px] font-semibold text-[#5A6573]" onClick={() => setClassFilterOpen(false)} type="button">
-                            Done
-                          </button>
-                        </div>
-                      </div>
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        {classOptions.map((option) => {
-                          const checked = selectedClasses.includes(option);
-                          return (
-                            <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-[6px] border border-[#DCE1E8] px-3 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" key={option}>
-                              <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border ${checked ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#A7B0BD] bg-white"}`}>
-                                {checked ? <span>&#10003;</span> : null}
-                              </span>
-                              <input
-                                checked={checked}
-                                className="sr-only"
-                                onChange={() =>
-                                  setSelectedClasses((current) =>
-                                    current.includes(option)
-                                      ? current.filter((item) => item !== option)
-                                      : [...current, option]
-                                  )
-                                }
-                                type="checkbox"
-                              />
-                              <span>{option}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ) : null}
             </thead>
             <tbody className="divide-y divide-[#EEF1F5]">
               {pageRows.map((row) => {
