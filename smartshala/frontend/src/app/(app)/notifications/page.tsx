@@ -370,7 +370,7 @@ export default function NotificationsPage() {
       <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[1240px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
             <thead>
-              <tr className="bg-[#DDECF8]">
+              <tr className="table-head-row">
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">
                   <FilterHeader filterKey="type" label="Type" />
                 </th>

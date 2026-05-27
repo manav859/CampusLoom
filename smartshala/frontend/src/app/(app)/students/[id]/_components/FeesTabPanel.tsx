@@ -126,7 +126,7 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[640px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
             <thead>
-              <tr className="bg-[#DDECF8]">
+              <tr className="table-head-row">
                 {["Fee", "Paid", "Pending", "Status"].map((head) => (
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                 ))}
@@ -222,7 +222,7 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
           <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[820px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
               <thead>
-                <tr className="bg-[#DDECF8]">{["Date", "Amount", "Mode", "Reference", "Receipt ID", "Balance After", "Fee", "Actions"].map((head) => <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>)}</tr>
+                <tr className="table-head-row">{["Date", "Amount", "Mode", "Reference", "Receipt ID", "Balance After", "Fee", "Actions"].map((head) => <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>)}</tr>
               </thead>
               <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                 {recentTransactions.length === 0 ? (

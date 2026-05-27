@@ -572,7 +572,7 @@ export default function ActivityLogsPage() {
           <div className="overflow-x-auto rounded-[5px] border border-[#C9D3DE]">
             <table className="w-full min-w-[980px] border-collapse text-left text-[15px] text-[#001B33]">
               <thead>
-                <tr className="bg-[#DDECF8]">
+                <tr className="table-head-row">
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">Module</th>
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">Description</th>
                   <th className="relative whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold">

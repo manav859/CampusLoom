@@ -236,7 +236,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[860px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
             <thead>
-              <tr className="bg-[#DDECF8]">
+              <tr className="table-head-row">
                 {["Exam Name", "Subject", "Marks", "%", "Class Average", "Vs class", "Grade", "Rank"].map((head) => (
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                 ))}

@@ -630,7 +630,7 @@ export default function SuperAdminPage() {
               ) : null}
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[860px] border-collapse text-sm">
-                  <thead className="bg-[#f8fafc] text-left text-xs uppercase tracking-wide text-[#64748b]">
+                  <thead className="table-head text-left text-xs uppercase tracking-wide">
                     <tr>
                       <th className="px-4 py-3">User</th>
                       <th className="px-4 py-3">Role</th>

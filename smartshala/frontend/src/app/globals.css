@@ -381,6 +381,19 @@ samp,
     background: #FAFBFC;
     padding: 20px 24px 24px;
   }
+
+  .table-head,
+  .table-head-row {
+    background: var(--brand-secondary);
+    color: #ffffff;
+  }
+
+  .table-head th,
+  .table-head-row th {
+    border-bottom-color: var(--brand-secondary) !important;
+    color: #ffffff !important;
+    font-weight: 600;
+  }
 }
 
 @layer utilities {

@@ -812,7 +812,7 @@ export default function TeacherHomeworkPage() {
                 <col className="w-[215px]" />
               </colgroup>
               <thead>
-                <tr className="bg-[#DDECF8]">
+                <tr className="table-head-row">
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-5 py-4 text-[14px] font-semibold">Title</th>
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Subject</th>
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Assigned Date</th>

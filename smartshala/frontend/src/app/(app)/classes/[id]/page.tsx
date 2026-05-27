@@ -140,7 +140,7 @@ export default function ClassDetailPage() {
 
         <div className="overflow-visible rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
           <table className="w-full text-left text-[13px] print:text-[11px]">
-            <thead className="border-b border-[rgba(0,0,0,0.04)] bg-[#fbfbfd] text-[#86868b]">
+            <thead className="table-head">
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Photo</th>
                 <th className="px-5 py-3.5 font-semibold">Roster #</th>

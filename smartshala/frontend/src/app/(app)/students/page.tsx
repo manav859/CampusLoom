@@ -1069,7 +1069,7 @@ export default function StudentsPage() {
             <div className="overflow-x-auto">
             <table className={`w-full border-collapse bg-white text-center text-[14px] text-[#001B33] ${canViewFees ? "min-w-[1120px]" : "min-w-[860px]"}`}>
               <thead>
-                <tr className="bg-[#DDECF8]">
+                <tr className="table-head-row">
                   {tableHeaders.map((head, index) => (
                     <th
                       aria-sort={head.sortKey ? (sort.key === head.sortKey ? (sort.direction === "asc" ? "ascending" : "descending") : "none") : undefined}
@@ -1368,7 +1368,7 @@ export default function StudentsPage() {
                   </div>
                   <div className="max-h-72 overflow-auto">
                     <table className="w-full min-w-[640px] text-left text-[13px]">
-                      <thead className="sticky top-0 bg-white">
+                      <thead className="table-head sticky top-0">
                         <tr className="border-b border-[#DCE1E8] text-[11px] uppercase tracking-[0.06em] text-[#5A6573]">
                           <th className="px-4 py-2">Row</th>
                           <th className="px-4 py-2">Student</th>

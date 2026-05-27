@@ -591,7 +591,7 @@ export default function TeacherMarksPage() {
             <div className="hidden max-h-[520px] overflow-auto rounded-[5px] border border-[#C9D3DE] [contain:content] md:block">
             <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[15px] text-[#001B33]">
               <thead>
-                <tr className="bg-[#DDECF8]">
+                <tr className="table-head-row">
                   {["Exam", "Subject", "Max", "Date", "Status", "Entered", "Pending", "Class Avg", "Students"].map((head) => (
                     <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold" key={head}>{head}</th>
                   ))}

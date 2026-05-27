@@ -70,7 +70,7 @@ export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: nu
       <div className="overflow-x-auto">
         <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="bg-gradient-to-r from-[#1a3c4d] to-[#2a7a94]">
+            <tr className="table-head-row">
               {Array.from({ length: cols }).map((_, i) => (
                 <th key={i} className="px-5 py-3.5">
                   <Skeleton className="h-3 w-16 rounded-md bg-white/10" />
