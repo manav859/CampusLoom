@@ -14,6 +14,7 @@ type ClassData = {
   academicYear: string;
   isActive?: boolean;
   classTeacher?: { id: string; fullName: string; phone: string } | null;
+  subjects?: { id: string; name: string; teacherId: string | null }[];
   _count?: { students: number };
 };
 
@@ -29,72 +30,76 @@ function ClassCard({ cls, isAdmin, onDelete }: { cls: ClassData; isAdmin: boolea
   const studentCount = cls._count?.students ?? 0;
   const tone = classTone(cls.name);
   const active = cls.isActive ?? true;
+  const subjects = cls.subjects ?? [];
 
   return (
-    <article className={`w-full max-w-[320px] rounded-[8px] border bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 hover:border-[#8C96A3] sm:p-5 ${tone.border}`}>
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <Link href={`/classes/${cls.id}`} className="min-w-0">
-              <span className="block text-[12px] font-semibold uppercase tracking-[0.08em] text-[#52687D]">{cls.academicYear}</span>
-              <span className="mt-0.5 block truncate text-[26px] font-semibold leading-8 text-[#0F2233] [font-variant-numeric:tabular-nums] sm:text-[24px]">
-                {cls.name}-{cls.section}
-              </span>
-            </Link>
-            <div className="flex shrink-0 items-center gap-2">
-              {active ? <span className="rounded-full border border-[#BCE5C8] bg-[#E1F5EA] px-2.5 py-1 text-[11px] font-bold text-[#0F8A4A]">Active</span> : null}
-              {isAdmin ? (
-                <button
-                  aria-label={`Delete class ${cls.name}-${cls.section}`}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-[#F2C7CB] bg-[#FFF7F8] text-[#C8242C] transition-colors hover:bg-[#FCE3E5]"
-                  onClick={(event) => onDelete(event, cls.id)}
-                  type="button"
-                >
-                  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-2">
-            <div className="flex min-h-10 items-center gap-3 rounded-[6px] bg-[#F7F8FB] px-3">
-              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] ${tone.iconBg}`} title="Students">
-                <svg className={`h-4 w-4 ${tone.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <circle cx="9" cy="8" r="3" />
-                  <path d="M3.5 20a5.5 5.5 0 0 1 11 0" strokeLinecap="round" />
-                  <circle cx="17" cy="9" r="2.4" />
-                  <path d="M15.5 20a4.2 4.2 0 0 1 5 0" strokeLinecap="round" />
-                </svg>
-              </span>
-              <p className="text-[18px] font-semibold text-[#0F2233]">{studentCount}</p>
-            </div>
-            <div className="flex min-h-10 min-w-0 items-center gap-3 rounded-[6px] bg-[#F7F8FB] px-3">
-              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] ${tone.iconBg}`} title="Teacher">
-                <svg className={`h-4 w-4 ${tone.accent}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                  <circle cx="12" cy="7.5" r="3" />
-                  <path d="M5.5 20a6.5 6.5 0 0 1 13 0" strokeLinecap="round" />
-                  <path d="M9 12.5 12 15l3-2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <p className="truncate text-[13px] font-semibold text-[#0F2233]">{cls.classTeacher?.fullName || "Unassigned"}</p>
-            </div>
-          </div>
+    <article className={`w-full rounded-[14px] border bg-[#F8F9FC] p-4 shadow-[0_10px_24px_-22px_rgba(15,20,25,0.5)] transition-colors duration-200 hover:border-[#8C96A3] sm:p-5 ${tone.border}`}>
+      <div className="flex items-start justify-between gap-3">
+        <Link href={`/classes/${cls.id}`} className="min-w-0">
+          <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#8C96A3]">Class</span>
+          <span className={`mt-1 block truncate text-[23px] font-semibold leading-7 tracking-tight [font-variant-numeric:tabular-nums] ${tone.accent}`}>
+            {cls.name}-{cls.section}
+          </span>
+        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="inline-flex h-7 items-center gap-2 rounded-[6px] border border-[#D6DDE7] bg-white px-3 text-[12px] font-semibold text-[#526071]">
+            <span className={`h-1.5 w-1.5 rounded-full bg-current ${tone.accent}`} />
+            {studentCount} students
+          </span>
+          {isAdmin ? (
+            <button
+              aria-label={`Delete class ${cls.name}-${cls.section}`}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] border border-[#F2C7CB] bg-[#FFF7F8] text-[#C8242C] transition-colors hover:bg-[#FCE3E5]"
+              onClick={(event) => onDelete(event, cls.id)}
+              type="button"
+            >
+              <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-0.5">
-        <Link href={`/classes/${cls.id}`} className="inline-flex min-h-[42px] shrink-0 items-center justify-center rounded-[6px] bg-[#2456E6] px-4 text-[13px] font-semibold text-white">
+      <div className="mt-6">
+        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8C96A3]">Assigned subjects</p>
+        <div className="mt-3 flex min-h-7 flex-wrap items-center gap-x-5 gap-y-2">
+          {subjects.length === 0 ? (
+            <span className="rounded-[6px] bg-[#ff9500]/10 px-2.5 py-1 text-[12px] font-semibold text-[#c93400]">Subjects pending</span>
+          ) : (
+            subjects.map((subject) => (
+              <span className="text-[12px] font-semibold text-[#2A3340]" key={subject.id}>
+                {subject.name}
+              </span>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-2">
+        <div className="flex min-h-12 items-center justify-between rounded-[10px] bg-[#F0F2F6] px-4 text-[13px]">
+          <span className="font-medium text-[#6E7885]">Academic year</span>
+          <span className="font-semibold text-[#1d1d1f]">{cls.academicYear}</span>
+        </div>
+        <div className="flex min-h-12 min-w-0 items-center justify-between gap-3 rounded-[10px] bg-white px-4 text-[13px]">
+          <span className="font-medium text-[#6E7885]">Class teacher</span>
+          <span className="truncate font-semibold text-[#1d1d1f]">{cls.classTeacher?.fullName || "Unassigned"}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <Link href={`/classes/${cls.id}`} className="inline-flex min-h-[42px] items-center justify-center rounded-[7px] bg-[#2456E6] px-4 text-[13px] font-semibold text-white">
           Roster
         </Link>
-        <Link href={`/attendance?classId=${cls.id}`} className="inline-flex min-h-[42px] shrink-0 items-center justify-center rounded-[6px] border border-[#C9D3DE] bg-white px-4 text-[13px] font-semibold text-[#2A3340]">
+        <Link href={`/attendance?classId=${cls.id}`} className="inline-flex min-h-[42px] items-center justify-center rounded-[7px] border border-[#C9D3DE] bg-white px-4 text-[13px] font-semibold text-[#2A3340]">
           Attendance
         </Link>
-        <Link href={`/teacher/communication?classId=${cls.id}`} className="inline-flex min-h-[42px] shrink-0 items-center justify-center rounded-[6px] border border-[#C9D3DE] bg-white px-4 text-[13px] font-semibold text-[#2A3340]">
+        <Link href={`/teacher/communication?classId=${cls.id}`} className="inline-flex min-h-[42px] items-center justify-center rounded-[7px] border border-[#C9D3DE] bg-white px-4 text-[13px] font-semibold text-[#2A3340]">
           Notice
         </Link>
       </div>
+
+      {active ? <span className="mt-4 inline-flex rounded-[6px] border border-[#BCE5C8] bg-[#E1F5EA] px-2.5 py-1 text-[11px] font-bold text-[#0F8A4A]">Active</span> : null}
     </article>
   );
 }
@@ -155,7 +160,7 @@ export default function ClassesPage() {
       </div>
       
       {loading ? (
-        <div className="grid justify-items-center gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />)}
         </div>
       ) : classes.length === 0 ? (
@@ -163,7 +168,7 @@ export default function ClassesPage() {
           No classes found.
         </div>
       ) : (
-        <div className="grid justify-items-center gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {classes.map((cls) => (
             <ClassCard cls={cls} isAdmin={isAdmin} key={cls.id} onDelete={handleDelete} />
           ))}
