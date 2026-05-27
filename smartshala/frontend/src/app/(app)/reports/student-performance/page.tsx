@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { apiFetch } from "@/lib/api";
@@ -62,6 +62,10 @@ function overallPerformance(row: StudentPerformanceRow) {
   };
 }
 
+function classKey(row: StudentPerformanceRow) {
+  return `${row.class.name}-${row.class.section}`;
+}
+
 export default function StudentPerformanceReportPage() {
   const [rows, setRows] = useState<StudentPerformanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +73,9 @@ export default function StudentPerformanceReportPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [classFilterOpen, setClassFilterOpen] = useState(false);
+  const classFilterRef = useRef<HTMLDivElement>(null);
 
   const perPage = 20;
 
@@ -102,14 +109,33 @@ export default function StudentPerformanceReportPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, sortDirection]);
+  }, [search, selectedClasses, sortDirection]);
+
+  useEffect(() => {
+    if (!classFilterOpen) return;
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && !classFilterRef.current?.contains(target)) {
+        setClassFilterOpen(false);
+      }
+    };
+
+    window.addEventListener("pointerdown", closeOnOutsideClick);
+    return () => window.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [classFilterOpen]);
+
+  const classOptions = useMemo(
+    () => Array.from(new Set(rows.map(classKey))).sort((a, b) => a.localeCompare(b)),
+    [rows]
+  );
 
   const sortedRows = useMemo(
     () => {
       const term = search.trim().toLowerCase();
       const filteredRows = term
         ? rows.filter((row) => {
-            const className = `${row.class.name}-${row.class.section}`.toLowerCase();
+            const className = classKey(row).toLowerCase();
             return (
               row.fullName.toLowerCase().includes(term) ||
               row.admissionNumber.toLowerCase().includes(term) ||
@@ -117,15 +143,18 @@ export default function StudentPerformanceReportPage() {
             );
           })
         : rows;
+      const filteredByClass = selectedClasses.length
+        ? filteredRows.filter((row) => selectedClasses.includes(classKey(row)))
+        : filteredRows;
 
-      return [...filteredRows].sort((a, b) => {
+      return [...filteredByClass].sort((a, b) => {
         const left = a.performanceRate ?? -1;
         const right = b.performanceRate ?? -1;
         const result = left - right || a.fullName.localeCompare(b.fullName);
         return sortDirection === "asc" ? result : -result;
       });
     },
-    [rows, search, sortDirection]
+    [rows, search, selectedClasses, sortDirection]
   );
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / perPage));
@@ -144,7 +173,7 @@ export default function StudentPerformanceReportPage() {
       ...sortedRows.map((row) => [
         row.fullName,
         row.admissionNumber,
-        `${row.class.name}-${row.class.section}`,
+        classKey(row),
         percent(row.attendancePercentage),
         overallPerformance(row).value,
         row.isActive ? "Active" : "Inactive"
@@ -161,7 +190,7 @@ export default function StudentPerformanceReportPage() {
         title="Student performance report"
         action={<button className="btn-primary min-h-10 px-4 text-[13px]" disabled={loading || rows.length === 0} onClick={exportCsv} type="button">Export CSV</button>}
       />
-      <div className="flex flex-col gap-3 rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)] sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="sr-only" htmlFor="student-performance-search">Search student</label>
         <input
           className="min-h-11 w-full rounded-[6px] border border-[#C9D3DE] px-3 text-[14px] font-medium text-[#1d1d1f] outline-none transition focus:border-[#2456E6] focus:ring-2 focus:ring-[#2456E6]/15 sm:max-w-md"
@@ -184,23 +213,79 @@ export default function StudentPerformanceReportPage() {
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Student</th>
                 <th className="px-5 py-3.5 font-semibold">Admission no</th>
-                <th className="px-5 py-3.5 font-semibold">Class</th>
+                <th className="px-5 py-3.5 font-semibold">
+                  <button
+                    className="inline-flex items-center gap-2 font-semibold text-white"
+                    onClick={() => setClassFilterOpen((open) => !open)}
+                    type="button"
+                  >
+                    Class
+                    {selectedClasses.length ? <span className="rounded-full bg-white/20 px-1.5 text-[11px]">{selectedClasses.length}</span> : null}
+                    <span aria-hidden>{classFilterOpen ? "^" : "v"}</span>
+                  </button>
+                </th>
                 <th className="px-5 py-3.5 font-semibold">Attendance</th>
                 <th className="px-5 py-3.5 font-semibold">
                   <button
-                    className="inline-flex items-center gap-2 font-semibold text-[#001B33]"
+                    className="inline-flex items-center gap-2 font-semibold text-white"
                     onClick={() => setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))}
                     type="button"
                   >
                     Performance
                     <span className="inline-flex gap-0.5 text-[12px]" aria-hidden>
-                      <span className={sortDirection === "asc" ? "text-[#2456E6]" : "text-[#A7B0BD]"}>↑</span>
-                      <span className={sortDirection === "desc" ? "text-[#2456E6]" : "text-[#A7B0BD]"}>↓</span>
+                      <span className={sortDirection === "asc" ? "text-white" : "text-white/55"}>&uarr;</span>
+                      <span className={sortDirection === "desc" ? "text-white" : "text-white/55"}>&darr;</span>
                     </span>
                   </button>
                 </th>
                 <th className="px-5 py-3.5 font-semibold">Action</th>
               </tr>
+              {classFilterOpen ? (
+                <tr>
+                  <td className="border-b border-[#DCE1E8] bg-white px-5 py-4 text-[#1d1d1f]" colSpan={6}>
+                    <div className="flex flex-col gap-3" ref={classFilterRef}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[13px] font-semibold">Filter classes</p>
+                        <div className="flex items-center gap-2">
+                          {selectedClasses.length ? (
+                            <button className="rounded-[5px] border border-[#C9D3DE] px-2.5 py-1.5 text-[12px] font-semibold text-[#2456E6]" onClick={() => setSelectedClasses([])} type="button">
+                              Clear
+                            </button>
+                          ) : null}
+                          <button className="rounded-[5px] border border-[#C9D3DE] px-2.5 py-1.5 text-[12px] font-semibold text-[#5A6573]" onClick={() => setClassFilterOpen(false)} type="button">
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        {classOptions.map((option) => {
+                          const checked = selectedClasses.includes(option);
+                          return (
+                            <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-[6px] border border-[#DCE1E8] px-3 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" key={option}>
+                              <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border ${checked ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#A7B0BD] bg-white"}`}>
+                                {checked ? <span>&#10003;</span> : null}
+                              </span>
+                              <input
+                                checked={checked}
+                                className="sr-only"
+                                onChange={() =>
+                                  setSelectedClasses((current) =>
+                                    current.includes(option)
+                                      ? current.filter((item) => item !== option)
+                                      : [...current, option]
+                                  )
+                                }
+                                type="checkbox"
+                              />
+                              <span>{option}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : null}
             </thead>
             <tbody className="divide-y divide-[#EEF1F5]">
               {pageRows.map((row) => {
@@ -209,7 +294,7 @@ export default function StudentPerformanceReportPage() {
                   <tr className="table-row" key={row.id}>
                     <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{row.fullName}</td>
                     <td className="px-5 py-4 text-[#5A6573]">{row.admissionNumber}</td>
-                    <td className="px-5 py-4 text-[#5A6573]">{row.class.name}-{row.class.section}</td>
+                    <td className="px-5 py-4 text-[#5A6573]">{classKey(row)}</td>
                     <td className="px-5 py-4 text-[#5A6573]">{percent(row.attendancePercentage)}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">

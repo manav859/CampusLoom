@@ -482,6 +482,46 @@ async function homeworkAnalytics(schoolId: string, classId: string, studentId: s
   return homeworkAnalyticsFromAssignments(assignments as HomeworkAssignmentForAnalytics[], studentId, classmateIds);
 }
 
+async function homeworkCompletionOverridesForStudents(
+  schoolId: string,
+  students: { id: string; classId: string }[]
+) {
+  const result = new Map<string, number | null>();
+  if (students.length === 0) return result;
+
+  const studentIds = students.map((student) => student.id);
+  const classIds = Array.from(new Set(students.map((student) => student.classId)));
+  const assignments = await prisma.homeworkAssignment.findMany({
+    where: { schoolId, classId: { in: classIds } },
+    select: {
+      classId: true,
+      submissions: {
+        where: { studentId: { in: studentIds } },
+        select: { studentId: true, status: true }
+      }
+    }
+  });
+
+  const totalsByClass = new Map<string, number>();
+  const onTimeByStudent = new Map<string, number>();
+
+  assignments.forEach((assignment) => {
+    totalsByClass.set(assignment.classId, (totalsByClass.get(assignment.classId) ?? 0) + 1);
+    assignment.submissions.forEach((submission) => {
+      if (submission.status === HomeworkSubmissionStatus.ON_TIME) {
+        onTimeByStudent.set(submission.studentId, (onTimeByStudent.get(submission.studentId) ?? 0) + 1);
+      }
+    });
+  });
+
+  students.forEach((student) => {
+    const total = totalsByClass.get(student.classId) ?? 0;
+    result.set(student.id, total ? Math.round(((onTimeByStudent.get(student.id) ?? 0) / total) * 100) : null);
+  });
+
+  return result;
+}
+
 async function communicationAudit(user: Express.UserContext, studentId: string) {
   const notificationWhere = {
     schoolId: user.schoolId,
@@ -907,6 +947,13 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
       prisma.student.count({ where })
     ]);
 
+    const homeworkCompletionOverrides = canViewAcademic
+      ? await homeworkCompletionOverridesForStudents(
+          user.schoolId,
+          records.map((record) => ({ id: record.id, classId: record.classId }))
+        )
+      : new Map<string, number | null>();
+
     const items = records.map((record) => {
       const student = record as typeof record & {
         attendanceRecords?: AttendanceForSnapshot[];
@@ -931,7 +978,7 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
           ? attendanceSnapshot(student.attendanceRecords ?? []).attendancePercentage
           : 0;
       const performance = canViewAcademic
-        ? performanceSnapshot(student.examResults ?? [], student.homeworkRecords ?? [], attendancePercentage)
+        ? performanceSnapshot(student.examResults ?? [], student.homeworkRecords ?? [], attendancePercentage, homeworkCompletionOverrides.get(student.id))
         : {
             examAverage: null,
             homeworkCompletion: null,

@@ -529,7 +529,7 @@ samp,
   color: inherit;
   font-weight: 600;
   transform: translateZ(0);
-  animation: sidebar-label-slide 5.2s steps(42, end) infinite;
+  animation: sidebar-label-slide 3.8s linear infinite;
   will-change: transform;
 }
 

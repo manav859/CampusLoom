@@ -99,13 +99,14 @@ function hasChildren(item: NavItem): item is Extract<NavItem, { children: NavLin
   return "children" in item;
 }
 
-function SidebarLabel({ expanded, label }: { expanded: boolean; label: string }) {
+function SidebarLabel({ expanded, label, withMargin = true }: { expanded: boolean; label: string; withMargin?: boolean }) {
   const shouldScroll = label.length > 13;
+  const marginClass = withMargin ? "ml-2.5" : "";
 
   return (
     <span
       className={`sidebar-label-shell transition-all duration-300 ease-in-out md:transition-all ${
-        expanded ? "ml-2.5 w-[116px] opacity-100" : "ml-2.5 w-[116px] opacity-100 md:ml-0 md:w-0 md:opacity-0"
+        expanded ? `${marginClass} w-[116px] opacity-100` : `${marginClass} w-[116px] opacity-100 md:ml-0 md:w-0 md:opacity-0`
       }`}
       title={label}
     >
@@ -244,16 +245,23 @@ export function Sidebar({
   const isExpanded = open || isOpenDesktop;
 
   useEffect(() => {
+    if (!isExpanded) {
+      setOpenGroups({});
+    }
+  }, [isExpanded]);
+
+  useEffect(() => {
+    if (!isExpanded) return;
     setOpenGroups((current) => {
       const next = { ...current };
       for (const item of links) {
-        if (hasChildren(item) && item.children.some((child) => isActiveLink(pathname, child.href))) {
+        if (hasChildren(item) && next[item.label] === undefined && item.children.some((child) => isActiveLink(pathname, child.href))) {
           next[item.label] = true;
         }
       }
       return next;
     });
-  }, [links, pathname]);
+  }, [isExpanded, links, pathname]);
 
   const brandLabelClass = `transition-all duration-300 ease-in-out whitespace-nowrap truncate md:transition-all ${
     isExpanded ? "opacity-100 max-w-[150px] ml-2.5" : "opacity-100 max-w-[150px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
@@ -307,7 +315,7 @@ export function Sidebar({
           {links.map((item) => {
             if (hasChildren(item)) {
               const active = item.children.some((child) => isActiveLink(pathname, child.href));
-              const groupOpen = isExpanded && (openGroups[item.label] ?? active);
+              const groupOpen = isExpanded && Boolean(openGroups[item.label]);
 
               return (
                 <div key={item.label}>
@@ -342,7 +350,7 @@ export function Sidebar({
                               key={child.href}
                               onClick={onClose}
                             >
-                              <span className="truncate">{child.label}</span>
+                              <SidebarLabel expanded label={child.label} withMargin={false} />
                             </Link>
                           );
                         })}
