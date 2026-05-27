@@ -34,7 +34,16 @@ const adminLinks: NavItem[] = [
     ]
   },
   { label: "Communication", href: "/teacher/communication", icon: "notifications" },
-  { label: "Reports", href: "/reports", icon: "reports" },
+  {
+    label: "Reports",
+    icon: "reports",
+    children: [
+      { label: "Daily attendance report", href: "/reports/daily-attendance", icon: "attendance" },
+      { label: "Student performance report", href: "/reports/student-performance", icon: "students" },
+      { label: "Subject wise report", href: "/reports/subject-wise", icon: "reports" },
+      { label: "Teacher performance", href: "/reports/teacher-performance", icon: "teachers" }
+    ]
+  },
   { label: "Fees", href: "/fees", icon: "fees" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
   {
@@ -326,8 +335,8 @@ export function Sidebar({
                           const childActive = isActiveLink(pathname, child.href);
                           return (
                             <Link
-                              className={`flex min-h-11 items-center px-1 text-[14px] font-medium transition-colors ${
-                                childActive ? "text-[#0071e3]" : "text-[#2F3136] hover:text-[#0071e3]"
+                              className={`flex min-h-11 items-center rounded-[8px] px-3 text-[13px] font-semibold transition-colors ${
+                                childActive ? "bg-[#0071e3] text-white shadow-sm shadow-blue-500/20" : "text-[#2F3136] hover:bg-[#E2F0FB] hover:text-[#0071e3]"
                               }`}
                               href={withSchoolPath(child.href, pathname)}
                               key={child.href}

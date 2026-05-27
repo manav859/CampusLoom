@@ -3,22 +3,28 @@ import { PageHeader } from "@/components/ui/PageHeader";
 
 const reports = [
   {
-    href: "/attendance/reports",
+    href: "/reports/daily-attendance",
     title: "Daily attendance report",
     copy: "Printable attendance scope, pending classes, marked-only averages, and CSV export.",
     action: "Open report"
   },
   {
-    href: "/fees/defaulters",
-    title: "Fee defaulter report",
-    copy: "Exportable follow-up queue with aging and WhatsApp reminders.",
-    action: "Open queue"
+    href: "/reports/student-performance",
+    title: "Student performance report",
+    copy: "Attendance, performance classification, fee balance, and student profile actions.",
+    action: "Open report"
   },
   {
-    href: "/notifications",
-    title: "WhatsApp delivery log",
-    copy: "Auditable parent-message history for receipts, alerts, and notices.",
-    action: "Open logs"
+    href: "/reports/subject-wise",
+    title: "Subject wise report",
+    copy: "Subject averages, exam coverage, entered marks, pending marks, and CSV export.",
+    action: "Open report"
+  },
+  {
+    href: "/reports/teacher-performance",
+    title: "Teacher performance",
+    copy: "Teacher workload, class ownership, attendance completion, and active status.",
+    action: "Open report"
   }
 ];
 
@@ -26,7 +32,7 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader hideBreadcrumbs title="Printable and exportable reports" />
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {reports.map((report) => (
           <article className="rounded-2xl border border-[#DCE1E8] bg-white p-5 shadow-apple" key={report.href}>
             <h2 className="text-[17px] font-semibold text-[#0F1419]">{report.title}</h2>

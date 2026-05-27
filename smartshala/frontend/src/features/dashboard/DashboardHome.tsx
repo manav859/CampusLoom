@@ -328,7 +328,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           value: `${markedTodayPercentage}%`,
           helper: `${markedClasses} of ${totalClasses} classes marked`,
           formula: "Classes marked today / total active classes.",
-          href: "/attendance/reports",
+          href: "/reports/daily-attendance",
           tone: pendingClasses > 0 ? "amber" as const : "green" as const
         }
       : {
@@ -421,7 +421,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         detail: `${item.attendancePercentage}% attendance today`,
         severity: item.attendancePercentage < 60 ? "critical" as const : "high" as const,
         tone: "warn" as const,
-        href: "/attendance/reports"
+        href: "/reports/daily-attendance"
       }))
   ].slice(0, 6) : [];
 
