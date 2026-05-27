@@ -104,7 +104,7 @@ export default function DefaultersPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <PageHeader eyebrow="Fees" title="Defaulter follow-up queue" action={<Link className="btn-secondary" href="/fees">Back to fees</Link>} />
+      <PageHeader hideBreadcrumbs title="Defaulter follow-up queue" action={<Link className="btn-secondary" href="/fees">Back to fees</Link>} />
 
       {notice ? <div className="rounded-[8px] bg-[#E1F5EA] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
       {error ? <div className="rounded-[8px] bg-[#FCE3E5] px-4 py-3 text-[13px] font-medium text-[#C8242C]">{error}</div> : null}

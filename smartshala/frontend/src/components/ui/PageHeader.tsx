@@ -12,6 +12,7 @@ type PageHeaderProps = {
   action?: React.ReactNode;
   breadcrumbs?: Breadcrumb[];
   eyebrow?: string;
+  hideBreadcrumbs?: boolean;
   title?: string;
 };
 
@@ -46,14 +47,14 @@ function breadcrumbsFromPath(pathname: string): Breadcrumb[] {
   }));
 }
 
-export function PageHeader({ title, eyebrow, action, breadcrumbs }: PageHeaderProps) {
+export function PageHeader({ title, eyebrow, action, breadcrumbs, hideBreadcrumbs = false }: PageHeaderProps) {
   const pathname = usePathname();
   const crumbs = breadcrumbs ?? breadcrumbsFromPath(pathname);
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0 space-y-1">
-        {crumbs.length > 1 ? (
+        {!hideBreadcrumbs && crumbs.length > 1 ? (
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1.5 text-caption font-semibold text-[#5A6573]">
             {crumbs.map((crumb, index) => (
               <span className="inline-flex items-center gap-1.5" key={`${crumb.label}-${index}`}>

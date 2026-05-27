@@ -160,7 +160,7 @@ export default function FeesDashboardPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
-        eyebrow="Fees"
+        hideBreadcrumbs
         title="Collection command center"
         action={
           <>

@@ -134,8 +134,7 @@ export default function ClassesPage() {
     <div className="space-y-4 sm:space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#6E7885]">Classes</p>
-          <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#0F1419]">Classes</h1>
+          <h1 className="text-[24px] font-semibold tracking-tight text-[#0F1419]">Classes</h1>
         </div>
         {isAdmin ? (
           <Link href="/classes/new" className="btn-primary min-h-[44px] w-full justify-center sm:w-auto">

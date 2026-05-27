@@ -285,7 +285,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Settings" title="School and notification settings" />
+      <PageHeader hideBreadcrumbs title="School and notification settings" />
       {error ? <div className="rounded-[6px] border border-[#FCE3E5] bg-[#FCE3E5] p-4 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
       {notice ? <div className="rounded-[6px] border border-[#D6F0DF] bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
 

@@ -168,7 +168,7 @@ export default function AttendanceReportsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow="Reports" title="Daily attendance report" />
+        <PageHeader hideBreadcrumbs title="Daily attendance report" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)}
         </div>
@@ -190,7 +190,7 @@ export default function AttendanceReportsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Reports"
+        hideBreadcrumbs
         title="Daily attendance report"
         action={
           <div className="flex flex-wrap gap-2">

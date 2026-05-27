@@ -280,7 +280,7 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
-        eyebrow="AI analytics"
+        hideBreadcrumbs
         title="Attendance and fee risk insights"
         action={
           <>

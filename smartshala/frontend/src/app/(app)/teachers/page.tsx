@@ -344,7 +344,7 @@ export default function TeachersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow="Teachers" title="Teacher management" action={isAdmin ? <Link href="/teachers/new" className="btn-primary">Add teacher</Link> : null} />
+      <PageHeader hideBreadcrumbs title="Teacher management" action={isAdmin ? <Link href="/teachers/new" className="btn-primary">Add teacher</Link> : null} />
 
       <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[1fr_1fr_1fr_auto]">

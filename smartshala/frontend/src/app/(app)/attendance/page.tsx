@@ -160,7 +160,7 @@ export default function TeacherAttendancePage() {
   return (
     <div className="w-full space-y-6">
       <PageHeader
-        eyebrow="Attendance"
+        hideBreadcrumbs
         title="Reliable attendance"
         action={
           <div className="flex gap-2">

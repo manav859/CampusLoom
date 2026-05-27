@@ -259,7 +259,7 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="WhatsApp"
+        hideBreadcrumbs
         title="Parent notification logs"
         action={(
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
