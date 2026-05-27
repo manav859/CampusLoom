@@ -520,13 +520,13 @@ samp,
   max-width: 116px;
   overflow: hidden;
   white-space: nowrap;
-  color: #1d1d1f;
+  color: inherit;
 }
 
 .sidebar-label-track {
   display: inline-block;
   min-width: max-content;
-  color: #1d1d1f;
+  color: inherit;
   font-weight: 600;
   transform: translateZ(0);
   animation: sidebar-label-slide 5.2s steps(42, end) infinite;

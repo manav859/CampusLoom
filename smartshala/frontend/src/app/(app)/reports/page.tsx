@@ -17,7 +17,7 @@ const reports = [
   {
     href: "/reports/subject-wise",
     title: "Subject wise report",
-    copy: "Subject averages, exam coverage, entered marks, pending marks, and CSV export.",
+    copy: "Student performance split by subject with averages, best score, pending exams, and CSV export.",
     action: "Open report"
   },
   {
