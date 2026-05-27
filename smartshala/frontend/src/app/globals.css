@@ -523,20 +523,15 @@ samp,
 }
 
 .sidebar-label-track {
-  display: inline-flex;
+  display: inline-block;
   min-width: max-content;
-  gap: 1.5rem;
-  animation: sidebar-label-slide 7s linear infinite;
-}
-
-.sidebar-label-track > span {
-  display: inline-flex;
-  min-width: max-content;
+  animation: sidebar-label-slide 8s ease-in-out infinite;
 }
 
 @keyframes sidebar-label-slide {
-  from { transform: translateX(0); }
-  to { transform: translateX(calc(-50% - 0.75rem)); }
+  0%, 16% { transform: translateX(0); }
+  68%, 84% { transform: translateX(calc(116px - 100%)); }
+  85%, 100% { transform: translateX(0); }
 }
 
 @media (prefers-reduced-motion: reduce) {

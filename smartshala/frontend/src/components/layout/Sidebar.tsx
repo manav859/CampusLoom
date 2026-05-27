@@ -101,10 +101,7 @@ function SidebarLabel({ expanded, label }: { expanded: boolean; label: string })
       title={label}
     >
       {shouldScroll ? (
-        <span className="sidebar-label-track">
-          <span>{label}</span>
-          <span aria-hidden="true">{label}</span>
-        </span>
+        <span className="sidebar-label-track">{label}</span>
       ) : (
         <span className="truncate">{label}</span>
       )}
