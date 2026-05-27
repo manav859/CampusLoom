@@ -24,7 +24,7 @@ const adminLinks: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
   { label: "Student", href: "/students", icon: "students" },
   {
-    label: "Teacher",
+    label: "Class Management",
     icon: "teachers",
     children: [
       { label: "Teacher", href: "/teachers", icon: "teachers" },
@@ -88,6 +88,28 @@ function isActiveLink(pathname: string, href: string) {
 
 function hasChildren(item: NavItem): item is Extract<NavItem, { children: NavLink[] }> {
   return "children" in item;
+}
+
+function SidebarLabel({ expanded, label }: { expanded: boolean; label: string }) {
+  const shouldScroll = label.length > 13;
+
+  return (
+    <span
+      className={`sidebar-label-shell transition-all duration-300 ease-in-out md:transition-all ${
+        expanded ? "ml-2.5 w-[116px] opacity-100" : "ml-2.5 w-[116px] opacity-100 md:ml-0 md:w-0 md:opacity-0"
+      }`}
+      title={label}
+    >
+      {shouldScroll ? (
+        <span className="sidebar-label-track">
+          <span>{label}</span>
+          <span aria-hidden="true">{label}</span>
+        </span>
+      ) : (
+        <span className="truncate">{label}</span>
+      )}
+    </span>
+  );
 }
 
 function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
@@ -227,7 +249,7 @@ export function Sidebar({
     });
   }, [links, pathname]);
 
-  const labelClass = `transition-all duration-300 ease-in-out whitespace-nowrap truncate md:transition-all ${
+  const brandLabelClass = `transition-all duration-300 ease-in-out whitespace-nowrap truncate md:transition-all ${
     isExpanded ? "opacity-100 max-w-[150px] ml-2.5" : "opacity-100 max-w-[150px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
   }`;
 
@@ -263,7 +285,7 @@ export function Sidebar({
                 <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <p className={`text-[15px] font-bold text-[#1d1d1f] tracking-tight ${labelClass}`}>SmartShala</p>
+            <p className={`text-[15px] font-bold text-[#1d1d1f] tracking-tight ${brandLabelClass}`}>SmartShala</p>
           </div>
           <button className="flex h-7 w-7 items-center justify-center rounded-full hover:bg-black/5 transition-colors md:hidden" onClick={onClose} type="button">
             <svg className="h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24">
@@ -295,7 +317,7 @@ export function Sidebar({
                     type="button"
                   >
                     <NavIcon active={active} icon={item.icon} />
-                    <span className={labelClass}>{item.label}</span>
+                    <SidebarLabel expanded={isExpanded} label={item.label} />
                     <svg className={`ml-auto h-3.5 w-3.5 transition-transform duration-300 ${isExpanded ? "block" : "hidden"} ${groupOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 16 16">
                       <path d="m4 6 4 4 4-4" stroke={active ? "#ffffff" : "#86868b"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
                     </svg>
@@ -341,7 +363,7 @@ export function Sidebar({
                 }`}
               >
                 <NavIcon active={active} icon={item.icon} />
-                <span className={labelClass}>{item.label}</span>
+                <SidebarLabel expanded={isExpanded} label={item.label} />
               </Link>
             );
           })}

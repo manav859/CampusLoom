@@ -514,9 +514,35 @@ samp,
   padding-right: 2rem;
 }
 
+.sidebar-label-shell {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 116px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar-label-track {
+  display: inline-flex;
+  min-width: max-content;
+  gap: 1.5rem;
+  animation: sidebar-label-slide 7s linear infinite;
+}
+
+.sidebar-label-track > span {
+  display: inline-flex;
+  min-width: max-content;
+}
+
+@keyframes sidebar-label-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-50% - 0.75rem)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-kpi-marquee,
-  .mobile-school-marquee-track {
+  .mobile-school-marquee-track,
+  .sidebar-label-track {
     animation: none;
   }
 }
