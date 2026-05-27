@@ -205,7 +205,7 @@ export default function AttendanceReportsPage() {
         }
       />
 
-      <div className="glass-card-interactive flex flex-col gap-3 p-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-3 rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-wrap gap-2">
           {([
             ["today", "Today"],
@@ -226,7 +226,11 @@ export default function AttendanceReportsPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {dateFilter === "custom" ? (
-            <DatePicker onChange={setCustomDate} value={customDate} />
+            <DatePicker
+              buttonClassName="flex min-h-10 min-w-[176px] items-center justify-between gap-2 rounded-[8px] border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#8C96A3] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+              onChange={setCustomDate}
+              value={customDate}
+            />
           ) : null}
           <p className="text-[13px] font-medium text-[#5A6573]">{rangeLabel}</p>
         </div>
@@ -271,7 +275,7 @@ export default function AttendanceReportsPage() {
       />
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="glass-card-interactive p-6">
+        <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-6 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Class-wise trend</h2>
           <div className="mt-5">
             {chartItems.length > 0 ? <SimpleBarChart items={chartItems} /> : <p className="text-[13px] text-[#86868b]">No classes available.</p>}

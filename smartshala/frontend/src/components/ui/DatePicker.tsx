@@ -105,19 +105,15 @@ export function DatePicker({
 
   useEffect(() => {
     if (!open) return;
-    updatePopoverPosition();
     const handlePointerDown = (event: PointerEvent) => {
       if (wrapperRef.current?.contains(event.target as Node)) return;
       setOpen(false);
     };
-    const handleViewportChange = () => updatePopoverPosition();
     document.addEventListener("pointerdown", handlePointerDown);
-    window.addEventListener("resize", handleViewportChange);
-    window.addEventListener("scroll", handleViewportChange, true);
+    window.addEventListener("resize", updatePopoverPosition);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
-      window.removeEventListener("resize", handleViewportChange);
-      window.removeEventListener("scroll", handleViewportChange, true);
+      window.removeEventListener("resize", updatePopoverPosition);
     };
   }, [open, updatePopoverPosition]);
 
@@ -147,7 +143,7 @@ export function DatePicker({
       </button>
 
       {open ? (
-        <div className="fixed z-[220] rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]" style={popoverStyle}>
+        <div className="fixed z-[220] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]" style={popoverStyle}>
           <div className="mb-3 flex items-center justify-between">
             <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setMonth(monthInputFromParts(year, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
             <span className="text-[13px] font-bold text-[#1d1d1f]">{monthLabel(month)}</span>
