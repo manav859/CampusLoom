@@ -10,6 +10,64 @@ export type BehaviourTabPanelProps = {
 };
 
 type BehaviourRecord = StudentDetail["behaviourAnalytics"]["records"][number];
+type BehaviourSeverity = NonNullable<BehaviourRecordPayload["severity"]>;
+type SelectOption<T extends string> = {
+  label: string;
+  value: T;
+};
+
+function CustomSelect<T extends string>({
+  label,
+  options,
+  value,
+  onChange
+}: {
+  label: string;
+  options: SelectOption<T>[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  return (
+    <label className="relative block space-y-1.5" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+    }}>
+      <span className="text-[12px] font-semibold text-[#6e6e73]">{label}</span>
+      <button
+        className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-left text-[14px] text-[#0F1419] outline-none transition-colors hover:border-[#9EACBD] focus:border-[#2456E6]"
+        onClick={() => setOpen((current) => !current)}
+        type="button"
+      >
+        <span className="truncate">{selected.label}</span>
+        <svg className={`h-4 w-4 shrink-0 text-[#5A6573] transition-transform duration-150 ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 16 16">
+          <path d="m4 6 4 4 4-4" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+        </svg>
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-[calc(100%+6px)] z-30 w-full overflow-hidden rounded-[8px] border border-[#DCE1E8] bg-white p-1 shadow-[0_14px_34px_-20px_rgba(15,20,25,0.45)]">
+          {options.map((option) => (
+            <button
+              className={`flex min-h-9 w-full items-center rounded-[6px] px-3 text-left text-[13px] font-semibold transition-colors ${
+                option.value === value ? "bg-[#EEF3FF] text-[#2456E6]" : "text-[#2A3340] hover:bg-[#F7F8FB]"
+              }`}
+              key={option.value}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </label>
+  );
+}
 
 function typeLabel(type: BehaviourRecord["type"]) {
   if (type === "ACHIEVEMENT") return "Achievement";
@@ -44,10 +102,25 @@ function emptyMessage(canViewCounsellorNotes: boolean) {
     : "No visible incidents or achievements have been recorded yet.";
 }
 
-function defaultSeverity(type: BehaviourRecordPayload["type"]): BehaviourRecordPayload["severity"] {
+function defaultSeverity(type: BehaviourRecordPayload["type"]): BehaviourSeverity {
   if (type === "ACHIEVEMENT") return "POSITIVE";
   return "LOW";
 }
+
+const typeOptions: SelectOption<BehaviourRecordPayload["type"]>[] = [
+  { label: "Incident", value: "INCIDENT" },
+  { label: "Achievement", value: "ACHIEVEMENT" }
+];
+
+const incidentSeverityOptions: SelectOption<BehaviourSeverity>[] = [
+  { label: "Minor", value: "LOW" },
+  { label: "Major", value: "MEDIUM" },
+  { label: "Critical", value: "HIGH" }
+];
+
+const achievementSeverityOptions: SelectOption<BehaviourSeverity>[] = [
+  { label: "Positive", value: "POSITIVE" }
+];
 
 function countBehaviour(records: BehaviourRecord[]) {
   return {
@@ -202,39 +275,20 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
             {formMessage ? <span className="text-[12px] font-semibold text-[#248a3d]">{formMessage}</span> : null}
           </div>
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-[150px_150px_1fr]">
-            <label className="space-y-1.5">
-              <span className="text-[12px] font-semibold text-[#6e6e73]">Type</span>
-              <select
-                className="min-h-[44px] rounded-[6px] border border-[#C9D3DE] px-3 text-[14px] outline-none focus:border-[#2456E6]"
-                value={form.type}
-                onChange={(event) => {
-                  const type = event.target.value as BehaviourRecordPayload["type"];
-                  setForm((current) => ({ ...current, type, severity: defaultSeverity(type), isRestricted: false }));
-                }}
-              >
-                <option value="INCIDENT">Incident</option>
-                <option value="ACHIEVEMENT">Achievement</option>
-              </select>
-            </label>
+          <div className="mt-4 grid items-end gap-3 md:grid-cols-[168px_168px_minmax(220px,1fr)]">
+            <CustomSelect
+              label="Type"
+              options={typeOptions}
+              value={form.type}
+              onChange={(type) => setForm((current) => ({ ...current, type, severity: defaultSeverity(type), isRestricted: false }))}
+            />
 
-            <label className="space-y-1.5">
-              <span className="text-[12px] font-semibold text-[#6e6e73]">Rating</span>
-              <select
-                className="min-h-[44px] rounded-[6px] border border-[#C9D3DE] px-3 text-[14px] outline-none focus:border-[#2456E6]"
-                value={form.severity ?? defaultSeverity(form.type)}
-                onChange={(event) => setForm((current) => ({ ...current, severity: event.target.value as BehaviourRecordPayload["severity"] }))}
-              >
-                {form.type === "ACHIEVEMENT" ? <option value="POSITIVE">Positive</option> : null}
-                {form.type === "INCIDENT" ? (
-                  <>
-                    <option value="LOW">Minor</option>
-                    <option value="MEDIUM">Major</option>
-                    <option value="HIGH">Critical</option>
-                  </>
-                ) : null}
-              </select>
-            </label>
+            <CustomSelect
+              label="Rating"
+              options={form.type === "ACHIEVEMENT" ? achievementSeverityOptions : incidentSeverityOptions}
+              value={form.severity ?? defaultSeverity(form.type)}
+              onChange={(severity) => setForm((current) => ({ ...current, severity }))}
+            />
 
             <label className="space-y-1.5">
               <span className="text-[12px] font-semibold text-[#6e6e73]">Title</span>

@@ -100,8 +100,8 @@ function hasChildren(item: NavItem): item is Extract<NavItem, { children: NavLin
   return "children" in item;
 }
 
-function SidebarLabel({ expanded, label, withMargin = true }: { expanded: boolean; label: string; withMargin?: boolean }) {
-  const shouldScroll = label.length > 13;
+function SidebarLabel({ expanded, label, withMargin = true, disableScroll = false }: { expanded: boolean; label: string; withMargin?: boolean; disableScroll?: boolean }) {
+  const shouldScroll = !disableScroll && label.length > 13;
   const marginClass = withMargin ? "ml-2.5" : "";
   const labelStyle = shouldScroll ? { "--sidebar-label-duration": `${Math.max(4.2, label.length * 0.24)}s` } as CSSProperties : undefined;
 
@@ -380,7 +380,7 @@ export function Sidebar({
                 }`}
               >
                 <NavIcon active={active} icon={item.icon} />
-                <SidebarLabel expanded={isExpanded} label={item.label} />
+                <SidebarLabel expanded={isExpanded} label={item.label} disableScroll={item.label === "Mark Attendance"} />
               </Link>
             );
           })}

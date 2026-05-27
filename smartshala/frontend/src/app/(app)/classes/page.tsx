@@ -31,25 +31,27 @@ function ClassCard({ cls, isAdmin, onDelete }: { cls: ClassData; isAdmin: boolea
   const tone = classTone(cls.name);
   const active = cls.isActive ?? true;
   const subjects = cls.subjects ?? [];
+  const visibleSubjects = subjects.slice(0, 4);
+  const hiddenSubjectCount = Math.max(0, subjects.length - visibleSubjects.length);
 
   return (
-    <article className={`w-full rounded-[14px] border bg-[#F8F9FC] p-4 shadow-[0_10px_24px_-22px_rgba(15,20,25,0.5)] transition-colors duration-200 hover:border-[#8C96A3] sm:p-5 ${tone.border}`}>
+    <article className={`w-full rounded-[10px] border bg-[#F8F9FC] p-3.5 shadow-[0_8px_20px_-18px_rgba(15,20,25,0.45)] transition-colors duration-200 hover:border-[#8C96A3] sm:p-4 ${tone.border}`}>
       <div className="flex items-start justify-between gap-3">
         <Link href={`/classes/${cls.id}`} className="min-w-0">
-          <span className="block text-[11px] font-bold uppercase tracking-[0.18em] text-[#8C96A3]">Class</span>
-          <span className={`mt-1 block truncate text-[23px] font-semibold leading-7 tracking-tight [font-variant-numeric:tabular-nums] ${tone.accent}`}>
+          <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-[#8C96A3]">Class</span>
+          <span className={`mt-0.5 block truncate text-[20px] font-semibold leading-6 tracking-tight [font-variant-numeric:tabular-nums] ${tone.accent}`}>
             {cls.name}-{cls.section}
           </span>
         </Link>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="inline-flex h-7 items-center gap-2 rounded-[6px] border border-[#D6DDE7] bg-white px-3 text-[12px] font-semibold text-[#526071]">
+          <span className="inline-flex h-6 items-center gap-1.5 rounded-[6px] border border-[#D6DDE7] bg-white px-2 text-[11px] font-semibold text-[#526071]">
             <span className={`h-1.5 w-1.5 rounded-full bg-current ${tone.accent}`} />
             {studentCount} students
           </span>
           {isAdmin ? (
             <button
               aria-label={`Delete class ${cls.name}-${cls.section}`}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] border border-[#F2C7CB] bg-[#FFF7F8] text-[#C8242C] transition-colors hover:bg-[#FCE3E5]"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] border border-[#F2C7CB] bg-[#FFF7F8] text-[#C8242C] transition-colors hover:bg-[#FCE3E5]"
               onClick={(event) => onDelete(event, cls.id)}
               type="button"
             >
@@ -61,45 +63,46 @@ function ClassCard({ cls, isAdmin, onDelete }: { cls: ClassData; isAdmin: boolea
         </div>
       </div>
 
-      <div className="mt-6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8C96A3]">Assigned subjects</p>
-        <div className="mt-3 flex min-h-7 flex-wrap items-center gap-x-5 gap-y-2">
+      <div className="mt-4">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8C96A3]">Assigned subjects</p>
+        <div className="mt-2 flex min-h-6 flex-wrap items-center gap-x-3 gap-y-1.5">
           {subjects.length === 0 ? (
-            <span className="rounded-[6px] bg-[#ff9500]/10 px-2.5 py-1 text-[12px] font-semibold text-[#c93400]">Subjects pending</span>
+            <span className="rounded-[6px] bg-[#ff9500]/10 px-2 py-0.5 text-[11px] font-semibold text-[#c93400]">Subjects pending</span>
           ) : (
-            subjects.map((subject) => (
-              <span className="text-[12px] font-semibold text-[#2A3340]" key={subject.id}>
+            visibleSubjects.map((subject) => (
+              <span className="text-[11px] font-semibold text-[#2A3340]" key={subject.id}>
                 {subject.name}
               </span>
             ))
           )}
+          {hiddenSubjectCount ? <span className="text-[11px] font-semibold text-[#6E7885]">+{hiddenSubjectCount}</span> : null}
         </div>
       </div>
 
-      <div className="mt-5 grid gap-2">
-        <div className="flex min-h-12 items-center justify-between rounded-[10px] bg-[#F0F2F6] px-4 text-[13px]">
+      <div className="mt-4 grid gap-2">
+        <div className="flex min-h-10 items-center justify-between rounded-[8px] bg-[#F0F2F6] px-3 text-[12px]">
           <span className="font-medium text-[#6E7885]">Academic year</span>
           <span className="font-semibold text-[#1d1d1f]">{cls.academicYear}</span>
         </div>
-        <div className="flex min-h-12 min-w-0 items-center justify-between gap-3 rounded-[10px] bg-white px-4 text-[13px]">
-          <span className="font-medium text-[#6E7885]">Class teacher</span>
+        <div className="flex min-h-10 min-w-0 items-center justify-between gap-3 rounded-[8px] bg-white px-3 text-[12px]">
+          <span className="shrink-0 font-medium text-[#6E7885]">Teacher</span>
           <span className="truncate font-semibold text-[#1d1d1f]">{cls.classTeacher?.fullName || "Unassigned"}</span>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        <Link href={`/classes/${cls.id}`} className="inline-flex min-h-[42px] items-center justify-center rounded-[7px] bg-[#2456E6] px-4 text-[13px] font-semibold text-white">
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <Link href={`/classes/${cls.id}`} className="inline-flex min-h-9 items-center justify-center rounded-[6px] bg-[#2456E6] px-2 text-[12px] font-semibold text-white">
           Roster
         </Link>
-        <Link href={`/attendance?classId=${cls.id}`} className="inline-flex min-h-[42px] items-center justify-center rounded-[7px] border border-[#C9D3DE] bg-white px-4 text-[13px] font-semibold text-[#2A3340]">
+        <Link href={`/attendance?classId=${cls.id}`} className="inline-flex min-h-9 items-center justify-center rounded-[6px] border border-[#C9D3DE] bg-white px-2 text-[12px] font-semibold text-[#2A3340]">
           Attendance
         </Link>
-        <Link href={`/teacher/communication?classId=${cls.id}`} className="inline-flex min-h-[42px] items-center justify-center rounded-[7px] border border-[#C9D3DE] bg-white px-4 text-[13px] font-semibold text-[#2A3340]">
+        <Link href={`/teacher/communication?classId=${cls.id}`} className="inline-flex min-h-9 items-center justify-center rounded-[6px] border border-[#C9D3DE] bg-white px-2 text-[12px] font-semibold text-[#2A3340]">
           Notice
         </Link>
       </div>
 
-      {active ? <span className="mt-4 inline-flex rounded-[6px] border border-[#BCE5C8] bg-[#E1F5EA] px-2.5 py-1 text-[11px] font-bold text-[#0F8A4A]">Active</span> : null}
+      {active ? <span className="mt-3 inline-flex rounded-[6px] border border-[#BCE5C8] bg-[#E1F5EA] px-2 py-0.5 text-[10px] font-bold text-[#0F8A4A]">Active</span> : null}
     </article>
   );
 }
@@ -160,7 +163,7 @@ export default function ClassesPage() {
       </div>
       
       {loading ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />)}
         </div>
       ) : classes.length === 0 ? (
@@ -168,7 +171,7 @@ export default function ClassesPage() {
           No classes found.
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {classes.map((cls) => (
             <ClassCard cls={cls} isAdmin={isAdmin} key={cls.id} onDelete={handleDelete} />
           ))}
