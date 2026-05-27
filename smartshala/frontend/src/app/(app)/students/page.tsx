@@ -1058,15 +1058,14 @@ export default function StudentsPage() {
       )}
 
       {/* ── Table ── */}
-      <div className="bg-transparent">
+      <div className="overflow-hidden rounded-[8px] border border-[#DCE1E8] bg-white shadow-[var(--shadow-card)]">
         <div className="relative">
           {loadingList && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[6px] bg-white/60 backdrop-blur-[2px]">
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[8px] bg-white/60 backdrop-blur-[2px]">
               <div className="h-5 w-5 rounded-full border-2 border-[#0071e3] border-t-transparent animate-spin" />
             </div>
           )}
-          <div>
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className={`w-full border-collapse bg-white text-center text-[14px] text-[#001B33] ${canViewFees ? "min-w-[1120px]" : "min-w-[860px]"}`}>
               <thead>
                 <tr className="table-head-row">
@@ -1144,12 +1143,12 @@ export default function StudentsPage() {
                           />
                         </td>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-medium text-[#52687D]">{rowNum}</td>
-                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
-                          <div className="mx-auto flex max-w-[240px] items-center justify-center gap-3">
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 text-left">
+                          <div className="grid w-full max-w-[260px] grid-cols-[40px_minmax(0,1fr)] items-center gap-3">
                             <InitialsAvatar name={student.fullName} size="sm" />
                             <div className="min-w-0 text-left">
                               <Link className="font-semibold text-[#1d1d1f] transition-colors hover:text-[#2456E6]" href={`/students/${student.id}`}>
-                                <MarqueeText text={student.fullName} className="max-w-[160px]" />
+                                <MarqueeText text={student.fullName} className="max-w-[180px]" />
                               </Link>
                               <p className="mt-0.5 font-mono text-[11px] font-medium text-[#86868b]">{student.admissionNumber}</p>
                             </div>
@@ -1319,7 +1318,6 @@ export default function StudentsPage() {
             </button>
           </div>
         </div>
-      </div>
       {importDialog.isOpen && typeof window !== "undefined" && createPortal(
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" style={{ zIndex: 9999 }}>
           <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl">
