@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
@@ -82,7 +83,6 @@ function summaryFromMonthlyDay(day: MonthlyDay, fallbackTotal: number) {
 export default function TeacherAttendancePage() {
   const attendance = useAttendance();
   const [classPickerOpen, setClassPickerOpen] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [monthPickerYear, setMonthPickerYear] = useState(new Date().getFullYear());
   const [calendarDetailDate, setCalendarDetailDate] = useState("");
@@ -240,65 +240,17 @@ export default function TeacherAttendancePage() {
           {(hasAssignedClasses || attendance.classesLoading) ? (
             <>
           <div className="relative">
-            <button
-              className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
+            <DatePicker
+              buttonClassName="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
               disabled={!hasAssignedClasses || attendance.submitting}
-              onClick={() => {
-                setDatePickerOpen((open) => !open);
+              label="Day"
+              max={attendance.today}
+              onChange={(date) => {
                 setMonthPickerOpen(false);
+                selectDisplayDate(date);
               }}
-              type="button"
-            >
-              <span className="min-w-0">
-                <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">Day</span>
-                <span className="mt-0.5 block truncate">{selectedDateLabel}</span>
-              </span>
-              <svg className="h-4 w-4 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
-              </svg>
-            </button>
-            {datePickerOpen ? (
-              <div className="absolute left-0 top-[80px] z-30 w-72 rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]">
-                <div className="mb-3 flex items-center justify-between">
-                  <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => selectDisplayMonth(monthInputFromParts(monthYear, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
-                  <span className="text-[13px] font-bold text-[#1d1d1f]">{monthLabel(attendance.selectedMonth)}</span>
-                  <button
-                    className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-40"
-                    disabled={monthInputFromParts(monthYear, monthNumber) > attendance.today.slice(0, 7)}
-                    onClick={() => selectDisplayMonth(monthInputFromParts(monthYear, monthNumber))}
-                    type="button"
-                    aria-label="Next month"
-                  >
-                    &gt;
-                  </button>
-                </div>
-                <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[#86868b]">
-                  {["S", "M", "T", "W", "T", "F", "S"].map((weekday, index) => <span key={`${weekday}-${index}`}>{weekday}</span>)}
-                </div>
-                <div className="mt-2 grid grid-cols-7 gap-1">
-                  {calendarCells.map((cell) => {
-                    if (!cell.day) return <span aria-hidden="true" className="h-8" key={cell.key} />;
-                    const dateKey = `${attendance.selectedMonth}-${String(cell.day).padStart(2, "0")}`;
-                    const isFuture = dateKey > attendance.today;
-                    const selected = attendance.selectedDate === dateKey;
-                    return (
-                      <button
-                        className={`h-8 rounded-lg text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : "text-[#2A3340] hover:bg-[#F7F8FB]"}`}
-                        disabled={isFuture}
-                        key={cell.key}
-                        onClick={() => {
-                          setDatePickerOpen(false);
-                          selectDisplayDate(dateKey);
-                        }}
-                        type="button"
-                      >
-                        {cell.day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
+              value={attendance.selectedDate}
+            />
           </div>
 
           <div className="relative">
@@ -307,7 +259,6 @@ export default function TeacherAttendancePage() {
               disabled={!hasAssignedClasses || attendance.submitting}
               onClick={() => {
                 setMonthPickerOpen((open) => !open);
-                setDatePickerOpen(false);
               }}
               type="button"
             >

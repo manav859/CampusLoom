@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -225,7 +226,7 @@ export default function AttendanceReportsPage() {
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {dateFilter === "custom" ? (
-            <input className="glass-input min-h-10 text-[13px]" onChange={(event) => setCustomDate(event.target.value)} type="date" value={customDate} />
+            <DatePicker onChange={setCustomDate} value={customDate} />
           ) : null}
           <p className="text-[13px] font-medium text-[#5A6573]">{rangeLabel}</p>
         </div>

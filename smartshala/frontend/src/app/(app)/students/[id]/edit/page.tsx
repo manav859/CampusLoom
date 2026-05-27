@@ -2,6 +2,7 @@
 
 import { type FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { apiFetch, studentsApi } from "@/lib/api";
 import { cachedFetch, invalidateCache, invalidateCachePrefix } from "@/lib/prefetchCache";
@@ -259,7 +260,12 @@ export default function EditStudentPage() {
             </label>
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Date of birth</span>
-              <input className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" type="date" value={formData.dateOfBirth} onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })} />
+              <DatePicker
+                buttonClassName="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-2.5 text-left text-[14px] outline-none focus:border-[#2456E6]"
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(value) => setFormData({ ...formData, dateOfBirth: value })}
+                value={formData.dateOfBirth}
+              />
             </label>
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Gender</span>

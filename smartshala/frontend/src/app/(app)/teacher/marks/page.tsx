@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Modal } from "@/components/ui/Modal";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -10,29 +11,6 @@ import { cachedFetch } from "@/lib/prefetchCache";
 
 function todayInputValue() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function monthInputFromParts(year: number, monthIndex: number) {
-  return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
-}
-
-function dateInputFromParts(year: number, monthIndex: number, day: number) {
-  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function monthLabel(month: string) {
-  const [year = 0, monthNumber = 1] = month.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(new Date(year, monthNumber - 1, 1));
-}
-
-function calendarCells(month: string) {
-  const [year = 0, monthNumber = 1] = month.split("-").map(Number);
-  const firstOfMonth = new Date(year, monthNumber - 1, 1);
-  const daysInMonth = new Date(year, monthNumber, 0).getDate();
-  return [
-    ...Array.from({ length: firstOfMonth.getDay() }, (_, index) => ({ key: `blank-${index}`, day: null as number | null })),
-    ...Array.from({ length: daysInMonth }, (_, index) => ({ key: `day-${index + 1}`, day: index + 1 }))
-  ];
 }
 
 function examTone(status: MarksExam["status"]) {
@@ -77,8 +55,6 @@ export default function TeacherMarksPage() {
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
   const [termPickerOpen, setTermPickerOpen] = useState(false);
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [datePickerMonth, setDatePickerMonth] = useState(todayInputValue().slice(0, 7));
 
   const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
   const subjects = useMemo(() => selectedClass?.subjects ?? [], [selectedClass]);
@@ -131,10 +107,6 @@ export default function TeacherMarksPage() {
     setSubjectId(nextClass?.subjects[0]?.id ?? "");
     setMarks(Object.fromEntries((nextClass?.students ?? []).map((student) => [student.id, ""])));
   }, [classId, context.classes]);
-
-  useEffect(() => {
-    setDatePickerMonth(date.slice(0, 7));
-  }, [date]);
 
   async function refreshExams(nextClassId = classId) {
     const rows = await marksApi.exams(nextClassId || undefined);
@@ -252,53 +224,14 @@ export default function TeacherMarksPage() {
   }
 
   function renderDatePicker() {
-    const [year = 0, monthNumber = 1] = datePickerMonth.split("-").map(Number);
-
     return (
-      <div className="relative">
+      <div>
         <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Date</span>
-        <button
-          className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
-          onClick={() => setDatePickerOpen((open) => !open)}
-          type="button"
-        >
-          <span>{formatDateShort(date)}</span>
-          <svg className="h-4 w-4 text-[#52687D]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
-          </svg>
-        </button>
-        {datePickerOpen ? (
-          <div className="absolute left-0 top-[76px] z-30 w-72 rounded-2xl border border-[#C9D3DE] bg-white p-3 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
-            <div className="mb-3 flex items-center justify-between">
-              <button className="rounded-full p-2 text-[#52687D] hover:bg-[#F2F7FC]" onClick={() => setDatePickerMonth(monthInputFromParts(year, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
-              <span className="text-[13px] font-bold text-[#031526]">{monthLabel(datePickerMonth)}</span>
-              <button className="rounded-full p-2 text-[#52687D] hover:bg-[#F2F7FC]" onClick={() => setDatePickerMonth(monthInputFromParts(year, monthNumber))} type="button" aria-label="Next month">&gt;</button>
-            </div>
-            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[#52687D]">
-              {["S", "M", "T", "W", "T", "F", "S"].map((weekday, index) => <span key={`${weekday}-${index}`}>{weekday}</span>)}
-            </div>
-            <div className="mt-2 grid grid-cols-7 gap-1">
-              {calendarCells(datePickerMonth).map((cell) => {
-                if (!cell.day) return <span aria-hidden="true" className="h-8" key={cell.key} />;
-                const dateKey = dateInputFromParts(year, monthNumber - 1, cell.day);
-                const selected = date === dateKey;
-                return (
-                  <button
-                    className={`h-8 rounded-lg text-[12px] font-semibold transition ${selected ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
-                    key={cell.key}
-                    onClick={() => {
-                      setDate(dateKey);
-                      setDatePickerOpen(false);
-                    }}
-                    type="button"
-                  >
-                    {cell.day}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
+        <DatePicker
+          buttonClassName="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+          onChange={setDate}
+          value={date}
+        />
       </div>
     );
   }

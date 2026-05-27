@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { SideModal } from "@/components/ui/SideModal";
 import { apiFetch } from "@/lib/api";
 import { cachedFetch } from "@/lib/prefetchCache";
@@ -155,12 +156,10 @@ export default function NewFeeStructurePage() {
           </div>
           <div className="space-y-1.5">
             <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Due Date</label>
-            <input
+            <DatePicker
               required
-              type="date"
-              className="glass-input w-full"
               value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, dueDate: value })}
             />
           </div>
             </div>

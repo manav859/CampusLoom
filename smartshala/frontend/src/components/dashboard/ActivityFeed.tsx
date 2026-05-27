@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, type MouseEvent } from "react";
+import { useState, type MouseEvent } from "react";
+import { DatePicker } from "@/components/ui/DatePicker";
 
 export type ActivityEvent = {
   details?: string[];
@@ -28,7 +29,6 @@ export function ActivityFeed({
 }) {
   const items = events ?? [];
   const [tooltip, setTooltip] = useState<{ event: ActivityEvent; x: number; y: number } | null>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   function showTooltip(event: MouseEvent<HTMLElement>, item: ActivityEvent) {
     setTooltip({ event: item, x: event.clientX, y: event.clientY });
@@ -42,28 +42,11 @@ export function ActivityFeed({
           <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">Recent events</h3>
         </div>
         {selectedDate && onDateChange ? (
-          <button
-            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#DCE1E8] bg-white text-[#2456E6] transition hover:bg-[#F2F7FC]"
-            onClick={() => {
-              const picker = dateInputRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
-              if (picker?.showPicker) picker.showPicker();
-              else picker?.click();
-            }}
-            type="button"
-          >
-            <svg className="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path d="M8 2v4M16 2v4M4 10h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <input
-              aria-label="Select activity date"
-              className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
-              onChange={(event) => onDateChange(event.target.value)}
-              ref={dateInputRef}
-              tabIndex={-1}
-              type="date"
-              value={selectedDate}
-            />
-          </button>
+          <DatePicker
+            buttonClassName="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#DCE1E8] bg-white p-0 text-[#2456E6] transition hover:bg-[#F2F7FC] [&>span]:hidden"
+            onChange={onDateChange}
+            value={selectedDate}
+          />
         ) : null}
       </div>
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1">
