@@ -63,9 +63,11 @@ export default function SubjectWiseReportPage() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState>(null);
+  const [page, setPage] = useState(1);
   const filterButtonRefs = useRef<Record<FilterKey, HTMLButtonElement | null>>({ class: null, subject: null, status: null });
   const filterPanelRef = useRef<HTMLDivElement>(null);
   const [filterStyle, setFilterStyle] = useState<CSSProperties>({});
+  const perPage = 20;
 
   useEffect(() => {
     let active = true;
@@ -223,6 +225,23 @@ export default function SubjectWiseReportPage() {
     });
   }, [rows, selectedClasses, selectedSubjects, selectedStatuses, sort]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [selectedClasses, selectedSubjects, selectedStatuses, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / perPage));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = useMemo(
+    () => filteredRows.slice((currentPage - 1) * perPage, currentPage * perPage),
+    [currentPage, filteredRows]
+  );
+  const displayStart = pageRows.length ? (currentPage - 1) * perPage + 1 : 0;
+  const displayEnd = pageRows.length ? displayStart + pageRows.length - 1 : 0;
+  const pageNumbers = useMemo(() => {
+    const first = Math.max(1, Math.min(currentPage - 2, Math.max(1, totalPages - 4)));
+    return Array.from({ length: Math.min(5, totalPages) }, (_, index) => first + index);
+  }, [currentPage, totalPages]);
+
   function toggleSort(key: "average" | "best") {
     setSort((current) => ({
       key,
@@ -308,16 +327,30 @@ export default function SubjectWiseReportPage() {
         <ReportTable colSpan={12} empty={loading ? "Loading student subject performance..." : exams.length === 0 ? "No exams available." : "No marks available."} isEmpty={loading || filteredRows.length === 0} minWidth="min-w-[1200px] table-fixed">
           {!loading && filteredRows.length > 0 ? (
             <>
+            <colgroup>
+              <col className="w-[11%]" />
+              <col className="w-[10%]" />
+              <col className="w-[8%]" />
+              <col className="w-[10%]" />
+              <col className="w-[7%]" />
+              <col className="w-[9%]" />
+              <col className="w-[8%]" />
+              <col className="w-[9%]" />
+              <col className="w-[8%]" />
+              <col className="w-[11%]" />
+              <col className="w-[5%]" />
+              <col className="w-[12%]" />
+            </colgroup>
             <thead className="table-head">
               <tr>
-                <th className="px-5 py-3.5 font-semibold">Student</th>
-                <th className="px-5 py-3.5 font-semibold">Admission no</th>
-                <th className="px-3 py-3.5 font-semibold">{renderFilter("class", "Class", selectedClasses)}</th>
-                <th className="px-3 py-3.5 font-semibold">{renderFilter("subject", "Subject", selectedSubjects)}</th>
-                <th className="px-5 py-3.5 font-semibold">Exams</th>
-                <th className="px-5 py-3.5 font-semibold">Attempted</th>
-                <th className="px-5 py-3.5 font-semibold">Pending</th>
-                <th className="px-3 py-3.5 font-semibold">
+                <th className="px-4 py-3.5 text-left font-semibold">Student</th>
+                <th className="px-4 py-3.5 text-left font-semibold">Admission no</th>
+                <th className="px-3 py-3.5 text-left font-semibold">{renderFilter("class", "Class", selectedClasses)}</th>
+                <th className="px-3 py-3.5 text-left font-semibold">{renderFilter("subject", "Subject", selectedSubjects)}</th>
+                <th className="px-3 py-3.5 text-center font-semibold">Exams</th>
+                <th className="px-3 py-3.5 text-center font-semibold">Attempted</th>
+                <th className="px-3 py-3.5 text-center font-semibold">Pending</th>
+                <th className="px-3 py-3.5 text-center font-semibold">
                   <button className="inline-flex items-center gap-2 font-semibold text-white" onClick={() => toggleSort("average")} type="button">
                     Average
                     <span className="inline-flex gap-0.5 text-[12px]" aria-hidden>
@@ -326,7 +359,7 @@ export default function SubjectWiseReportPage() {
                     </span>
                   </button>
                 </th>
-                <th className="px-3 py-3.5 font-semibold">
+                <th className="px-3 py-3.5 text-center font-semibold">
                   <button className="inline-flex items-center gap-2 font-semibold text-white" onClick={() => toggleSort("best")} type="button">
                     Best
                     <span className="inline-flex gap-0.5 text-[12px]" aria-hidden>
@@ -335,31 +368,31 @@ export default function SubjectWiseReportPage() {
                     </span>
                   </button>
                 </th>
-                <th className="px-5 py-3.5 font-semibold">Latest exam</th>
-                <th className="px-5 py-3.5 font-semibold">Grade</th>
-                <th className="px-3 py-3.5 font-semibold">{renderFilter("status", "Status", selectedStatuses)}</th>
+                <th className="px-3 py-3.5 text-left font-semibold">Latest exam</th>
+                <th className="px-3 py-3.5 text-center font-semibold">Grade</th>
+                <th className="px-3 py-3.5 text-center font-semibold">{renderFilter("status", "Status", selectedStatuses)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EEF1F5]">
-              {filteredRows.map((row) => {
+              {pageRows.map((row) => {
                 const avg = average(row);
                 const status = statusFor(avg);
                 return (
                   <tr className="table-row" key={`${row.studentId}-${row.className}-${row.subject}`}>
-                    <td className="truncate px-3 py-4 font-semibold text-[#1d1d1f]" title={row.studentName}>
+                    <td className="truncate px-4 py-4 text-left font-semibold text-[#1d1d1f]" title={row.studentName}>
                       <Link className="hover:text-[#2456E6]" href={`/students/${row.studentId}`}>{row.studentName}</Link>
                     </td>
-                    <td className="truncate px-3 py-4 text-[#5A6573]" title={row.admissionNumber}>{row.admissionNumber}</td>
-                    <td className="truncate px-3 py-4 text-[#5A6573]" title={row.className}>{row.className}</td>
-                    <td className="truncate px-3 py-4 font-semibold text-[#1d1d1f]" title={row.subject}>{row.subject}</td>
-                    <td className="px-3 py-4 text-[#5A6573]">{row.exams}</td>
-                    <td className="px-3 py-4 text-[#5A6573]">{row.attempted}</td>
-                    <td className="px-3 py-4 text-[#5A6573]">{row.pending}</td>
-                    <td className="px-3 py-4 text-[#5A6573]">{percent(avg)}</td>
-                    <td className="px-3 py-4 text-[#5A6573]">{percent(row.bestPercentage)}</td>
-                    <td className="truncate px-3 py-4 text-[#5A6573]" title={row.latestExam}>{row.latestExam}</td>
-                    <td className="px-3 py-4 text-[#5A6573]">{row.latestGrade}</td>
-                    <td className="px-3 py-4"><StatusPill label={status.label} tone={status.tone} /></td>
+                    <td className="truncate px-4 py-4 text-left text-[#5A6573]" title={row.admissionNumber}>{row.admissionNumber}</td>
+                    <td className="truncate px-3 py-4 text-left text-[#5A6573]" title={row.className}>{row.className}</td>
+                    <td className="truncate px-3 py-4 text-left font-semibold text-[#1d1d1f]" title={row.subject}>{row.subject}</td>
+                    <td className="px-3 py-4 text-center text-[#5A6573]">{row.exams}</td>
+                    <td className="px-3 py-4 text-center text-[#5A6573]">{row.attempted}</td>
+                    <td className="px-3 py-4 text-center text-[#5A6573]">{row.pending}</td>
+                    <td className="px-3 py-4 text-center text-[#5A6573]">{percent(avg)}</td>
+                    <td className="px-3 py-4 text-center text-[#5A6573]">{percent(row.bestPercentage)}</td>
+                    <td className="truncate px-3 py-4 text-left text-[#5A6573]" title={row.latestExam}>{row.latestExam}</td>
+                    <td className="px-3 py-4 text-center text-[#5A6573]">{row.latestGrade}</td>
+                    <td className="px-3 py-4 text-center"><StatusPill label={status.label} tone={status.tone} /></td>
                   </tr>
                 );
               })}
@@ -404,7 +437,7 @@ export default function SubjectWiseReportPage() {
         ) : filteredRows.length === 0 ? (
           <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-6 text-center text-[13px] text-[#86868b]">{exams.length === 0 ? "No exams available." : "No marks available."}</div>
         ) : (
-          filteredRows.map((row) => {
+          pageRows.map((row) => {
             const avg = average(row);
             const status = statusFor(avg);
             return (
@@ -439,6 +472,31 @@ export default function SubjectWiseReportPage() {
           })
         )}
       </div>
+      {!loading && filteredRows.length > 0 ? (
+        <div className="flex flex-col gap-4 pt-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
+            Showing <span className="text-[#0F1419]">{displayStart}</span> to <span className="text-[#0F1419]">{displayEnd}</span> of <span className="text-[#0F1419]">{filteredRows.length}</span> rows
+          </p>
+          <div className="flex w-full flex-nowrap items-center justify-center gap-2 overflow-x-auto sm:w-auto sm:gap-3">
+            <button className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#7A8390] transition hover:bg-[#F8FBFD] disabled:opacity-50 sm:px-4" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))} type="button">
+              Previous
+            </button>
+            {pageNumbers.map((pageNumber) => (
+              <button
+                className={`min-h-[44px] min-w-[44px] shrink-0 rounded-[5px] border px-3 text-[14px] font-semibold transition ${currentPage === pageNumber ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#2456E6] hover:bg-[#F8FBFD]"}`}
+                key={pageNumber}
+                onClick={() => setPage(pageNumber)}
+                type="button"
+              >
+                {pageNumber}
+              </button>
+            ))}
+            <button className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#2456E6] transition hover:bg-[#F8FBFD] disabled:opacity-50 sm:px-4" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))} type="button">
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
