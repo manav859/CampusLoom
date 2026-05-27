@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { AlertPanel } from "@/components/dashboard/AlertPanel";
 import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
@@ -29,6 +30,15 @@ type DashboardResponse = {
   aiSummary?: string;
   defaulters?: FeeDefaulter[];
   feeSummary?: FeesDashboard;
+};
+
+type PaymentStudentItem = {
+  id: string;
+  admissionNumber: string;
+  fullName: string;
+  class: { name: string; section: string };
+  parentPhone?: string;
+  isActive: boolean;
 };
 
 function relativeTime(value?: string | Date | null) {
@@ -208,6 +218,11 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const [sendingReminderId, setSendingReminderId] = useState("");
   const [activityDate, setActivityDate] = useState(() => dateInputValue(new Date()));
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentStudents, setPaymentStudents] = useState<PaymentStudentItem[]>([]);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -255,6 +270,37 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       active = false;
     };
   }, [activityDate]);
+
+  useEffect(() => {
+    if (!paymentModalOpen) return;
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams({ limit: "8", page: "1" });
+      const trimmed = paymentSearch.trim();
+      if (trimmed) params.set("search", trimmed);
+
+      setPaymentLoading(true);
+      setPaymentError("");
+      apiFetch<{ items: PaymentStudentItem[]; total: number }>(`/students?${params.toString()}`)
+        .then((result) => {
+          if (active) setPaymentStudents(result.items ?? []);
+        })
+        .catch((err) => {
+          if (active) {
+            setPaymentStudents([]);
+            setPaymentError(err instanceof Error ? err.message : "Unable to search students");
+          }
+        })
+        .finally(() => {
+          if (active) setPaymentLoading(false);
+        });
+    }, 220);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [paymentModalOpen, paymentSearch]);
 
   /* ── KPI row ── */
   const kpis = data?.kpis ?? {};
@@ -395,9 +441,74 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     { label: "Homework", value: teacherPendingHomework, color: "#7c3aed" }
   ];
   const activityEvents = buildActivityEvents(activityLogs);
+  const paymentModal = paymentModalOpen && typeof document !== "undefined" ? createPortal(
+    <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-sm">
+      <button aria-label="Close payment search" className="absolute inset-0" onClick={() => setPaymentModalOpen(false)} type="button" />
+      <div className="relative flex max-h-[min(680px,calc(100vh-48px))] w-full max-w-xl flex-col overflow-hidden rounded-[12px] bg-white shadow-[0_24px_80px_-28px_rgba(15,20,25,0.55)]">
+        <div className="border-b border-[#E7EBF0] px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-[18px] font-semibold text-[#0F1419]">Record payment</h2>
+              <p className="mt-1 text-[13px] text-[#5A6573]">Search student, then open fee ledger.</p>
+            </div>
+            <button className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setPaymentModalOpen(false)} type="button" aria-label="Close">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div className="mt-4 flex min-h-11 items-center gap-2 rounded-[8px] border border-[#C9D3DE] bg-white px-3">
+            <svg className="h-4 w-4 shrink-0 text-[#5A6573]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path d="m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <input
+              autoFocus
+              className="min-w-0 flex-1 border-0 bg-transparent text-[14px] font-medium text-[#0F1419] outline-none placeholder:text-[#8C96A3]"
+              onChange={(event) => setPaymentSearch(event.target.value)}
+              placeholder="Search by student name, admission no, or phone"
+              value={paymentSearch}
+            />
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          {paymentError ? <div className="rounded-[8px] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{paymentError}</div> : null}
+          {paymentLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div className="h-16 animate-pulse rounded-[8px] bg-[#F2F5F8]" key={index} />
+              ))}
+            </div>
+          ) : paymentStudents.length === 0 && !paymentError ? (
+            <div className="px-4 py-10 text-center text-[13px] font-medium text-[#86868b]">No students found.</div>
+          ) : (
+            <div className="space-y-2">
+              {paymentStudents.map((student) => (
+                <Link
+                  className="flex min-h-16 items-center justify-between gap-3 rounded-[8px] border border-[#DCE1E8] bg-white px-4 py-3 transition hover:border-[#2456E6] hover:bg-[#F7F8FB]"
+                  href={`/fees/${student.id}`}
+                  key={student.id}
+                  onClick={() => setPaymentModalOpen(false)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold text-[#0F1419]">{student.fullName}</span>
+                    <span className="mt-0.5 block truncate text-[12px] font-medium text-[#5A6573]">
+                      {student.class.name}-{student.class.section} | {student.admissionNumber}{student.parentPhone ? ` | ${student.parentPhone}` : ""}
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-[6px] bg-[#2456E6] px-3 py-1.5 text-[12px] font-semibold text-white">Open</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
 
   return (
     <div className="space-y-4 sm:space-y-5">
+      {paymentModal}
       {!loading && data ? <p className="text-[14px] font-medium leading-6 text-[#5A6573]">{pulseText}</p> : null}
 
       {error ? <div className="rounded-xl bg-[#ff9500]/10 px-4 py-3 text-[13px] font-medium text-[#c93400]">{error}</div> : null}
@@ -413,7 +524,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           <Link className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#2456E6] px-4 py-2 text-center text-[13px] font-semibold text-white hover:bg-[#1B45BD]" href="/attendance">Mark today&apos;s attendance</Link>
           <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/defaulters">Send fee reminder</Link>
           <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/students/new">Add student</Link>
-          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/new">Record payment</Link>
+          <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => setPaymentModalOpen(true)} type="button">Record payment</button>
         </div>
       ) : null}
 

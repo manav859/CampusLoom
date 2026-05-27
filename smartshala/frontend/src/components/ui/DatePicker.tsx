@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { formatDateShort } from "@/lib/formatters";
 
 type DatePickerProps = {
@@ -53,6 +53,10 @@ function isOutOfRange(value: string, min?: string, max?: string) {
   return Boolean((min && value < min) || (max && value > max));
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function DatePicker({
   buttonClassName,
   disabled,
@@ -66,9 +70,34 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(monthFromValue(value));
+  const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({});
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const cells = useMemo(() => calendarCells(month), [month]);
   const [year = 0, monthNumber = 1] = month.split("-").map(Number);
+
+  const updatePopoverPosition = useCallback(() => {
+    const button = buttonRef.current;
+    if (!button || typeof window === "undefined") return;
+
+    const margin = 12;
+    const rect = button.getBoundingClientRect();
+
+    if (window.innerWidth < 640) {
+      setPopoverStyle({ bottom: margin, left: margin, right: margin });
+      return;
+    }
+
+    const width = Math.min(320, window.innerWidth - margin * 2);
+    const estimatedHeight = 344;
+    const left = clamp(rect.left, margin, window.innerWidth - width - margin);
+    const preferredTop = rect.bottom + 8;
+    const top = preferredTop + estimatedHeight > window.innerHeight
+      ? clamp(rect.top - estimatedHeight - 8, margin, window.innerHeight - estimatedHeight - margin)
+      : preferredTop;
+
+    setPopoverStyle({ left, top, width });
+  }, []);
 
   useEffect(() => {
     setMonth(monthFromValue(value));
@@ -76,13 +105,21 @@ export function DatePicker({
 
   useEffect(() => {
     if (!open) return;
+    updatePopoverPosition();
     const handlePointerDown = (event: PointerEvent) => {
       if (wrapperRef.current?.contains(event.target as Node)) return;
       setOpen(false);
     };
+    const handleViewportChange = () => updatePopoverPosition();
     document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, [open, updatePopoverPosition]);
 
   const displayValue = value ? formatDateShort(value) : placeholder;
 
@@ -93,7 +130,11 @@ export function DatePicker({
         aria-expanded={open}
         className={buttonClassName ?? "glass-input flex min-h-10 w-full items-center justify-between gap-2 text-left text-[13px] font-semibold"}
         disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          updatePopoverPosition();
+          setOpen((current) => !current);
+        }}
+        ref={buttonRef}
         type="button"
       >
         <span className="min-w-0">
@@ -106,7 +147,7 @@ export function DatePicker({
       </button>
 
       {open ? (
-        <div className="fixed inset-x-3 bottom-3 z-[220] rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)] sm:absolute sm:bottom-auto sm:left-0 sm:top-[calc(100%+8px)] sm:w-80">
+        <div className="fixed z-[220] rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]" style={popoverStyle}>
           <div className="mb-3 flex items-center justify-between">
             <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setMonth(monthInputFromParts(year, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
             <span className="text-[13px] font-bold text-[#1d1d1f]">{monthLabel(month)}</span>
