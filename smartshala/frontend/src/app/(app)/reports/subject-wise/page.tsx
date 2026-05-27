@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { marksApi, type MarksExam, type MarksExamDetail } from "@/lib/api";
@@ -62,7 +63,9 @@ export default function SubjectWiseReportPage() {
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [sort, setSort] = useState<SortState>(null);
-  const filterRef = useRef<HTMLSpanElement>(null);
+  const filterButtonRefs = useRef<Record<FilterKey, HTMLButtonElement | null>>({ class: null, subject: null, status: null });
+  const filterPanelRef = useRef<HTMLDivElement>(null);
+  const [filterStyle, setFilterStyle] = useState<CSSProperties>({});
 
   useEffect(() => {
     let active = true;
@@ -87,20 +90,6 @@ export default function SubjectWiseReportPage() {
       active = false;
     };
   }, []);
-
-  useEffect(() => {
-    if (!openFilter) return;
-
-    const closeOnOutsideClick = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && !filterRef.current?.contains(target)) {
-        setOpenFilter(null);
-      }
-    };
-
-    window.addEventListener("pointerdown", closeOnOutsideClick);
-    return () => window.removeEventListener("pointerdown", closeOnOutsideClick);
-  }, [openFilter]);
 
   const rows = useMemo(() => {
     const map = new Map<string, StudentSubjectRow>();
@@ -164,6 +153,56 @@ export default function SubjectWiseReportPage() {
     [rows]
   );
 
+  function positionFilter(key: FilterKey, anchor = filterButtonRefs.current[key]) {
+    const button = anchor;
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    const width = Math.min(224, window.innerWidth - 16);
+    const optionCount =
+      key === "class" ? classOptions.length :
+      key === "subject" ? subjectOptions.length :
+      statusOptions.length;
+    const panelHeight = Math.min(248, Math.max(96, optionCount * 37 + 44));
+    const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+    const below = rect.bottom + 6;
+    const top = below + panelHeight > window.innerHeight - 8
+      ? Math.max(8, rect.top - panelHeight - 6)
+      : below;
+
+    setFilterStyle({ left, top, width });
+  }
+
+  useLayoutEffect(() => {
+    if (!openFilter) return;
+    positionFilter(openFilter);
+  }, [openFilter, classOptions.length, subjectOptions.length, statusOptions.length]);
+
+  useEffect(() => {
+    if (!openFilter) return;
+
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        !filterButtonRefs.current[openFilter]?.contains(target) &&
+        !filterPanelRef.current?.contains(target)
+      ) {
+        setOpenFilter(null);
+      }
+    };
+    const reposition = () => positionFilter(openFilter);
+
+    window.addEventListener("pointerdown", closeOnOutsideClick);
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("pointerdown", closeOnOutsideClick);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [openFilter, classOptions.length, subjectOptions.length, statusOptions.length]);
+
   const filteredRows = useMemo(() => {
     const result = rows.filter((row) => {
       const statusLabel = statusFor(average(row)).label;
@@ -191,44 +230,36 @@ export default function SubjectWiseReportPage() {
     }));
   }
 
-  function renderFilter(key: FilterKey, label: string, options: string[], selected: string[], setSelected: (next: string[]) => void) {
-    const open = openFilter === key;
+  function renderFilter(key: FilterKey, label: string, selected: string[], dark = false) {
     return (
-      <span className="relative inline-flex" ref={open ? filterRef : undefined}>
-        <button className="inline-flex items-center gap-2 font-semibold text-white" onClick={() => setOpenFilter((current) => (current === key ? null : key))} type="button">
+      <span className="inline-flex">
+        <button
+          className={`inline-flex items-center gap-2 font-semibold ${dark ? "text-[#2456E6]" : "text-white"}`}
+          onClick={(event) => {
+            filterButtonRefs.current[key] = event.currentTarget;
+            positionFilter(key, event.currentTarget);
+            setOpenFilter((current) => (current === key ? null : key));
+          }}
+          ref={(button) => {
+            filterButtonRefs.current[key] = button;
+          }}
+          type="button"
+        >
           {label}
           {selected.length ? <span className="rounded-full bg-white/20 px-1.5 text-[11px]">{selected.length}</span> : null}
           <FilterIcon />
         </button>
-        {open ? (
-          <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-56 rounded-[8px] border border-[#DCE1E8] bg-white p-2 text-[#1d1d1f] shadow-[var(--shadow-menu)]">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-[12px] font-semibold">Filter {label.toLowerCase()}</p>
-              {selected.length ? (
-                <button className="text-[12px] font-semibold text-[#2456E6]" onClick={() => setSelected([])} type="button">
-                  Clear
-                </button>
-              ) : null}
-            </div>
-            <div className="max-h-52 space-y-1 overflow-y-auto">
-              {options.map((option) => {
-                const checked = selected.includes(option);
-                return (
-                  <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-[6px] px-2 text-[13px] font-semibold hover:bg-[#F7F8FB]" key={option}>
-                    <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border text-[10px] ${checked ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#A7B0BD] bg-white"}`}>
-                      {checked ? <span>&#10003;</span> : null}
-                    </span>
-                    <input checked={checked} className="sr-only" onChange={() => setSelected(optionToggle(selected, option))} type="checkbox" />
-                    <span className="truncate">{option}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
       </span>
     );
   }
+
+  const activeFilter = openFilter === "class"
+    ? { label: "Class", options: classOptions, selected: selectedClasses, setSelected: setSelectedClasses }
+    : openFilter === "subject"
+      ? { label: "Subject", options: subjectOptions, selected: selectedSubjects, setSelected: setSelectedSubjects }
+      : openFilter === "status"
+        ? { label: "Status", options: statusOptions, selected: selectedStatuses, setSelected: setSelectedStatuses }
+        : null;
 
   function exportCsv() {
     downloadCsv(`student-subject-performance-${new Date().toISOString().slice(0, 10)}.csv`, [
@@ -262,15 +293,27 @@ export default function SubjectWiseReportPage() {
         title="Subject wise student performance"
         action={<button className="btn-primary min-h-10 px-4 text-[13px]" disabled={loading || rows.length === 0} onClick={exportCsv} type="button">Export CSV</button>}
       />
-      <ReportTable colSpan={12} empty={loading ? "Loading student subject performance..." : exams.length === 0 ? "No exams available." : "No marks available."} isEmpty={loading || filteredRows.length === 0} minWidth="min-w-[1200px] table-fixed">
-        {!loading && filteredRows.length > 0 ? (
-          <>
+      <div className="flex flex-wrap gap-2 md:hidden">
+        <button className="inline-flex min-h-10 items-center gap-2 rounded-[6px] border border-[#C9D3DE] px-3 text-[13px] font-semibold text-[#2456E6]" onClick={(event) => { filterButtonRefs.current.class = event.currentTarget; positionFilter("class", event.currentTarget); setOpenFilter((current) => current === "class" ? null : "class"); }} type="button">
+          Class {selectedClasses.length ? <span className="rounded-full bg-[#2456E6]/10 px-1.5 text-[11px]">{selectedClasses.length}</span> : null}<FilterIcon />
+        </button>
+        <button className="inline-flex min-h-10 items-center gap-2 rounded-[6px] border border-[#C9D3DE] px-3 text-[13px] font-semibold text-[#2456E6]" onClick={(event) => { filterButtonRefs.current.subject = event.currentTarget; positionFilter("subject", event.currentTarget); setOpenFilter((current) => current === "subject" ? null : "subject"); }} type="button">
+          Subject {selectedSubjects.length ? <span className="rounded-full bg-[#2456E6]/10 px-1.5 text-[11px]">{selectedSubjects.length}</span> : null}<FilterIcon />
+        </button>
+        <button className="inline-flex min-h-10 items-center gap-2 rounded-[6px] border border-[#C9D3DE] px-3 text-[13px] font-semibold text-[#2456E6]" onClick={(event) => { filterButtonRefs.current.status = event.currentTarget; positionFilter("status", event.currentTarget); setOpenFilter((current) => current === "status" ? null : "status"); }} type="button">
+          Status {selectedStatuses.length ? <span className="rounded-full bg-[#2456E6]/10 px-1.5 text-[11px]">{selectedStatuses.length}</span> : null}<FilterIcon />
+        </button>
+      </div>
+      <div className="hidden md:block">
+        <ReportTable colSpan={12} empty={loading ? "Loading student subject performance..." : exams.length === 0 ? "No exams available." : "No marks available."} isEmpty={loading || filteredRows.length === 0} minWidth="min-w-[1200px] table-fixed">
+          {!loading && filteredRows.length > 0 ? (
+            <>
             <thead className="table-head">
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Student</th>
                 <th className="px-5 py-3.5 font-semibold">Admission no</th>
-                <th className="px-3 py-3.5 font-semibold">{renderFilter("class", "Class", classOptions, selectedClasses, setSelectedClasses)}</th>
-                <th className="px-3 py-3.5 font-semibold">{renderFilter("subject", "Subject", subjectOptions, selectedSubjects, setSelectedSubjects)}</th>
+                <th className="px-3 py-3.5 font-semibold">{renderFilter("class", "Class", selectedClasses)}</th>
+                <th className="px-3 py-3.5 font-semibold">{renderFilter("subject", "Subject", selectedSubjects)}</th>
                 <th className="px-5 py-3.5 font-semibold">Exams</th>
                 <th className="px-5 py-3.5 font-semibold">Attempted</th>
                 <th className="px-5 py-3.5 font-semibold">Pending</th>
@@ -294,7 +337,7 @@ export default function SubjectWiseReportPage() {
                 </th>
                 <th className="px-5 py-3.5 font-semibold">Latest exam</th>
                 <th className="px-5 py-3.5 font-semibold">Grade</th>
-                <th className="px-3 py-3.5 font-semibold">{renderFilter("status", "Status", statusOptions, selectedStatuses, setSelectedStatuses)}</th>
+                <th className="px-3 py-3.5 font-semibold">{renderFilter("status", "Status", selectedStatuses)}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EEF1F5]">
@@ -321,9 +364,81 @@ export default function SubjectWiseReportPage() {
                 );
               })}
             </tbody>
-          </>
-        ) : null}
-      </ReportTable>
+            </>
+          ) : null}
+        </ReportTable>
+      </div>
+      {activeFilter ? (
+        <div
+          className="fixed z-[220] rounded-[8px] border border-[#DCE1E8] bg-white p-2 text-[#1d1d1f] shadow-[var(--shadow-menu)]"
+          ref={filterPanelRef}
+          style={filterStyle}
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[12px] font-semibold">Filter {activeFilter.label.toLowerCase()}</p>
+            {activeFilter.selected.length ? (
+              <button className="text-[12px] font-semibold text-[#2456E6]" onClick={() => activeFilter.setSelected([])} type="button">
+                Clear
+              </button>
+            ) : null}
+          </div>
+          <div className="max-h-52 space-y-1 overflow-y-auto">
+            {activeFilter.options.map((option) => {
+              const checked = activeFilter.selected.includes(option);
+              return (
+                <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-[6px] px-2 text-[13px] font-semibold hover:bg-[#F7F8FB]" key={option}>
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border text-[10px] ${checked ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#A7B0BD] bg-white"}`}>
+                    {checked ? <span>&#10003;</span> : null}
+                  </span>
+                  <input checked={checked} className="sr-only" onChange={() => activeFilter.setSelected(optionToggle(activeFilter.selected, option))} type="checkbox" />
+                  <span className="truncate">{option}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-6 text-center text-[13px] text-[#86868b]">Loading student subject performance...</div>
+        ) : filteredRows.length === 0 ? (
+          <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-6 text-center text-[13px] text-[#86868b]">{exams.length === 0 ? "No exams available." : "No marks available."}</div>
+        ) : (
+          filteredRows.map((row) => {
+            const avg = average(row);
+            const status = statusFor(avg);
+            return (
+              <article className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)]" key={`${row.studentId}-${row.className}-${row.subject}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link className="block truncate text-[15px] font-semibold text-[#1d1d1f] hover:text-[#2456E6]" href={`/students/${row.studentId}`}>{row.studentName}</Link>
+                    <p className="mt-1 text-[12px] font-medium text-[#5A6573]">{row.admissionNumber} · {row.className}</p>
+                  </div>
+                  <StatusPill label={status.label} tone={status.tone} />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-[13px]">
+                  <div>
+                    <p className="text-[12px] font-semibold text-[#86868b]">Subject</p>
+                    <p className="mt-1 font-semibold text-[#1d1d1f]">{row.subject}</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-semibold text-[#86868b]">Average / Best</p>
+                    <p className="mt-1 font-semibold text-[#1d1d1f]">{percent(avg)} / {percent(row.bestPercentage)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-semibold text-[#86868b]">Exams</p>
+                    <p className="mt-1 font-semibold text-[#1d1d1f]">{row.attempted}/{row.exams} attempted</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-semibold text-[#86868b]">Latest</p>
+                    <p className="mt-1 truncate font-semibold text-[#1d1d1f]">{row.latestExam}</p>
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { apiFetch } from "@/lib/api";
@@ -85,7 +86,9 @@ export default function StudentPerformanceReportPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [classFilterOpen, setClassFilterOpen] = useState(false);
-  const classFilterRef = useRef<HTMLDivElement>(null);
+  const classFilterButtonRef = useRef<HTMLButtonElement>(null);
+  const classFilterPanelRef = useRef<HTMLDivElement>(null);
+  const [classFilterStyle, setClassFilterStyle] = useState<CSSProperties>({});
 
   const perPage = 20;
 
@@ -121,24 +124,56 @@ export default function StudentPerformanceReportPage() {
     setPage(1);
   }, [search, selectedClasses, sortDirection]);
 
+  const classOptions = useMemo(
+    () => Array.from(new Set(rows.map(classKey))).sort((a, b) => a.localeCompare(b)),
+    [rows]
+  );
+
+  function positionClassFilter(anchor = classFilterButtonRef.current) {
+    const button = anchor;
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    const width = Math.min(224, window.innerWidth - 16);
+    const panelHeight = Math.min(248, Math.max(96, classOptions.length * 37 + 44));
+    const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+    const below = rect.bottom + 6;
+    const top = below + panelHeight > window.innerHeight - 8
+      ? Math.max(8, rect.top - panelHeight - 6)
+      : below;
+
+    setClassFilterStyle({ left, top, width });
+  }
+
+  useLayoutEffect(() => {
+    if (!classFilterOpen) return;
+    positionClassFilter();
+  }, [classFilterOpen, classOptions.length]);
+
   useEffect(() => {
     if (!classFilterOpen) return;
 
     const closeOnOutsideClick = (event: PointerEvent) => {
       const target = event.target;
-      if (target instanceof Node && !classFilterRef.current?.contains(target)) {
+      if (
+        target instanceof Node &&
+        !classFilterButtonRef.current?.contains(target) &&
+        !classFilterPanelRef.current?.contains(target)
+      ) {
         setClassFilterOpen(false);
       }
     };
+    const reposition = () => positionClassFilter();
 
     window.addEventListener("pointerdown", closeOnOutsideClick);
-    return () => window.removeEventListener("pointerdown", closeOnOutsideClick);
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("pointerdown", closeOnOutsideClick);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
   }, [classFilterOpen]);
-
-  const classOptions = useMemo(
-    () => Array.from(new Set(rows.map(classKey))).sort((a, b) => a.localeCompare(b)),
-    [rows]
-  );
 
   const sortedRows = useMemo(
     () => {
@@ -215,62 +250,44 @@ export default function StudentPerformanceReportPage() {
             Clear
           </button>
         ) : null}
+        <button
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[6px] border border-[#C9D3DE] px-3 text-[13px] font-semibold text-[#2456E6] md:hidden"
+          onClick={(event) => {
+            classFilterButtonRef.current = event.currentTarget;
+            positionClassFilter(event.currentTarget);
+            setClassFilterOpen((open) => !open);
+          }}
+          type="button"
+        >
+          Class
+          {selectedClasses.length ? <span className="rounded-full bg-[#2456E6]/10 px-1.5 text-[11px]">{selectedClasses.length}</span> : null}
+          <FilterIcon />
+        </button>
       </div>
-      <ReportTable colSpan={6} empty={loading ? "Loading students..." : "No students found."} isEmpty={loading || pageRows.length === 0} minWidth="min-w-[820px]">
-        {!loading && pageRows.length > 0 ? (
-          <>
+      <div className="hidden md:block">
+        <ReportTable colSpan={6} empty={loading ? "Loading students..." : "No students found."} isEmpty={loading || pageRows.length === 0} minWidth="min-w-[820px]">
+          {!loading && pageRows.length > 0 ? (
+            <>
             <thead className="table-head">
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Student</th>
                 <th className="px-5 py-3.5 font-semibold">Admission no</th>
                 <th className="px-5 py-3.5 font-semibold">
-                  <span className="relative inline-flex" ref={classFilterRef}>
+                  <span className="inline-flex">
                     <button
+                      ref={classFilterButtonRef}
                       className="inline-flex items-center gap-2 font-semibold text-white"
-                      onClick={() => setClassFilterOpen((open) => !open)}
+                      onClick={(event) => {
+                        classFilterButtonRef.current = event.currentTarget;
+                        positionClassFilter(event.currentTarget);
+                        setClassFilterOpen((open) => !open);
+                      }}
                       type="button"
                     >
                       Class
                       {selectedClasses.length ? <span className="rounded-full bg-white/20 px-1.5 text-[11px]">{selectedClasses.length}</span> : null}
                       <FilterIcon />
                     </button>
-                    {classFilterOpen ? (
-                      <div className="absolute left-0 top-[calc(100%+8px)] z-30 w-56 rounded-[8px] border border-[#DCE1E8] bg-white p-2 text-[#1d1d1f] shadow-[var(--shadow-menu)]">
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <p className="text-[12px] font-semibold">Filter class</p>
-                          {selectedClasses.length ? (
-                            <button className="text-[12px] font-semibold text-[#2456E6]" onClick={() => setSelectedClasses([])} type="button">
-                              Clear
-                            </button>
-                          ) : null}
-                        </div>
-                        <div className="max-h-52 space-y-1 overflow-y-auto">
-                          {classOptions.map((option) => {
-                            const checked = selectedClasses.includes(option);
-                            return (
-                              <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-[6px] px-2 text-[13px] font-semibold hover:bg-[#F7F8FB]" key={option}>
-                                <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border text-[10px] ${checked ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#A7B0BD] bg-white"}`}>
-                                  {checked ? <span>&#10003;</span> : null}
-                                </span>
-                                <input
-                                  checked={checked}
-                                  className="sr-only"
-                                  onChange={() =>
-                                    setSelectedClasses((current) =>
-                                      current.includes(option)
-                                        ? current.filter((item) => item !== option)
-                                        : [...current, option]
-                                    )
-                                  }
-                                  type="checkbox"
-                                />
-                                <span className="truncate">{option}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : null}
                   </span>
                 </th>
                 <th className="px-5 py-3.5 font-semibold">Attendance</th>
@@ -312,9 +329,86 @@ export default function StudentPerformanceReportPage() {
                 );
               })}
             </tbody>
-          </>
-        ) : null}
-      </ReportTable>
+            </>
+          ) : null}
+        </ReportTable>
+      </div>
+      {classFilterOpen ? (
+        <div
+          className="fixed z-[220] rounded-[8px] border border-[#DCE1E8] bg-white p-2 text-[#1d1d1f] shadow-[var(--shadow-menu)]"
+          ref={classFilterPanelRef}
+          style={classFilterStyle}
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[12px] font-semibold">Filter class</p>
+            {selectedClasses.length ? (
+              <button className="text-[12px] font-semibold text-[#2456E6]" onClick={() => setSelectedClasses([])} type="button">
+                Clear
+              </button>
+            ) : null}
+          </div>
+          <div className="max-h-52 space-y-1 overflow-y-auto">
+            {classOptions.map((option) => {
+              const checked = selectedClasses.includes(option);
+              return (
+                <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-[6px] px-2 text-[13px] font-semibold hover:bg-[#F7F8FB]" key={option}>
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-[4px] border text-[10px] ${checked ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#A7B0BD] bg-white"}`}>
+                    {checked ? <span>&#10003;</span> : null}
+                  </span>
+                  <input
+                    checked={checked}
+                    className="sr-only"
+                    onChange={() =>
+                      setSelectedClasses((current) =>
+                        current.includes(option)
+                          ? current.filter((item) => item !== option)
+                          : [...current, option]
+                      )
+                    }
+                    type="checkbox"
+                  />
+                  <span className="truncate">{option}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-6 text-center text-[13px] text-[#86868b]">Loading students...</div>
+        ) : pageRows.length === 0 ? (
+          <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-6 text-center text-[13px] text-[#86868b]">No students found.</div>
+        ) : (
+          pageRows.map((row) => {
+            const performance = overallPerformance(row);
+            return (
+              <article className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)]" key={row.id}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-semibold text-[#1d1d1f]">{row.fullName}</p>
+                    <p className="mt-1 text-[12px] font-medium text-[#5A6573]">{row.admissionNumber} · {classKey(row)}</p>
+                  </div>
+                  <Link className="shrink-0 text-[13px] font-semibold text-[#2456E6]" href={`/students/${row.id}`}>View</Link>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-[13px]">
+                  <div>
+                    <p className="text-[12px] font-semibold text-[#86868b]">Attendance</p>
+                    <p className="mt-1 font-semibold text-[#1d1d1f]">{percent(row.attendancePercentage)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-semibold text-[#86868b]">Performance</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-[#1d1d1f]">{performance.value}</span>
+                      <StatusPill label={performance.classification} tone={performanceTone(performance.classification)} />
+                    </div>
+                  </div>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
       {!loading && sortedRows.length > 0 ? (
         <div className="flex flex-col gap-4 pt-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
