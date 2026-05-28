@@ -517,32 +517,15 @@ samp,
 .sidebar-label-shell {
   display: inline-flex;
   min-width: 0;
-  max-width: 131px;
+  max-width: 220px;
   overflow: hidden;
   white-space: nowrap;
   color: inherit;
 }
 
-.sidebar-label-track {
-  display: inline-block;
-  min-width: max-content;
-  color: inherit;
-  font-weight: 600;
-  transform: translateZ(0);
-  animation: sidebar-label-slide var(--sidebar-label-duration, 4.2s) ease-in-out infinite;
-  will-change: transform;
-}
-
-@keyframes sidebar-label-slide {
-  0%, 16% { transform: translate3d(0, 0, 0); }
-  66%, 82% { transform: translate3d(calc(131px - 100%), 0, 0); }
-  100% { transform: translate3d(0, 0, 0); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .animate-kpi-marquee,
-  .mobile-school-marquee-track,
-  .sidebar-label-track {
+  .mobile-school-marquee-track {
     animation: none;
   }
 }
