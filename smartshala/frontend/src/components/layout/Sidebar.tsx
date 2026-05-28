@@ -19,6 +19,7 @@ type NavIconName =
   | "fees"
   | "analytics"
   | "logs"
+  | "activity"
   | "settings";
 
 type NavLink = {
@@ -350,7 +351,7 @@ export function Sidebar({
         className={`fixed inset-y-0 left-0 z-[160] flex flex-col bg-white border-r border-[var(--apple-card-border)] transition-all duration-300 ease-in-out md:fixed md:inset-y-0 md:left-0 md:z-40 md:h-screen md:pt-16 ${
           open ? "w-[300px] translate-x-0" : "-translate-x-full md:translate-x-0"
         } ${
-          isOpenDesktop ? "md:w-[300px]" : "md:w-[60px]"
+          isOpenDesktop ? "md:w-[300px]" : "md:w-[70px]"
         }`}
       >
         {/* Brand */}
