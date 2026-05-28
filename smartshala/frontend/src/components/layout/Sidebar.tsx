@@ -6,7 +6,20 @@ import { useState, useEffect, useRef } from "react";
 import type { Role } from "@/types";
 import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
 
-type NavIconName = "dashboard" | "students" | "teachers" | "classes" | "attendance" | "reports" | "fees" | "analytics" | "notifications" | "activity" | "settings";
+type NavIconName =
+  | "dashboard"
+  | "students"
+  | "teachers"
+  | "classManagement"
+  | "classes"
+  | "attendance"
+  | "homework"
+  | "communication"
+  | "reports"
+  | "fees"
+  | "analytics"
+  | "logs"
+  | "settings";
 
 type NavLink = {
   label: string;
@@ -25,15 +38,15 @@ const adminLinks: NavItem[] = [
   { label: "Student", href: "/students", icon: "students" },
   {
     label: "Class Management",
-    icon: "teachers",
+    icon: "classManagement",
     children: [
       { label: "Teacher", href: "/teachers", icon: "teachers" },
       { label: "Classes", href: "/classes", icon: "classes" },
       { label: "Attendance", href: "/attendance", icon: "attendance" },
-      { label: "Homework", href: "/teacher/homework", icon: "reports" }
+      { label: "Homework", href: "/teacher/homework", icon: "homework" }
     ]
   },
-  { label: "Communication", href: "/teacher/communication", icon: "notifications" },
+  { label: "Communication", href: "/teacher/communication", icon: "communication" },
   {
     label: "Reports",
     icon: "reports",
@@ -48,10 +61,10 @@ const adminLinks: NavItem[] = [
   { label: "Analytics", href: "/analytics", icon: "analytics" },
   {
     label: "Logs",
-    icon: "activity",
+    icon: "logs",
     children: [
-      { label: "Message logs", href: "/notifications", icon: "notifications" },
-      { label: "Activity Logs", href: "/activity-logs", icon: "activity" }
+      { label: "Message logs", href: "/notifications", icon: "communication" },
+      { label: "Activity Logs", href: "/activity-logs", icon: "logs" }
     ]
   },
   { label: "Setting", href: "/settings", icon: "settings" }
@@ -60,9 +73,9 @@ const adminLinks: NavItem[] = [
 const teacherLinks: NavItem[] = [
   { label: "Dashboard", href: "/teacher", icon: "dashboard" },
   { label: "Classes", href: "/teacher/classes", icon: "classes" },
-  { label: "Homework", href: "/teacher/homework", icon: "reports" },
+  { label: "Homework", href: "/teacher/homework", icon: "homework" },
   { label: "Marks", href: "/teacher/marks", icon: "analytics" },
-  { label: "Comms hub", href: "/teacher/communication", icon: "notifications" },
+  { label: "Comms hub", href: "/teacher/communication", icon: "communication" },
   { label: "Mark Attendance", href: "/attendance", icon: "attendance" },
   { label: "Students", href: "/students", icon: "students" }
 ];
@@ -115,87 +128,145 @@ function SidebarLabel({ expanded, label, withMargin = true }: { expanded: boolea
 }
 
 function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
-  const color = active ? "#ffffff" : "#86868b";
+  const color = active ? "#ffffff" : "#000000";
 
   if (icon === "dashboard") {
     return (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-        <path d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 14a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1v-5zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <line x1="9" y1="17" x2="15" y2="17" />
       </svg>
     );
   }
 
-  if (icon === "students" || icon === "teachers") {
+  if (icon === "students") {
     return (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-        <circle cx="9" cy="7" r="3" stroke={color} strokeWidth="1.5" />
-        <path d="M3 19a6 6 0 0112 0" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="17" cy="9" r="2.5" stroke={color} strokeWidth="1.5" />
-        <path d="M15 19a4.5 4.5 0 016 0" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    );
+  }
+
+  if (icon === "classManagement") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="8" cy="8" r="3" />
+        <path d="M3 18v-1a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v1" />
+        <path d="M16 9h5M21 9l-2-2M21 9l-2 2" />
+        <path d="M20 15h-5M15 15l2-2M15 15l2 2" />
+      </svg>
+    );
+  }
+
+  if (icon === "teachers") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="9" cy="7" r="4" />
+        <path d="M10 15H6a4 4 0 0 0-4 4v2" />
+        <circle cx="19" cy="16" r="1.5" />
+        <path d="M19 13.5v1M19 17.5v1M16.5 16h1M20.5 16h1M17.2 14.2l.7.7M19.8 16.8l.7.7M17.2 17.8l.7-.7M19.8 14.2l.7-.7" />
       </svg>
     );
   }
 
   if (icon === "classes") {
     return (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-        <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
-        <path d="M6 9.5v7L12 20l6-3.5v-7" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+        <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
       </svg>
     );
   }
 
   if (icon === "attendance") {
     return (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-        <rect x="4" y="3" width="16" height="18" rx="2" stroke={color} strokeWidth="1.5" />
-        <path d="M9 11l2 2 4-4" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M8 7h8" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M13 21a6 6 0 0 0-2-8" />
+        <path d="M11 13c-2.5-1.5-5-1-6.5.5" />
+        <path d="M11 13c-1.5-2.5-3-4-5-4.5" />
+        <path d="M11 13c1-2.5 3-4 5.5-4.5" />
+        <path d="M11 13c2.5-1.5 5-1 6.5.5" />
+        <path d="M11 13c.5 2.5 0 5-1.5 7" />
       </svg>
     );
   }
 
-  if (icon === "reports" || icon === "analytics") {
+  if (icon === "homework") {
     return (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-        <path d="M6 20V10M12 20V4M18 20v-8" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+        <path d="m9 15 2 2 4-4" />
+      </svg>
+    );
+  }
+
+  if (icon === "communication") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    );
+  }
+
+  if (icon === "reports") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+        <path d="M9 13h6" />
+        <path d="M9 17h6" />
       </svg>
     );
   }
 
   if (icon === "fees") {
     return (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-        <rect x="2" y="6" width="20" height="12" rx="2" stroke={color} strokeWidth="1.5" />
-        <circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.5" />
-        <path d="M6 6V4M18 6V4" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+        <path d="M13.5 11h-2a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3h-2" />
+        <path d="M12.5 9.5v8" />
       </svg>
     );
   }
 
-  if (icon === "notifications") {
+  if (icon === "analytics") {
     return (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-        <path d="M12 5a4.5 4.5 0 00-4.5 4.5v3L5 16h14l-2.5-3.5v-3A4.5 4.5 0 0012 5z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
-        <path d="M10 19a2 2 0 004 0" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 20V10M12 20V4M18 20v-8" />
+      </svg>
+    );
+  }
+
+  if (icon === "logs") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15.5 2H8.62a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6.88a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" />
+        <path d="M18.5 6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6.88a2 2 0 0 1-2-2" />
       </svg>
     );
   }
 
   if (icon === "activity") {
     return (
-      <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-        <path d="M5 6h14M5 12h9M5 18h14" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M17 10l2 2-2 2" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h6" />
+        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+        <circle cx="17" cy="17" r="4" />
+        <polyline points="17 15 17 17 18.5 18" />
       </svg>
     );
   }
 
   // settings
   return (
-    <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.5" />
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
     </svg>
   );
 }
@@ -328,7 +399,7 @@ export function Sidebar({
                     <NavIcon active={active} icon={item.icon} />
                     <SidebarLabel expanded={isExpanded} label={item.label} />
                     <svg className={`ml-auto h-3.5 w-3.5 transition-transform duration-300 ${isExpanded ? "block" : "hidden"} ${groupOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 16 16">
-                      <path d="m4 6 4 4 4-4" stroke={active ? "#ffffff" : "#86868b"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+                      <path d="m4 6 4 4 4-4" stroke={active ? "#ffffff" : "#000000"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
                     </svg>
                   </button>
                   <div className={`grid transition-all duration-300 ease-in-out ${groupOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
