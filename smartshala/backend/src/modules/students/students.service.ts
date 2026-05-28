@@ -7,6 +7,7 @@ import {
   BehaviourType,
   HomeworkSubmissionStatus,
   NotificationKind,
+  InstallmentStatus,
   StudentDocumentType,
   UserRole,
   Prisma
@@ -131,6 +132,15 @@ function emptyBehaviourAnalytics(role: UserRole) {
 
 function toNumber(value: unknown) {
   return Number(value ?? 0);
+}
+
+function toMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function feeStatus(pendingAmount: number, paidAmount: number) {
+  if (pendingAmount === 0) return InstallmentStatus.PAID;
+  return paidAmount > 0 ? InstallmentStatus.PARTIAL : InstallmentStatus.PENDING;
 }
 
 function documentStorageRoot() {
@@ -1024,7 +1034,7 @@ export async function getStudent(user: Express.UserContext, id: string) {
         class: true,
         ...(canViewAcademic ? { examResults: { select: { marksObtained: true, maxMarks: true } } } : {}),
         ...(canViewHomework ? { homeworkRecords: { select: { completionPercentage: true } } } : {}),
-        ...(canViewFees ? { feeAssignments: { include: { feeStructure: true, payments: { include: { receipt: true } } } } } : {}),
+        ...(canViewFees ? { feeAssignments: { include: { feeStructure: true, payments: { include: { receipt: true } } }, orderBy: { assignedAt: "desc" } } } : {}),
         ...(canViewAttendance || canViewAcademic
           ? {
               attendanceRecords: {
@@ -1372,9 +1382,67 @@ export async function importStudents(user: Express.UserContext, rows: Record<str
 
 export async function updateStudent(user: Express.UserContext, id: string, data: Record<string, unknown>) {
   const schoolId = user.schoolId;
+  const { feeStructureId, ...studentData } = data as { feeStructureId?: string } & Record<string, unknown>;
   const existing = await prisma.student.findFirst({ where: { id, schoolId } });
   if (!existing) throw notFound("Student");
-  const updated = await prisma.student.update({ where: { id }, data });
+  const updated = await prisma.$transaction(async (tx) => {
+    const student = await tx.student.update({ where: { id }, data: studentData });
+
+    if (feeStructureId) {
+      const feeStructure = await tx.feeStructure.findFirst({ where: { id: feeStructureId, schoolId } });
+      if (!feeStructure) throw notFound("Fee structure");
+
+      const existingTargetAssignment = await tx.studentFeeAssignment.findFirst({
+        where: { schoolId, studentId: id, feeStructureId }
+      });
+
+      if (!existingTargetAssignment) {
+        const latestAssignment = await tx.studentFeeAssignment.findFirst({
+          where: { schoolId, studentId: id },
+          include: { adjustments: true },
+          orderBy: { assignedAt: "desc" }
+        });
+        const transportFeeAmount = student.transportRequired ? toMoney(toNumber(student.transportFeeAmount)) : 0;
+        const grossTotal = toMoney(toNumber(feeStructure.totalAmount) + transportFeeAmount);
+
+        if (latestAssignment) {
+          const paidAmount = toMoney(toNumber(latestAssignment.paidAmount));
+          const adjustmentTotal = toMoney(latestAssignment.adjustments.reduce((sum, adjustment) => sum + toNumber(adjustment.amount), 0));
+          const netTotal = toMoney(grossTotal - adjustmentTotal);
+
+          if (netTotal < paidAmount) {
+            throw new AppError(400, "Selected fee structure total is lower than the amount already paid", "FEE_STRUCTURE_TOTAL_BELOW_PAID");
+          }
+
+          const pendingAmount = toMoney(netTotal - paidAmount);
+          await tx.studentFeeAssignment.update({
+            where: { id: latestAssignment.id },
+            data: {
+              feeStructureId,
+              totalAmount: netTotal,
+              transportFeeAmount,
+              pendingAmount,
+              status: feeStatus(pendingAmount, paidAmount)
+            }
+          });
+        } else {
+          await tx.studentFeeAssignment.create({
+            data: {
+              schoolId,
+              studentId: id,
+              feeStructureId,
+              totalAmount: grossTotal,
+              transportFeeAmount,
+              pendingAmount: grossTotal,
+              status: InstallmentStatus.PENDING
+            }
+          });
+        }
+      }
+    }
+
+    return student;
+  });
   await recordAuditLog({
     schoolId,
     actorId: user.id,

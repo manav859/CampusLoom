@@ -4,13 +4,15 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { apiFetch, studentsApi } from "@/lib/api";
+import { apiFetch, studentsApi, type FeeStructure } from "@/lib/api";
+import { formatINR } from "@/lib/formatters";
 import { cachedFetch, invalidateCache, invalidateCachePrefix } from "@/lib/prefetchCache";
 
 type ClassData = { id: string; name: string; section: string };
 
 type StudentForm = {
   classId: string;
+  feeStructureId: string;
   fullName: string;
   admissionNumber: string;
   rollNumber: string;
@@ -35,6 +37,7 @@ type StudentForm = {
 
 const emptyForm: StudentForm = {
   classId: "",
+  feeStructureId: "",
   fullName: "",
   admissionNumber: "",
   rollNumber: "",
@@ -80,6 +83,7 @@ export default function EditStudentPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [classes, setClasses] = useState<ClassData[]>([]);
+  const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [formData, setFormData] = useState<StudentForm>(emptyForm);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -101,12 +105,15 @@ export default function EditStudentPage() {
 
     Promise.all([
       studentsApi.get(id),
-      cachedFetch("classes:list", () => apiFetch<ClassData[]>("/classes"))
+      cachedFetch("classes:list", () => apiFetch<ClassData[]>("/classes")),
+      cachedFetch("fees:structures", () => apiFetch<FeeStructure[]>("/fees/structures"))
     ])
-      .then(([student, classRows]) => {
+      .then(([student, classRows, feeRows]) => {
         setClasses(classRows || []);
+        setFeeStructures(feeRows || []);
         setFormData({
           classId: student.classId,
+          feeStructureId: student.feeAssignments?.[0]?.feeStructure.id ?? "",
           fullName: student.fullName,
           admissionNumber: student.admissionNumber,
           rollNumber: student.rollNumber?.toString() ?? "",
@@ -142,6 +149,7 @@ export default function EditStudentPage() {
         method: "PATCH",
         body: JSON.stringify({
           classId: formData.classId,
+          ...(formData.feeStructureId ? { feeStructureId: formData.feeStructureId } : {}),
           fullName: formData.fullName.trim(),
           admissionNumber: formData.admissionNumber.trim(),
           rollNumber: formData.rollNumber ? Number(formData.rollNumber) : null,
@@ -165,6 +173,9 @@ export default function EditStudentPage() {
         })
       });
       invalidateCache(`student:${id}`);
+      invalidateCache(`fees:ledger:${id}`);
+      invalidateCache("fees:dashboard");
+      invalidateCache("fees:defaulters");
       invalidateCachePrefix("students:list:");
       router.push(`/students/${id}`);
       router.refresh();
@@ -251,6 +262,17 @@ export default function EditStudentPage() {
                 <option value="">Select class</option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>{item.name} - Section {item.section}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Fee structure</span>
+              <select className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.feeStructureId} onChange={(e) => setFormData({ ...formData, feeStructureId: e.target.value })}>
+                <option value="">Select fee structure</option>
+                {feeStructures.map((feeStructure) => (
+                  <option key={feeStructure.id} value={feeStructure.id}>
+                    {feeStructure.name} ({formatINR(feeStructure.totalAmount, { compact: false })}) - {feeStructure.academicYear}
+                  </option>
                 ))}
               </select>
             </label>
