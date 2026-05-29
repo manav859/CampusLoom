@@ -3,6 +3,19 @@ import { env } from "./env.js";
 
 export const logger = pino({
   level: env.LOG_LEVEL,
+  redact: {
+    paths: [
+      "req.headers.authorization",
+      "req.headers.cookie",
+      "*.password",
+      "*.passwordHash",
+      "*.token",
+      "*.accessToken",
+      "*.refreshToken",
+      "*.tokenHash"
+    ],
+    censor: "[REDACTED]"
+  },
   transport:
     env.NODE_ENV === "development"
       ? {
@@ -11,4 +24,3 @@ export const logger = pino({
         }
       : undefined
 });
-

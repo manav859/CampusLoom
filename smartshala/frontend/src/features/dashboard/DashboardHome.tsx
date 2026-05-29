@@ -441,6 +441,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     { label: "Homework", value: teacherPendingHomework, color: "#7c3aed" }
   ];
   const activityEvents = buildActivityEvents(activityLogs);
+  const maxActivityDate = dateInputValue(new Date());
   const paymentModal = paymentModalOpen && typeof document !== "undefined" ? createPortal(
     <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-sm">
       <button aria-label="Close payment search" className="absolute inset-0" onClick={() => setPaymentModalOpen(false)} type="button" />
@@ -579,7 +580,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         ) : (
           <>
             <AlertPanel alerts={actionAlerts} loading={false} />
-            <ActivityFeed events={activityEvents} onDateChange={setActivityDate} selectedDate={activityDate} />
+            <ActivityFeed events={activityEvents} maxDate={maxActivityDate} onDateChange={setActivityDate} selectedDate={activityDate} />
           </>
         )}
       </section>

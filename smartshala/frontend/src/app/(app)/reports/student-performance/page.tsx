@@ -6,7 +6,7 @@ import type { CSSProperties } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { apiFetch } from "@/lib/api";
-import { downloadCsv, percent, ReportTable } from "@/features/reports/reportUtils";
+import { downloadCsv, exportPdfReport, percent, ReportExportActions, ReportTable } from "@/features/reports/reportUtils";
 
 type PerformanceClassification = "Excellent" | "Good" | "Needs Attention" | "At Risk";
 
@@ -212,8 +212,8 @@ export default function StudentPerformanceReportPage() {
     return Array.from({ length: Math.min(5, totalPages) }, (_, index) => first + index);
   }, [currentPage, totalPages]);
 
-  function exportCsv() {
-    downloadCsv(`student-performance-${new Date().toISOString().slice(0, 10)}.csv`, [
+  function reportRows() {
+    return [
       ["Student", "Admission no", "Class", "Attendance", "Performance", "Status"],
       ...sortedRows.map((row) => [
         row.fullName,
@@ -223,7 +223,19 @@ export default function StudentPerformanceReportPage() {
         overallPerformance(row).value,
         row.isActive ? "Active" : "Inactive"
       ])
-    ]);
+    ];
+  }
+
+  function exportCsv() {
+    downloadCsv(`student-performance-${new Date().toISOString().slice(0, 10)}.csv`, reportRows());
+  }
+
+  function exportPdf() {
+    exportPdfReport({
+      filename: `student-performance-${new Date().toISOString().slice(0, 10)}.pdf`,
+      rows: reportRows(),
+      title: "Student performance report"
+    });
   }
 
   if (error) return <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div>;
@@ -233,7 +245,7 @@ export default function StudentPerformanceReportPage() {
       <PageHeader
         hideBreadcrumbs
         title="Student performance report"
-        action={<button className="btn-primary min-h-10 px-4 text-[13px]" disabled={loading || rows.length === 0} onClick={exportCsv} type="button">Export CSV</button>}
+        action={<ReportExportActions disabled={loading || rows.length === 0} onExportCsv={exportCsv} onExportPdf={exportPdf} />}
       />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="sr-only" htmlFor="student-performance-search">Search student</label>

@@ -57,7 +57,6 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
   const [type, setType] = useState<DocumentType>("AADHAAR");
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [shareWithParent, setShareWithParent] = useState(true);
   const [dragActive, setDragActive] = useState(false);
   const [status, setStatus] = useState<{ tone: "good" | "warn" | "danger"; message: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -115,7 +114,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
       setName("");
       setFile(null);
       form.reset();
-      setStatus({ tone: "good", message: shareWithParent ? "Document uploaded and marked for parent sharing." : "Document uploaded." });
+      setStatus({ tone: "good", message: "Document uploaded." });
     } catch (error) {
       setStatus({ tone: "danger", message: error instanceof Error ? error.message : "Upload failed." });
     } finally {
@@ -207,19 +206,6 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
                 </p>
                 <p className="mt-1 text-[12px] font-medium text-[#86868b]">PDF, JPG, PNG up to 5MB</p>
               </div>
-            </label>
-
-            <label className="flex items-start gap-3 rounded-[6px] border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-3">
-              <input
-                checked={shareWithParent}
-                className="mt-1 h-4 w-4 accent-[#2456E6]"
-                onChange={(event) => setShareWithParent(event.target.checked)}
-                type="checkbox"
-              />
-              <span>
-                <span className="block text-[13px] font-semibold text-[#1d1d1f]">Share with parent</span>
-                <span className="block text-[12px] font-medium text-[#86868b]">Marks this upload as parent-facing once sharing rules are enabled.</span>
-              </span>
             </label>
 
             {status ? (

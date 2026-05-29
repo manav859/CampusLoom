@@ -10,6 +10,7 @@ import { KpiCardSkeleton, ChartSkeleton, TableSkeleton } from "@/components/ui/S
 import { attendanceApi, settingsApi, type AttendanceDashboard, type ClassesTodayReportRow, type SchoolProfile } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
+import { exportPdfReport } from "@/features/reports/reportUtils";
 
 type DateFilter = "today" | "yesterday" | "week" | "month" | "custom";
 
@@ -124,8 +125,8 @@ export default function AttendanceReportsPage() {
     [classRows, pendingClassIds]
   );
 
-  function exportCsv() {
-    const rows = [
+  function reportRows() {
+    return [
       [schoolProfile?.name ?? "School", "", "", "", "", "", "", "", ""],
       [schoolMeta, "", "", "", "", "", "", "", ""],
       [`Report range: ${rangeLabel}`, "", "", "", "", "", "", "", ""],
@@ -142,6 +143,10 @@ export default function AttendanceReportsPage() {
         row.marked ? `${row.percentage}%` : "Pending"
       ])
     ];
+  }
+
+  function exportCsv() {
+    const rows = reportRows();
     const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -153,6 +158,15 @@ export default function AttendanceReportsPage() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     setNotice(`Exported ${classRows.length} attendance rows.`);
+  }
+
+  function exportPdf() {
+    exportPdfReport({
+      filename: `attendance-report-${range.dateFrom}-${range.dateTo}.pdf`,
+      rows: reportRows().slice(3),
+      subtitle: `${schoolProfile?.name ?? "School"} | ${rangeLabel}${schoolMeta ? ` | ${schoolMeta}` : ""}`,
+      title: "Daily attendance report"
+    });
   }
 
   async function nudgeTeachers() {
@@ -200,6 +214,9 @@ export default function AttendanceReportsPage() {
             </button>
             <button className="btn-primary min-h-10 px-4 text-[13px]" onClick={exportCsv} type="button">
               Export CSV
+            </button>
+            <button className="btn-secondary min-h-10 px-4 text-[13px]" onClick={exportPdf} type="button">
+              Export PDF
             </button>
           </div>
         }

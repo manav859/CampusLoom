@@ -6,7 +6,7 @@ import type { CSSProperties } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { marksApi, type MarksExam, type MarksExamDetail } from "@/lib/api";
-import { downloadCsv, percent, ReportTable } from "@/features/reports/reportUtils";
+import { downloadCsv, exportPdfReport, percent, ReportExportActions, ReportTable } from "@/features/reports/reportUtils";
 
 type StudentSubjectRow = {
   studentId: string;
@@ -280,8 +280,8 @@ export default function SubjectWiseReportPage() {
         ? { label: "Status", options: statusOptions, selected: selectedStatuses, setSelected: setSelectedStatuses }
         : null;
 
-  function exportCsv() {
-    downloadCsv(`student-subject-performance-${new Date().toISOString().slice(0, 10)}.csv`, [
+  function reportRows() {
+    return [
       ["Student", "Admission no", "Class", "Subject", "Exams", "Attempted", "Pending", "Average", "Best", "Latest exam", "Grade", "Status"],
       ...filteredRows.map((row) => {
         const avg = average(row);
@@ -300,7 +300,19 @@ export default function SubjectWiseReportPage() {
           statusFor(avg).label
         ];
       })
-    ]);
+    ];
+  }
+
+  function exportCsv() {
+    downloadCsv(`student-subject-performance-${new Date().toISOString().slice(0, 10)}.csv`, reportRows());
+  }
+
+  function exportPdf() {
+    exportPdfReport({
+      filename: `student-subject-performance-${new Date().toISOString().slice(0, 10)}.pdf`,
+      rows: reportRows(),
+      title: "Subject wise student performance"
+    });
   }
 
   if (error) return <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div>;
@@ -310,7 +322,7 @@ export default function SubjectWiseReportPage() {
       <PageHeader
         hideBreadcrumbs
         title="Subject wise student performance"
-        action={<button className="btn-primary min-h-10 px-4 text-[13px]" disabled={loading || rows.length === 0} onClick={exportCsv} type="button">Export CSV</button>}
+        action={<ReportExportActions disabled={loading || rows.length === 0} onExportCsv={exportCsv} onExportPdf={exportPdf} />}
       />
       <div className="flex flex-wrap gap-2 md:hidden">
         <button className="inline-flex min-h-10 items-center gap-2 rounded-[6px] border border-[#C9D3DE] px-3 text-[13px] font-semibold text-[#2456E6]" onClick={(event) => { filterButtonRefs.current.class = event.currentTarget; positionFilter("class", event.currentTarget); setOpenFilter((current) => current === "class" ? null : "class"); }} type="button">

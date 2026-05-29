@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { apiFetch, attendanceApi, type ClassesTodayReportRow } from "@/lib/api";
-import { downloadCsv, percent, ReportTable } from "@/features/reports/reportUtils";
+import { downloadCsv, exportPdfReport, percent, ReportExportActions, ReportTable } from "@/features/reports/reportUtils";
 
 type TeacherPeriod = {
   classId: string | null;
@@ -75,8 +75,8 @@ export default function TeacherPerformanceReportPage() {
     return { teacher, assignedPeriods, subjects, marked, pending, coverage };
   }), [attendanceRows, teachers]);
 
-  function exportCsv() {
-    downloadCsv(`teacher-performance-${new Date().toISOString().slice(0, 10)}.csv`, [
+  function reportRows() {
+    return [
       ["Teacher", "Phone", "Class teacher for", "Assigned periods", "Subjects", "Attendance marked", "Attendance pending", "Coverage", "Status"],
       ...rows.map((row) => [
         row.teacher.fullName,
@@ -89,7 +89,19 @@ export default function TeacherPerformanceReportPage() {
         percent(row.coverage),
         row.teacher.status
       ])
-    ]);
+    ];
+  }
+
+  function exportCsv() {
+    downloadCsv(`teacher-performance-${new Date().toISOString().slice(0, 10)}.csv`, reportRows());
+  }
+
+  function exportPdf() {
+    exportPdfReport({
+      filename: `teacher-performance-${new Date().toISOString().slice(0, 10)}.pdf`,
+      rows: reportRows(),
+      title: "Teacher performance"
+    });
   }
 
   if (error) return <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div>;
@@ -99,7 +111,7 @@ export default function TeacherPerformanceReportPage() {
       <PageHeader
         hideBreadcrumbs
         title="Teacher performance"
-        action={<button className="btn-primary min-h-10 px-4 text-[13px]" disabled={loading || rows.length === 0} onClick={exportCsv} type="button">Export CSV</button>}
+        action={<ReportExportActions disabled={loading || rows.length === 0} onExportCsv={exportCsv} onExportPdf={exportPdf} />}
       />
       <ReportTable colSpan={9} empty={loading ? "Loading teachers..." : "No teachers found."} isEmpty={loading || rows.length === 0} minWidth="min-w-[1080px]">
         {!loading && rows.length > 0 ? (

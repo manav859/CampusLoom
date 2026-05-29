@@ -216,6 +216,10 @@ async function clearSchoolData(schoolId: string, principalId: string) {
 }
 
 export async function resetAndSeedDemoData(user: Express.UserContext, body: unknown) {
+  if (env.NODE_ENV === "production") {
+    throw new AppError(403, "Demo reset is disabled in production", "DEMO_RESET_DISABLED_IN_PRODUCTION");
+  }
+
   if (!env.DEMO_RESET_ENABLED) {
     throw new AppError(403, "Demo reset is disabled", "DEMO_RESET_DISABLED");
   }

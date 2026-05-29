@@ -8,7 +8,7 @@ import { tenantApiBase } from "@/lib/tenant";
 export default function PublicReceiptPage() {
   const params = useParams<{ receiptId: string }>();
   const pdfUrl = useMemo(
-    () => `${tenantApiBase(env.apiBaseUrl)}/fees/public/receipts/${params.receiptId}/pdf`,
+    () => `${tenantApiBase(env.apiBaseUrl)}/fees/receipts/${params.receiptId}/pdf`,
     [params.receiptId]
   );
 

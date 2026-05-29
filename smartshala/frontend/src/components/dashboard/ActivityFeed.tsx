@@ -20,10 +20,12 @@ const typeIcon: Record<ActivityEvent["type"], { color: string; bg: string }> = {
 
 export function ActivityFeed({
   events,
+  maxDate,
   onDateChange,
   selectedDate
 }: {
   events?: ActivityEvent[];
+  maxDate?: string;
   onDateChange?: (date: string) => void;
   selectedDate?: string;
 }) {
@@ -44,6 +46,7 @@ export function ActivityFeed({
         {selectedDate && onDateChange ? (
           <DatePicker
             buttonClassName="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#DCE1E8] bg-white p-0 text-[#2456E6] transition hover:bg-[#F2F7FC] [&>span]:hidden"
+            max={maxDate}
             onChange={onDateChange}
             value={selectedDate}
           />
