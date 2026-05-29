@@ -32,6 +32,8 @@ type StudentForm = {
   guardianPhone: string;
   guardianOccupation: string;
   address: string;
+  transportRequired: boolean;
+  transportFeeAmount: string;
   isActive: boolean;
 };
 
@@ -57,6 +59,8 @@ const emptyForm: StudentForm = {
   guardianPhone: "",
   guardianOccupation: "",
   address: "",
+  transportRequired: false,
+  transportFeeAmount: "",
   isActive: true
 };
 
@@ -133,6 +137,8 @@ export default function EditStudentPage() {
           guardianPhone: student.guardianPhone ?? "",
           guardianOccupation: student.guardianOccupation ?? "",
           address: student.address ?? "",
+          transportRequired: Boolean(student.transportRequired ?? Number(student.feeAssignments?.[0]?.transportFeeAmount ?? 0) > 0),
+          transportFeeAmount: String(student.transportFeeAmount ?? student.feeAssignments?.[0]?.transportFeeAmount ?? ""),
           isActive: student.isActive
         });
       })
@@ -169,6 +175,8 @@ export default function EditStudentPage() {
           guardianPhone: textOrNull(formData.guardianPhone),
           guardianOccupation: textOrNull(formData.guardianOccupation),
           address: textOrNull(formData.address),
+          transportRequired: formData.transportRequired,
+          transportFeeAmount: formData.transportRequired ? Number(formData.transportFeeAmount || 0) : 0,
           isActive: formData.isActive
         })
       });
@@ -275,6 +283,27 @@ export default function EditStudentPage() {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="flex min-h-[46px] items-center gap-2 rounded-[6px] border border-[#DCE1E8] bg-white px-4 py-3 text-[13px] font-semibold text-[#1d1d1f]">
+              <input
+                checked={formData.transportRequired}
+                className="rounded border-[rgba(0,0,0,0.1)] text-[#2456E6] focus:ring-[#2456E6]"
+                onChange={(e) => setFormData({ ...formData, transportRequired: e.target.checked, transportFeeAmount: e.target.checked ? formData.transportFeeAmount : "" })}
+                type="checkbox"
+              />
+              Uses school transportation
+            </label>
+            <label className="space-y-1.5">
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Transportation fee</span>
+              <input
+                className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6] disabled:bg-[#F7F8FB] disabled:text-[#86868b]"
+                disabled={!formData.transportRequired}
+                min={0}
+                placeholder="e.g. 12000"
+                type="number"
+                value={formData.transportFeeAmount}
+                onChange={(e) => setFormData({ ...formData, transportFeeAmount: e.target.value })}
+              />
             </label>
             <label className="space-y-1.5">
               <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Roll number</span>

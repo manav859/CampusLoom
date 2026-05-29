@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { feesApi, type FeeComponent, type PaymentMode, type PaymentReferencePayload, type PaymentResult } from "@/lib/api";
 import { formatINR, humanizeConstant } from "@/lib/formatters";
 
@@ -64,7 +65,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
     }
   }, [open]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -162,13 +163,13 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
   const numericAmount = Number(amount) || 0;
   const balanceAfterPreview = Math.max(0, maxAmount - Math.min(numericAmount, maxAmount));
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-end bg-black/30 backdrop-blur-sm sm:items-center sm:justify-center"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
       style={{ animation: "modal-overlay-in 200ms ease-out" }}
     >
       <div
-        className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-apple-lg sm:rounded-2xl"
+        className="max-h-[min(720px,calc(100dvh-32px))] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-apple-lg sm:p-6"
         style={{ animation: "modal-panel-in 250ms cubic-bezier(0.25, 0.1, 0.25, 1)" }}
       >
         {success ? (
@@ -386,6 +387,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

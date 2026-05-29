@@ -1387,27 +1387,33 @@ export async function updateStudent(user: Express.UserContext, id: string, data:
   if (!existing) throw notFound("Student");
   const updated = await prisma.$transaction(async (tx) => {
     const student = await tx.student.update({ where: { id }, data: studentData });
+    const transportChanged = "transportRequired" in studentData || "transportFeeAmount" in studentData;
 
-    if (feeStructureId) {
-      const feeStructure = await tx.feeStructure.findFirst({ where: { id: feeStructureId, schoolId } });
-      if (!feeStructure) throw notFound("Fee structure");
+    if (feeStructureId || transportChanged) {
+      const selectedFeeStructure = feeStructureId ? await tx.feeStructure.findFirst({ where: { id: feeStructureId, schoolId } }) : null;
+      if (feeStructureId && !selectedFeeStructure) throw notFound("Fee structure");
 
-      const existingTargetAssignment = await tx.studentFeeAssignment.findFirst({
-        where: { schoolId, studentId: id, feeStructureId }
+      const latestAssignment = await tx.studentFeeAssignment.findFirst({
+        where: { schoolId, studentId: id },
+        include: { adjustments: true, feeStructure: true },
+        orderBy: { assignedAt: "desc" }
       });
+      const targetAssignment = feeStructureId
+        ? await tx.studentFeeAssignment.findFirst({
+            where: { schoolId, studentId: id, feeStructureId },
+            include: { adjustments: true, feeStructure: true }
+          })
+        : latestAssignment;
+      const assignment = targetAssignment ?? latestAssignment;
+      const feeStructure = selectedFeeStructure ?? assignment?.feeStructure;
 
-      if (!existingTargetAssignment) {
-        const latestAssignment = await tx.studentFeeAssignment.findFirst({
-          where: { schoolId, studentId: id },
-          include: { adjustments: true },
-          orderBy: { assignedAt: "desc" }
-        });
+      if (feeStructure) {
         const transportFeeAmount = student.transportRequired ? toMoney(toNumber(student.transportFeeAmount)) : 0;
         const grossTotal = toMoney(toNumber(feeStructure.totalAmount) + transportFeeAmount);
 
-        if (latestAssignment) {
-          const paidAmount = toMoney(toNumber(latestAssignment.paidAmount));
-          const adjustmentTotal = toMoney(latestAssignment.adjustments.reduce((sum, adjustment) => sum + toNumber(adjustment.amount), 0));
+        if (assignment) {
+          const paidAmount = toMoney(toNumber(assignment.paidAmount));
+          const adjustmentTotal = toMoney(assignment.adjustments.reduce((sum, adjustment) => sum + toNumber(adjustment.amount), 0));
           const netTotal = toMoney(grossTotal - adjustmentTotal);
 
           if (netTotal < paidAmount) {
@@ -1416,9 +1422,9 @@ export async function updateStudent(user: Express.UserContext, id: string, data:
 
           const pendingAmount = toMoney(netTotal - paidAmount);
           await tx.studentFeeAssignment.update({
-            where: { id: latestAssignment.id },
+            where: { id: assignment.id },
             data: {
-              feeStructureId,
+              feeStructureId: feeStructure.id,
               totalAmount: netTotal,
               transportFeeAmount,
               pendingAmount,
@@ -1430,7 +1436,7 @@ export async function updateStudent(user: Express.UserContext, id: string, data:
             data: {
               schoolId,
               studentId: id,
-              feeStructureId,
+              feeStructureId: feeStructure.id,
               totalAmount: grossTotal,
               transportFeeAmount,
               pendingAmount: grossTotal,
