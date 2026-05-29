@@ -27,7 +27,7 @@ const examTermOptions: { value: MarksExam["term"]; label: string }[] = [
 ];
 
 function examTermLabel(term: MarksExam["term"]) {
-  return examTermOptions.find((option) => option.value === term)?.label ?? "Unit Test";
+  return examTermOptions.find((option) => option.value === term)?.label ?? term;
 }
 
 function examStatusLabel(status: MarksExam["status"]) {
@@ -56,14 +56,15 @@ export default function AdminExamsPage() {
   const [draftAbsent, setDraftAbsent] = useState<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [marksModalOpen, setMarksModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
   const [termPickerOpen, setTermPickerOpen] = useState(false);
+  const [filterClassPickerOpen, setFilterClassPickerOpen] = useState(false);
 
-  const selectedClass = useMemo(() => context.classes.find((classRecord) => classRecord.id === classId) ?? null, [context.classes, classId]);
+  const selectedClass = useMemo(() => context.classes.find((c) => c.id === classId) ?? null, [context.classes, classId]);
   const subjects = useMemo(() => selectedClass?.subjects ?? [], [selectedClass]);
-  const selectedSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? null, [subjectId, subjects]);
+  const selectedSubject = useMemo(() => subjects.find((s) => s.id === subjectId) ?? null, [subjectId, subjects]);
   const students = useMemo(() => selectedClass?.students ?? [], [selectedClass]);
   const examsByTerm = useMemo(() => {
     const grouped = new Map<MarksExam["term"], MarksExam[]>();
@@ -92,26 +93,26 @@ export default function AdminExamsPage() {
         setContext(marksContext);
         setExams(rows);
         const firstClass = marksContext.classes[0];
-        setClassId(firstClass?.id ?? "");
-        setSubjectId(firstClass?.subjects[0]?.id ?? "");
+        if (firstClass) {
+          setClassId(firstClass.id);
+          setSubjectId(firstClass.subjects?.[0]?.id ?? "");
+        }
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : "Unable to load marks module");
+        if (active) setError(err instanceof Error ? err.message : "Unable to load exams module");
       } finally {
         if (active) setLoading(false);
       }
     }
 
     load();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
-    const nextClass = context.classes.find((classRecord) => classRecord.id === classId);
-    setSubjectId(nextClass?.subjects[0]?.id ?? "");
-    setMarks(Object.fromEntries((nextClass?.students ?? []).map((student) => [student.id, ""])));
-    setAbsent(Object.fromEntries((nextClass?.students ?? []).map((student) => [student.id, false])));
+    const nextClass = context.classes.find((c) => c.id === classId);
+    setSubjectId(nextClass?.subjects?.[0]?.id ?? "");
+    setMarks(Object.fromEntries((nextClass?.students ?? []).map((s) => [s.id, ""])));
+    setAbsent(Object.fromEntries((nextClass?.students ?? []).map((s) => [s.id, false])));
   }, [classId, context.classes]);
 
   async function refreshExams(nextClassId = classId) {
@@ -127,17 +128,17 @@ export default function AdminExamsPage() {
       setSelectedExam(detail);
       setExamDrafts(
         Object.fromEntries(
-          detail.students.map((student) => [
-            student.studentId,
-            student.result && !student.result.isAbsent ? String(student.result.marks) : ""
+          detail.students.map((s) => [
+            s.studentId,
+            s.result && !s.result.isAbsent ? String(s.result.marks) : ""
           ])
         )
       );
       setDraftAbsent(
         Object.fromEntries(
-          detail.students.map((student) => [
-            student.studentId,
-            student.result ? student.result.isAbsent : false
+          detail.students.map((s) => [
+            s.studentId,
+            s.result ? s.result.isAbsent : false
           ])
         )
       );
@@ -174,12 +175,12 @@ export default function AdminExamsPage() {
       return;
     }
 
-    const results = students.map((student) => ({
-      studentId: student.id,
-      marks: Number(marks[student.id] ?? ""),
-      isAbsent: absent[student.id] ?? false
+    const results = students.map((s) => ({
+      studentId: s.id,
+      marks: Number(marks[s.id] ?? ""),
+      isAbsent: absent[s.id] ?? false
     }));
-    if (results.some((result) => !result.isAbsent && (Number.isNaN(result.marks) || result.marks < 0 || result.marks > numericMax))) {
+    if (results.some((r) => !r.isAbsent && (Number.isNaN(r.marks) || r.marks < 0 || r.marks > numericMax))) {
       setError("Enter valid marks for every present student. Marks cannot exceed max marks.");
       return;
     }
@@ -199,12 +200,12 @@ export default function AdminExamsPage() {
         date,
         results
       });
-      setExams((current) => [created, ...current.filter((exam) => exam.id !== created.id)]);
+      setExams((current) => [created, ...current.filter((e) => e.id !== created.id)]);
       await openExam(created.id);
-      setMarks(Object.fromEntries(students.map((student) => [student.id, ""])));
-      setAbsent(Object.fromEntries(students.map((student) => [student.id, false])));
+      setMarks(Object.fromEntries(students.map((s) => [s.id, ""])));
+      setAbsent(Object.fromEntries(students.map((s) => [s.id, false])));
       setNotice("Exam marks saved for the full class.");
-      setMarksModalOpen(false);
+      setCreateModalOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save marks");
     } finally {
@@ -229,7 +230,7 @@ export default function AdminExamsPage() {
       const updated = await marksApi.updateExamResult(selectedExam.id, { studentId, marks: nextMarks, isAbsent });
       const detail = await marksApi.exam(selectedExam.id);
       setSelectedExam(detail);
-      setExams((current) => current.map((exam) => (exam.id === detail.id ? detail : exam)));
+      setExams((current) => current.map((e) => (e.id === detail.id ? detail : e)));
       setExamDrafts((current) => ({
         ...current,
         [studentId]: updated.result ? String(updated.result.marks) : ""
@@ -257,6 +258,7 @@ export default function AdminExamsPage() {
 
   return (
     <div className="space-y-5">
+      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Admin workspace</p>
@@ -267,7 +269,7 @@ export default function AdminExamsPage() {
           <button
             className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-[6px] bg-[#2456E6] px-5 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(15,20,25,0.08)] transition hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={loading}
-            onClick={() => setMarksModalOpen(true)}
+            onClick={() => setCreateModalOpen(true)}
             type="button"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -279,9 +281,10 @@ export default function AdminExamsPage() {
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
       {notice ? <div className="rounded-xl bg-[#34c759]/10 p-4 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
+      {/* Create Exam Modal */}
       <Modal
-        isOpen={marksModalOpen}
-        onClose={() => setMarksModalOpen(false)}
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
         size="xl"
         title="Create Exam"
         description={selectedClass ? `Class ${selectedClass.name}-${selectedClass.section} | ${selectedSubject?.name ?? "No subject"} | ${students.length} students` : "Create an exam and enter marks for the full class."}
@@ -289,38 +292,31 @@ export default function AdminExamsPage() {
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
+              {/* Class picker */}
               <div className="relative">
                 <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Class</span>
                 <button
                   className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={loading}
-                  onClick={() => {
-                    setClassPickerOpen(!classPickerOpen);
-                    setSubjectPickerOpen(false);
-                  }}
+                  onClick={() => { setClassPickerOpen(!classPickerOpen); setSubjectPickerOpen(false); }}
                   type="button"
                 >
-                  <span>{selectedClass ? `Class ${selectedClass.name}-${selectedClass.section}` : "No assigned classes"}</span>
-                  <svg className={`h-4 w-4 text-[#52687D] transition ${classPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-                  </svg>
+                  <span>{selectedClass ? `Class ${selectedClass.name}-${selectedClass.section}` : context.classes.length === 0 ? "No classes available" : "Select a class"}</span>
+                  <svg className={`h-4 w-4 text-[#52687D] transition ${classPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
                 </button>
                 {classPickerOpen ? (
                   <div className="absolute left-0 right-0 top-[76px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
                     {context.classes.length === 0 ? (
-                      <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No assigned classes</div>
+                      <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No classes available</div>
                     ) : (
-                      context.classes.map((classRecord) => (
+                      context.classes.map((c) => (
                         <button
-                          className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${classRecord.id === classId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
-                          key={classRecord.id}
-                          onClick={() => {
-                            setClassPickerOpen(false);
-                            void handleClassChange(classRecord.id);
-                          }}
+                          className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${c.id === classId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                          key={c.id}
+                          onClick={() => { setClassPickerOpen(false); void handleClassChange(c.id); }}
                           type="button"
                         >
-                          Class {classRecord.name}-{classRecord.section}
+                          Class {c.name}-{c.section} ({c.students.length} students)
                         </button>
                       ))
                     )}
@@ -328,35 +324,28 @@ export default function AdminExamsPage() {
                 ) : null}
               </div>
 
+              {/* Subject picker */}
               <div className="relative">
                 <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Subject</span>
                 <button
                   className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={subjects.length === 0}
-                  onClick={() => {
-                    setSubjectPickerOpen(!subjectPickerOpen);
-                    setClassPickerOpen(false);
-                  }}
+                  onClick={() => { setSubjectPickerOpen(!subjectPickerOpen); setClassPickerOpen(false); }}
                   type="button"
                 >
                   <span>{selectedSubject?.name ?? "No subjects"}</span>
-                  <svg className={`h-4 w-4 text-[#52687D] transition ${subjectPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-                  </svg>
+                  <svg className={`h-4 w-4 text-[#52687D] transition ${subjectPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
                 </button>
                 {subjectPickerOpen ? (
                   <div className="absolute left-0 right-0 top-[76px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
-                    {subjects.map((subject) => (
+                    {subjects.map((s) => (
                       <button
-                        className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${subject.id === subjectId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
-                        key={subject.id}
-                        onClick={() => {
-                          setSubjectPickerOpen(false);
-                          setSubjectId(subject.id);
-                        }}
+                        className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${s.id === subjectId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                        key={s.id}
+                        onClick={() => { setSubjectPickerOpen(false); setSubjectId(s.id); }}
                         type="button"
                       >
-                        {subject.name}
+                        {s.name}
                       </button>
                     ))}
                   </div>
@@ -365,78 +354,78 @@ export default function AdminExamsPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-4">
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Exam name</span>
-              <input
-                className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
-                onChange={(event) => setName(event.target.value)}
-                value={name}
-              />
-            </label>
+              <label className="block">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Exam name</span>
+                <input
+                  className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
+                  onChange={(e) => setName(e.target.value)}
+                  value={name}
+                />
+              </label>
 
-            <div className="relative">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Term / type</span>
-              <button
-                className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
-                onClick={() => setTermPickerOpen(!termPickerOpen)}
-                type="button"
-              >
-                <span>{examTermLabel(term)}</span>
-                <svg className={`h-4 w-4 text-[#52687D] transition ${termPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              {termPickerOpen ? (
-                <div className="absolute left-0 right-0 top-[76px] z-30 overflow-hidden rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
-                  {examTermOptions.map((option) => (
-                    <button
-                      className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${option.value === term ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
-                      key={option.value}
-                      onClick={() => {
-                        setTermPickerOpen(false);
-                        setTerm(option.value);
-                      }}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
+              {/* Term picker */}
+              <div className="relative">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Term / type</span>
+                <button
+                  className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
+                  onClick={() => setTermPickerOpen(!termPickerOpen)}
+                  type="button"
+                >
+                  <span>{examTermLabel(term)}</span>
+                  <svg className={`h-4 w-4 text-[#52687D] transition ${termPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
+                </button>
+                {termPickerOpen ? (
+                  <div className="absolute left-0 right-0 top-[76px] z-30 overflow-hidden rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                    {examTermOptions.map((option) => (
+                      <button
+                        className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${option.value === term ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                        key={option.value}
+                        onClick={() => { setTermPickerOpen(false); setTerm(option.value); }}
+                        type="button"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <label className="block">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Max marks</span>
+                <input
+                  className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
+                  min={1}
+                  onChange={(e) => setMaxMarks(Number(e.target.value))}
+                  type="number"
+                  value={maxMarks}
+                />
+              </label>
+              <label className="block">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Passing marks (Opt)</span>
+                <input
+                  className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
+                  min={0}
+                  onChange={(e) => setPassingMarks(e.target.value)}
+                  type="number"
+                  value={passingMarks}
+                />
+              </label>
             </div>
 
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Max marks</span>
-              <input
-                className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
-                min={1}
-                onChange={(event) => setMaxMarks(Number(event.target.value))}
-                type="number"
-                value={maxMarks}
-              />
-            </label>
-            <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Passing marks (Opt)</span>
-              <input
-                className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
-                min={0}
-                onChange={(event) => setPassingMarks(event.target.value)}
-                type="number"
-                value={passingMarks}
-              />
-            </label>
-            {renderDatePicker()}
-            <label className="block lg:col-span-4">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Description (Opt)</span>
-              <input
-                className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
-                onChange={(event) => setDescription(event.target.value)}
-                value={description}
-              />
-            </label>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {renderDatePicker()}
+              <label className="block">
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Description (Opt)</span>
+                <input
+                  className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
+                  onChange={(e) => setDescription(e.target.value)}
+                  value={description}
+                />
+              </label>
             </div>
           </div>
 
+          {/* Marks entry table */}
           <div className="mt-5 overflow-hidden rounded-xl border border-[rgba(0,0,0,0.06)]">
             <div className="border-b border-[rgba(0,0,0,0.06)] bg-[#f5f5f7] px-4 py-3">
               <p className="text-[13px] font-semibold text-[#1d1d1f]">Marks entry</p>
@@ -452,29 +441,34 @@ export default function AdminExamsPage() {
                 </thead>
                 <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                   {loading ? (
-                    Array.from({ length: 8 }).map((_, index) => (
-                      <tr key={index}>
+                    Array.from({ length: 8 }).map((_, i) => (
+                      <tr key={i}>
                         <td className="px-4 py-3"><Skeleton className="h-4 w-32 rounded-md" /></td>
+                        <td className="px-4 py-3"><Skeleton className="h-4 w-12 rounded-md" /></td>
                         <td className="px-4 py-3"><Skeleton className="h-8 w-20 rounded-md" /></td>
                       </tr>
                     ))
                   ) : students.length === 0 ? (
                     <tr>
-                      <td className="px-4 py-8 text-center text-[#86868b]" colSpan={2}>No students in this class.</td>
+                      <td className="px-4 py-8 text-center text-[#86868b]" colSpan={3}>
+                        {context.classes.length === 0
+                          ? "No classes found. Ensure classes are created in the system."
+                          : "No students in this class."}
+                      </td>
                     </tr>
                   ) : (
-                    students.map((student) => (
-                      <tr className="table-row" key={student.id}>
+                    students.map((s) => (
+                      <tr className="table-row" key={s.id}>
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-[#1d1d1f]">{student.fullName}</p>
-                          <p className="mt-0.5 text-[12px] text-[#86868b]">Roll {student.rollNumber ?? "-"}</p>
+                          <p className="font-semibold text-[#1d1d1f]">{s.fullName}</p>
+                          <p className="mt-0.5 text-[12px] text-[#86868b]">Roll {s.rollNumber ?? "-"}</p>
                         </td>
                         <td className="px-4 py-3">
                           <label className="flex items-center gap-2">
                             <input
                               type="checkbox"
-                              checked={absent[student.id] ?? false}
-                              onChange={(e) => setAbsent((current) => ({ ...current, [student.id]: e.target.checked }))}
+                              checked={absent[s.id] ?? false}
+                              onChange={(e) => setAbsent((c) => ({ ...c, [s.id]: e.target.checked }))}
                               className="h-4 w-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
                             />
                             <span className="text-[13px] font-medium text-[#86868b]">Absent</span>
@@ -483,12 +477,12 @@ export default function AdminExamsPage() {
                         <td className="px-4 py-3">
                           <input
                             className="w-24 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#0071e3] disabled:bg-gray-100 disabled:opacity-50"
-                            disabled={absent[student.id]}
+                            disabled={absent[s.id]}
                             max={maxMarks}
                             min={0}
-                            onChange={(event) => setMarks((current) => ({ ...current, [student.id]: event.target.value }))}
+                            onChange={(e) => setMarks((c) => ({ ...c, [s.id]: e.target.value }))}
                             type="number"
-                            value={absent[student.id] ? "" : (marks[student.id] ?? "")}
+                            value={absent[s.id] ? "" : (marks[s.id] ?? "")}
                           />
                         </td>
                       </tr>
@@ -505,22 +499,55 @@ export default function AdminExamsPage() {
             type="submit"
           >
             {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-            {saving ? "Saving marks..." : "Bulk save marks"}
+            {saving ? "Saving marks..." : "Save exam & marks"}
           </button>
         </form>
       </Modal>
 
+      {/* Exam history section */}
       <section className="space-y-4">
         <div className="w-full overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
-          <div className="border-b border-[#C9D3DE] px-6 py-5">
-            <h2 className="text-[20px] font-semibold text-[#031526]">Exam history</h2>
-            <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Saved exams feed the Academic tab and performance rate.</p>
+          <div className="flex flex-col gap-4 border-b border-[#C9D3DE] px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <h2 className="text-[20px] font-semibold text-[#031526]">Exam history</h2>
+              <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Saved exams feed the Academic tab and performance reports.</p>
+            </div>
+            <div className="relative w-full lg:w-[240px]">
+              <button
+                className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#031526] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={loading}
+                onClick={() => setFilterClassPickerOpen((o) => !o)}
+                type="button"
+              >
+                <span className="truncate">{selectedClass ? `Class ${selectedClass.name}-${selectedClass.section}` : "All classes"}</span>
+                <svg className={`h-4 w-4 shrink-0 text-[#52687D] transition ${filterClassPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
+              </button>
+              {filterClassPickerOpen ? (
+                <div className="absolute left-0 right-0 top-[46px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+                  {context.classes.length === 0 ? (
+                    <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No classes available</div>
+                  ) : (
+                    context.classes.map((c) => (
+                      <button
+                        className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${c.id === classId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
+                        key={c.id}
+                        onClick={() => { setFilterClassPickerOpen(false); void handleClassChange(c.id); }}
+                        type="button"
+                      >
+                        Class {c.name}-{c.section}
+                      </button>
+                    ))
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
           <div className="p-5">
+            {/* Mobile cards */}
             <div className="space-y-3 md:hidden">
               {loading ? (
-                Array.from({ length: 4 }).map((_, index) => (
-                  <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={index}>
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={i}>
                     <Skeleton className="h-4 w-40 rounded-md" />
                     <Skeleton className="mt-3 h-3 w-28 rounded-md" />
                     <Skeleton className="mt-4 h-9 w-full rounded-md" />
@@ -572,77 +599,97 @@ export default function AdminExamsPage() {
                 ))
               )}
             </div>
+
+            {/* Desktop table */}
             <div className="hidden max-h-[520px] overflow-auto rounded-[5px] border border-[#C9D3DE] [contain:content] md:block">
-            <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[15px] text-[#001B33]">
-              <thead>
-                <tr className="table-head-row">
-                  {["Exam", "Subject", "Max", "Date", "Status", "Entered", "Pending", "Class Avg", "Students"].map((head) => (
-                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold" key={head}>{head}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={index}>
-                      {Array.from({ length: 9 }).map((__, cell) => (
-                        <td className="border-b border-[#C9D3DE] px-4 py-5" key={cell}><Skeleton className="h-4 w-20 rounded-md" /></td>
-                      ))}
-                    </tr>
-                  ))
-                ) : exams.length === 0 ? (
-                  <tr>
-                    <td className="px-4 py-12 text-center text-[#52687D]" colSpan={9}>No exams saved yet.</td>
+              <table className="w-full min-w-[1120px] table-fixed border-collapse text-left text-[14px] text-[#001B33]">
+                <colgroup>
+                  <col className="w-[200px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[80px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[140px]" />
+                  <col className="w-[90px]" />
+                  <col className="w-[90px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[120px]" />
+                </colgroup>
+                <thead>
+                  <tr className="table-head-row">
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-5 py-4 text-[14px] font-semibold">Exam</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Subject</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Max</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Date</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Status</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Entered</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Pending</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Class Avg</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Actions</th>
                   </tr>
-                ) : (
-                  examsByTerm.map((group) => (
-                    <Fragment key={group.value}>
-                      <tr>
-                        <td className="border-b border-[#C9D3DE] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#52687D]" colSpan={9}>
-                          {group.label}
-                        </td>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i}>
+                        {Array.from({ length: 9 }).map((__, j) => (
+                          <td className="border-b border-[#C9D3DE] px-4 py-5" key={j}><Skeleton className="h-4 w-20 rounded-md" /></td>
+                        ))}
                       </tr>
-                      {group.exams.map((exam) => (
-                        <tr key={exam.id}>
-                          <td className="border-b border-[#C9D3DE] px-4 py-4">
-                            <p className="font-semibold text-[#1d1d1f]">{exam.name}</p>
-                            <p className="mt-1 text-[12px] text-[#86868b]">{exam.className}</p>
-                          </td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{exam.subject}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{exam.maxMarks}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{formatDateShort(exam.date)}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4"><StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} /></td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#248a3d]">{exam.enteredCount}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#d70015]">{exam.pendingCount}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
-                          <td className="border-b border-[#C9D3DE] px-4 py-4">
-                            <button
-                              className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
-                              disabled={loadingExamId === exam.id}
-                              onClick={() => openExam(exam.id)}
-                              type="button"
-                            >
-                              {loadingExamId === exam.id ? "Loading..." : "View students"}
-                            </button>
+                    ))
+                  ) : exams.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-12 text-center text-[#52687D]" colSpan={9}>No exams saved yet.</td>
+                    </tr>
+                  ) : (
+                    examsByTerm.map((group) => (
+                      <Fragment key={group.value}>
+                        <tr>
+                          <td className="border-b border-[#C9D3DE] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#52687D]" colSpan={9}>
+                            {group.label}
                           </td>
                         </tr>
-                      ))}
-                    </Fragment>
-                  ))
-                )}
-              </tbody>
-            </table>
+                        {group.exams.map((exam) => (
+                          <tr key={exam.id}>
+                            <td className="border-b border-[#C9D3DE] px-5 py-4 align-middle">
+                              <p className="truncate font-semibold text-[#1d1d1f]">{exam.name}</p>
+                              <p className="mt-1 text-[12px] text-[#86868b]">{exam.className}</p>
+                            </td>
+                            <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{exam.subject}</td>
+                            <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{exam.maxMarks}</td>
+                            <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{formatDateShort(exam.date)}</td>
+                            <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle"><StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} /></td>
+                            <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#248a3d]">{exam.enteredCount}</td>
+                            <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#d70015]">{exam.pendingCount}</td>
+                            <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
+                            <td className="border-b border-[#C9D3DE] px-4 py-4 align-middle">
+                              <button
+                                className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={loadingExamId === exam.id}
+                                onClick={() => openExam(exam.id)}
+                                type="button"
+                              >
+                                {loadingExamId === exam.id ? "Loading..." : "View students"}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       </section>
 
+      {/* Student marks detail section */}
       {selectedExam ? (
-        <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-          <div className="flex flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <section className="overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+          <div className="flex flex-col gap-3 border-b border-[#C9D3DE] px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Student marks</h2>
-              <p className="mt-0.5 text-[13px] text-[#86868b]">
+              <h2 className="text-[20px] font-semibold text-[#031526]">Student marks</h2>
+              <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">
                 {selectedExam.name} | {examTermLabel(selectedExam.term)} | {selectedExam.className} | {selectedExam.subject} | Max {selectedExam.maxMarks}
               </p>
             </div>
@@ -653,6 +700,7 @@ export default function AdminExamsPage() {
             </div>
           </div>
 
+          {/* Mobile student cards */}
           <div className="space-y-3 p-4 md:hidden">
             {selectedExam.students.map((student) => {
               const draft = examDrafts[student.studentId] ?? "";
@@ -673,7 +721,7 @@ export default function AdminExamsPage() {
                       <input
                         type="checkbox"
                         checked={isAbsent}
-                        onChange={(e) => setDraftAbsent((current) => ({ ...current, [student.studentId]: e.target.checked }))}
+                        onChange={(e) => setDraftAbsent((c) => ({ ...c, [student.studentId]: e.target.checked }))}
                         className="h-4 w-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
                       />
                       <span className="text-[12px] font-medium text-[#86868b]">Absent</span>
@@ -683,7 +731,7 @@ export default function AdminExamsPage() {
                       disabled={isAbsent}
                       max={selectedExam.maxMarks}
                       min={0}
-                      onChange={(event) => setExamDrafts((current) => ({ ...current, [student.studentId]: event.target.value }))}
+                      onChange={(e) => setExamDrafts((c) => ({ ...c, [student.studentId]: e.target.value }))}
                       placeholder={`/${selectedExam.maxMarks}`}
                       type="number"
                       value={isAbsent ? "" : draft}
@@ -706,33 +754,48 @@ export default function AdminExamsPage() {
               );
             })}
           </div>
+
+          {/* Desktop student table */}
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[980px] text-left text-[13px]">
-              <thead className="table-head">
-                <tr>
-                  {["Student", "Admission", "Roll", "Marks", "Percentage", "Grade", "Action"].map((head) => (
-                    <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
-                  ))}
+            <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[14px] text-[#001B33]">
+              <colgroup>
+                <col className="w-[200px]" />
+                <col className="w-[140px]" />
+                <col className="w-[80px]" />
+                <col className="w-[200px]" />
+                <col className="w-[100px]" />
+                <col className="w-[100px]" />
+                <col className="w-[120px]" />
+              </colgroup>
+              <thead>
+                <tr className="table-head-row">
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-5 py-4 text-[14px] font-semibold">Student</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Admission</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Roll</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Marks</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Percentage</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Grade</th>
+                  <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
+              <tbody>
                 {selectedExam.students.map((student) => {
                   const draft = examDrafts[student.studentId] ?? "";
                   const isAbsent = draftAbsent[student.studentId] ?? false;
                   const savingRow = savingStudentId === student.studentId;
 
                   return (
-                    <tr className="table-row" key={student.studentId}>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{student.fullName}</td>
-                      <td className="px-5 py-4 type-code text-[#6e6e73]">{student.admissionNumber}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{student.rollNumber ?? "-"}</td>
-                      <td className="px-5 py-4">
+                    <tr key={student.studentId}>
+                      <td className="border-b border-[#C9D3DE] px-5 py-4 align-middle font-semibold text-[#1d1d1f]">{student.fullName}</td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 align-middle type-code text-[#6e6e73]">{student.admissionNumber}</td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#6e6e73]">{student.rollNumber ?? "-"}</td>
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 align-middle">
                         <div className="flex items-center gap-3">
                           <label className="flex items-center gap-1.5">
                             <input
                               type="checkbox"
                               checked={isAbsent}
-                              onChange={(e) => setDraftAbsent((current) => ({ ...current, [student.studentId]: e.target.checked }))}
+                              onChange={(e) => setDraftAbsent((c) => ({ ...c, [student.studentId]: e.target.checked }))}
                               className="h-4 w-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
                             />
                             <span className="text-[12px] font-medium text-[#86868b]">Abs</span>
@@ -742,26 +805,25 @@ export default function AdminExamsPage() {
                             disabled={isAbsent}
                             max={selectedExam.maxMarks}
                             min={0}
-                            onChange={(event) => setExamDrafts((current) => ({ ...current, [student.studentId]: event.target.value }))}
+                            onChange={(e) => setExamDrafts((c) => ({ ...c, [student.studentId]: e.target.value }))}
                             type="number"
                             value={isAbsent ? "" : draft}
                           />
                         </div>
                       </td>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">
+                      <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle font-semibold text-[#1d1d1f]">
                         {student.result ? `${student.result.percentage}%` : "-"}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 align-middle">
                         {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
                       </td>
-                      <td className="px-5 py-4">
+                      <td className="border-b border-[#C9D3DE] px-4 py-4 align-middle">
                         <button
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#1d1d1f] px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
                           disabled={savingRow}
                           onClick={() => updateStudentMark(student.studentId)}
                           type="button"
                         >
-                          {savingRow ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
                           {savingRow ? "Saving..." : "Save"}
                         </button>
                       </td>
