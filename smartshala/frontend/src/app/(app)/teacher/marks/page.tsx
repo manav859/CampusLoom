@@ -30,6 +30,31 @@ function examStatusLabel(status: MarksExam["status"]) {
   return status === "MARKS_ENTERED" ? "Marks entered" : "Scheduled";
 }
 
+function SortIcon({ active, direction }: { active: boolean; direction: "asc" | "desc" }) {
+  return (
+    <div className="flex flex-col -space-y-1">
+      <svg
+        className={`h-2.5 w-2.5 ${active && direction === "asc" ? "text-[#2456E6]" : "text-[#86868b]"}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth="3"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+      </svg>
+      <svg
+        className={`h-2.5 w-2.5 ${active && direction === "desc" ? "text-[#2456E6]" : "text-[#86868b]"}`}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth="3"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+      </svg>
+    </div>
+  );
+}
+
 export default function TeacherMarksPage() {
   const [context, setContext] = useState<MarksContext>({ classes: [] });
   const [exams, setExams] = useState<MarksExam[]>([]);
@@ -61,6 +86,19 @@ export default function TeacherMarksPage() {
   const subjects = useMemo(() => selectedClass?.subjects ?? [], [selectedClass]);
   const selectedSubject = useMemo(() => subjects.find((subject) => subject.id === subjectId) ?? null, [subjectId, subjects]);
   const students = useMemo(() => selectedClass?.students ?? [], [selectedClass]);
+
+  const [sortKey, setSortKey] = useState<"date" | "average">("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (key: "date" | "average") => {
+    if (sortKey === key) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("desc");
+    }
+  };
+
   const examsByTerm = useMemo(() => {
     const grouped = new Map<MarksExam["term"], MarksExam[]>();
     exams.forEach((exam) => {
@@ -69,9 +107,23 @@ export default function TeacherMarksPage() {
       grouped.set(exam.term, rows);
     });
     return examTermOptions
-      .map((option) => ({ ...option, exams: grouped.get(option.value) ?? [] }))
+      .map((option) => {
+        const groupExams = grouped.get(option.value) ?? [];
+        const sorted = [...groupExams].sort((a, b) => {
+          if (sortKey === "date") {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            return sortDirection === "asc" ? dateA - dateB : dateB - dateA;
+          } else {
+            const avgA = a.classAverage ?? 0;
+            const avgB = b.classAverage ?? 0;
+            return sortDirection === "asc" ? avgA - avgB : avgB - avgA;
+          }
+        });
+        return { ...option, exams: sorted };
+      })
       .filter((group) => group.exams.length > 0);
-  }, [exams]);
+  }, [exams, sortKey, sortDirection]);
 
   useEffect(() => {
     let active = true;
@@ -507,268 +559,321 @@ export default function TeacherMarksPage() {
       </Modal>
 
       <section className="space-y-4">
-        <div className="w-full overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
-          <div className="border-b border-[#C9D3DE] px-6 py-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-1">
+          <div>
             <h2 className="text-[20px] font-semibold text-[#031526]">Exam history</h2>
             <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Saved exams feed the Academic tab and performance rate.</p>
           </div>
-          <div className="p-5">
-            <div className="space-y-3 md:hidden">
+        </div>
+
+        {/* Mobile cards */}
+        <div className="space-y-3 md:hidden">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={index}>
+                <Skeleton className="h-4 w-40 rounded-md" />
+                <Skeleton className="mt-3 h-3 w-28 rounded-md" />
+                <Skeleton className="mt-4 h-9 w-full rounded-md" />
+              </div>
+            ))
+          ) : exams.length === 0 ? (
+            <div className="rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] px-4 py-8 text-center text-[13px] font-medium text-[#52687D]">
+              No exams saved yet.
+            </div>
+          ) : (
+            examsByTerm.map((group) => (
+              <div className="space-y-3" key={group.value}>
+                <p className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#52687D]">{group.label}</p>
+                {group.exams.map((exam) => (
+                  <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]" key={exam.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-[15px] font-semibold text-[#1d1d1f]">{exam.name}</h3>
+                        <p className="mt-1 text-[12px] font-medium text-[#52687D]">{exam.subject} | {formatDateShort(exam.date)}</p>
+                        <p className="mt-0.5 text-[12px] text-[#86868b]">{exam.className} | Max {exam.maxMarks}</p>
+                      </div>
+                      <StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} />
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
+                        <p className="text-[16px] font-semibold text-[#248a3d]">{exam.enteredCount}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Entered</p>
+                      </div>
+                      <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
+                        <p className="text-[16px] font-semibold text-[#d70015]">{exam.pendingCount}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Pending</p>
+                      </div>
+                      <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
+                        <p className="text-[16px] font-semibold text-[#1d1d1f]">{exam.classAverage}%</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Avg</p>
+                      </div>
+                    </div>
+                    <button
+                      className="mt-4 min-h-10 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[13px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={loadingExamId === exam.id}
+                      onClick={() => openExam(exam.id)}
+                      type="button"
+                    >
+                      {loadingExamId === exam.id ? "Loading..." : "View students"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden max-h-[520px] overflow-auto rounded-[8px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)] [contain:content] md:block">
+          <table className="w-full min-w-[1120px] table-fixed border-collapse text-left text-[14px] text-[#001B33]">
+            <colgroup>
+              <col className="w-[200px]" />
+              <col className="w-[120px]" />
+              <col className="w-[80px]" />
+              <col className="w-[120px]" />
+              <col className="w-[140px]" />
+              <col className="w-[90px]" />
+              <col className="w-[90px]" />
+              <col className="w-[100px]" />
+              <col className="w-[120px]" />
+            </colgroup>
+            <thead>
+              <tr className="table-head-row">
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-5 py-4 text-[14px] font-semibold">Exam</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Subject</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Max</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1.5 hover:text-[#2456E6]"
+                    onClick={() => handleSort("date")}
+                    type="button"
+                  >
+                    Date
+                    <SortIcon active={sortKey === "date"} direction={sortDirection} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Status</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Entered</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Pending</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">
+                  <button
+                    className="inline-flex items-center gap-1.5 hover:text-[#2456E6] mx-auto"
+                    onClick={() => handleSort("average")}
+                    type="button"
+                  >
+                    Class Avg
+                    <SortIcon active={sortKey === "average"} direction={sortDirection} />
+                  </button>
+                </th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
               {loading ? (
-                Array.from({ length: 4 }).map((_, index) => (
-                  <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={index}>
-                    <Skeleton className="h-4 w-40 rounded-md" />
-                    <Skeleton className="mt-3 h-3 w-28 rounded-md" />
-                    <Skeleton className="mt-4 h-9 w-full rounded-md" />
-                  </div>
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    {Array.from({ length: 9 }).map((__, cell) => (
+                      <td className="border-b border-[#C9D3DE] px-4 py-5" key={cell}><Skeleton className="h-4 w-20 rounded-md" /></td>
+                    ))}
+                  </tr>
                 ))
               ) : exams.length === 0 ? (
-                <div className="rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] px-4 py-8 text-center text-[13px] font-medium text-[#52687D]">
-                  No exams saved yet.
-                </div>
+                <tr>
+                  <td className="px-4 py-12 text-center text-[#52687D]" colSpan={9}>No exams saved yet.</td>
+                </tr>
               ) : (
                 examsByTerm.map((group) => (
-                  <div className="space-y-3" key={group.value}>
-                    <p className="px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#52687D]">{group.label}</p>
-                    {group.exams.map((exam) => (
-                      <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]" key={exam.id}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <h3 className="truncate text-[15px] font-semibold text-[#1d1d1f]">{exam.name}</h3>
-                            <p className="mt-1 text-[12px] font-medium text-[#52687D]">{exam.subject} | {formatDateShort(exam.date)}</p>
-                            <p className="mt-0.5 text-[12px] text-[#86868b]">{exam.className} | Max {exam.maxMarks}</p>
-                          </div>
-                          <StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} />
-                        </div>
-                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                          <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
-                            <p className="text-[16px] font-semibold text-[#248a3d]">{exam.enteredCount}</p>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Entered</p>
-                          </div>
-                          <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
-                            <p className="text-[16px] font-semibold text-[#d70015]">{exam.pendingCount}</p>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Pending</p>
-                          </div>
-                          <div className="rounded-[6px] bg-[#F7F8FB] px-2 py-2">
-                            <p className="text-[16px] font-semibold text-[#1d1d1f]">{exam.classAverage}%</p>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#52687D]">Avg</p>
-                          </div>
-                        </div>
-                        <button
-                          className="mt-4 min-h-10 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[13px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={loadingExamId === exam.id}
-                          onClick={() => openExam(exam.id)}
-                          type="button"
-                        >
-                          {loadingExamId === exam.id ? "Loading..." : "View students"}
-                        </button>
-                      </article>
-                    ))}
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="hidden max-h-[520px] overflow-auto rounded-[5px] border border-[#C9D3DE] [contain:content] md:block">
-            <table className="w-full min-w-[980px] table-fixed border-collapse text-left text-[15px] text-[#001B33]">
-              <thead>
-                <tr className="table-head-row">
-                  {["Exam", "Subject", "Max", "Date", "Status", "Entered", "Pending", "Class Avg", "Students"].map((head) => (
-                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[15px] font-semibold" key={head}>{head}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <tr key={index}>
-                      {Array.from({ length: 9 }).map((__, cell) => (
-                        <td className="border-b border-[#C9D3DE] px-4 py-5" key={cell}><Skeleton className="h-4 w-20 rounded-md" /></td>
-                      ))}
+                  <Fragment key={group.value}>
+                    <tr>
+                      <td className="border-b border-[#C9D3DE] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#52687D]" colSpan={9}>
+                        {group.label}
+                      </td>
                     </tr>
-                  ))
-                ) : exams.length === 0 ? (
-                  <tr>
-                    <td className="px-4 py-12 text-center text-[#52687D]" colSpan={9}>No exams saved yet.</td>
-                  </tr>
-                ) : (
-                  examsByTerm.map((group) => (
-                    <Fragment key={group.value}>
-                      <tr>
-                        <td className="border-b border-[#C9D3DE] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#52687D]" colSpan={9}>
-                          {group.label}
+                    {group.exams.map((exam) => (
+                      <tr key={exam.id}>
+                        <td className="border-b border-[#C9D3DE] px-5 py-4 align-middle">
+                          <p className="truncate font-semibold text-[#1d1d1f]">{exam.name}</p>
+                          <p className="mt-1 text-[12px] text-[#86868b]">{exam.className}</p>
+                        </td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{exam.subject}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{exam.maxMarks}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{formatDateShort(exam.date)}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle"><StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} /></td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#248a3d]">{exam.enteredCount}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#d70015]">{exam.pendingCount}</td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center align-middle font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-4 align-middle">
+                          <button
+                            className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={loadingExamId === exam.id}
+                            onClick={() => openExam(exam.id)}
+                            type="button"
+                          >
+                            {loadingExamId === exam.id ? "Loading..." : "View students"}
+                          </button>
                         </td>
                       </tr>
-                      {group.exams.map((exam) => (
-                        <tr key={exam.id}>
-                          <td className="border-b border-[#C9D3DE] px-4 py-4">
-                            <p className="font-semibold text-[#1d1d1f]">{exam.name}</p>
-                            <p className="mt-1 text-[12px] text-[#86868b]">{exam.className}</p>
-                          </td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{exam.subject}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{exam.maxMarks}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[#52687D]">{formatDateShort(exam.date)}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4"><StatusPill label={examStatusLabel(exam.status)} tone={examTone(exam.status)} /></td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#248a3d]">{exam.enteredCount}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#d70015]">{exam.pendingCount}</td>
-                          <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 font-semibold text-[#1d1d1f]">{exam.classAverage}%</td>
-                          <td className="border-b border-[#C9D3DE] px-4 py-4">
-                            <button
-                              className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
-                              disabled={loadingExamId === exam.id}
-                              onClick={() => openExam(exam.id)}
-                              type="button"
-                            >
-                              {loadingExamId === exam.id ? "Loading..." : "View students"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </Fragment>
-                  ))
-                )}
-              </tbody>
-            </table>
-            </div>
-          </div>
+                    ))}
+                  </Fragment>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </section>
 
-      {selectedExam ? (
-        <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
-          <div className="flex flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Student marks</h2>
-              <p className="mt-0.5 text-[13px] text-[#86868b]">
-                {selectedExam.name} | {examTermLabel(selectedExam.term)} | {selectedExam.className} | {selectedExam.subject} | Max {selectedExam.maxMarks}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+      {/* Student marks detail Modal */}
+      <Modal
+        isOpen={!!selectedExam}
+        onClose={() => setSelectedExam(null)}
+        size="xl"
+        title="Student Marks"
+        description={selectedExam ? `${selectedExam.name} | ${examTermLabel(selectedExam.term)} | ${selectedExam.className} | ${selectedExam.subject} | Max ${selectedExam.maxMarks}` : ""}
+      >
+        {selectedExam ? (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2 mb-2">
               <StatusPill label={`${selectedExam.enteredCount} entered`} tone="good" />
               <StatusPill label={`${selectedExam.pendingCount} pending`} tone={selectedExam.pendingCount ? "danger" : "neutral"} />
               <StatusPill label={`${selectedExam.classAverage}% avg`} tone="neutral" />
             </div>
-          </div>
 
-          <div className="space-y-3 p-4 md:hidden">
-            {selectedExam.students.map((student) => {
-              const draft = examDrafts[student.studentId] ?? "";
-              const isAbsent = draftAbsent[student.studentId] ?? false;
-              const savingRow = savingStudentId === student.studentId;
+            {/* Mobile student cards */}
+            <div className="space-y-3 md:hidden max-h-[60vh] overflow-y-auto p-1">
+              {selectedExam.students.map((student) => {
+                const draft = examDrafts[student.studentId] ?? "";
+                const isAbsent = draftAbsent[student.studentId] ?? false;
+                const savingRow = savingStudentId === student.studentId;
 
-              return (
-                <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={student.studentId}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-[#1d1d1f]">{student.fullName}</p>
-                      <p className="mt-1 text-[12px] text-[#86868b]">Roll {student.rollNumber ?? "-"} | <span className="type-code">{student.admissionNumber}</span></p>
+                return (
+                  <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={student.studentId}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-[#1d1d1f]">{student.fullName}</p>
+                        <p className="mt-1 text-[12px] text-[#86868b]">Roll {student.rollNumber ?? "-"} | <span className="type-code">{student.admissionNumber}</span></p>
+                      </div>
+                      {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
                     </div>
-                    {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
-                  </div>
-                  <div className="mt-4 grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                    <label className="flex items-center gap-2">
+                    <div className="mt-4 grid grid-cols-[auto_1fr_auto] items-center gap-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isAbsent}
+                          onChange={(e) => setDraftAbsent((c) => ({ ...c, [student.studentId]: e.target.checked }))}
+                          className="h-4 w-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
+                        />
+                        <span className="text-[12px] font-medium text-[#86868b]">Absent</span>
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={isAbsent}
-                        onChange={(e) => setDraftAbsent((current) => ({ ...current, [student.studentId]: e.target.checked }))}
-                        className="h-4 w-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
+                        className="min-h-10 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 text-[13px] font-semibold outline-none focus:border-[#0071e3] disabled:bg-gray-100 disabled:opacity-50"
+                        disabled={isAbsent}
+                        max={selectedExam.maxMarks}
+                        min={0}
+                        onChange={(e) => setExamDrafts((c) => ({ ...c, [student.studentId]: e.target.value }))}
+                        placeholder={`/${selectedExam.maxMarks}`}
+                        type="number"
+                        value={isAbsent ? "" : draft}
                       />
-                      <span className="text-[12px] font-medium text-[#86868b]">Absent</span>
-                    </label>
-                    <input
-                      className="min-h-10 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 text-[13px] font-semibold outline-none focus:border-[#0071e3] disabled:bg-gray-100 disabled:opacity-50"
-                      disabled={isAbsent}
-                      max={selectedExam.maxMarks}
-                      min={0}
-                      onChange={(event) => setExamDrafts((current) => ({ ...current, [student.studentId]: event.target.value }))}
-                      placeholder={`/${selectedExam.maxMarks}`}
-                      type="number"
-                      value={isAbsent ? "" : draft}
-                    />
-                    <button
-                      className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#1d1d1f] px-4 text-[12px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={savingRow}
-                      onClick={() => updateStudentMark(student.studentId)}
-                      type="button"
-                    >
-                      {savingRow ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-                      {savingRow ? "Saving..." : "Save"}
-                    </button>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between rounded-[6px] bg-[#F7F8FB] px-3 py-2 text-[12px]">
-                    <span className="font-medium text-[#52687D]">Percentage</span>
-                    <span className="font-semibold text-[#1d1d1f]">{student.result ? `${student.result.percentage}%` : "-"}</span>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[980px] text-left text-[13px]">
-              <thead className="table-head">
-                <tr>
-                  {["Student", "Admission", "Roll", "Marks", "Percentage", "Grade", "Action"].map((head) => (
-                    <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
-                {selectedExam.students.map((student) => {
-                  const draft = examDrafts[student.studentId] ?? "";
-                  const isAbsent = draftAbsent[student.studentId] ?? false;
-                  const savingRow = savingStudentId === student.studentId;
+                      <button
+                        className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg bg-[#1d1d1f] px-4 text-[12px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={savingRow}
+                        onClick={() => updateStudentMark(student.studentId)}
+                        type="button"
+                      >
+                        {savingRow ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
+                        {savingRow ? "Saving..." : "Save"}
+                      </button>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between rounded-[6px] bg-[#F7F8FB] px-3 py-2 text-[12px]">
+                      <span className="font-medium text-[#52687D]">Percentage</span>
+                      <span className="font-semibold text-[#1d1d1f]">{student.result ? `${student.result.percentage}%` : "-"}</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
 
-                  return (
-                    <tr className="table-row" key={student.studentId}>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{student.fullName}</td>
-                      <td className="px-5 py-4 type-code text-[#6e6e73]">{student.admissionNumber}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{student.rollNumber ?? "-"}</td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-1.5">
+            {/* Desktop student table */}
+            <div className="hidden md:block max-h-[60vh] overflow-y-auto rounded-[8px] border border-[#C9D3DE] [contain:content]">
+              <table className="w-full min-w-[720px] border-collapse text-left text-[14px] text-[#001B33]">
+                <colgroup>
+                  <col className="w-[180px]" />
+                  <col className="w-[120px]" />
+                  <col className="w-[60px]" />
+                  <col className="w-[180px]" />
+                  <col className="w-[90px]" />
+                  <col className="w-[90px]" />
+                  <col className="w-[100px]" />
+                </colgroup>
+                <thead>
+                  <tr className="table-head-row">
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">Student</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">Admission</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-3.5 text-[14px] font-semibold text-center">Roll</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">Marks</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold text-center">Percentage</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold text-center">Grade</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedExam.students.map((student) => {
+                    const draft = examDrafts[student.studentId] ?? "";
+                    const isAbsent = draftAbsent[student.studentId] ?? false;
+                    const savingRow = savingStudentId === student.studentId;
+
+                    return (
+                      <tr className="table-row hover:bg-[#F2F7FC]/30 transition" key={student.studentId}>
+                        <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle font-semibold text-[#1d1d1f]">{student.fullName}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle type-code text-[#6e6e73]">{student.admissionNumber}</td>
+                        <td className="border-b border-[#C9D3DE] px-3 py-3 align-middle text-[#6e6e73] text-center">{student.rollNumber ?? "-"}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle">
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-1.5">
+                              <input
+                                type="checkbox"
+                                checked={isAbsent}
+                                onChange={(e) => setDraftAbsent((c) => ({ ...c, [student.studentId]: e.target.checked }))}
+                                className="h-4 w-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
+                              />
+                              <span className="text-[12px] font-medium text-[#86868b]">Abs</span>
+                            </label>
                             <input
-                              type="checkbox"
-                              checked={isAbsent}
-                              onChange={(e) => setDraftAbsent((current) => ({ ...current, [student.studentId]: e.target.checked }))}
-                              className="h-4 w-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
+                              className="w-20 rounded-lg border border-[rgba(0,0,0,0.08)] px-2.5 py-1.5 text-[13px] font-semibold outline-none focus:border-[#0071e3] disabled:bg-gray-100 disabled:opacity-50"
+                              disabled={isAbsent}
+                              max={selectedExam.maxMarks}
+                              min={0}
+                              onChange={(e) => setExamDrafts((c) => ({ ...c, [student.studentId]: e.target.value }))}
+                              type="number"
+                              value={isAbsent ? "" : draft}
                             />
-                            <span className="text-[12px] font-medium text-[#86868b]">Abs</span>
-                          </label>
-                          <input
-                            className="w-24 rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-2 text-[13px] font-semibold outline-none focus:border-[#0071e3] disabled:bg-gray-100 disabled:opacity-50"
-                            disabled={isAbsent}
-                            max={selectedExam.maxMarks}
-                            min={0}
-                            onChange={(event) => setExamDrafts((current) => ({ ...current, [student.studentId]: event.target.value }))}
-                            type="number"
-                            value={isAbsent ? "" : draft}
-                          />
-                        </div>
-                      </td>
-                      <td className="px-5 py-4 font-semibold text-[#1d1d1f]">
-                        {student.result ? `${student.result.percentage}%` : "-"}
-                      </td>
-                      <td className="px-5 py-4">
-                        {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
-                      </td>
-                      <td className="px-5 py-4">
-                        <button
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#1d1d1f] px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={savingRow}
-                          onClick={() => updateStudentMark(student.studentId)}
-                          type="button"
-                        >
-                          {savingRow ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-                          {savingRow ? "Saving..." : "Save"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3 align-middle font-semibold text-[#1d1d1f] text-center">
+                          {student.result ? `${student.result.percentage}%` : "-"}
+                        </td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle text-center">
+                          {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
+                        </td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle">
+                          <button
+                            className="rounded-[5px] border border-[#C9D3DE] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition hover:bg-[#F2F7FC] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={savingRow}
+                            onClick={() => updateStudentMark(student.studentId)}
+                            type="button"
+                          >
+                            {savingRow ? "Saving..." : "Save"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </section>
-      ) : null}
+        ) : null}
+      </Modal>
     </div>
   );
 }
