@@ -66,7 +66,8 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
   }
 
   logger.error({ error }, "Unhandled request error");
+  const msg = error instanceof Error ? `${error.message}\n${error.stack}` : String(error);
   return res.status(500).json({
-    error: { code: "INTERNAL_SERVER_ERROR", message: "Something went wrong" }
+    error: { code: "INTERNAL_SERVER_ERROR", message: msg }
   });
 }
