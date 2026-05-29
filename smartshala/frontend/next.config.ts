@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
     const csp = [
       "default-src 'self'",
-      "script-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       `connect-src 'self' ${apiBase}`,
