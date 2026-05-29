@@ -19,7 +19,11 @@ function examTone(status: MarksExam["status"]) {
 
 const examTermOptions: { value: MarksExam["term"]; label: string }[] = [
   { value: "UNIT_TEST", label: "Unit Test" },
-  { value: "CLASS_TEST", label: "Class Test" }
+  { value: "CLASS_TEST", label: "Class Test" },
+  { value: "MID_TERM", label: "Mid-Term" },
+  { value: "FINAL", label: "Final" },
+  { value: "TERM_1", label: "Term 1" },
+  { value: "TERM_2", label: "Term 2" }
 ];
 
 function examTermLabel(term: MarksExam["term"]) {
@@ -30,7 +34,7 @@ function examStatusLabel(status: MarksExam["status"]) {
   return status === "MARKS_ENTERED" ? "Marks entered" : "Scheduled";
 }
 
-export default function TeacherMarksPage() {
+export default function AdminExamsPage() {
   const [context, setContext] = useState<MarksContext>({ classes: [] });
   const [exams, setExams] = useState<MarksExam[]>([]);
   const [classId, setClassId] = useState("");
@@ -255,7 +259,7 @@ export default function TeacherMarksPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Teacher workspace</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Admin workspace</p>
           <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Exam and marks</h1>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

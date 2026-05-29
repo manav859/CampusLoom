@@ -59,6 +59,7 @@ const adminLinks: NavItem[] = [
     ]
   },
   { label: "Fees", href: "/fees", icon: "fees" },
+  { label: "Exams & Marks", href: "/exams", icon: "analytics" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
   {
     label: "Logs",

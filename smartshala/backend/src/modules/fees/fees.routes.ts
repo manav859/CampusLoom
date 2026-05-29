@@ -2,12 +2,20 @@ import { Router } from "express";
 import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
+import { rateLimit } from "../../lib/rateLimit.js";
 import * as controller from "./fees.controller.js";
 import { assignFeeSchema, feeAdjustmentSchema, feeStructureSchema, feeStructureUpdateSchema, paymentSchema } from "./fees.schemas.js";
 
 export const feesRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 const financeRoles = [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.ACCOUNTANT] as const;
+
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 1000,    // 1 min
+  max: 20,
+  keyPrefix: "fees:payment",
+  message: "Too many payment requests. Please slow down.",
+});
 
 feesRouter.use(requireAuth);
 feesRouter.get("/dashboard", requireRole(financeRoles), controller.dashboard);
@@ -18,7 +26,12 @@ feesRouter.put("/structure/:id", requireRole(adminRoles), validate({ body: feeSt
 feesRouter.post("/structure/:id/duplicate", requireRole(adminRoles), controller.duplicateFeeStructure);
 feesRouter.post("/structure/:id/archive", requireRole(adminRoles), controller.archiveFeeStructure);
 feesRouter.post("/structure/:id/assign", requireRole(adminRoles), controller.assignFeeStructureToClass);
-feesRouter.post("/payment", requireRole(financeRoles), validate({ body: paymentSchema }), controller.collectPayment);
+feesRouter.post("/payment",
+  paymentLimiter,
+  requireRole(financeRoles),
+  validate({ body: paymentSchema }),
+  controller.collectPayment
+);
 feesRouter.post("/adjustments", requireRole(financeRoles), validate({ body: feeAdjustmentSchema }), controller.applyFeeAdjustment);
 feesRouter.get("/student/:studentId", requireRole(financeRoles), controller.getStudentLedger);
 feesRouter.get("/structures", requireRole(financeRoles), controller.listFeeStructures);
@@ -29,7 +42,12 @@ feesRouter.post("/structures/:id/duplicate", requireRole(adminRoles), controller
 feesRouter.post("/structures/:id/archive", requireRole(adminRoles), controller.archiveFeeStructure);
 feesRouter.post("/structures/:id/assign", requireRole(adminRoles), controller.assignFeeStructureToClass);
 feesRouter.post("/assignments", requireRole(adminRoles), validate({ body: assignFeeSchema }), controller.assignFee);
-feesRouter.post("/payments", requireRole(financeRoles), validate({ body: paymentSchema }), controller.collectPayment);
+feesRouter.post("/payments",
+  paymentLimiter,
+  requireRole(financeRoles),
+  validate({ body: paymentSchema }),
+  controller.collectPayment
+);
 feesRouter.post("/fee-adjustments", requireRole(financeRoles), validate({ body: feeAdjustmentSchema }), controller.applyFeeAdjustment);
 feesRouter.get("/students/:studentId/ledger", requireRole(financeRoles), controller.getStudentLedger);
 feesRouter.get("/defaulters", requireRole(financeRoles), controller.defaulters);

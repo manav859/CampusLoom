@@ -747,8 +747,10 @@ export type MarksExam = {
   subjectId: string | null;
   subject: string;
   name: string;
-  term: "UNIT_TEST" | "MID_TERM" | "FINAL" | "TERM_1" | "TERM_2";
+  term: "UNIT_TEST" | "CLASS_TEST" | "MID_TERM" | "FINAL" | "TERM_1" | "TERM_2";
   maxMarks: number;
+  passingMarks?: number | null;
+  description?: string | null;
   date: string;
   status: "SCHEDULED" | "MARKS_ENTERED";
   enteredCount: number;
@@ -767,6 +769,7 @@ export type MarksExamDetail = MarksExam & {
       marks: number;
       percentage: number;
       grade: string;
+      isAbsent: boolean;
     } | null;
   }[];
 };
@@ -777,8 +780,10 @@ export type CreateMarksExamPayload = {
   name: string;
   term: MarksExam["term"];
   maxMarks: number;
+  passingMarks?: number;
+  description?: string;
   date: string;
-  results: { studentId: string; marks: number }[];
+  results: { studentId: string; marks: number; isAbsent?: boolean }[];
 };
 
 export type CommunicationMessageType =
@@ -951,7 +956,7 @@ export const marksApi = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
-  updateExamResult: (examId: string, payload: { studentId: string; marks: number }) =>
+  updateExamResult: (examId: string, payload: { studentId: string; marks: number; isAbsent?: boolean }) =>
     apiFetch<MarksExamDetail["students"][number]>(`/marks/exams/${examId}/results`, {
       method: "PATCH",
       body: JSON.stringify(payload)

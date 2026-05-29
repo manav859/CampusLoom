@@ -30,7 +30,7 @@ const envSchema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
-  REDIS_URL: z.string().optional()
+  REDIS_URL: z.string().url().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);

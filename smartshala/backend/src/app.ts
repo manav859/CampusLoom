@@ -34,6 +34,7 @@ function buildAllowedOrigins() {
 
 export function createApp() {
   const app = express();
+  app.set("trust proxy", 1);
   const pinoHttp = pinoHttpModule as unknown as (options: { logger: typeof logger }) => RequestHandler;
   const allowedOrigins = buildAllowedOrigins();
 

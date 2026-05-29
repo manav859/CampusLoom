@@ -312,10 +312,12 @@ model Exam {
   examDate   DateTime     @default(now())
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
-  subjectId  String?      @db.Uuid
-  maxMarks   Decimal?     @db.Decimal(6, 2)
-  results    ExamResult[]
-  class      Class?       @relation(fields: [classId], references: [id])
+  subjectId    String?      @db.Uuid
+  maxMarks     Decimal?     @db.Decimal(6, 2)
+  passingMarks Decimal?     @db.Decimal(6, 2)
+  description  String?
+  results      ExamResult[]
+  class        Class?       @relation(fields: [classId], references: [id])
   school     School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   subjectRef Subject?     @relation("ExamSubject", fields: [subjectId], references: [id])
 
@@ -340,6 +342,7 @@ model ExamResult {
   subjectId      String?  @db.Uuid
   percentage     Decimal? @db.Decimal(5, 2)
   grade          String?
+  isAbsent       Boolean  @default(false)
   exam           Exam?    @relation(fields: [examId], references: [id])
   school         School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -671,6 +674,7 @@ enum FeeAdjustmentType {
 
 enum ExamTerm {
   UNIT_TEST
+  CLASS_TEST
   MID_TERM
   FINAL
   TERM_1

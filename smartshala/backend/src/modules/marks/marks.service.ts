@@ -15,13 +15,16 @@ type CreateExamWithMarksInput = {
   name: string;
   term: ExamTerm;
   maxMarks: number;
+  passingMarks?: number;
+  description?: string;
   date: Date;
-  results: { studentId: string; marks: number; teacherNote?: string }[];
+  results: { studentId: string; marks: number; isAbsent?: boolean; teacherNote?: string }[];
 };
 
 type UpdateExamResultInput = {
   studentId: string;
   marks: number;
+  isAbsent?: boolean;
 };
 
 type LowMarksAlertInput = {
@@ -113,12 +116,15 @@ function mapExam(exam: {
   name: string;
   term: ExamTerm;
   maxMarks: unknown;
+  passingMarks: unknown;
+  description: string | null;
   examDate: Date;
   subjectRef: { id: string; name: string } | null;
   class: { id: string; name: string; section: string } | null;
-  results: { studentId: string; marksObtained: unknown; percentage: unknown }[];
+  results: { studentId: string; marksObtained: unknown; percentage: unknown; isAbsent: boolean }[];
 }, classStudentCount: number) {
-  const percentages = exam.results.map((result) => Number(result.percentage ?? percentage(Number(result.marksObtained), Number(exam.maxMarks ?? 0))));
+  const presentResults = exam.results.filter(r => !r.isAbsent);
+  const percentages = presentResults.map((result) => Number(result.percentage ?? percentage(Number(result.marksObtained), Number(exam.maxMarks ?? 0))));
   const classAverage = percentages.length ? Math.round(percentages.reduce((sum, value) => sum + value, 0) / percentages.length) : 0;
 
   return {
@@ -130,6 +136,8 @@ function mapExam(exam: {
     name: exam.name,
     term: exam.term,
     maxMarks: Number(exam.maxMarks ?? 0),
+    passingMarks: exam.passingMarks ? Number(exam.passingMarks) : null,
+    description: exam.description,
     date: exam.examDate,
     status: examStatus(exam.examDate),
     enteredCount: exam.results.length,
@@ -154,13 +162,15 @@ function mapExamResult(result: {
   marksObtained: unknown;
   percentage: unknown;
   grade: string | null;
+  isAbsent: boolean;
 }, maxMarks: number) {
   const marks = Number(result.marksObtained ?? 0);
   return {
     resultId: result.id,
-    marks,
-    percentage: Number(result.percentage ?? percentage(marks, maxMarks)),
-    grade: result.grade ?? gradeForPercentage(percentage(marks, maxMarks))
+    marks: result.isAbsent ? 0 : marks,
+    percentage: result.isAbsent ? 0 : Number(result.percentage ?? percentage(marks, maxMarks)),
+    grade: result.isAbsent ? "ABS" : (result.grade ?? gradeForPercentage(percentage(marks, maxMarks))),
+    isAbsent: result.isAbsent
   };
 }
 
@@ -305,7 +315,7 @@ export async function listExams(user: Express.UserContext, query: { classId?: st
       include: {
         class: { select: { id: true, name: true, section: true } },
         subjectRef: { select: { id: true, name: true } },
-        results: { select: { studentId: true, marksObtained: true, percentage: true } }
+        results: { select: { studentId: true, marksObtained: true, percentage: true, isAbsent: true } }
       },
       orderBy: [{ examDate: "desc" }, { createdAt: "desc" }]
     });
@@ -316,6 +326,10 @@ export async function listExams(user: Express.UserContext, query: { classId?: st
 
 export async function createExamWithMarks(user: Express.UserContext, input: CreateExamWithMarksInput) {
   return withRetry(async () => {
+    if (user.role === UserRole.TEACHER && input.term !== "UNIT_TEST" && input.term !== "CLASS_TEST") {
+      throw new AppError(403, "Teachers can only create Unit Test or Class Test exams.", "FORBIDDEN");
+    }
+
     await assertClassAccess(user, input.classId);
     const subject = await assertSubjectAccess(user, input.classId, input.subjectId);
     const students = await prisma.student.findMany({
@@ -341,13 +355,15 @@ export async function createExamWithMarks(user: Express.UserContext, input: Crea
           name: input.name,
           term: input.term,
           maxMarks,
+          passingMarks: input.passingMarks ? new Prisma.Decimal(input.passingMarks) : null,
+          description: input.description,
           examDate: input.date
         }
       });
 
       await tx.examResult.createMany({
         data: input.results.map((result) => {
-          const percent = percentage(result.marks, input.maxMarks);
+          const percent = result.isAbsent ? 0 : percentage(result.marks, input.maxMarks);
           return {
             schoolId: user.schoolId,
             studentId: result.studentId,
@@ -355,10 +371,11 @@ export async function createExamWithMarks(user: Express.UserContext, input: Crea
             subjectId: subject.id,
             subject: subject.name,
             assessmentName: input.name,
-            marksObtained: new Prisma.Decimal(result.marks),
+            marksObtained: new Prisma.Decimal(result.isAbsent ? 0 : result.marks),
             maxMarks,
             percentage: new Prisma.Decimal(percent),
-            grade: gradeForPercentage(percent),
+            grade: result.isAbsent ? "ABS" : gradeForPercentage(percent),
+            isAbsent: result.isAbsent ?? false,
             examDate: input.date
           };
         })
@@ -369,13 +386,14 @@ export async function createExamWithMarks(user: Express.UserContext, input: Crea
         include: {
           class: { select: { id: true, name: true, section: true } },
           subjectRef: { select: { id: true, name: true } },
-          results: { select: { studentId: true, marksObtained: true, percentage: true } }
+          results: { select: { studentId: true, marksObtained: true, percentage: true, isAbsent: true } }
         }
       });
     }, { timeout: 15000 });
 
     queueLowMarksAlerts(
       input.results.flatMap((result) => {
+        if (result.isAbsent) return [];
         const percent = percentage(result.marks, input.maxMarks);
         const student = studentsById.get(result.studentId);
         if (!student || percent >= 40) return [];
@@ -456,6 +474,8 @@ export async function getExam(user: Express.UserContext, examId: string) {
           name: exam.name,
           term: exam.term,
           maxMarks: exam.maxMarks,
+          passingMarks: exam.passingMarks,
+          description: exam.description,
           examDate: exam.examDate,
           subjectRef: exam.subjectRef,
           class: exam.class,
@@ -502,19 +522,25 @@ export async function updateExamResult(user: Express.UserContext, examId: string
 
     const existingResult = await prisma.examResult.findUnique({
       where: { studentId_examId: { studentId: student.id, examId } },
-      select: { marksObtained: true, percentage: true }
+      select: { marksObtained: true, percentage: true, isAbsent: true }
     });
+    if (existingResult && user.role === UserRole.TEACHER) {
+      throw new AppError(403, "Marks have already been submitted and can only be modified by a Principal or Admin.", "FORBIDDEN");
+    }
+
     const existingPercentage = existingResult
       ? Number(existingResult.percentage ?? percentage(Number(existingResult.marksObtained), maxMarks))
       : null;
-    const percent = percentage(input.marks, maxMarks);
+    const percent = input.isAbsent ? 0 : percentage(input.marks, maxMarks);
+    const marksDec = new Prisma.Decimal(input.isAbsent ? 0 : input.marks);
     const result = await prisma.examResult.upsert({
       where: { studentId_examId: { studentId: student.id, examId } },
       update: {
-        marksObtained: new Prisma.Decimal(input.marks),
+        marksObtained: marksDec,
         maxMarks: new Prisma.Decimal(maxMarks),
         percentage: new Prisma.Decimal(percent),
-        grade: gradeForPercentage(percent),
+        grade: input.isAbsent ? "ABS" : gradeForPercentage(percent),
+        isAbsent: input.isAbsent ?? false,
         examDate: exam.examDate,
         assessmentName: exam.name,
         subjectId: exam.subjectId,
@@ -527,15 +553,16 @@ export async function updateExamResult(user: Express.UserContext, examId: string
         subjectId: exam.subjectId,
         subject: exam.subjectRef?.name ?? "General",
         assessmentName: exam.name,
-        marksObtained: new Prisma.Decimal(input.marks),
+        marksObtained: marksDec,
         maxMarks: new Prisma.Decimal(maxMarks),
         percentage: new Prisma.Decimal(percent),
-        grade: gradeForPercentage(percent),
+        grade: input.isAbsent ? "ABS" : gradeForPercentage(percent),
+        isAbsent: input.isAbsent ?? false,
         examDate: exam.examDate
       }
     });
 
-    if (percent < 40 && (existingPercentage === null || existingPercentage >= 40)) {
+    if (!input.isAbsent && percent < 40 && (existingPercentage === null || existingPercentage >= 40)) {
       queueLowMarksAlerts([
         {
           schoolId: user.schoolId,
