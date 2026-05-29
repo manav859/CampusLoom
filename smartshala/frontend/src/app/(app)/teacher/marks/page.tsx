@@ -256,17 +256,18 @@ export default function TeacherMarksPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Teacher workspace</p>
-          <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Exam and marks</h1>
+          <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Exams &amp; Marks</h1>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <StatusPill label={`${exams.length} exams`} tone={exams.length ? "good" : "neutral"} />
           <button
-            className="inline-flex min-h-10 items-center justify-center rounded-[6px] bg-[#2456E6] px-4 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(15,20,25,0.08)] transition hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={loading || !classId || !subjectId || students.length === 0}
+            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-[6px] bg-[#2456E6] px-5 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(15,20,25,0.08)] transition hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={loading}
             onClick={() => setMarksModalOpen(true)}
             type="button"
           >
-            Bulk save marks
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            Create Exam
           </button>
         </div>
       </div>
@@ -278,7 +279,7 @@ export default function TeacherMarksPage() {
         isOpen={marksModalOpen}
         onClose={() => setMarksModalOpen(false)}
         size="xl"
-        title="Bulk save marks"
+        title="Create Exam"
         description={selectedClass ? `Class ${selectedClass.name}-${selectedClass.section} | ${selectedSubject?.name ?? "No subject"} | ${students.length} students` : "Create an exam and enter marks for the full class."}
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -400,6 +401,16 @@ export default function TeacherMarksPage() {
               ) : null}
             </div>
 
+            <label className="block">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Max marks</span>
+              <input
+                className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
+                min={1}
+                onChange={(event) => setMaxMarks(Number(event.target.value))}
+                type="number"
+                value={maxMarks}
+              />
+            </label>
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Passing marks (Opt)</span>
               <input
