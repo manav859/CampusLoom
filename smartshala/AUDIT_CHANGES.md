@@ -262,11 +262,11 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Define grade bands explicitly in code.
 - [x] Make duplicate exam names unique with date or sequence.
 - [x] Replace confusing partial fee labels with one clear line.
-- [ ] Seed realistic class averages and ranks.
+- [x] Seed realistic class averages and ranks.
 
 ### Student Profile Exam Comparison
 
-- [ ] Seed realistic marks distribution.
+- [x] Seed realistic marks distribution.
 - [x] Add legend to exam comparison chart.
 - [x] Wire homework completion numbers to one source.
 - [x] Add inline comparison: `You are X% below class average`.
@@ -275,8 +275,8 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 - [x] Reconcile submitted/late/missing/streak numbers with subject completion percent.
 - [x] Add `Class average streak` context line.
-- [ ] Support homework file attachments.
-- [ ] Allow teachers to upload graded work back.
+- [x] Support homework file attachments.
+- [x] Allow teachers to upload graded work back.
 - [x] Add `Nudge parent on WhatsApp` for not submitted assignments.
 
 ### Student Profile Attendance Tab
@@ -289,8 +289,8 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 ### Student Profile Fees Tab
 
-- [ ] Add UPI, Bank Transfer, Cheque, DD, Online Gateway modes.
-- [ ] Add transaction/reference details per mode.
+- [x] Add UPI, Bank Transfer, Cheque, DD, Online Gateway modes.
+- [x] Add transaction/reference details per mode.
 - [x] Make receipt IDs clickable.
 - [x] Open PDF receipt preview with school logo.
 - [x] Add `Send to parent on WhatsApp` per receipt.
@@ -300,7 +300,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 
 - [x] Add CTA inside empty tiles: `Log a call`, `Add manual note`.
 - [x] Add full-message expansion/modal for long summaries.
-- [ ] Use WhatsApp statuses: Sent, Delivered, Read, Failed.
+- [x] Use WhatsApp statuses: Sent, Delivered, Read, Failed.
 - [x] Add retry option for Failed.
 - [x] Add channel filter chips: All, WhatsApp, Call, Manual.
 
@@ -325,7 +325,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Move `Deactivate` into overflow menu.
 - [x] Keep `Manage` as primary inline button.
 - [x] Add initials avatars on teacher rows.
-- [ ] Make number of periods configurable per school.
+- [x] Make number of periods configurable per school.
 - [x] Replace `.local` demo emails with realistic school emails.
 - [x] Add filters by class teacher, subject taught, and status.
 
@@ -419,7 +419,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 ### Exam And Marks
 
 - [x] Change `MARKS_ENTERED` to `Marks entered`.
-- [ ] Seed plausible class averages.
+- [x] Seed plausible class averages.
 - [x] Add Term/Type dropdown while creating exam.
 - [x] Group exam history by term.
 - [ ] Add `Lock after submit` with principal override.
@@ -458,7 +458,7 @@ Use this file as the implementation brief for the SmartShala audit. Any AI/model
 - [x] Collapse redundant four tiles into one summary card.
 - [x] Use sentence case for status pill.
 - [x] Show one consolidated empty state, not two.
-- [ ] Add `Generate invoice`.
+- [x] Add `Generate invoice`.
 - [x] Add `Issue concession`.
 - [x] Add `Apply discount`.
 - [ ] Add year-on-year fee history.
