@@ -190,8 +190,8 @@ function GlobalSearch({ role }: { role: SessionUser["role"] }) {
           <path d="m20 20-3.5-3.5" />
         </svg>
         <input
-          aria-label="Search modules, pages and functions"
-          className="h-full min-w-0 flex-1 bg-transparent text-[13px] font-semibold text-[#0F1419] outline-none placeholder:text-[#8C96A3]"
+          aria-label="Search modules"
+          className="h-full min-w-0 flex-1 border-0 bg-transparent text-[13px] font-semibold text-[#0F1419] outline-none placeholder:text-[#8C96A3] focus:border-0 focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
@@ -211,7 +211,7 @@ function GlobalSearch({ role }: { role: SessionUser["role"] }) {
               setOpen(false);
             }
           }}
-          placeholder="Search modules, pages, functions..."
+          placeholder="Search Modules"
           type="search"
           value={query}
         />
@@ -235,7 +235,6 @@ function GlobalSearch({ role }: { role: SessionUser["role"] }) {
                     <span className="block truncate text-[13px] font-bold text-[#0F1419]">{item.title}</span>
                     <span className="mt-0.5 block truncate text-[12px] font-medium text-[#5A6573]">{item.description}</span>
                   </span>
-                  <span className="shrink-0 rounded-full bg-[#F0F3F7] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.05em] text-[#5A6573]">{item.type}</span>
                 </button>
               ))}
             </div>
