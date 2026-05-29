@@ -140,6 +140,7 @@ function GlobalSearch({ mobile = false, role }: { mobile?: boolean; role: Sessio
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const results = useMemo(() => {
     const allowed = searchResults.filter((item) => item.roles.includes(role));
@@ -176,6 +177,10 @@ function GlobalSearch({ mobile = false, role }: { mobile?: boolean; role: Sessio
     setActiveIndex(0);
   }, [query]);
 
+  useEffect(() => {
+    if (open && mobile) inputRef.current?.focus();
+  }, [mobile, open]);
+
   function goTo(item: SearchResult) {
     setOpen(false);
     setQuery("");
@@ -198,7 +203,7 @@ function GlobalSearch({ mobile = false, role }: { mobile?: boolean; role: Sessio
         </button>
       ) : null}
 
-      <div className={`${mobile ? `absolute right-0 top-[calc(100%+8px)] z-[132] w-[min(88vw,360px)] ${open ? "flex" : "hidden"}` : "flex"} h-10 items-center gap-2 rounded-[10px] border bg-[#F7F8FB] px-3 transition-all duration-200 ${open ? "border-[#2456E6] bg-white shadow-[0_10px_30px_-22px_rgba(36,86,230,0.85)] ring-4 ring-[#2456E6]/10" : "border-[#DCE1E8] hover:border-[#AAB4C0]"}`}>
+      <div className={`${mobile ? `fixed left-[52px] right-3 top-2.5 z-[170] ${open ? "flex" : "hidden"}` : "flex"} h-10 items-center gap-2 rounded-[10px] border bg-[#F7F8FB] px-3 transition-all duration-200 ${open ? "border-[#2456E6] bg-white shadow-[0_10px_30px_-22px_rgba(36,86,230,0.85)] ring-4 ring-[#2456E6]/10" : "border-[#DCE1E8] hover:border-[#AAB4C0]"}`}>
         <svg className="h-4 w-4 shrink-0 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden>
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" />
@@ -226,13 +231,29 @@ function GlobalSearch({ mobile = false, role }: { mobile?: boolean; role: Sessio
             }
           }}
           placeholder="Search Modules"
+          ref={inputRef}
           type="search"
           value={query}
         />
+        {mobile ? (
+          <button
+            aria-label="Close search"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#5A6573] transition hover:bg-[#F0F3F7] hover:text-[#0F1419]"
+            onClick={() => {
+              setOpen(false);
+              setQuery("");
+            }}
+            type="button"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden>
+              <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       {open ? (
-        <div className={`${mobile ? "fixed left-3 right-3 top-[72px] z-[131]" : "absolute left-0 right-0 top-[calc(100%+8px)] z-[130]"} max-h-[min(440px,calc(100vh-88px))] overflow-y-auto rounded-[12px] border border-[#DCE1E8] bg-white/98 p-2 shadow-[0_18px_48px_-24px_rgba(15,20,25,0.5)] backdrop-blur-xl`}>
+        <div className={`${mobile ? "fixed left-3 right-3 top-[62px] z-[131]" : "absolute left-0 right-0 top-[calc(100%+8px)] z-[130]"} max-h-[min(440px,calc(100vh-88px))] overflow-y-auto rounded-[12px] border border-[#DCE1E8] bg-white/98 p-2 shadow-[0_18px_48px_-24px_rgba(15,20,25,0.5)] backdrop-blur-xl`}>
           {results.length ? (
             <div className="space-y-1">
               {results.map((item, index) => (
