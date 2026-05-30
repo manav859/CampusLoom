@@ -18,21 +18,12 @@ export function buildFeeReceiptMessage(
   receiptNo: string,
   date: Date | string,
   pendingAmount?: number,
-  status?: string,
-  receiptUrl?: string
+  status?: string
 ) {
-  let message = `Dear Parent, fee payment of Rs. ${amount.toFixed(2)} for ${studentName} was received on ${formatMessageDate(date)}. Receipt No: ${receiptNo}.`;
-
+  let message = `Dear Parent, fee payment of Rs. ${amount.toFixed(2)} for ${studentName} was received on ${formatMessageDate(date)}. Receipt No: ${receiptNo}. All fees are now fully paid. Thank you!`;
   if (pendingAmount !== undefined && pendingAmount > 0) {
-    message += ` Remaining balance: Rs. ${pendingAmount.toFixed(2)}.`;
-  } else if (status === "PAID") {
-    message += ` All fees are now fully paid. Thank you!`;
+    message = `Dear Parent, fee payment of Rs. ${amount.toFixed(2)} for ${studentName} was received on ${formatMessageDate(date)}. Receipt No: ${receiptNo}. Remaining balance: Rs. ${pendingAmount.toFixed(2)}.`;
   }
-
-  if (receiptUrl) {
-    message += ` PDF receipt: ${receiptUrl}`;
-  }
-
   return message;
 }
 

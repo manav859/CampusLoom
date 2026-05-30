@@ -105,7 +105,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
       // Auto-download PDF receipt
       try {
         setDownloading(true);
-        await feesApi.downloadReceiptPdf(result.receipt.id);
+        await feesApi.downloadReceiptPdf(result.receipt.id, result.receipt.receiptNo);
       } catch {
         // PDF download failed silently — user can retry via button
       } finally {
@@ -124,7 +124,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
     if (!success) return;
     setDownloading(true);
     try {
-      await feesApi.downloadReceiptPdf(success.receipt.id);
+      await feesApi.downloadReceiptPdf(success.receipt.id, success.receipt.receiptNo);
     } catch {
       setError("Failed to download receipt PDF");
     } finally {

@@ -1130,12 +1130,12 @@ export const feesApi = {
     }
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   },
-  downloadReceiptPdf: async (receiptId: string) => {
+  downloadReceiptPdf: async (receiptId: string, receiptNo?: string) => {
     const blob = await feesApi.receiptPdfBlob(receiptId);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `receipt-${receiptId}.pdf`;
+    a.download = receiptNo ? `receipt-${receiptNo}.pdf` : `receipt-${receiptId}.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

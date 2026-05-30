@@ -56,8 +56,8 @@ export default function StudentFeeLedgerPage() {
   const [adjustmentReason, setAdjustmentReason] = useState("");
   const [savingAdjustment, setSavingAdjustment] = useState(false);
 
-  async function loadLedger() {
-    setLoading(true);
+  async function loadLedger(background = false) {
+    if (!background) setLoading(true);
     setError("");
     try {
       // Invalidate stale cache before reload (e.g. after payment)
@@ -66,7 +66,7 @@ export default function StudentFeeLedgerPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load fee ledger");
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }
 
@@ -81,13 +81,13 @@ export default function StudentFeeLedgerPage() {
       (result.ledger.balance > 0 ? ` - Balance: ${formatINR(result.ledger.balance, { compact: false })}` : "") +
       (result.receiptNotificationQueued ? " - WhatsApp receipt queued" : "")
     );
-    loadLedger();
+    loadLedger(true);
   }
 
-  async function handleDownloadReceipt(receiptId: string) {
+  async function handleDownloadReceipt(receiptId: string, receiptNo: string) {
     setDownloadingId(receiptId);
     try {
-      await feesApi.downloadReceiptPdf(receiptId);
+      await feesApi.downloadReceiptPdf(receiptId, receiptNo);
     } catch {
       setError("Failed to download receipt PDF");
     } finally {
@@ -340,7 +340,7 @@ export default function StudentFeeLedgerPage() {
                                     {previewingId === receiptId ? "Opening..." : "Preview"}
                                   </button>
                                   <button
-                                    onClick={() => handleDownloadReceipt(receiptId)}
+                                    onClick={() => handleDownloadReceipt(receiptId, receiptLabel(payment))}
                                     disabled={downloadingId === receiptId}
                                     className="inline-flex items-center gap-1.5 rounded-lg bg-[#0071e3]/10 px-3 py-1.5 text-[11px] font-bold text-[#0071e3] transition-colors hover:bg-[#0071e3] hover:text-white disabled:opacity-50"
                                   >
