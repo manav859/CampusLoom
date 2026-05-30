@@ -24,7 +24,8 @@ async function test() {
       id: "mock-teacher-id",
       schoolId: student.schoolId,
       role: "PRINCIPAL",
-      phone: student.parentPhone // mock
+      phone: student.parentPhone, // mock
+      fullName: "Test User"
     };
 
     const pdfBuffer = await getStudentReportCardPdf(mockUser, student.id);
