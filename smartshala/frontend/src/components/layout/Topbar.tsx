@@ -60,6 +60,7 @@ type SearchIconName =
   | "fees"
   | "homework"
   | "logs"
+  | "reports"
   | "settings"
   | "students"
   | "teachers"
