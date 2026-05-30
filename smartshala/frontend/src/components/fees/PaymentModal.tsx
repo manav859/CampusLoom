@@ -101,17 +101,6 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
         ...(referenceField ? { [referenceField.name]: referenceValue } : {})
       });
       setSuccess(result);
-
-      // Auto-download PDF receipt
-      try {
-        setDownloading(true);
-        await feesApi.downloadReceiptPdf(result.receipt.id, result.receipt.receiptNo);
-      } catch {
-        // PDF download failed silently — user can retry via button
-      } finally {
-        setDownloading(false);
-      }
-
       onSuccess(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Payment failed");

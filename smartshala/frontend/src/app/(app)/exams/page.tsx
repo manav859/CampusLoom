@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Modal } from "@/components/ui/Modal";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -59,6 +60,51 @@ function SortIcon({ active, direction }: { active: boolean; direction: "asc" | "
   );
 }
 
+function gradeColor(grade: string) {
+  const g = grade.toUpperCase().trim();
+  if (g === "A+" || g === "A") return "bg-[#34c759]/15 text-[#248a3d] border-[#34c759]/30";
+  if (g === "B+" || g === "B") return "bg-[#007aff]/15 text-[#0055b3] border-[#007aff]/30";
+  if (g === "C+" || g === "C") return "bg-[#ff9500]/15 text-[#b36800] border-[#ff9500]/30";
+  if (g === "D") return "bg-[#ff6b35]/15 text-[#c44d1a] border-[#ff6b35]/30";
+  if (g === "E" || g === "F" || g === "FAIL") return "bg-[#ff3b30]/15 text-[#d70015] border-[#ff3b30]/30";
+  if (g === "ABSENT" || g === "ABS") return "bg-[#8e8e93]/15 text-[#636366] border-[#8e8e93]/30";
+  return "bg-[#e5e5ea]/80 text-[#636366] border-[#e5e5ea]";
+}
+
+function ColumnFilter({ label, options, selected, onToggle, isOpen, onToggleOpen }: {
+  label: string;
+  options: string[];
+  selected: Set<string>;
+  onToggle: (value: string) => void;
+  isOpen: boolean;
+  onToggleOpen: () => void;
+}) {
+  return (
+    <div className="relative inline-flex items-center gap-1.5">
+      {label}
+      <button onClick={onToggleOpen} type="button" className="hover:text-[#2456E6]">
+        <svg className={`h-3.5 w-3.5 ${selected.size > 0 ? "text-[#2456E6]" : "text-[#86868b]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" d="M3 6h18M6 12h12M9 18h6" />
+        </svg>
+      </button>
+      {selected.size > 0 ? <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2456E6] px-1 text-[9px] font-bold text-white">{selected.size}</span> : null}
+      {isOpen ? (
+        <div className="absolute left-0 top-8 z-40 max-h-56 min-w-[200px] overflow-auto rounded-xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
+          {options.map((opt) => (
+            <label className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-[#031526] hover:bg-[#F2F7FC] cursor-pointer" key={opt}>
+              <input type="checkbox" checked={selected.has(opt)} onChange={() => onToggle(opt)} className="h-3.5 w-3.5 rounded border-gray-300 text-[#2456E6] focus:ring-[#2456E6]" />
+              <span className="truncate">{opt}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const gradeOrder: Record<string, number> = { "A+": 1, A: 2, "B+": 3, B: 4, "C+": 5, C: 6, D: 7, E: 8, F: 9, FAIL: 10 };
+const DETAIL_PAGE_SIZE = 20;
+
 export default function AdminExamsPage() {
   const [context, setContext] = useState<MarksContext>({ classes: [] });
   const [exams, setExams] = useState<MarksExam[]>([]);
@@ -85,7 +131,20 @@ export default function AdminExamsPage() {
   const [classPickerOpen, setClassPickerOpen] = useState(false);
   const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
   const [termPickerOpen, setTermPickerOpen] = useState(false);
-  const [filterClassPickerOpen, setFilterClassPickerOpen] = useState(false);
+
+  // Exam history column filters
+  const [filterClassNames, setFilterClassNames] = useState<Set<string>>(new Set());
+  const [filterSubjectNames, setFilterSubjectNames] = useState<Set<string>>(new Set());
+  const [filterExamNamesSet, setFilterExamNamesSet] = useState<Set<string>>(new Set());
+  const [classColOpen, setClassColOpen] = useState(false);
+  const [subjectColOpen, setSubjectColOpen] = useState(false);
+  const [examColOpen, setExamColOpen] = useState(false);
+
+  // Student detail modal
+  const [detailSearch, setDetailSearch] = useState("");
+  const [detailPage, setDetailPage] = useState(1);
+  const [detailSortKey, setDetailSortKey] = useState<"marks" | "grade" | "percentage" | null>(null);
+  const [detailSortDir, setDetailSortDir] = useState<"asc" | "desc">("desc");
 
   const selectedClass = useMemo(() => context.classes.find((c) => c.id === classId) ?? null, [context.classes, classId]);
   const subjects = useMemo(() => selectedClass?.subjects ?? [], [selectedClass]);
@@ -104,9 +163,37 @@ export default function AdminExamsPage() {
     }
   };
 
+  const handleDetailSort = (key: "marks" | "grade" | "percentage") => {
+    setDetailPage(1);
+    if (detailSortKey === key) {
+      setDetailSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setDetailSortKey(key);
+      setDetailSortDir("desc");
+    }
+  };
+
+  const toggleFilter = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) => {
+    setter((prev) => { const next = new Set(prev); next.has(value) ? next.delete(value) : next.add(value); return next; });
+  };
+
+  // Exam history column filter values
+  const uniqueClassNames = useMemo(() => [...new Set(exams.map((e) => e.className))].sort(), [exams]);
+  const uniqueSubjectNames = useMemo(() => [...new Set(exams.map((e) => e.subject))].sort(), [exams]);
+  const uniqueExamNames = useMemo(() => [...new Set(exams.map((e) => e.name))].sort(), [exams]);
+
+  const filteredExams = useMemo(() => {
+    return exams.filter((e) => {
+      if (filterClassNames.size > 0 && !filterClassNames.has(e.className)) return false;
+      if (filterSubjectNames.size > 0 && !filterSubjectNames.has(e.subject)) return false;
+      if (filterExamNamesSet.size > 0 && !filterExamNamesSet.has(e.name)) return false;
+      return true;
+    });
+  }, [exams, filterClassNames, filterSubjectNames, filterExamNamesSet]);
+
   const sortedExamsByTerm = useMemo(() => {
     const grouped = new Map<MarksExam["term"], MarksExam[]>();
-    exams.forEach((exam) => {
+    filteredExams.forEach((exam) => {
       const rows = grouped.get(exam.term) ?? [];
       rows.push(exam);
       grouped.set(exam.term, rows);
@@ -129,7 +216,36 @@ export default function AdminExamsPage() {
         return { ...option, exams: sorted };
       })
       .filter((group) => group.exams.length > 0);
-  }, [exams, sortKey, sortDirection]);
+  }, [filteredExams, sortKey, sortDirection]);
+
+  // Student detail modal processing
+  const processedStudents = useMemo(() => {
+    if (!selectedExam) return [];
+    let list = [...selectedExam.students];
+    if (detailSearch.trim()) {
+      const q = detailSearch.toLowerCase();
+      list = list.filter((s) => s.fullName.toLowerCase().includes(q) || s.admissionNumber.toLowerCase().includes(q));
+    }
+    if (detailSortKey) {
+      list.sort((a, b) => {
+        let cmp = 0;
+        if (detailSortKey === "marks") {
+          cmp = (a.result?.marks ?? -1) - (b.result?.marks ?? -1);
+        } else if (detailSortKey === "percentage") {
+          cmp = (a.result?.percentage ?? -1) - (b.result?.percentage ?? -1);
+        } else if (detailSortKey === "grade") {
+          const ga = a.result ? (gradeOrder[a.result.grade] ?? 10) : 99;
+          const gb = b.result ? (gradeOrder[b.result.grade] ?? 10) : 99;
+          cmp = ga - gb;
+        }
+        return detailSortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return list;
+  }, [selectedExam, detailSearch, detailSortKey, detailSortDir]);
+
+  const totalDetailPages = Math.ceil(processedStudents.length / DETAIL_PAGE_SIZE);
+  const pagedStudents = processedStudents.slice((detailPage - 1) * DETAIL_PAGE_SIZE, detailPage * DETAIL_PAGE_SIZE);
 
   useEffect(() => {
     let active = true;
@@ -168,14 +284,18 @@ export default function AdminExamsPage() {
     setAbsent(Object.fromEntries((nextClass?.students ?? []).map((s) => [s.id, false])));
   }, [classId, context.classes]);
 
-  async function refreshExams(nextClassId = classId) {
-    const rows = await marksApi.exams(nextClassId || undefined);
+  async function refreshExams() {
+    const rows = await marksApi.exams();
     setExams(rows);
   }
 
   async function openExam(examId: string) {
     setLoadingExamId(examId);
     setError("");
+    setDetailSearch("");
+    setDetailPage(1);
+    setDetailSortKey(null);
+    setDetailSortDir("desc");
     try {
       const detail = await marksApi.exam(examId);
       setSelectedExam(detail);
@@ -202,14 +322,8 @@ export default function AdminExamsPage() {
     }
   }
 
-  async function handleClassChange(nextClassId: string) {
+  function handleClassChange(nextClassId: string) {
     setClassId(nextClassId);
-    setError("");
-    try {
-      await refreshExams(nextClassId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load exams");
-    }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -318,7 +432,7 @@ export default function AdminExamsPage() {
           <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Exams &amp; Marks</h1>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <StatusPill label={`${exams.length} exams`} tone={exams.length ? "good" : "neutral"} />
+          <StatusPill label={`${filteredExams.length} exams`} tone={filteredExams.length ? "good" : "neutral"} />
           <button
             className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-[6px] bg-[#2456E6] px-5 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(15,20,25,0.08)] transition hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={loading}
@@ -366,7 +480,7 @@ export default function AdminExamsPage() {
                         <button
                           className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${c.id === classId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
                           key={c.id}
-                          onClick={() => { setClassPickerOpen(false); void handleClassChange(c.id); }}
+                          onClick={() => { setClassPickerOpen(false); handleClassChange(c.id); }}
                           type="button"
                         >
                           Class {c.name}-{c.section} ({c.students.length} students)
@@ -564,35 +678,16 @@ export default function AdminExamsPage() {
             <h2 className="text-[20px] font-semibold text-[#031526]">Exam history</h2>
             <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Saved exams feed the Academic tab and performance reports.</p>
           </div>
-          <div className="relative w-full sm:w-[240px]">
+          {(filterClassNames.size > 0 || filterSubjectNames.size > 0 || filterExamNamesSet.size > 0) ? (
             <button
-              className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#031526] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={loading}
-              onClick={() => setFilterClassPickerOpen((o) => !o)}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[12px] font-semibold text-[#52687D] hover:bg-[#F7F8FB]"
+              onClick={() => { setFilterClassNames(new Set()); setFilterSubjectNames(new Set()); setFilterExamNamesSet(new Set()); }}
               type="button"
             >
-              <span className="truncate">{selectedClass ? `Class ${selectedClass.name}-${selectedClass.section}` : "All classes"}</span>
-              <svg className={`h-4 w-4 shrink-0 text-[#52687D] transition ${filterClassPickerOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" /></svg>
+              Clear filters
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
-            {filterClassPickerOpen ? (
-              <div className="absolute left-0 right-0 top-[46px] z-30 max-h-72 overflow-auto rounded-2xl border border-[#C9D3DE] bg-white p-2 shadow-[0_8px_24px_rgba(15,20,25,0.18)]">
-                {context.classes.length === 0 ? (
-                  <div className="rounded-xl bg-[#F7F8FB] px-3 py-3 text-[13px] font-semibold text-[#86868b]">No classes available</div>
-                ) : (
-                  context.classes.map((c) => (
-                    <button
-                      className={`block w-full rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${c.id === classId ? "bg-[#2456E6] text-white" : "text-[#031526] hover:bg-[#F2F7FC]"}`}
-                      key={c.id}
-                      onClick={() => { setFilterClassPickerOpen(false); void handleClassChange(c.id); }}
-                      type="button"
-                    >
-                      Class {c.name}-{c.section}
-                    </button>
-                  ))
-                )}
-              </div>
-            ) : null}
-          </div>
+          ) : null}
         </div>
 
         {/* Mobile cards */}
@@ -605,9 +700,9 @@ export default function AdminExamsPage() {
                 <Skeleton className="mt-4 h-9 w-full rounded-md" />
               </div>
             ))
-          ) : exams.length === 0 ? (
+          ) : filteredExams.length === 0 ? (
             <div className="rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] px-4 py-8 text-center text-[13px] font-medium text-[#52687D]">
-              No exams saved yet.
+              No exams found.
             </div>
           ) : (
             sortedExamsByTerm.map((group) => (
@@ -654,44 +749,42 @@ export default function AdminExamsPage() {
 
         {/* Desktop table */}
         <div className="hidden max-h-[520px] overflow-auto rounded-[8px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)] [contain:content] md:block">
-          <table className="w-full min-w-[1120px] table-fixed border-collapse text-left text-[14px] text-[#001B33]">
+          <table className="w-full min-w-[1120px] border-collapse text-left text-[14px] text-[#001B33]">
             <colgroup>
-              <col className="w-[200px]" />
-              <col className="w-[120px]" />
-              <col className="w-[80px]" />
-              <col className="w-[120px]" />
-              <col className="w-[140px]" />
-              <col className="w-[90px]" />
-              <col className="w-[90px]" />
-              <col className="w-[100px]" />
-              <col className="w-[120px]" />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "6%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "10%" }} />
             </colgroup>
             <thead>
               <tr className="table-head-row">
-                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-5 py-4 text-[14px] font-semibold">Exam</th>
-                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Subject</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-5 py-4 text-[14px] font-semibold">
+                  <ColumnFilter label="Exam" options={uniqueExamNames} selected={filterExamNamesSet} onToggle={(v) => toggleFilter(setFilterExamNamesSet, v)} isOpen={examColOpen} onToggleOpen={() => { setExamColOpen((o) => !o); setClassColOpen(false); setSubjectColOpen(false); }} />
+                </th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">
+                  <ColumnFilter label="Class" options={uniqueClassNames} selected={filterClassNames} onToggle={(v) => toggleFilter(setFilterClassNames, v)} isOpen={classColOpen} onToggleOpen={() => { setClassColOpen((o) => !o); setExamColOpen(false); setSubjectColOpen(false); }} />
+                </th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">
+                  <ColumnFilter label="Subject" options={uniqueSubjectNames} selected={filterSubjectNames} onToggle={(v) => toggleFilter(setFilterSubjectNames, v)} isOpen={subjectColOpen} onToggleOpen={() => { setSubjectColOpen((o) => !o); setExamColOpen(false); setClassColOpen(false); }} />
+                </th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Max</th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">
-                  <button
-                    className="inline-flex items-center gap-1.5 hover:text-[#2456E6]"
-                    onClick={() => handleSort("date")}
-                    type="button"
-                  >
-                    Date
-                    <SortIcon active={sortKey === "date"} direction={sortDirection} />
+                  <button className="inline-flex items-center gap-1.5 hover:text-[#2456E6]" onClick={() => handleSort("date")} type="button">
+                    Date <SortIcon active={sortKey === "date"} direction={sortDirection} />
                   </button>
                 </th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Status</th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Entered</th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">Pending</th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-4 text-center text-[14px] font-semibold">
-                  <button
-                    className="inline-flex items-center gap-1.5 hover:text-[#2456E6] mx-auto"
-                    onClick={() => handleSort("average")}
-                    type="button"
-                  >
-                    Class Avg
-                    <SortIcon active={sortKey === "average"} direction={sortDirection} />
+                  <button className="inline-flex items-center gap-1.5 hover:text-[#2456E6] mx-auto" onClick={() => handleSort("average")} type="button">
+                    Avg <SortIcon active={sortKey === "average"} direction={sortDirection} />
                   </button>
                 </th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-[14px] font-semibold">Actions</th>
@@ -701,20 +794,20 @@ export default function AdminExamsPage() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 9 }).map((__, j) => (
+                    {Array.from({ length: 10 }).map((__, j) => (
                       <td className="border-b border-[#C9D3DE] px-4 py-5" key={j}><Skeleton className="h-4 w-20 rounded-md" /></td>
                     ))}
                   </tr>
                 ))
-              ) : exams.length === 0 ? (
+              ) : filteredExams.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-12 text-center text-[#52687D]" colSpan={9}>No exams saved yet.</td>
+                  <td className="px-4 py-12 text-center text-[#52687D]" colSpan={10}>No exams found.</td>
                 </tr>
               ) : (
                 sortedExamsByTerm.map((group) => (
                   <Fragment key={group.value}>
                     <tr>
-                      <td className="border-b border-[#C9D3DE] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#52687D]" colSpan={9}>
+                      <td className="border-b border-[#C9D3DE] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#52687D]" colSpan={10}>
                         {group.label}
                       </td>
                     </tr>
@@ -722,8 +815,8 @@ export default function AdminExamsPage() {
                       <tr key={exam.id}>
                         <td className="border-b border-[#C9D3DE] px-5 py-4 align-middle">
                           <p className="truncate font-semibold text-[#1d1d1f]">{exam.name}</p>
-                          <p className="mt-1 text-[12px] text-[#86868b]">{exam.className}</p>
                         </td>
+                        <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{exam.className}</td>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{exam.subject}</td>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{exam.maxMarks}</td>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 align-middle text-[#52687D]">{formatDateShort(exam.date)}</td>
@@ -761,15 +854,24 @@ export default function AdminExamsPage() {
       >
         {selectedExam ? (
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-2 mb-2">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
               <StatusPill label={`${selectedExam.enteredCount} entered`} tone="good" />
               <StatusPill label={`${selectedExam.pendingCount} pending`} tone={selectedExam.pendingCount ? "danger" : "neutral"} />
               <StatusPill label={`${selectedExam.classAverage}% avg`} tone="neutral" />
+              <div className="ml-auto flex items-center gap-2 rounded-lg border border-[#C9D3DE] bg-white px-3 py-1.5">
+                <svg className="h-3.5 w-3.5 shrink-0 text-[#86868b]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" /></svg>
+                <input
+                  className="w-40 border-0 bg-transparent text-[13px] font-medium text-[#1d1d1f] outline-none placeholder:text-[#86868b]"
+                  onChange={(e) => { setDetailSearch(e.target.value); setDetailPage(1); }}
+                  placeholder="Search student..."
+                  value={detailSearch}
+                />
+              </div>
             </div>
 
             {/* Mobile student cards */}
             <div className="space-y-3 md:hidden max-h-[60vh] overflow-y-auto p-1">
-              {selectedExam.students.map((student) => {
+              {pagedStudents.map((student) => {
                 const draft = examDrafts[student.studentId] ?? "";
                 const isAbsent = draftAbsent[student.studentId] ?? false;
                 const savingRow = savingStudentId === student.studentId;
@@ -778,10 +880,10 @@ export default function AdminExamsPage() {
                   <article className="rounded-[6px] border border-[#DCE1E8] bg-white p-4" key={student.studentId}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-[#1d1d1f]">{student.fullName}</p>
+                        <Link href={`/students/${student.studentId}`} className="truncate font-semibold text-[#1d1d1f] hover:text-[#2456E6] block">{student.fullName}</Link>
                         <p className="mt-1 text-[12px] text-[#86868b]">Roll {student.rollNumber ?? "-"} | <span className="type-code">{student.admissionNumber}</span></p>
                       </div>
-                      {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
+                      {student.result ? <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${gradeColor(student.result.grade)}`}>{student.result.grade}</span> : <StatusPill label="Pending" tone="danger" />}
                     </div>
                     <div className="mt-4 grid grid-cols-[auto_1fr_auto] items-center gap-3">
                       <label className="flex items-center gap-2">
@@ -826,34 +928,48 @@ export default function AdminExamsPage() {
             <div className="hidden md:block max-h-[60vh] overflow-y-auto rounded-[8px] border border-[#C9D3DE] [contain:content]">
               <table className="w-full min-w-[720px] border-collapse text-left text-[14px] text-[#001B33]">
                 <colgroup>
-                  <col className="w-[180px]" />
-                  <col className="w-[120px]" />
-                  <col className="w-[60px]" />
-                  <col className="w-[180px]" />
-                  <col className="w-[90px]" />
-                  <col className="w-[90px]" />
-                  <col className="w-[100px]" />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "13%" }} />
                 </colgroup>
                 <thead>
                   <tr className="table-head-row">
                     <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">Student</th>
                     <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">Admission</th>
                     <th className="whitespace-nowrap border-b border-[#C9D3DE] px-3 py-3.5 text-[14px] font-semibold text-center">Roll</th>
-                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">Marks</th>
-                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold text-center">Percentage</th>
-                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold text-center">Grade</th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">
+                      <button className="inline-flex items-center gap-1.5 hover:text-[#2456E6]" onClick={() => handleDetailSort("marks")} type="button">
+                        Marks <SortIcon active={detailSortKey === "marks"} direction={detailSortDir} />
+                      </button>
+                    </th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold text-center">
+                      <button className="inline-flex items-center gap-1.5 hover:text-[#2456E6] mx-auto" onClick={() => handleDetailSort("percentage")} type="button">
+                        Percentage <SortIcon active={detailSortKey === "percentage"} direction={detailSortDir} />
+                      </button>
+                    </th>
+                    <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold text-center">
+                      <button className="inline-flex items-center gap-1.5 hover:text-[#2456E6] mx-auto" onClick={() => handleDetailSort("grade")} type="button">
+                        Grade <SortIcon active={detailSortKey === "grade"} direction={detailSortDir} />
+                      </button>
+                    </th>
                     <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-3.5 text-[14px] font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedExam.students.map((student) => {
+                  {pagedStudents.map((student) => {
                     const draft = examDrafts[student.studentId] ?? "";
                     const isAbsent = draftAbsent[student.studentId] ?? false;
                     const savingRow = savingStudentId === student.studentId;
 
                     return (
                       <tr className="table-row hover:bg-[#F2F7FC]/30 transition" key={student.studentId}>
-                        <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle font-semibold text-[#1d1d1f]">{student.fullName}</td>
+                        <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle">
+                          <Link href={`/students/${student.studentId}`} className="font-semibold text-[#1d1d1f] hover:text-[#2456E6]">{student.fullName}</Link>
+                        </td>
                         <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle type-code text-[#6e6e73]">{student.admissionNumber}</td>
                         <td className="border-b border-[#C9D3DE] px-3 py-3 align-middle text-[#6e6e73] text-center">{student.rollNumber ?? "-"}</td>
                         <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle">
@@ -882,7 +998,7 @@ export default function AdminExamsPage() {
                           {student.result ? `${student.result.percentage}%` : "-"}
                         </td>
                         <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle text-center">
-                          {student.result ? <StatusPill label={student.result.grade} tone="neutral" /> : <StatusPill label="Pending" tone="danger" />}
+                          {student.result ? <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${gradeColor(student.result.grade)}`}>{student.result.grade}</span> : <StatusPill label="Pending" tone="danger" />}
                         </td>
                         <td className="border-b border-[#C9D3DE] px-4 py-3 align-middle">
                           <button
@@ -900,6 +1016,34 @@ export default function AdminExamsPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {totalDetailPages > 1 ? (
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-[12px] font-medium text-[#86868b]">
+                  Showing {(detailPage - 1) * DETAIL_PAGE_SIZE + 1}–{Math.min(detailPage * DETAIL_PAGE_SIZE, processedStudents.length)} of {processedStudents.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#C9D3DE] bg-white text-[#52687D] hover:bg-[#F2F7FC] disabled:opacity-40"
+                    disabled={detailPage <= 1}
+                    onClick={() => setDetailPage((p) => Math.max(1, p - 1))}
+                    type="button"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
+                  </button>
+                  <span className="min-w-[48px] text-center text-[12px] font-semibold text-[#1d1d1f]">{detailPage} / {totalDetailPages}</span>
+                  <button
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#C9D3DE] bg-white text-[#52687D] hover:bg-[#F2F7FC] disabled:opacity-40"
+                    disabled={detailPage >= totalDetailPages}
+                    onClick={() => setDetailPage((p) => Math.min(totalDetailPages, p + 1))}
+                    type="button"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" /></svg>
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </Modal>
