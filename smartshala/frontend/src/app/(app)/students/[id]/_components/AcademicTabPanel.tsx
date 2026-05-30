@@ -191,7 +191,28 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
             <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam analytics</h2>
             <p className="text-[12px] font-medium text-[#86868b]">Each mark includes class average, grade, and rank.</p>
           </div>
-          <StatusPill label={`${analytics.exams.length} marks`} tone={hasExams ? "good" : "neutral"} />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const { studentsApi } = await import("@/lib/api");
+                  await studentsApi.downloadReportCardPdf(student.id, student.fullName);
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : "Failed to download report card");
+                }
+              }}
+              className="inline-flex items-center gap-1.5 rounded-[6px] border border-[#2456E6]/30 bg-[#2456E6]/10 px-3 py-1.5 text-[12px] font-semibold text-[#2456E6] transition-colors hover:bg-[#2456E6]/20"
+              type="button"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download Report Card
+            </button>
+            <StatusPill label={`${analytics.exams.length} marks`} tone={hasExams ? "good" : "neutral"} />
+          </div>
         </div>
         <div className="space-y-3 p-4 md:hidden">
           {!hasExams ? (

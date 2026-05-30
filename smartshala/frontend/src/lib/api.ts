@@ -1213,5 +1213,36 @@ export const studentsApi = {
     apiFetch<StudentDetail["behaviourAnalytics"]["records"][number]>(`/students/${studentId}/behaviour/${recordId}/action`, {
       method: "PATCH",
       body: JSON.stringify(payload)
-    })
+    }),
+  reportCardPdfBlob: async (studentId: string) => {
+    const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.accessToken") : null;
+    const response = await fetch(`${tenantApiBase(env.apiBaseUrl, `/students/${studentId}/report-card/pdf`)}/students/${studentId}/report-card/pdf`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    if (!response.ok) throw new Error("Failed to download report card");
+    return response.blob();
+  },
+  previewReportCardPdf: async (studentId: string) => {
+    const blob = await studentsApi.reportCardPdfBlob(studentId);
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      URL.revokeObjectURL(url);
+      throw new Error("Browser blocked report card preview");
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
+  downloadReportCardPdf: async (studentId: string, studentName: string) => {
+    const blob = await studentsApi.reportCardPdfBlob(studentId);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report-card-${studentName.toLowerCase().replace(/\s+/g, "-")}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 };

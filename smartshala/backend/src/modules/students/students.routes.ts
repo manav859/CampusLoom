@@ -19,6 +19,11 @@ studentsRouter.use(requireAuth);
 studentsRouter.get("/", controller.listStudents);
 studentsRouter.post("/import", requireRole(adminRoles), validate({ body: importStudentsSchema }), controller.importStudents);
 studentsRouter.get("/:id", controller.getStudent);
+studentsRouter.get(
+  "/:id/report-card/pdf",
+  requireRole([UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT]),
+  controller.getStudentReportCardPdf
+);
 studentsRouter.get("/:id/documents/:documentId/download", requireRole(documentRoles), controller.downloadStudentDocument);
 studentsRouter.post(
   "/:id/documents",

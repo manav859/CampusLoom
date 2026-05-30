@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../core/asyncHandler.js";
 import * as studentsService from "./students.service.js";
+import * as reportCardService from "./report-card.service.js";
 
 export const listStudents = asyncHandler(async (req: Request, res: Response) => {
   res.json(await studentsService.listStudents(req.user!, req.query));
@@ -54,4 +55,11 @@ export const deactivateStudent = asyncHandler(async (req: Request, res: Response
 
 export const activateStudent = asyncHandler(async (req: Request, res: Response) => {
   res.json(await studentsService.activateStudent(req.user!, req.params.id));
+});
+
+export const getStudentReportCardPdf = asyncHandler(async (req: Request, res: Response) => {
+  const pdfBuffer = await reportCardService.getStudentReportCardPdf(req.user!, req.params.id);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="report-card-${req.params.id}.pdf"`);
+  res.send(pdfBuffer);
 });
