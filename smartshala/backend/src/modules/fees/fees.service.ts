@@ -859,7 +859,7 @@ function queuePaymentReceiptWhatsApp(
   if (!phone) return;
 
   setTimeout(() => {
-    const message = buildFeeReceiptMessage(student.fullName, amount, receiptNo, formatDate(paidAt), pendingAmount, status, publicReceiptUrl(receiptId, tenantSchoolId));
+    const message = buildFeeReceiptMessage(student.fullName, amount, receiptNo, formatDate(paidAt), pendingAmount, status);
     void sendWhatsAppMessage(phone, message, {
       schoolId,
       studentId: student.id,
@@ -899,8 +899,7 @@ export async function sendReceiptWhatsApp(user: Express.UserContext, receiptId: 
     receipt.receiptNo,
     formatDate(payment.paidAt),
     toNumber(payment.assignment.pendingAmount),
-    payment.assignment.status,
-    publicReceiptUrl(receipt.id, user.tenantSchoolId)
+    payment.assignment.status
   );
   const result = await sendWhatsAppMessage(phone, message, {
     schoolId: user.schoolId,
