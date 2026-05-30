@@ -118,7 +118,7 @@ export async function getStudentReportCardPdf(user: Express.UserContext, student
 
     // Process exam results and map them to categories
     examResults.forEach((res) => {
-      const subName = res.subjectRef?.name || res.subject || "General";
+      const subName = res.subject || "General";
       const key = subName.toLowerCase();
       
       const examNameStr = res.exam?.name || res.assessmentName || "";
