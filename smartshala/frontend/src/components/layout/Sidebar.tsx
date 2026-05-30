@@ -55,7 +55,8 @@ const adminLinks: NavItem[] = [
       { label: "Daily attendance report", href: "/reports/daily-attendance", icon: "attendance" },
       { label: "Student performance report", href: "/reports/student-performance", icon: "students" },
       { label: "Subject wise report", href: "/reports/subject-wise", icon: "reports" },
-      { label: "Teacher performance", href: "/reports/teacher-performance", icon: "teachers" }
+      { label: "Teacher performance", href: "/reports/teacher-performance", icon: "teachers" },
+      { label: "Exam reports", href: "/reports/exams", icon: "exams" }
     ]
   },
   { label: "Fees", href: "/fees", icon: "fees" },

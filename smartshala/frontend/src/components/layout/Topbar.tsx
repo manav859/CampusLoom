@@ -105,6 +105,7 @@ const searchResults: SearchResult[] = [
   { title: "Student performance report", description: "Student-wise academic overview", href: "/reports/student-performance", icon: "reports", type: "Report", roles: adminRoles, keywords: "student performance attendance report export csv pdf" },
   { title: "Subject wise report", description: "Subject performance by student", href: "/reports/subject-wise", icon: "reports", type: "Report", roles: adminRoles, keywords: "subject marks exam average best report export csv pdf" },
   { title: "Teacher performance", description: "Teacher workload and coverage", href: "/reports/teacher-performance", icon: "reports", type: "Report", roles: adminRoles, keywords: "teacher performance attendance coverage report export csv pdf" },
+  { title: "Exam reports", description: "Filterable student exam reports", href: "/reports/exams", icon: "reports", type: "Report", roles: adminRoles, keywords: "exam report results csv pdf" },
   { title: "Settings", description: "School profile, roles, templates", href: "/settings", icon: "settings", type: "Module", roles: adminRoles, keywords: "settings school profile academic year holiday grading fee category user role whatsapp template branding backup" }
 ];
 

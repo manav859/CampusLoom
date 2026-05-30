@@ -3,6 +3,7 @@ import { z } from "zod";
 import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
+import { examReportQuerySchema } from "./reports.schemas.js";
 import * as controller from "./reports.controller.js";
 
 export const reportsRouter = Router();
@@ -13,6 +14,7 @@ reportsRouter.get("/daily-principal", requireRole(adminRoles), controller.dailyP
 reportsRouter.get("/fees/pending", requireRole(adminRoles), controller.feePending);
 reportsRouter.get("/risk", requireRole(adminRoles), controller.risk);
 reportsRouter.get("/classes", requireRole(adminRoles), controller.classReport);
+reportsRouter.get("/exams", requireRole(adminRoles), validate({ query: examReportQuerySchema }), controller.examReport);
 reportsRouter.get(
   "/students/:studentId/monthly",
   requireRole(adminRoles),

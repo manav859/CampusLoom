@@ -22,3 +22,7 @@ export const classReport = asyncHandler(async (req: Request, res: Response) => {
   res.json(await reportsService.classReport(req.user!));
 });
 
+export const examReport = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await reportsService.examReport(req.user!, req.query));
+});
+
