@@ -60,10 +60,10 @@ type SearchIconName =
   | "fees"
   | "homework"
   | "logs"
-  | "reports"
   | "settings"
   | "students"
-  | "teachers";
+  | "teachers"
+  | "exams";
 
 type SearchResult = {
   description: string;
@@ -106,7 +106,8 @@ const searchResults: SearchResult[] = [
   { title: "Subject wise report", description: "Subject performance by student", href: "/reports/subject-wise", icon: "reports", type: "Report", roles: adminRoles, keywords: "subject marks exam average best report export csv pdf" },
   { title: "Teacher performance", description: "Teacher workload and coverage", href: "/reports/teacher-performance", icon: "reports", type: "Report", roles: adminRoles, keywords: "teacher performance attendance coverage report export csv pdf" },
   { title: "Exam reports", description: "Filterable student exam reports", href: "/reports/exams", icon: "reports", type: "Report", roles: adminRoles, keywords: "exam report results csv pdf" },
-  { title: "Settings", description: "School profile, roles, templates", href: "/settings", icon: "settings", type: "Module", roles: adminRoles, keywords: "settings school profile academic year holiday grading fee category user role whatsapp template branding backup" }
+  { title: "Settings", description: "School profile, roles, templates", href: "/settings", icon: "settings", type: "Module", roles: adminRoles, keywords: "settings school profile academic year holiday grading fee category user role whatsapp template branding backup" },
+  { title: "Exams & Marks", description: "Exam management and marks entry", href: "/exams", icon: "exams", type: "Module", roles: adminRoles, keywords: "exams marks grading assessment results report card" }
 ];
 
 function SearchGlyph({ icon }: { icon: SearchIconName }) {
@@ -121,6 +122,7 @@ function SearchGlyph({ icon }: { icon: SearchIconName }) {
   if (icon === "analytics") return <path d="M5 20V10M12 20V4M19 20v-7" />;
   if (icon === "logs") return <><path d="M8 6h10M8 12h10M8 18h10" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></>;
   if (icon === "settings") return <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V22h-4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H2v-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V2h4v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1h.2v4h-.2a1.7 1.7 0 0 0-1.5 1z" /></>;
+  if (icon === "exams") return <><path d="M6 20V10M12 20V4M18 20v-8" /></>;
   return <><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M14 2v5h5M9 13h6M9 17h6" /></>;
 }
 

@@ -20,7 +20,8 @@ type NavIconName =
   | "analytics"
   | "logs"
   | "activity"
-  | "settings";
+  | "settings"
+  | "exams";
 
 type NavLink = {
   label: string;
@@ -237,7 +238,7 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
     );
   }
 
-  if (icon === "analytics") {
+  if (icon === "analytics" || icon === "exams") {
     return (
       <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 20V10M12 20V4M18 20v-8" />
