@@ -25,6 +25,12 @@ const reports = [
     title: "Teacher performance",
     copy: "Teacher workload, class ownership, attendance completion, and active status.",
     action: "Open report"
+  },
+  {
+    href: "/reports/exams",
+    title: "Exam reports",
+    copy: "Filterable student exam reports, exportable to CSV and PDF across classes and subjects.",
+    action: "Open report"
   }
 ];
 

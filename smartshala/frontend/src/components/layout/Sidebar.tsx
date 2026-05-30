@@ -61,7 +61,7 @@ const adminLinks: NavItem[] = [
     ]
   },
   { label: "Fees", href: "/fees", icon: "fees" },
-  { label: "Exams & Marks", href: "/exams", icon: "analytics" },
+  { label: "Exams & Marks", href: "/exams", icon: "exams" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
   {
     label: "Logs",
@@ -238,10 +238,23 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
     );
   }
 
-  if (icon === "analytics" || icon === "exams") {
+  if (icon === "analytics") {
     return (
       <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 20V10M12 20V4M18 20v-8" />
+      </svg>
+    );
+  }
+
+  if (icon === "exams") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+        <path d="M8.5 17.5l2.5-5 2.5 5" />
+        <path d="M9.5 15.5h3" />
+        <path d="M15.5 15.5h3" />
+        <path d="M17 14v3" />
       </svg>
     );
   }

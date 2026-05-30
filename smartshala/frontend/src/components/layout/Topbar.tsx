@@ -122,7 +122,7 @@ function SearchGlyph({ icon }: { icon: SearchIconName }) {
   if (icon === "analytics") return <path d="M5 20V10M12 20V4M19 20v-7" />;
   if (icon === "logs") return <><path d="M8 6h10M8 12h10M8 18h10" /><path d="M4 6h.01M4 12h.01M4 18h.01" /></>;
   if (icon === "settings") return <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V22h-4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H2v-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V2h4v.2a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1h.2v4h-.2a1.7 1.7 0 0 0-1.5 1z" /></>;
-  if (icon === "exams") return <><path d="M6 20V10M12 20V4M18 20v-8" /></>;
+  if (icon === "exams") return <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8.5 17.5l2.5-5 2.5 5" /><path d="M9.5 15.5h3" /><path d="M15.5 15.5h3" /><path d="M17 14v3" /></>;
   return <><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" /><path d="M14 2v5h5M9 13h6M9 17h6" /></>;
 }
 
