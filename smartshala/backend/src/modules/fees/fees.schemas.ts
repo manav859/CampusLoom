@@ -12,13 +12,13 @@ export const feeStructureSchema = z.object({
   term: z.string().trim().min(1).optional(),
   academicYear: z.string().trim().min(4).optional(),
   frequency: z.nativeEnum(FeeFrequency).optional(),
-  totalAmount: z.coerce.number().positive(),
+  totalAmount: z.coerce.number().positive().finite().max(10_000_000).multipleOf(0.01),
   dueDate: z.coerce.date().optional(),
   installments: z.array(
     z.object({
       name: z.string().trim().min(2),
       dueDate: z.coerce.date(),
-      amount: z.coerce.number().positive(),
+      amount: z.coerce.number().positive().finite().max(10_000_000).multipleOf(0.01),
       sortOrder: z.coerce.number().int().default(0)
     })
   ).min(1).optional()
@@ -37,12 +37,12 @@ export const feeStructureUpdateSchema = z.object({
   name: z.string().trim().min(2).optional(),
   academicYear: z.string().trim().min(4).optional(),
   frequency: z.nativeEnum(FeeFrequency).optional(),
-  totalAmount: z.coerce.number().positive().optional(),
+  totalAmount: z.coerce.number().positive().finite().max(10_000_000).multipleOf(0.01).optional(),
   installments: z.array(
     z.object({
       name: z.string().trim().min(2),
       dueDate: z.coerce.date(),
-      amount: z.coerce.number().positive(),
+      amount: z.coerce.number().positive().finite().max(10_000_000).multipleOf(0.01),
       sortOrder: z.coerce.number().int().default(0)
     })
   ).min(1).optional(),
@@ -62,7 +62,7 @@ export const paymentSchema = z.object({
   assignmentId: z.string().uuid().optional(),
   studentId: z.string().uuid().optional(),
   installmentId: z.string().uuid().optional(),
-  amount: z.coerce.number().positive(),
+  amount: z.coerce.number().positive().finite().max(10_000_000).multipleOf(0.01),
   feeComponent: z.preprocess((value) => (typeof value === "string" ? value.toUpperCase() : value), z.nativeEnum(FeeComponent)).optional().default(FeeComponent.SCHOOL_FEE),
   mode: z.preprocess((value) => (typeof value === "string" ? value.toUpperCase() : value), z.nativeEnum(PaymentMode)),
   paidAt: z.coerce.date().optional(),
@@ -107,7 +107,7 @@ export const feeAdjustmentSchema = z.object({
   assignmentId: z.string().uuid().optional(),
   studentId: z.string().uuid().optional(),
   type: z.nativeEnum(FeeAdjustmentType),
-  amount: z.coerce.number().positive(),
+  amount: z.coerce.number().positive().finite().max(10_000_000).multipleOf(0.01),
   reason: z.string().trim().min(3).max(500)
 }).superRefine((data, ctx) => {
   if (!data.assignmentId && !data.studentId) {

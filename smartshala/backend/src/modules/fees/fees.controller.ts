@@ -39,7 +39,19 @@ export const assignFeeStructureToClass = asyncHandler(async (req: Request, res: 
 });
 
 export const collectPayment = asyncHandler(async (req: Request, res: Response) => {
-  res.status(201).json(await feesService.collectPayment(req.user!, req.body));
+  const idempotencyKey = req.header("Idempotency-Key") ?? null;
+  
+  if (idempotencyKey !== null) {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidPattern.test(idempotencyKey)) {
+      res.status(400).json({
+        error: { code: "INVALID_IDEMPOTENCY_KEY", message: "Idempotency-Key must be a valid UUID v4" }
+      });
+      return;
+    }
+  }
+
+  res.status(201).json(await feesService.collectPayment(req.user!, req.body, idempotencyKey));
 });
 
 export const applyFeeAdjustment = asyncHandler(async (req: Request, res: Response) => {

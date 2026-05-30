@@ -76,6 +76,7 @@ model User {
   @@unique([schoolId, email])
   @@unique([schoolId, phone])
   @@index([schoolId, role])
+  @@index([phone])
   @@map("users")
 }
 
@@ -547,9 +548,17 @@ model Payment {
   school        School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   student       Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
   receipt       Receipt?
+  idempotencyKey  String?   @db.Uuid
 
+  @@unique([schoolId, idempotencyKey])
+  @@unique([schoolId, upiTransactionId])
+  @@unique([schoolId, chequeNumber])
+  @@unique([schoolId, gatewayTransactionId])
   @@index([schoolId, paidAt])
   @@index([schoolId, studentId, paidAt])
+  @@index([assignmentId])
+  @@index([installmentId])
+  @@index([schoolId, recordedById, paidAt])
   @@map("payments")
 }
 
@@ -570,6 +579,7 @@ model FeeAdjustment {
 
   @@index([schoolId, studentId, createdAt])
   @@index([schoolId, assignmentId])
+  @@index([schoolId, recordedById])
   @@map("fee_adjustments")
 }
 

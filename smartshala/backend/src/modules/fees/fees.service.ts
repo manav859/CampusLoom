@@ -547,10 +547,33 @@ async function findPayableAssignment(tx: Prisma.TransactionClient, schoolId: str
   });
 }
 
-async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput) {
+async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput, idempotencyKey: string | null = null) {
   const paidAt = data.paidAt ?? new Date();
 
   const result = await prisma.$transaction(async (tx) => {
+    // ── Idempotency check ──────────────────────────────────────────
+    if (idempotencyKey) {
+      const existing = await tx.payment.findFirst({
+        where: { schoolId: user.schoolId, idempotencyKey },
+        include: { receipt: true },
+      });
+      if (existing) {
+        const assignment = await tx.studentFeeAssignment.findFirst({
+          where: { id: existing.assignmentId },
+          include: { student: { include: { class: true } }, feeStructure: true }
+        });
+        if (assignment) {
+          return {
+            payment: existing,
+            receipt: existing.receipt!,
+            assignment,
+            isDuplicate: true
+          };
+        }
+      }
+    }
+    // ── End idempotency check ────────────────────────────────────────
+
     const assignment = await findPayableAssignment(tx, user.schoolId, data);
     if (!assignment) throw notFound("Fee assignment");
 
@@ -589,6 +612,7 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
         ddNumber: data.ddNumber,
         gatewayTransactionId: data.gatewayTransactionId,
         bankReference: data.bankReference,
+        idempotencyKey: idempotencyKey ?? undefined,
         paidAt,
         notes: data.notes,
         recordedById: user.id
@@ -614,8 +638,18 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
       }
     });
 
-    return { payment, receipt, assignment: updatedAssignment };
+    return { payment, receipt, assignment: updatedAssignment, isDuplicate: false };
   });
+
+  if (result.isDuplicate) {
+    return {
+      payment: result.payment,
+      receipt: result.receipt,
+      assignment: result.assignment,
+      ledger: mapAssignmentSummary(result.assignment),
+      receiptNotificationQueued: false
+    };
+  }
 
   const receiptNotificationQueued = data.sendReceiptOnWhatsApp ?? true;
   if (receiptNotificationQueued) {
@@ -674,7 +708,7 @@ async function collectPaymentOnce(user: Express.UserContext, data: PaymentInput)
   };
 }
 
-export async function collectPayment(user: Express.UserContext, data: PaymentInput) {
+export async function collectPayment(user: Express.UserContext, data: PaymentInput, idempotencyKey: string | null = null) {
   if (data.amount <= 0) {
     throw new AppError(400, "Payment amount must be greater than zero", "INVALID_PAYMENT_AMOUNT");
   }
@@ -683,9 +717,24 @@ export async function collectPayment(user: Express.UserContext, data: PaymentInp
     async () => {
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try {
-          return await collectPaymentOnce(user, data);
+          return await collectPaymentOnce(user, data, idempotencyKey);
         } catch (error) {
-          if (attempt < 3 && isUniqueConstraintError(error)) continue;
+          if (isUniqueConstraintError(error)) {
+            const meta = (error as any).meta;
+            if (meta?.target?.includes("upiTransactionId")) {
+              throw new AppError(409, "This UPI transaction ID has already been recorded. Check for duplicate payment.", "DUPLICATE_UPI_TRANSACTION");
+            }
+            if (meta?.target?.includes("chequeNumber")) {
+              throw new AppError(409, "This cheque number has already been recorded.", "DUPLICATE_CHEQUE_NUMBER");
+            }
+            if (meta?.target?.includes("gatewayTransactionId")) {
+              throw new AppError(409, "This gateway transaction ID has already been recorded.", "DUPLICATE_GATEWAY_TRANSACTION");
+            }
+            if (meta?.target?.includes("idempotencyKey")) {
+              throw new AppError(409, "Duplicate payment request detected.", "DUPLICATE_PAYMENT");
+            }
+            if (attempt < 3) continue;
+          }
           throw error;
         }
       }
