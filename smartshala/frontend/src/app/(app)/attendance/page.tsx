@@ -9,8 +9,9 @@ import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
-import type { ClassSummary } from "@/lib/api";
+import { attendanceApi, type ClassSummary, type Holiday } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
+import { useCallback } from "react";
 
 function calendarDayClasses(input: { selected: boolean; marked: boolean; isHoliday: boolean }) {
   if (input.selected) {
@@ -279,9 +280,8 @@ export default function TeacherAttendancePage() {
                           const active = classItem.id === attendance.selectedClassId;
                           return (
                             <button
-                              className={`rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${
-                                active ? "bg-[#2456E6] text-white shadow-apple-sm" : "text-[#2A3340] hover:bg-[#F7F8FB]"
-                              }`}
+                              className={`rounded-xl px-3 py-2 text-left text-[13px] font-semibold transition ${active ? "bg-[#2456E6] text-white shadow-apple-sm" : "text-[#2A3340] hover:bg-[#F7F8FB]"
+                                }`}
                               key={classItem.id}
                               onClick={() => {
                                 setClassPickerOpen(false);
@@ -304,68 +304,68 @@ export default function TeacherAttendancePage() {
 
           {(hasAssignedClasses || attendance.classesLoading) ? (
             <>
-          <div className="relative">
-            <DatePicker
-              buttonClassName="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
-              disabled={!hasAssignedClasses || attendance.submitting}
-              label="Day"
-              max={attendance.today}
-              onChange={(date) => {
-                setMonthPickerOpen(false);
-                selectDisplayDate(date);
-              }}
-              value={attendance.selectedDate}
-            />
-          </div>
-
-          <div className="relative">
-            <button
-              className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
-              disabled={!hasAssignedClasses || attendance.submitting}
-              onClick={() => {
-                setMonthPickerOpen((open) => !open);
-              }}
-              type="button"
-            >
-              <span className="min-w-0">
-                <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">Month</span>
-                <span className="mt-0.5 block truncate">{monthLabel(attendance.selectedMonth)}</span>
-              </span>
-              <svg className="h-4 w-4 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
-              </svg>
-            </button>
-            {monthPickerOpen ? (
-              <div className="absolute left-0 top-[80px] z-30 w-72 rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]">
-                <div className="mb-3 flex items-center justify-between">
-                  <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setMonthPickerYear((year) => year - 1)} type="button" aria-label="Previous year">&lt;</button>
-                  <span className="text-[13px] font-bold text-[#1d1d1f]">{monthPickerYear}</span>
-                  <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-40" disabled={monthPickerYear >= Number(attendance.today.slice(0, 4))} onClick={() => setMonthPickerYear((year) => year + 1)} type="button" aria-label="Next year">&gt;</button>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {Array.from({ length: 12 }, (_, index) => {
-                    const value = monthInputFromParts(monthPickerYear, index);
-                    const disabled = value > attendance.today.slice(0, 7);
-                    const selected = attendance.selectedMonth === value;
-                    return (
-                      <button
-                        className={`rounded-xl px-3 py-2 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : "bg-[#F7F8FB] text-[#2A3340] hover:bg-[#E8ECF3]"}`}
-                        disabled={disabled}
-                        key={value}
-                        onClick={() => {
-                          setMonthPickerOpen(false);
-                          selectDisplayMonth(value);
-                        }}
-                        type="button"
-                      >
-                        {new Intl.DateTimeFormat("en-IN", { month: "short" }).format(new Date(monthPickerYear, index, 1))}
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="relative">
+                <DatePicker
+                  buttonClassName="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
+                  disabled={!hasAssignedClasses || attendance.submitting}
+                  label="Day"
+                  max={attendance.today}
+                  onChange={(date) => {
+                    setMonthPickerOpen(false);
+                    selectDisplayDate(date);
+                  }}
+                  value={attendance.selectedDate}
+                />
               </div>
-            ) : null}
-          </div>
+
+              <div className="relative">
+                <button
+                  className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
+                  disabled={!hasAssignedClasses || attendance.submitting}
+                  onClick={() => {
+                    setMonthPickerOpen((open) => !open);
+                  }}
+                  type="button"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">Month</span>
+                    <span className="mt-0.5 block truncate">{monthLabel(attendance.selectedMonth)}</span>
+                  </span>
+                  <svg className="h-4 w-4 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+                  </svg>
+                </button>
+                {monthPickerOpen ? (
+                  <div className="absolute left-0 top-[80px] z-30 w-72 rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]">
+                    <div className="mb-3 flex items-center justify-between">
+                      <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setMonthPickerYear((year) => year - 1)} type="button" aria-label="Previous year">&lt;</button>
+                      <span className="text-[13px] font-bold text-[#1d1d1f]">{monthPickerYear}</span>
+                      <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-40" disabled={monthPickerYear >= Number(attendance.today.slice(0, 4))} onClick={() => setMonthPickerYear((year) => year + 1)} type="button" aria-label="Next year">&gt;</button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {Array.from({ length: 12 }, (_, index) => {
+                        const value = monthInputFromParts(monthPickerYear, index);
+                        const disabled = value > attendance.today.slice(0, 7);
+                        const selected = attendance.selectedMonth === value;
+                        return (
+                          <button
+                            className={`rounded-xl px-3 py-2 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : "bg-[#F7F8FB] text-[#2A3340] hover:bg-[#E8ECF3]"}`}
+                            disabled={disabled}
+                            key={value}
+                            onClick={() => {
+                              setMonthPickerOpen(false);
+                              selectDisplayMonth(value);
+                            }}
+                            type="button"
+                          >
+                            {new Intl.DateTimeFormat("en-IN", { month: "short" }).format(new Date(monthPickerYear, index, 1))}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : null}
         </div>
@@ -381,259 +381,257 @@ export default function TeacherAttendancePage() {
       ) : (
         <>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(220px,25%)_minmax(0,1fr)]">
-        <AttendanceSummary
-          total={summary.total}
-          present={summary.present}
-          absent={summary.absent}
-          late={summary.late}
-          halfDay={summary.halfDay}
-          attended={summary.attended}
-          layout="rail"
-          pending={attendancePending}
-        />
+          <div className="grid gap-4 lg:grid-cols-[minmax(220px,25%)_minmax(0,1fr)]">
+            <AttendanceSummary
+              total={summary.total}
+              present={summary.present}
+              absent={summary.absent}
+              late={summary.late}
+              halfDay={summary.halfDay}
+              attended={summary.attended}
+              layout="rail"
+              pending={attendancePending}
+            />
 
-      <section className="min-w-0 space-y-3 rounded-md border border-[#E2E7EE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Monthly view</p>
-            <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{classLabel} attendance calendar</h2>
+            <section className="min-w-0 space-y-3 rounded-md border border-[#E2E7EE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Monthly view</p>
+                  <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{classLabel} attendance calendar</h2>
+                </div>
+                <p className="text-[12px] text-[#86868b]">Daily attendance snapshot</p>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((weekday) => (
+                  <span key={weekday}>{weekday}</span>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5">
+                {calendarCells.map((cell) => {
+                  if (!cell.day) return <div aria-hidden="true" key={cell.key} className="min-h-[42px]" />;
+
+                  const dateKey = `${attendance.selectedMonth}-${String(cell.day).padStart(2, "0")}`;
+                  const day = monthlyByDate.get(dateKey);
+                  const selected = attendance.selectedDate === dateKey;
+                  const date = new Date(monthYear, monthNumber - 1, cell.day);
+                  const isSunday = date.getDay() === 0;
+                  const isHoliday = isSunday || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
+                  const isFuture = dateKey > attendance.today;
+
+                  return (
+                    <button
+                      type="button"
+                      key={cell.key}
+                      onClick={() => {
+                        selectDisplayDate(dateKey);
+                      }}
+                      disabled={attendance.loading || attendance.submitting || isFuture}
+                      className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${isFuture ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
+                        }`}
+                    >
+                      <span className="block text-[12px] font-semibold leading-none text-[#1d1d1f]">{cell.day}</span>
+                      <span className="hidden text-[11px] text-[#6e6e73] md:absolute md:left-1/2 md:top-9 md:z-20 md:mt-0 md:w-32 md:-translate-x-1/2 md:space-y-0.5 md:rounded-lg md:border md:border-[#DCE1E8] md:bg-white md:p-2 md:text-left md:shadow-[var(--shadow-menu)] md:group-hover:block md:group-focus-visible:block">
+                        {day ? (
+                          <>
+                            <span className="block font-semibold text-[#1d1d1f]">{day.percentage}%</span>
+                            <span className="block">{day.absent} absent</span>
+                            {day.halfDay ? <span className="block">{day.halfDay} half-day</span> : null}
+                            <span className="block">{day.late} late</span>
+                          </>
+                        ) : isHoliday ? (
+                          <span className="block font-medium text-[#86868b]">{isSunday ? "Sunday" : "Holiday"}</span>
+                        ) : (
+                          <span className="block text-[#86868b]">Unmarked</span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] text-[#6e6e73] md:hidden">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-[#1d1d1f]">{calendarDetailLabel}</span>
+                  {selectedMonthDay && !selectedMonthDay.isHoliday ? <span className="font-semibold text-[#1d1d1f]">{selectedMonthDay.percentage}%</span> : null}
+                </div>
+                {selectedMonthDay ? (
+                  selectedMonthDay.isHoliday ? (
+                    <p className="mt-1 font-semibold text-[#2456E6]">Holiday: {selectedMonthDay.holidayReason}</p>
+                  ) : (
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                      <span>{selectedMonthDay.absent} absent</span>
+                      {selectedMonthDay.halfDay ? <span>{selectedMonthDay.halfDay} half-day</span> : null}
+                      <span>{selectedMonthDay.late} late</span>
+                    </div>
+                  )
+                ) : (
+                  <p className="mt-1">No attendance marked for this day.</p>
+                )}
+              </div>
+            </section>
           </div>
-          <p className="text-[12px] text-[#86868b]">Daily attendance snapshot</p>
-        </div>
 
-        <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((weekday) => (
-            <span key={weekday}>{weekday}</span>
-          ))}
-        </div>
+          <div className="flex flex-col gap-2 rounded-md border border-[#E2E7EE] bg-white px-5 py-4 text-[13px] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-semibold text-[#1d1d1f]">{classLabel}</span>
+            {attendance.isHoliday ? (
+              <span className="font-semibold text-[#2456E6]">Holiday: {attendance.holidayReason}</span>
+            ) : (
+              <span className="text-[#86868b]">
+                {selectedDateLabel} - {attendance.marked ? "Saved" : "Unsaved"}
+              </span>
+            )}
+          </div>
 
-        <div className="grid grid-cols-7 gap-1.5">
-          {calendarCells.map((cell) => {
-            if (!cell.day) return <div aria-hidden="true" key={cell.key} className="min-h-[42px]" />;
+          {attendance.isHoliday && !attendance.loading ? (
+            <div className="rounded-xl border border-[#2456E6]/20 bg-[#2456E6]/5 p-8 text-center text-[14px] text-[#2456E6]">
+              <p className="font-semibold">It's a holiday!</p>
+              <p className="mt-1">Attendance cannot be marked on holidays.</p>
+            </div>
+          ) : attendance.loading ? (
+            <AttendanceListSkeleton rows={8} />
+          ) : (
+            <AttendanceList
+              students={attendance.students}
+              onToggle={attendance.toggleStudent}
+              onSetStatus={attendance.setStudentStatus}
+              disabled={!attendance.canEdit || attendance.submitting}
+            />
+          )}
 
-            const dateKey = `${attendance.selectedMonth}-${String(cell.day).padStart(2, "0")}`;
-            const day = monthlyByDate.get(dateKey);
-            const selected = attendance.selectedDate === dateKey;
-            const date = new Date(monthYear, monthNumber - 1, cell.day);
-            const isSunday = date.getDay() === 0;
-            const isHoliday = isSunday || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
-            const isFuture = dateKey > attendance.today;
+          {showFeedback && (attendance.error || attendance.success) ? (
+            <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-8" role="status" aria-live="polite">
+              <div
+                className={`flex max-w-[min(92vw,520px)] items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-semibold shadow-2xl backdrop-blur-xl animate-fade-in ${attendance.error ? "bg-white/95 text-[#d70015] border border-[#ff3b30]/20" : "bg-[#34c759] text-white border border-[#34c759]/20"
+                  }`}
+              >
+                {attendance.error ? (
+                  <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                )}
+                {attendance.error || attendance.success}
+              </div>
+            </div>
+          ) : null}
 
-            return (
+          <div
+            className="fixed inset-x-0 bottom-0 z-20 border-t border-[rgba(0,0,0,0.06)] bg-white/80 px-4 pt-3 backdrop-blur-apple md:sticky md:inset-auto md:bottom-4 md:border-0 md:bg-transparent md:px-0 md:pt-0 md:backdrop-blur-none"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          >
+            <div className="flex w-full justify-end">
               <button
                 type="button"
-                key={cell.key}
-                onClick={() => {
-                  selectDisplayDate(dateKey);
-                }}
-                disabled={attendance.loading || attendance.submitting || isFuture}
-                className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${
-                  isFuture ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
-                }`}
+                className="btn-primary min-h-[52px] w-full gap-2 text-[15px] disabled:cursor-not-allowed disabled:opacity-50 sm:w-[232px]"
+                onClick={attendance.submitAttendance}
+                disabled={submitDisabled}
               >
-                <span className="block text-[12px] font-semibold leading-none text-[#1d1d1f]">{cell.day}</span>
-                <span className="hidden text-[11px] text-[#6e6e73] md:absolute md:left-1/2 md:top-9 md:z-20 md:mt-0 md:w-32 md:-translate-x-1/2 md:space-y-0.5 md:rounded-lg md:border md:border-[#DCE1E8] md:bg-white md:p-2 md:text-left md:shadow-[var(--shadow-menu)] md:group-hover:block md:group-focus-visible:block">
-                  {day ? (
-                    <>
-                      <span className="block font-semibold text-[#1d1d1f]">{day.percentage}%</span>
-                      <span className="block">{day.absent} absent</span>
-                      {day.halfDay ? <span className="block">{day.halfDay} half-day</span> : null}
-                      <span className="block">{day.late} late</span>
-                    </>
-                  ) : isHoliday ? (
-                    <span className="block font-medium text-[#86868b]">{isSunday ? "Sunday" : "Holiday"}</span>
-                  ) : (
-                    <span className="block text-[#86868b]">Unmarked</span>
-                  )}
-                </span>
+                {attendance.submitting ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
+                {attendance.submitting ? "Saving attendance..." : "Save attendance"}
               </button>
-            );
-          })}
-        </div>
-
-        <div className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] text-[#6e6e73] md:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-semibold text-[#1d1d1f]">{calendarDetailLabel}</span>
-            {selectedMonthDay && !selectedMonthDay.isHoliday ? <span className="font-semibold text-[#1d1d1f]">{selectedMonthDay.percentage}%</span> : null}
+            </div>
           </div>
-          {selectedMonthDay ? (
-            selectedMonthDay.isHoliday ? (
-              <p className="mt-1 font-semibold text-[#2456E6]">Holiday: {selectedMonthDay.holidayReason}</p>
-            ) : (
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                <span>{selectedMonthDay.absent} absent</span>
-                {selectedMonthDay.halfDay ? <span>{selectedMonthDay.halfDay} half-day</span> : null}
-                <span>{selectedMonthDay.late} late</span>
-              </div>
-            )
-          ) : (
-            <p className="mt-1">No attendance marked for this day.</p>
-          )}
-        </div>
-      </section>
-      </div>
 
-      <div className="flex flex-col gap-2 rounded-md border border-[#E2E7EE] bg-white px-5 py-4 text-[13px] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-semibold text-[#1d1d1f]">{classLabel}</span>
-        {attendance.isHoliday ? (
-          <span className="font-semibold text-[#2456E6]">Holiday: {attendance.holidayReason}</span>
-        ) : (
-          <span className="text-[#86868b]">
-            {selectedDateLabel} - {attendance.marked ? "Saved" : "Unsaved"}
-          </span>
-        )}
-      </div>
-
-      {attendance.isHoliday && !attendance.loading ? (
-        <div className="rounded-xl border border-[#2456E6]/20 bg-[#2456E6]/5 p-8 text-center text-[14px] text-[#2456E6]">
-          <p className="font-semibold">It's a holiday!</p>
-          <p className="mt-1">Attendance cannot be marked on holidays.</p>
-        </div>
-      ) : attendance.loading ? (
-        <AttendanceListSkeleton rows={8} />
-      ) : (
-        <AttendanceList
-          students={attendance.students}
-          onToggle={attendance.toggleStudent}
-          onSetStatus={attendance.setStudentStatus}
-          disabled={!attendance.canEdit || attendance.submitting}
-        />
-      )}
-
-      {showFeedback && (attendance.error || attendance.success) ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-8" role="status" aria-live="polite">
-          <div
-            className={`flex max-w-[min(92vw,520px)] items-center gap-2 rounded-xl px-5 py-2.5 text-[14px] font-semibold shadow-2xl backdrop-blur-xl animate-fade-in ${
-              attendance.error ? "bg-white/95 text-[#d70015] border border-[#ff3b30]/20" : "bg-[#34c759] text-white border border-[#34c759]/20"
-            }`}
-          >
-            {attendance.error ? (
-              <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            ) : (
-              <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
-            )}
-            {attendance.error || attendance.success}
-          </div>
-        </div>
-      ) : null}
-
-      <div
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-[rgba(0,0,0,0.06)] bg-white/80 px-4 pt-3 backdrop-blur-apple md:sticky md:inset-auto md:bottom-4 md:border-0 md:bg-transparent md:px-0 md:pt-0 md:backdrop-blur-none"
-        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="flex w-full justify-end">
-          <button
-            type="button"
-            className="btn-primary min-h-[52px] w-full gap-2 text-[15px] disabled:cursor-not-allowed disabled:opacity-50 sm:w-[232px]"
-            onClick={attendance.submitAttendance}
-            disabled={submitDisabled}
-          >
-            {attendance.submitting ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-            {attendance.submitting ? "Saving attendance..." : "Save attendance"}
-          </button>
-        </div>
-      </div>
-
-      <Modal
-        isOpen={resetConfirmOpen}
-        onClose={() => setResetConfirmOpen(false)}
-        title="Reset all present?"
-        description={`This changes every ${classLabel} student on ${selectedDateLabel} to Present. Review the list before saving.`}
-        footer={
-          <>
-            <ModalCloseButton onClick={() => setResetConfirmOpen(false)} />
-            <Button
-              onClick={() => {
-                attendance.markAllPresent();
-                setResetConfirmOpen(false);
-              }}
-              variant="primary"
-            >
-              Reset all present
-            </Button>
-          </>
-        }
-      >
-        <p className="text-[14px] leading-6 text-[var(--ink-500)]">
-          Existing Absent, Late, and Half day selections in the current roster will become Present locally. The change is saved only after you use Save attendance.
-        </p>
-      </Modal>
-
-      <Modal
-        isOpen={createHolidayOpen}
-        onClose={() => setCreateHolidayOpen(false)}
-        title="Create Holiday"
-        description="Select a date and provide a reason for the holiday."
-        footer={
-          <>
-            <ModalCloseButton onClick={() => setCreateHolidayOpen(false)} disabled={isCreatingHoliday} />
-            <Button onClick={handleCreateHoliday} variant="primary" disabled={isCreatingHoliday || !createHolidayDate || !createHolidayReason}>
-              {isCreatingHoliday ? "Creating..." : "Create"}
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleCreateHoliday} className="space-y-4">
-          <DatePicker
-            label="Holiday Date"
-            value={createHolidayDate}
-            onChange={setCreateHolidayDate}
-            disabled={isCreatingHoliday}
-          />
-          <div className="space-y-1">
-            <label className="text-[12px] font-semibold text-[#5A6573]">Reason</label>
-            <input
-              type="text"
-              value={createHolidayReason}
-              onChange={(e) => setCreateHolidayReason(e.target.value)}
-              className="w-full rounded-md border border-[#DCE1E8] px-3 py-2 text-[14px] outline-none transition focus:border-[#2456E6] focus:ring-2 focus:ring-[#2456E6]/10"
-              placeholder="E.g., Independence Day"
-              disabled={isCreatingHoliday}
-              required
-            />
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        isOpen={manageHolidaysOpen}
-        onClose={() => setManageHolidaysOpen(false)}
-        title="Manage Holidays"
-        description={`Holidays for ${monthLabel(attendance.selectedMonth)}`}
-        footer={<ModalCloseButton onClick={() => setManageHolidaysOpen(false)} />}
-      >
-        {isLoadingHolidays ? (
-          <p className="py-4 text-center text-[14px] text-[#6e6e73]">Loading holidays...</p>
-        ) : holidaysList.length === 0 ? (
-          <p className="py-4 text-center text-[14px] text-[#6e6e73]">No custom holidays this month.</p>
-        ) : (
-          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-            {holidaysList.map(h => (
-              <div key={h.id} className="flex items-center justify-between rounded-lg border border-[#E2E7EE] bg-[#F7F8FB] px-4 py-3">
-                <div>
-                  <div className="text-[14px] font-semibold text-[#1d1d1f]">{formatDateShort(h.date)}</div>
-                  <div className="text-[12px] text-[#5A6573]">{h.reason}</div>
-                </div>
-                <button
-                  type="button"
-                  className="rounded-full p-2 text-red-500 transition hover:bg-red-500/10"
-                  onClick={() => handleDeleteHoliday(h.id)}
-                  title="Delete holiday"
+          <Modal
+            isOpen={resetConfirmOpen}
+            onClose={() => setResetConfirmOpen(false)}
+            title="Reset all present?"
+            description={`This changes every ${classLabel} student on ${selectedDateLabel} to Present. Review the list before saving.`}
+            footer={
+              <>
+                <ModalCloseButton onClick={() => setResetConfirmOpen(false)} />
+                <Button
+                  onClick={() => {
+                    attendance.markAllPresent();
+                    setResetConfirmOpen(false);
+                  }}
+                  variant="primary"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                  Reset all present
+                </Button>
+              </>
+            }
+          >
+            <p className="text-[14px] leading-6 text-[var(--ink-500)]">
+              Existing Absent, Late, and Half day selections in the current roster will become Present locally. The change is saved only after you use Save attendance.
+            </p>
+          </Modal>
+
+          <Modal
+            isOpen={createHolidayOpen}
+            onClose={() => setCreateHolidayOpen(false)}
+            title="Create Holiday"
+            description="Select a date and provide a reason for the holiday."
+            footer={
+              <>
+                <ModalCloseButton onClick={() => setCreateHolidayOpen(false)} disabled={isCreatingHoliday} />
+                <Button onClick={handleCreateHoliday} variant="primary" disabled={isCreatingHoliday || !createHolidayDate || !createHolidayReason}>
+                  {isCreatingHoliday ? "Creating..." : "Create"}
+                </Button>
+              </>
+            }
+          >
+            <form onSubmit={handleCreateHoliday} className="space-y-4">
+              <DatePicker
+                label="Holiday Date"
+                value={createHolidayDate}
+                onChange={setCreateHolidayDate}
+                disabled={isCreatingHoliday}
+              />
+              <div className="space-y-1">
+                <label className="text-[12px] font-semibold text-[#5A6573]">Reason</label>
+                <input
+                  type="text"
+                  value={createHolidayReason}
+                  onChange={(e) => setCreateHolidayReason(e.target.value)}
+                  className="w-full rounded-md border border-[#DCE1E8] px-3 py-2 text-[14px] outline-none transition focus:border-[#2456E6] focus:ring-2 focus:ring-[#2456E6]/10"
+                  placeholder="E.g., Independence Day"
+                  disabled={isCreatingHoliday}
+                  required
+                />
               </div>
-            ))}
-          </div>
-        )}
-      </Modal>
+            </form>
+          </Modal>
+
+          <Modal
+            isOpen={manageHolidaysOpen}
+            onClose={() => setManageHolidaysOpen(false)}
+            title="Manage Holidays"
+            description={`Holidays for ${monthLabel(attendance.selectedMonth)}`}
+            footer={<ModalCloseButton onClick={() => setManageHolidaysOpen(false)} />}
+          >
+            {isLoadingHolidays ? (
+              <p className="py-4 text-center text-[14px] text-[#6e6e73]">Loading holidays...</p>
+            ) : holidaysList.length === 0 ? (
+              <p className="py-4 text-center text-[14px] text-[#6e6e73]">No custom holidays this month.</p>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {holidaysList.map(h => (
+                  <div key={h.id} className="flex items-center justify-between rounded-lg border border-[#E2E7EE] bg-[#F7F8FB] px-4 py-3">
+                    <div>
+                      <div className="text-[14px] font-semibold text-[#1d1d1f]">{formatDateShort(h.date)}</div>
+                      <div className="text-[12px] text-[#5A6573]">{h.reason}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="rounded-full p-2 text-red-500 transition hover:bg-red-500/10"
+                      onClick={() => handleDeleteHoliday(h.id)}
+                      title="Delete holiday"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Modal>
         </>
       )}
     </div>

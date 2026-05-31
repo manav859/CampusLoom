@@ -118,6 +118,9 @@ export async function getMarkingRoster(user: Express.UserContext, classId: strin
     }),
     prisma.holiday.findUnique({
       where: { schoolId_date: { schoolId: user.schoolId, date: normalizedDate } }
+    }).catch((err: unknown) => {
+      console.error("Prisma holiday error:", err);
+      return null;
     })
   ]);
 
@@ -447,6 +450,9 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
         schoolId: user.schoolId,
         date: { gte: start, lte: end }
       }
+    }).catch((err: unknown) => {
+      console.error("Prisma holiday list error:", err);
+      return [];
     })
   ]);
 
@@ -737,6 +743,9 @@ export async function listHolidays(user: AttendanceUser, month: string) {
       date: { gte: start, lte: end }
     },
     orderBy: { date: "asc" }
+  }).catch((err: unknown) => {
+    console.error("Prisma holiday list error:", err);
+    return [];
   });
 
   return holidays;
