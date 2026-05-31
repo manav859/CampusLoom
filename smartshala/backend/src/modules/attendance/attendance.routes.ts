@@ -54,3 +54,22 @@ attendanceRouter.get(
   validate({ query: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }) }),
   controller.monthlyStudentReport
 );
+
+attendanceRouter.get(
+  "/holidays",
+  requireRole(adminRoles),
+  validate({ query: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }) }),
+  controller.listHolidays
+);
+attendanceRouter.post(
+  "/holidays",
+  requireRole(adminRoles),
+  validate({ body: z.object({ date: z.string(), reason: z.string().min(1) }) }),
+  controller.createHoliday
+);
+attendanceRouter.delete(
+  "/holidays/:id",
+  requireRole(adminRoles),
+  validate({ params: z.object({ id: z.string().uuid() }) }),
+  controller.deleteHoliday
+);

@@ -208,6 +208,8 @@ export type AttendanceRoster = {
     defaultStatus: AttendanceReadStatus;
     savedStatus?: AttendanceReadStatus;
   }[];
+  isHoliday?: boolean;
+  holidayReason?: string;
 };
 
 export type ClassMonthlyAttendance = {
@@ -225,6 +227,8 @@ export type ClassMonthlyAttendance = {
     attended: number;
     absent: number;
     percentage: number;
+    isHoliday?: boolean;
+    holidayReason?: string;
   }[];
 };
 
@@ -1079,7 +1083,20 @@ export const attendanceApi = {
     if (range?.dateTo) params.set("dateTo", range.dateTo);
     const query = params.toString();
     return apiFetch<{ pendingCount: number; sentCount: number }>(`/attendance/report/nudge-pending${query ? `?${query}` : ""}`, { method: "POST" });
-  }
+  },
+  listHolidays: (month: string) => {
+    const params = new URLSearchParams({ month });
+    return apiFetch<{ id: string; date: string; reason: string }[]>(`/attendance/holidays?${params.toString()}`);
+  },
+  createHoliday: (date: string, reason: string) =>
+    apiFetch<{ id: string; date: string; reason: string }>("/attendance/holidays", {
+      method: "POST",
+      body: JSON.stringify({ date, reason })
+    }),
+  deleteHoliday: (id: string) =>
+    apiFetch<void>(`/attendance/holidays/${id}`, {
+      method: "DELETE"
+    })
 };
 
 export const feesApi = {

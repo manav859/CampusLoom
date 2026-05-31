@@ -77,3 +77,16 @@ export const dailyReport = asyncHandler(async (req: Request, res: Response) => {
 export const monthlyStudentReport = asyncHandler(async (req: Request, res: Response) => {
   res.json(await attendanceService.monthlyStudentReport(req.user!, req.params.studentId, req.query.month as string));
 });
+
+export const createHoliday = asyncHandler(async (req: Request, res: Response) => {
+  res.status(201).json(await attendanceService.createHoliday(req.user!, new Date(req.body.date), req.body.reason));
+});
+
+export const listHolidays = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await attendanceService.listHolidays(req.user!, req.query.month as string));
+});
+
+export const deleteHoliday = asyncHandler(async (req: Request, res: Response) => {
+  await attendanceService.deleteHoliday(req.user!, req.params.id);
+  res.status(204).send();
+});

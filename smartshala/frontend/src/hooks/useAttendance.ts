@@ -144,6 +144,8 @@ export function useAttendance() {
   const [monthly, setMonthly] = useState<ClassMonthlyAttendance | null>(null);
   const [marked, setMarked] = useState(false);
   const [canEdit, setCanEdit] = useState(true);
+  const [isHoliday, setIsHoliday] = useState(false);
+  const [holidayReason, setHolidayReason] = useState("");
   const [classesLoading, setClassesLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -203,6 +205,8 @@ export function useAttendance() {
       );
       setMarked(Boolean(roster.session));
       setCanEdit(roster.canEdit);
+      setIsHoliday(Boolean(roster.isHoliday));
+      setHolidayReason(roster.holidayReason ?? "");
       if (roster.session) setSuccess("Attendance loaded. You can edit and save changes.");
     } catch (err) {
       if (requestId !== loadRequestId.current) return;
@@ -210,6 +214,8 @@ export function useAttendance() {
       setStudents([]);
       setMarked(false);
       setCanEdit(false);
+      setIsHoliday(false);
+      setHolidayReason("");
     } finally {
       if (requestId === loadRequestId.current) setLoading(false);
     }
@@ -433,6 +439,8 @@ export function useAttendance() {
     monthly,
     marked,
     canEdit,
+    isHoliday,
+    holidayReason,
     classesLoading,
     loading,
     submitting,

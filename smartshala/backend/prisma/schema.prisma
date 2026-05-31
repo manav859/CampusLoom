@@ -43,6 +43,7 @@ model School {
   subjects                 Subject[]
   teacherPeriodAssignments TeacherPeriodAssignment[]
   users                    User[]
+  holidays                 Holiday[]
 
   @@map("schools")
 }
@@ -776,4 +777,18 @@ enum StudentDocumentType {
   BONAFIDE
   REPORT_CARD
   PHOTO
+}
+
+model Holiday {
+  id        String   @id @default(uuid()) @db.Uuid
+  schoolId  String   @db.Uuid
+  date      DateTime
+  reason    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, date])
+  @@index([schoolId, date])
+  @@map("holidays")
 }

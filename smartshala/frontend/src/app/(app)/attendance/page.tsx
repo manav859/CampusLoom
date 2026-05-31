@@ -88,6 +88,13 @@ export default function TeacherAttendancePage() {
   const [calendarDetailDate, setCalendarDetailDate] = useState("");
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [createHolidayOpen, setCreateHolidayOpen] = useState(false);
+  const [manageHolidaysOpen, setManageHolidaysOpen] = useState(false);
+  const [createHolidayDate, setCreateHolidayDate] = useState("");
+  const [createHolidayReason, setCreateHolidayReason] = useState("");
+  const [isCreatingHoliday, setIsCreatingHoliday] = useState(false);
+  const [holidaysList, setHolidaysList] = useState<{ id: string; date: string; reason: string }[]>([]);
+  const [isLoadingHolidays, setIsLoadingHolidays] = useState(false);
   const classOptions = attendance.classes;
   const selectedClassRecord = attendance.selectedClass ?? classOptions.find((classItem) => classItem.id === attendance.selectedClassId);
   const firstAvailableClass = classOptions[0] ?? null;
@@ -97,7 +104,7 @@ export default function TeacherAttendancePage() {
       : attendance.classesLoading ? "Loading classes..." : "No assigned class"
   );
   const hasAssignedClasses = classOptions.length > 0 || Boolean(attendance.selectedClassId);
-  const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0 || !hasAssignedClasses;
+  const submitDisabled = !attendance.canEdit || attendance.submitting || attendance.loading || attendance.students.length === 0 || !hasAssignedClasses || attendance.isHoliday;
   const selectedDateLabel = formatDateShort(attendance.selectedDate);
   const monthlyByDate = useMemo(() => new Map((attendance.monthly?.days ?? []).map((day) => [day.date, day])), [attendance.monthly?.days]);
   const calendarDetailDateKey = calendarDetailDate || attendance.selectedDate;
@@ -146,6 +153,57 @@ export default function TeacherAttendancePage() {
     setMonthPickerYear(year);
   }, [attendance.selectedMonth]);
 
+  const loadHolidays = useCallback(async () => {
+    setIsLoadingHolidays(true);
+    try {
+      const { attendanceApi } = await import("@/lib/api");
+      const list = await attendanceApi.listHolidays(attendance.selectedMonth);
+      setHolidaysList(list);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingHolidays(false);
+    }
+  }, [attendance.selectedMonth]);
+
+  useEffect(() => {
+    if (manageHolidaysOpen) {
+      void loadHolidays();
+    }
+  }, [manageHolidaysOpen, loadHolidays]);
+
+  async function handleCreateHoliday(e: React.FormEvent) {
+    e.preventDefault();
+    if (!createHolidayDate || !createHolidayReason) return;
+    setIsCreatingHoliday(true);
+    try {
+      const { attendanceApi } = await import("@/lib/api");
+      await attendanceApi.createHoliday(createHolidayDate, createHolidayReason);
+      setCreateHolidayOpen(false);
+      setCreateHolidayDate("");
+      setCreateHolidayReason("");
+      void attendance.selectMonth(attendance.selectedMonth); // Refresh calendar
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to create holiday");
+    } finally {
+      setIsCreatingHoliday(false);
+    }
+  }
+
+  async function handleDeleteHoliday(id: string) {
+    if (!confirm("Are you sure you want to delete this holiday?")) return;
+    try {
+      const { attendanceApi } = await import("@/lib/api");
+      await attendanceApi.deleteHoliday(id);
+      void loadHolidays();
+      void attendance.selectMonth(attendance.selectedMonth); // Refresh calendar
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to delete holiday");
+    }
+  }
+
   function selectDisplayDate(date: string) {
     setCalendarDetailDate(date);
     void attendance.selectDate(date);
@@ -185,7 +243,14 @@ export default function TeacherAttendancePage() {
       />
 
       <div className="rounded-md border border-[#E2E7EE] bg-white p-5 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
-        <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
+          <div className="flex items-center gap-3">
+            <span className="text-[12px] font-semibold text-[#5A6573]">Total Holidays this month: {attendance.monthly?.days.filter(d => d.isHoliday).length ?? 0}</span>
+            <button className="btn-secondary h-8 px-3 text-[12px]" onClick={() => setManageHolidaysOpen(true)}>Manage Holidays</button>
+            <button className="btn-primary h-8 px-3 text-[12px]" onClick={() => setCreateHolidayOpen(true)}>Create Holiday</button>
+          </div>
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-[minmax(260px,380px)_180px_180px]">
           <div className="relative col-span-2 rounded-md border border-[#E2E7EE] bg-white p-2 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] lg:col-span-1">
             <button
@@ -390,14 +455,18 @@ export default function TeacherAttendancePage() {
         <div className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] text-[#6e6e73] md:hidden">
           <div className="flex items-center justify-between gap-3">
             <span className="font-semibold text-[#1d1d1f]">{calendarDetailLabel}</span>
-            {selectedMonthDay ? <span className="font-semibold text-[#1d1d1f]">{selectedMonthDay.percentage}%</span> : null}
+            {selectedMonthDay && !selectedMonthDay.isHoliday ? <span className="font-semibold text-[#1d1d1f]">{selectedMonthDay.percentage}%</span> : null}
           </div>
           {selectedMonthDay ? (
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-              <span>{selectedMonthDay.absent} absent</span>
-              {selectedMonthDay.halfDay ? <span>{selectedMonthDay.halfDay} half-day</span> : null}
-              <span>{selectedMonthDay.late} late</span>
-            </div>
+            selectedMonthDay.isHoliday ? (
+              <p className="mt-1 font-semibold text-[#2456E6]">Holiday: {selectedMonthDay.holidayReason}</p>
+            ) : (
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                <span>{selectedMonthDay.absent} absent</span>
+                {selectedMonthDay.halfDay ? <span>{selectedMonthDay.halfDay} half-day</span> : null}
+                <span>{selectedMonthDay.late} late</span>
+              </div>
+            )
           ) : (
             <p className="mt-1">No attendance marked for this day.</p>
           )}
@@ -407,12 +476,21 @@ export default function TeacherAttendancePage() {
 
       <div className="flex flex-col gap-2 rounded-md border border-[#E2E7EE] bg-white px-5 py-4 text-[13px] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:flex-row sm:items-center sm:justify-between">
         <span className="font-semibold text-[#1d1d1f]">{classLabel}</span>
-        <span className="text-[#86868b]">
-          {selectedDateLabel} - {attendance.marked ? "Saved" : "Unsaved"}
-        </span>
+        {attendance.isHoliday ? (
+          <span className="font-semibold text-[#2456E6]">Holiday: {attendance.holidayReason}</span>
+        ) : (
+          <span className="text-[#86868b]">
+            {selectedDateLabel} - {attendance.marked ? "Saved" : "Unsaved"}
+          </span>
+        )}
       </div>
 
-      {attendance.loading ? (
+      {attendance.isHoliday && !attendance.loading ? (
+        <div className="rounded-xl border border-[#2456E6]/20 bg-[#2456E6]/5 p-8 text-center text-[14px] text-[#2456E6]">
+          <p className="font-semibold">It's a holiday!</p>
+          <p className="mt-1">Attendance cannot be marked on holidays.</p>
+        </div>
+      ) : attendance.loading ? (
         <AttendanceListSkeleton rows={8} />
       ) : (
         <AttendanceList
@@ -484,6 +562,77 @@ export default function TeacherAttendancePage() {
         <p className="text-[14px] leading-6 text-[var(--ink-500)]">
           Existing Absent, Late, and Half day selections in the current roster will become Present locally. The change is saved only after you use Save attendance.
         </p>
+      </Modal>
+
+      <Modal
+        isOpen={createHolidayOpen}
+        onClose={() => setCreateHolidayOpen(false)}
+        title="Create Holiday"
+        description="Select a date and provide a reason for the holiday."
+        footer={
+          <>
+            <ModalCloseButton onClick={() => setCreateHolidayOpen(false)} disabled={isCreatingHoliday} />
+            <Button onClick={handleCreateHoliday} variant="primary" disabled={isCreatingHoliday || !createHolidayDate || !createHolidayReason}>
+              {isCreatingHoliday ? "Creating..." : "Create"}
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleCreateHoliday} className="space-y-4">
+          <DatePicker
+            label="Holiday Date"
+            value={createHolidayDate}
+            onChange={setCreateHolidayDate}
+            disabled={isCreatingHoliday}
+          />
+          <div className="space-y-1">
+            <label className="text-[12px] font-semibold text-[#5A6573]">Reason</label>
+            <input
+              type="text"
+              value={createHolidayReason}
+              onChange={(e) => setCreateHolidayReason(e.target.value)}
+              className="w-full rounded-md border border-[#DCE1E8] px-3 py-2 text-[14px] outline-none transition focus:border-[#2456E6] focus:ring-2 focus:ring-[#2456E6]/10"
+              placeholder="E.g., Independence Day"
+              disabled={isCreatingHoliday}
+              required
+            />
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={manageHolidaysOpen}
+        onClose={() => setManageHolidaysOpen(false)}
+        title="Manage Holidays"
+        description={`Holidays for ${monthLabel(attendance.selectedMonth)}`}
+        footer={<ModalCloseButton onClick={() => setManageHolidaysOpen(false)} />}
+      >
+        {isLoadingHolidays ? (
+          <p className="py-4 text-center text-[14px] text-[#6e6e73]">Loading holidays...</p>
+        ) : holidaysList.length === 0 ? (
+          <p className="py-4 text-center text-[14px] text-[#6e6e73]">No custom holidays this month.</p>
+        ) : (
+          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+            {holidaysList.map(h => (
+              <div key={h.id} className="flex items-center justify-between rounded-lg border border-[#E2E7EE] bg-[#F7F8FB] px-4 py-3">
+                <div>
+                  <div className="text-[14px] font-semibold text-[#1d1d1f]">{formatDateShort(h.date)}</div>
+                  <div className="text-[12px] text-[#5A6573]">{h.reason}</div>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full p-2 text-red-500 transition hover:bg-red-500/10"
+                  onClick={() => handleDeleteHoliday(h.id)}
+                  title="Delete holiday"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
         </>
       )}

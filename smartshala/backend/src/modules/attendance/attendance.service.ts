@@ -107,7 +107,7 @@ async function assertClassAccess(user: AttendanceUser, classId: string) {
 export async function getMarkingRoster(user: Express.UserContext, classId: string, date: Date) {
   const classRecord = await assertClassAccess(user, classId);
   const normalizedDate = startOfDay(date);
-  const [students, existingSession] = await Promise.all([
+  const [students, existingSession, holiday] = await Promise.all([
     prisma.student.findMany({
       where: { schoolId: user.schoolId, classId, isActive: true },
       orderBy: [{ rollNumber: "asc" }, { fullName: "asc" }]
@@ -115,13 +115,20 @@ export async function getMarkingRoster(user: Express.UserContext, classId: strin
     prisma.attendanceSession.findUnique({
       where: { schoolId_classId_date: { schoolId: user.schoolId, classId, date: normalizedDate } },
       include: { records: true }
+    }),
+    prisma.holiday.findUnique({
+      where: { schoolId_date: { schoolId: user.schoolId, date: normalizedDate } }
     })
   ]);
+
+  const isSunday = normalizedDate.getDay() === 0;
 
   return {
     date: formatDate(normalizedDate),
     className: `${classRecord.name}-${classRecord.section}`,
-    canEdit: true,
+    canEdit: !isSunday && !holiday,
+    isHoliday: isSunday || Boolean(holiday),
+    holidayReason: isSunday ? "Sunday" : holiday?.reason,
     session: existingSession,
     students: students.map((student) => ({
       ...student,
@@ -424,7 +431,7 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
 export async function getClassMonthlyAttendance(user: AttendanceUser, classId: string, month: string) {
   const classRecord = await assertClassAccess(user, classId);
   const { start, end } = monthRange(month);
-  const [students, sessions] = await Promise.all([
+  const [students, sessions, holidays] = await Promise.all([
     prisma.student.count({ where: { schoolId: user.schoolId, classId, isActive: true } }),
     prisma.attendanceSession.findMany({
       where: {
@@ -434,18 +441,30 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
       },
       include: { records: { select: { status: true } } },
       orderBy: { date: "asc" }
+    }),
+    prisma.holiday.findMany({
+      where: {
+        schoolId: user.schoolId,
+        date: { gte: start, lte: end }
+      }
     })
   ]);
 
-  const days = sessions.map((session) => {
+  const holidaysMap = new Map(holidays.map(h => [formatDate(h.date), h]));
+
+  const days: { date: string; marked: boolean; total: number; present: number; late: number; halfDay: number; absent: number; attended: number; percentage: number; isHoliday?: boolean; holidayReason?: string }[] = sessions.map((session) => {
     const present = session.records.filter((record) => record.status === AttendanceStatus.PRESENT).length;
     const late = session.records.filter((record) => record.status === AttendanceStatus.LATE).length;
     const halfDay = session.records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
     const absent = session.records.filter((record) => record.status === AttendanceStatus.ABSENT).length;
     const attended = session.records.reduce((sum, record) => sum + attendanceValue(record.status), 0);
     const total = session.records.length || students;
+    const formattedDate = formatDate(session.date);
+    const holiday = holidaysMap.get(formattedDate);
+    const isSunday = session.date.getDay() === 0;
+
     return {
-      date: formatDate(session.date),
+      date: formattedDate,
       marked: true,
       total,
       present,
@@ -453,16 +472,38 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
       halfDay,
       absent,
       attended,
-      percentage: percentage(attended, total)
+      percentage: percentage(attended, total),
+      isHoliday: isSunday || Boolean(holiday),
+      holidayReason: isSunday ? "Sunday" : holiday?.reason
     };
   });
+
+  const sessionDates = new Set(days.map(d => d.date));
+  for (const holiday of holidays) {
+    const formattedDate = formatDate(holiday.date);
+    if (!sessionDates.has(formattedDate)) {
+      days.push({
+        date: formattedDate,
+        marked: false,
+        total: 0,
+        present: 0,
+        late: 0,
+        halfDay: 0,
+        absent: 0,
+        attended: 0,
+        percentage: 0,
+        isHoliday: true,
+        holidayReason: holiday.reason
+      });
+    }
+  }
 
   return {
     classId,
     className: `${classRecord.name}-${classRecord.section}`,
     month,
     totalStudents: students,
-    days
+    days: days.sort((a, b) => a.date.localeCompare(b.date))
   };
 }
 
@@ -653,4 +694,67 @@ export async function monthlyStudentReport(user: Express.UserContext, studentId:
     percentage: records.length ? Math.round((attended / records.length) * 100) : 0,
     records
   };
+}
+
+export async function createHoliday(user: AttendanceUser, date: Date, reason: string) {
+  if (!isAdminRole(user.role)) {
+    throw new AppError(403, "You do not have permission to create holidays", "FORBIDDEN");
+  }
+
+  const normalizedDate = startOfDay(date);
+
+  const existingSession = await prisma.attendanceSession.findFirst({
+    where: { schoolId: user.schoolId, date: normalizedDate }
+  });
+
+  if (existingSession) {
+    throw new AppError(400, "Cannot create holiday on a date with marked attendance. Reset attendance first.", "ATTENDANCE_EXISTS");
+  }
+
+  try {
+    const holiday = await prisma.holiday.create({
+      data: {
+        schoolId: user.schoolId,
+        date: normalizedDate,
+        reason
+      }
+    });
+    return holiday;
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AppError(400, "Holiday already exists for this date", "DUPLICATE_HOLIDAY");
+    }
+    throw error;
+  }
+}
+
+export async function listHolidays(user: AttendanceUser, month: string) {
+  const { start, end } = monthRange(month);
+  
+  const holidays = await prisma.holiday.findMany({
+    where: {
+      schoolId: user.schoolId,
+      date: { gte: start, lte: end }
+    },
+    orderBy: { date: "asc" }
+  });
+
+  return holidays;
+}
+
+export async function deleteHoliday(user: AttendanceUser, holidayId: string) {
+  if (!isAdminRole(user.role)) {
+    throw new AppError(403, "You do not have permission to delete holidays", "FORBIDDEN");
+  }
+
+  try {
+    await prisma.holiday.delete({
+      where: {
+        id: holidayId,
+        schoolId: user.schoolId
+      }
+    });
+  } catch (error) {
+    throw notFound("Holiday");
+  }
 }
