@@ -143,7 +143,7 @@ function DashboardKpiIcon({ label, className }: { label: string; className: stri
     );
   }
 
-  if (key.includes("teacher") || key.includes("marked") || key.includes("attendance")) {
+  if (key.includes("teacher") || key.includes("marked") || key.includes("attendance") || key.includes("class")) {
     return (
       <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 48 48">
         <circle cx="24" cy="13" r="7" fill="currentColor" />
@@ -316,7 +316,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
 
   const adminKpis = [
     {
-      label: mode === "ADMIN" ? "Students" : "Your students",
+      label: mode === "ADMIN" ? "Students" : "Assigned students",
       value: kpis.totalStudents ?? kpis.assignedStudents ?? 0,
       formula: mode === "ADMIN" ? "Active students in the school." : "Active students in classes assigned to you.",
       href: "/students",
@@ -356,22 +356,32 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           href: "/teacher/homework",
           tone: teacherPendingHomework > 0 ? "amber" as const : "green" as const
         },
-    {
-      label: "Collected",
-      value: mode === "ADMIN" ? formatINR(fees?.totalCollected ?? 0) : "Class view",
-      formula: mode === "ADMIN" ? "Total fee payments received for active fee assignments." : "Fee totals are hidden in teacher view.",
-      href: mode === "ADMIN" ? "/fees" : "/teacher/classes",
-      tone: "amber" as const
-    },
-    {
-      label: "Alerts",
-      value: kpis.alerts ?? data?.alerts?.length ?? 0,
-      helper: "Opens risk insights",
-      formula: "Below 75% attendance + repeat absentees + high severity risks.",
-      href: "/analytics",
-      tone: "purple" as const
-    }
-  ];
+    mode === "ADMIN"
+      ? {
+          label: "Collected",
+          value: formatINR(fees?.totalCollected ?? 0),
+          formula: "Total fee payments received for active fee assignments.",
+          href: "/fees",
+          tone: "amber" as const
+        }
+      : {
+          label: "Assigned classes",
+          value: totalClasses,
+          formula: "Total classes assigned to you.",
+          href: "/teacher/classes",
+          tone: "blue" as const
+        },
+    mode === "ADMIN"
+      ? {
+          label: "Alerts",
+          value: kpis.alerts ?? data?.alerts?.length ?? 0,
+          helper: "Opens risk insights",
+          formula: "Below 75% attendance + repeat absentees + high severity risks.",
+          href: "/analytics",
+          tone: "purple" as const
+        }
+      : null
+  ].filter(Boolean) as KpiCardProps[];
 
   /* ── Alert items ── */
   async function sendFeeReminder(item: FeeDefaulter) {
@@ -464,7 +474,8 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
             </svg>
             <input
               autoFocus
-              className="min-w-0 flex-1 border-none bg-transparent text-[14px] font-medium text-[#0F1419] outline-none shadow-none focus:border-transparent focus:ring-0 placeholder:text-[#8C96A3]"
+              type="text"
+              className="min-w-0 flex-1 !border-none bg-transparent text-[14px] font-medium text-[#0F1419] !outline-none !shadow-none focus:!border-transparent focus:!ring-0 focus:!outline-none focus:!shadow-none placeholder:text-[#8C96A3]"
               onChange={(event) => setPaymentSearch(event.target.value)}
               placeholder="Search by student name, admission no, or phone"
               value={paymentSearch}
