@@ -37,6 +37,7 @@ function withoutSchoolPath(pathname: string) {
 }
 
 function isPathAllowedForRole(pathname: string, role: Role) {
+  if (matchesPrefix(pathname, "/profile")) return true;
   if (isAdminRole(role)) return true;
   if (matchesPrefix(pathname, "/students/new")) return false;
   if (matchesPrefix(pathname, "/classes/new")) return false;

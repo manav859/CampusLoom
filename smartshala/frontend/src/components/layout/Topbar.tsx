@@ -504,7 +504,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
                     <p className="text-[12px] text-[#86868b] truncate capitalize">{user.role.toLowerCase()}</p>
                   </div>
                   <div className="py-1">
-                    <button onClick={() => { setMenuOpen(false); router.push("/profile"); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors text-left">
+                    <button onClick={() => { setMenuOpen(false); router.push(withSchoolPath("/profile")); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-[13px] font-medium text-[#1d1d1f] hover:bg-[#f5f5f7] transition-colors text-left">
                       <svg className="h-4 w-4 text-[#86868b]" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                       </svg>
