@@ -650,7 +650,6 @@ export default function TeacherAttendancePage() {
                 value={createHolidayDate}
                 onChange={setCreateHolidayDate}
                 disabled={isCreatingHoliday}
-                max={attendance.today}
                 blockedDateReason={blockedDateReason}
               />
               <div className="space-y-1">
@@ -685,7 +684,7 @@ export default function TeacherAttendancePage() {
                   <div key={h.id} className="rounded-lg border border-[#E2E7EE] bg-[#F7F8FB] px-4 py-3">
                     {editingHolidayId === h.id ? (
                       <form className="space-y-3" onSubmit={handleUpdateHoliday}>
-                        <DatePicker label="Holiday Date" value={editingHolidayDate} onChange={setEditingHolidayDate} disabled={isUpdatingHoliday} max={attendance.today} />
+                        <DatePicker label="Holiday Date" value={editingHolidayDate} onChange={setEditingHolidayDate} disabled={isUpdatingHoliday} />
                         <div className="space-y-1">
                           <label className="text-[12px] font-semibold text-[#5A6573]">Reason</label>
                           <input
