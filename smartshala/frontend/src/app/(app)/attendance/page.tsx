@@ -50,12 +50,12 @@ function monthInputFromParts(year: number, monthIndex: number) {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
 }
 
-function dateInMonth(currentDate: string, month: string, today: string) {
+function dateInMonth(currentDate: string, month: string, _today: string) {
   const currentDay = Number(currentDate.slice(8, 10)) || 1;
   const [year, monthNumber] = month.split("-").map(Number);
   const lastDay = new Date(year, monthNumber, 0).getDate();
   const nextDate = `${month}-${String(Math.min(currentDay, lastDay)).padStart(2, "0")}`;
-  return nextDate > today ? today : nextDate;
+  return nextDate;
 }
 
 function monthLabel(month: string) {
@@ -357,7 +357,7 @@ export default function TeacherAttendancePage() {
                   buttonClassName="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
                   disabled={!hasAssignedClasses || attendance.submitting}
                   label="Day"
-                  max={attendance.today}
+                  min={attendance.today}
                   blockedDateReason={blockedDateReason}
                   onChange={(date) => {
                     setMonthPickerOpen(false);
@@ -468,7 +468,7 @@ export default function TeacherAttendancePage() {
                   const isSunday = date.getDay() === 0;
                   const holidayReason = isSunday ? "Sunday" : (day as { holidayReason?: string } | undefined)?.holidayReason;
                   const isHoliday = Boolean(holidayReason) || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
-                  const isFuture = dateKey > attendance.today;
+                  const isPast = dateKey < attendance.today;
 
                   return (
                     <button
@@ -481,12 +481,12 @@ export default function TeacherAttendancePage() {
                         }
                         selectDisplayDate(dateKey);
                       }}
-                      disabled={attendance.loading || attendance.submitting || isFuture}
+                      disabled={attendance.loading || attendance.submitting || isPast}
                       title={isHoliday ? `Holiday: ${holidayReason || "Holiday"}` : undefined}
-                      className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${isHoliday ? "cursor-help" : ""} ${isFuture ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
+                      className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${isHoliday ? "cursor-help" : ""} ${isPast && !isHoliday ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
                         }`}
                     >
-                      <span className="block text-[12px] font-semibold leading-none text-[#1d1d1f]">{cell.day}</span>
+                      <span className={`block text-[12px] font-semibold leading-none ${isHoliday ? "text-[#5B21B6]" : "text-[#1d1d1f]"}`}>{cell.day}</span>
                       <span className="hidden text-[11px] text-[#6e6e73] md:absolute md:left-1/2 md:top-9 md:z-20 md:mt-0 md:w-32 md:-translate-x-1/2 md:space-y-0.5 md:rounded-lg md:border md:border-[#DCE1E8] md:bg-white md:p-2 md:text-left md:shadow-[var(--shadow-menu)] md:group-hover:block md:group-focus-visible:block">
                         {isHoliday ? (
                           <span className="block font-medium text-[#86868b]">Holiday: {holidayReason || "Holiday"}</span>
