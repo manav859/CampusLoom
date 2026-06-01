@@ -46,7 +46,7 @@ type TeacherAssignmentContext = {
   }[];
 };
 
-type Weekday = "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY";
+type Weekday = "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY";
 type AssignmentDraft = Record<Weekday, Record<number, { classId: string; subjectId: string }>>;
 type AssignmentConflict = {
   key: string;
@@ -61,7 +61,8 @@ const timetableDays: { id: Weekday; label: string; short: string }[] = [
   { id: "TUESDAY", label: "Tuesday", short: "Tue" },
   { id: "WEDNESDAY", label: "Wednesday", short: "Wed" },
   { id: "THURSDAY", label: "Thursday", short: "Thu" },
-  { id: "FRIDAY", label: "Friday", short: "Fri" }
+  { id: "FRIDAY", label: "Friday", short: "Fri" },
+  { id: "SATURDAY", label: "Saturday", short: "Sat" }
 ];
 
 function classLabel(classRecord: TeacherAssignmentContext["classes"][number]) {
