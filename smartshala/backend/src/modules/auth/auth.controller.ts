@@ -23,12 +23,6 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
-  const tokenUser = authService.publicUserFromToken(req.user!);
-  if (tokenUser) {
-    res.json({ user: tokenUser });
-    return;
-  }
-
   const user = await authService.getCurrentUser(req.user!.id);
   res.json({ user });
 });
@@ -36,4 +30,14 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
 export const logout = asyncHandler(async (req: Request, res: Response) => {
   await authService.logout(req.user!.id);
   res.status(204).send();
+});
+
+export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
+  const result = await authService.updateProfile(req.user!.id, req.body);
+  res.json(result);
+});
+
+export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+  await authService.changePassword(req.user!.id, req.body.currentPassword, req.body.newPassword);
+  res.status(200).json({ success: true, message: "Password updated successfully" });
 });

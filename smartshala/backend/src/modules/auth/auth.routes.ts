@@ -4,7 +4,7 @@ import { validate } from "../../middleware/validate.js";
 import { rateLimit } from "../../lib/rateLimit.js";
 import type { Request } from "express";
 import * as controller from "./auth.controller.js";
-import { forgotPasswordSchema, loginSchema, refreshSchema, registerSchema } from "./auth.schemas.js";
+import { forgotPasswordSchema, loginSchema, refreshSchema, registerSchema, updateProfileSchema, changePasswordSchema } from "./auth.schemas.js";
 
 export const authRouter = Router();
 
@@ -64,4 +64,6 @@ authRouter.post("/refresh",
   controller.refresh
 );
 authRouter.get("/me", requireAuth, controller.me);
+authRouter.patch("/me", requireAuth, validate({ body: updateProfileSchema }), controller.updateProfile);
+authRouter.patch("/me/password", requireAuth, validate({ body: changePasswordSchema }), controller.changePassword);
 authRouter.post("/logout", requireAuth, controller.logout);

@@ -61,6 +61,7 @@ function publicUser(user: {
   email: string | null;
   phone: string;
   role: UserRole;
+  academicBackground: string | null;
   schoolId: string;
   school: { id: string; name: string; code?: string | null };
 }, tenantSchoolId = getTenantContext()?.schoolId) {
@@ -71,6 +72,7 @@ function publicUser(user: {
     email: user.email,
     phone: user.phone,
     role: user.role,
+    academicBackground: user.academicBackground,
     schoolId: user.schoolId,
     schoolName: user.school.name,
     tenantSchoolId: tenantSchoolId ?? legacyTenantSchoolId(user.school)
@@ -501,5 +503,47 @@ export async function logout(userId: string) {
   await prisma.refreshToken.updateMany({
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() }
+  });
+}
+
+export async function updateProfile(userId: string, data: { fullName?: string; email?: string; phone?: string; academicBackground?: string }) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { school: true } });
+  if (!user) throw new AppError(404, "User not found", "NOT_FOUND");
+
+  // Check email/phone uniqueness if they are changing
+  if (data.email && data.email !== user.email) {
+    const existingEmail = await prisma.user.findFirst({ where: { schoolId: user.schoolId, email: data.email, id: { not: userId } } });
+    if (existingEmail) throw new AppError(409, "Email is already in use by another user.", "EMAIL_IN_USE");
+  }
+  if (data.phone && data.phone !== user.phone) {
+    const existingPhone = await prisma.user.findFirst({ where: { schoolId: user.schoolId, phone: data.phone, id: { not: userId } } });
+    if (existingPhone) throw new AppError(409, "Phone number is already in use by another user.", "PHONE_IN_USE");
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      fullName: data.fullName ?? user.fullName,
+      email: data.email === "" ? null : (data.email ?? user.email),
+      phone: data.phone ?? user.phone,
+      academicBackground: data.academicBackground === "" ? null : (data.academicBackground ?? user.academicBackground)
+    },
+    include: { school: true }
+  });
+
+  return { user: publicUser(updatedUser) };
+}
+
+export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new AppError(404, "User not found", "NOT_FOUND");
+
+  const validPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!validPassword) throw new AppError(401, "Incorrect current password", "INVALID_CREDENTIALS");
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash }
   });
 }
