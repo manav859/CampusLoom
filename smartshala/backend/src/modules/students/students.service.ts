@@ -1048,6 +1048,22 @@ export async function getStudent(user: Express.UserContext, id: string) {
     });
     if (!student) throw notFound("Student");
 
+    const siblings = student.parentPhone
+      ? await prisma.student.findMany({
+          where: {
+            schoolId: user.schoolId,
+            parentPhone: student.parentPhone,
+            id: { not: student.id }
+          },
+          select: {
+            id: true,
+            fullName: true,
+            class: { select: { name: true, section: true } },
+            profilePhotoUrl: true
+          }
+        })
+      : [];
+
     const studentRecord = student as typeof student & {
       attendanceRecords?: AttendanceForSnapshot[];
       examResults?: ExamForPerformance[];
@@ -1105,6 +1121,7 @@ export async function getStudent(user: Express.UserContext, id: string) {
         role: user.role,
         allowedTabs
       },
+      siblings,
       lastAbsentDate,
       currentRank,
       ...performance,

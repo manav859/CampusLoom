@@ -640,6 +640,7 @@ export type StudentDetail = {
     role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
     allowedTabs: Array<"academic" | "homework" | "attendance" | "fees" | "communication" | "behaviour" | "documents">;
   };
+  siblings?: { id: string; fullName: string; class: { name: string; section: string }; profilePhotoUrl: string | null }[];
   class: { name: string; section: string };
   feeAssignments: {
     id: string;

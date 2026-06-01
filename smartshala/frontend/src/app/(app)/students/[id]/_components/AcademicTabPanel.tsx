@@ -12,6 +12,7 @@ import {
   YAxis
 } from "recharts";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { StatusPill } from "@/components/ui/StatusPill";
 import type { StudentDetail } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
@@ -94,6 +95,7 @@ function ChartTooltip({ active, label, payload }: ChartTooltipProps) {
 
 export default function AcademicTabPanel({ student, attendance, pendingFees, paidFees }: AcademicTabPanelProps) {
   const [isMobileChart, setIsMobileChart] = useState(false);
+  const [isSiblingsModalOpen, setIsSiblingsModalOpen] = useState(false);
   const analytics = student.academicAnalytics;
   const hasExams = analytics.exams.length > 0;
   const hasTrend = analytics.trend.length > 0;
@@ -114,7 +116,15 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
     { label: "Roll no", value: student.rollNumber ?? "Not set" },
     { label: "Parent", value: student.parentName },
     { label: "Phone", value: student.parentPhone },
-    { label: "Alternate phone", value: student.alternatePhone ?? "Not set" }
+    { label: "Alternate phone", value: student.alternatePhone ?? "Not set" },
+    {
+      label: "Siblings",
+      value: (
+        <button onClick={() => setIsSiblingsModalOpen(true)} className="text-[#2456E6] hover:underline font-semibold">
+          {student.siblings?.length || 0} Siblings
+        </button>
+      )
+    }
   ];
   const insightHelp =
     "How is this generated? It uses latest exam average, homework completion, attendance count, and pending fees from this profile.";
@@ -449,6 +459,36 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
           )}
         </div>
       </section>
+
+      <Modal
+        isOpen={isSiblingsModalOpen}
+        onClose={() => setIsSiblingsModalOpen(false)}
+        title="Siblings"
+        size="md"
+        footer={<ModalCloseButton onClick={() => setIsSiblingsModalOpen(false)}>Close</ModalCloseButton>}
+      >
+        <div className="space-y-3">
+          {!student.siblings?.length ? (
+            <div className="text-center text-[#86868b] py-6 text-[13px]">No siblings found.</div>
+          ) : (
+            student.siblings.map((sibling) => (
+              <div key={sibling.id} className="flex items-center gap-3 rounded-[6px] border border-[#E7EBF0] bg-[#F7F8FB] p-3">
+                {sibling.profilePhotoUrl ? (
+                  <img src={sibling.profilePhotoUrl} alt={sibling.fullName} className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E5E5EA] text-[#86868b] font-semibold text-[14px]">
+                    {sibling.fullName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div>
+                  <p className="text-[14px] font-semibold text-[#1d1d1f]">{sibling.fullName}</p>
+                  <p className="text-[12px] text-[#86868b]">{sibling.class.name} - {sibling.class.section}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Modal>
     </section>
   );
 }
