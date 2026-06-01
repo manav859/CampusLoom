@@ -67,6 +67,12 @@ attendanceRouter.post(
   validate({ body: z.object({ date: z.string(), reason: z.string().min(1) }) }),
   controller.createHoliday
 );
+attendanceRouter.patch(
+  "/holidays/:id",
+  requireRole(adminRoles),
+  validate({ params: z.object({ id: z.string().uuid() }), body: z.object({ date: z.string(), reason: z.string().min(1) }) }),
+  controller.updateHoliday
+);
 attendanceRouter.delete(
   "/holidays/:id",
   requireRole(adminRoles),

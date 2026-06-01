@@ -5,6 +5,7 @@ import { formatDateShort } from "@/lib/formatters";
 
 type DatePickerProps = {
   buttonClassName?: string;
+  blockedDateReason?: (value: string) => string | undefined;
   disabled?: boolean;
   label?: string;
   max?: string;
@@ -58,6 +59,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export function DatePicker({
+  blockedDateReason,
   buttonClassName,
   disabled,
   label,
@@ -70,6 +72,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(monthFromValue(value));
+  const [blockedMessage, setBlockedMessage] = useState("");
   const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({});
   const wrapperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -157,15 +160,24 @@ export function DatePicker({
               if (!cell.value) return <span aria-hidden="true" className="h-9" key={cell.key} />;
               const selected = value === cell.value;
               const outOfRange = isOutOfRange(cell.value, min, max);
+              const blockedReason = blockedDateReason?.(cell.value);
+              const blocked = Boolean(blockedReason);
               return (
                 <button
-                  className={`h-9 rounded-lg text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : "text-[#2A3340] hover:bg-[#F7F8FB]"}`}
+                  aria-disabled={blocked}
+                  className={`h-9 rounded-lg text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-30 ${selected ? "bg-[#2456E6] text-white" : blocked ? "bg-[#F5F5F7] text-[#8e8e93] hover:bg-[#ECEEF3]" : "text-[#2A3340] hover:bg-[#F7F8FB]"}`}
                   disabled={outOfRange}
                   key={cell.key}
                   onClick={() => {
+                    if (blockedReason) {
+                      setBlockedMessage(`${formatDateShort(cell.value)} is a holiday: ${blockedReason}`);
+                      return;
+                    }
                     onChange(cell.value);
+                    setBlockedMessage("");
                     setOpen(false);
                   }}
+                  title={blockedReason ? `Holiday: ${blockedReason}` : undefined}
                   type="button"
                 >
                   {Number(cell.value.slice(8, 10))}
@@ -173,6 +185,11 @@ export function DatePicker({
               );
             })}
           </div>
+          {blockedMessage ? (
+            <p className="mt-3 rounded-lg border border-[#DCE1E8] bg-[#F7F8FB] px-3 py-2 text-[12px] font-semibold text-[#5A6573]">
+              {blockedMessage}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

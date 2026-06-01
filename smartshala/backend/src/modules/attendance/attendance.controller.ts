@@ -86,6 +86,10 @@ export const listHolidays = asyncHandler(async (req: Request, res: Response) => 
   res.json(await attendanceService.listHolidays(req.user!, req.query.month as string));
 });
 
+export const updateHoliday = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await attendanceService.updateHoliday(req.user!, req.params.id, new Date(req.body.date), req.body.reason));
+});
+
 export const deleteHoliday = asyncHandler(async (req: Request, res: Response) => {
   await attendanceService.deleteHoliday(req.user!, req.params.id);
   res.status(204).send();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { Button } from "@/components/ui/Button";
@@ -11,7 +11,6 @@ import { AttendanceListSkeleton } from "@/components/ui/Skeleton";
 import { useAttendance } from "@/hooks/useAttendance";
 import { attendanceApi, type ClassSummary, type Holiday } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
-import { useCallback } from "react";
 
 function calendarDayClasses(input: { selected: boolean; marked: boolean; isHoliday: boolean }) {
   if (input.selected) {
@@ -94,8 +93,12 @@ export default function TeacherAttendancePage() {
   const [createHolidayDate, setCreateHolidayDate] = useState("");
   const [createHolidayReason, setCreateHolidayReason] = useState("");
   const [isCreatingHoliday, setIsCreatingHoliday] = useState(false);
-  const [holidaysList, setHolidaysList] = useState<{ id: string; date: string; reason: string }[]>([]);
+  const [holidaysList, setHolidaysList] = useState<Holiday[]>([]);
   const [isLoadingHolidays, setIsLoadingHolidays] = useState(false);
+  const [editingHolidayId, setEditingHolidayId] = useState("");
+  const [editingHolidayDate, setEditingHolidayDate] = useState("");
+  const [editingHolidayReason, setEditingHolidayReason] = useState("");
+  const [isUpdatingHoliday, setIsUpdatingHoliday] = useState(false);
   const classOptions = attendance.classes;
   const selectedClassRecord = attendance.selectedClass ?? classOptions.find((classItem) => classItem.id === attendance.selectedClassId);
   const firstAvailableClass = classOptions[0] ?? null;
@@ -116,6 +119,26 @@ export default function TeacherAttendancePage() {
   const [monthYear = 0, monthNumber = 1] = attendance.selectedMonth.split("-").map(Number);
   const firstWeekday = new Date(monthYear, monthNumber - 1, 1).getDay();
   const daysInMonth = new Date(monthYear, monthNumber, 0).getDate();
+  const holidayReasonByDate = useMemo(() => {
+    const dates = new Map<string, string>();
+    attendance.monthly?.days.forEach((day) => {
+      if (day.isHoliday) dates.set(day.date, day.holidayReason || "Holiday");
+    });
+    Array.from({ length: daysInMonth }, (_, index) => index + 1).forEach((day) => {
+      const dateKey = `${attendance.selectedMonth}-${String(day).padStart(2, "0")}`;
+      if (new Date(monthYear, monthNumber - 1, day).getDay() === 0) dates.set(dateKey, "Sunday");
+    });
+    return dates;
+  }, [attendance.monthly?.days, attendance.selectedMonth, daysInMonth, monthNumber, monthYear]);
+  const totalHolidaysThisMonth = holidayReasonByDate.size;
+  const blockedDateReason = useCallback(
+    (date: string) => {
+      const [year = 0, month = 1, day = 1] = date.split("-").map(Number);
+      if (new Date(year, month - 1, day).getDay() === 0) return "Sunday";
+      return holidayReasonByDate.get(date);
+    },
+    [holidayReasonByDate]
+  );
   const calendarCells = useMemo(
     () => [
       ...Array.from({ length: firstWeekday }, (_, index) => ({ key: `blank-${index}`, day: null as number | null })),
@@ -157,7 +180,6 @@ export default function TeacherAttendancePage() {
   const loadHolidays = useCallback(async () => {
     setIsLoadingHolidays(true);
     try {
-      const { attendanceApi } = await import("@/lib/api");
       const list = await attendanceApi.listHolidays(attendance.selectedMonth);
       setHolidaysList(list);
     } catch (err) {
@@ -173,17 +195,17 @@ export default function TeacherAttendancePage() {
     }
   }, [manageHolidaysOpen, loadHolidays]);
 
-  async function handleCreateHoliday(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleCreateHoliday(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!createHolidayDate || !createHolidayReason) return;
     setIsCreatingHoliday(true);
     try {
-      const { attendanceApi } = await import("@/lib/api");
       await attendanceApi.createHoliday(createHolidayDate, createHolidayReason);
       setCreateHolidayOpen(false);
       setCreateHolidayDate("");
       setCreateHolidayReason("");
-      void attendance.selectMonth(attendance.selectedMonth); // Refresh calendar
+      await attendance.selectMonth(attendance.selectedMonth);
+      if (manageHolidaysOpen) void loadHolidays();
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Failed to create holiday");
@@ -195,13 +217,39 @@ export default function TeacherAttendancePage() {
   async function handleDeleteHoliday(id: string) {
     if (!confirm("Are you sure you want to delete this holiday?")) return;
     try {
-      const { attendanceApi } = await import("@/lib/api");
       await attendanceApi.deleteHoliday(id);
+      if (editingHolidayId === id) {
+        setEditingHolidayId("");
+        setEditingHolidayDate("");
+        setEditingHolidayReason("");
+      }
       void loadHolidays();
-      void attendance.selectMonth(attendance.selectedMonth); // Refresh calendar
+      void attendance.selectMonth(attendance.selectedMonth);
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : "Failed to delete holiday");
+    }
+  }
+
+  async function handleUpdateHoliday(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingHolidayId || !editingHolidayDate || !editingHolidayReason) return;
+    setIsUpdatingHoliday(true);
+    try {
+      await attendanceApi.updateHoliday(editingHolidayId, {
+        date: editingHolidayDate,
+        reason: editingHolidayReason
+      });
+      setEditingHolidayId("");
+      setEditingHolidayDate("");
+      setEditingHolidayReason("");
+      await loadHolidays();
+      await attendance.selectMonth(attendance.selectedMonth);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : "Failed to update holiday");
+    } finally {
+      setIsUpdatingHoliday(false);
     }
   }
 
@@ -247,7 +295,7 @@ export default function TeacherAttendancePage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-[13px] text-[#86868b]">Mark present, late, or absent for any date. Saved days can be reopened and edited.</p>
           <div className="flex items-center gap-3">
-            <span className="text-[12px] font-semibold text-[#5A6573]">Total Holidays this month: {attendance.monthly?.days.filter(d => d.isHoliday).length ?? 0}</span>
+            <span className="text-[12px] font-semibold text-[#5A6573]">Total Holidays this month: {totalHolidaysThisMonth}</span>
             <button className="btn-secondary h-8 px-3 text-[12px]" onClick={() => setManageHolidaysOpen(true)}>Manage Holidays</button>
             <button className="btn-primary h-8 px-3 text-[12px]" onClick={() => setCreateHolidayOpen(true)}>Create Holiday</button>
           </div>
@@ -310,6 +358,7 @@ export default function TeacherAttendancePage() {
                   disabled={!hasAssignedClasses || attendance.submitting}
                   label="Day"
                   max={attendance.today}
+                  blockedDateReason={blockedDateReason}
                   onChange={(date) => {
                     setMonthPickerOpen(false);
                     selectDisplayDate(date);
@@ -417,7 +466,8 @@ export default function TeacherAttendancePage() {
                   const selected = attendance.selectedDate === dateKey;
                   const date = new Date(monthYear, monthNumber - 1, cell.day);
                   const isSunday = date.getDay() === 0;
-                  const isHoliday = isSunday || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
+                  const holidayReason = isSunday ? "Sunday" : (day as { holidayReason?: string } | undefined)?.holidayReason;
+                  const isHoliday = Boolean(holidayReason) || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
                   const isFuture = dateKey > attendance.today;
 
                   return (
@@ -425,23 +475,28 @@ export default function TeacherAttendancePage() {
                       type="button"
                       key={cell.key}
                       onClick={() => {
+                        if (isHoliday) {
+                          setCalendarDetailDate(dateKey);
+                          return;
+                        }
                         selectDisplayDate(dateKey);
                       }}
                       disabled={attendance.loading || attendance.submitting || isFuture}
-                      className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${isFuture ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
+                      title={isHoliday ? `Holiday: ${holidayReason || "Holiday"}` : undefined}
+                      className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${isHoliday ? "cursor-help" : ""} ${isFuture ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
                         }`}
                     >
                       <span className="block text-[12px] font-semibold leading-none text-[#1d1d1f]">{cell.day}</span>
                       <span className="hidden text-[11px] text-[#6e6e73] md:absolute md:left-1/2 md:top-9 md:z-20 md:mt-0 md:w-32 md:-translate-x-1/2 md:space-y-0.5 md:rounded-lg md:border md:border-[#DCE1E8] md:bg-white md:p-2 md:text-left md:shadow-[var(--shadow-menu)] md:group-hover:block md:group-focus-visible:block">
-                        {day ? (
+                        {isHoliday ? (
+                          <span className="block font-medium text-[#86868b]">Holiday: {holidayReason || "Holiday"}</span>
+                        ) : day ? (
                           <>
                             <span className="block font-semibold text-[#1d1d1f]">{day.percentage}%</span>
                             <span className="block">{day.absent} absent</span>
                             {day.halfDay ? <span className="block">{day.halfDay} half-day</span> : null}
                             <span className="block">{day.late} late</span>
                           </>
-                        ) : isHoliday ? (
-                          <span className="block font-medium text-[#86868b]">{isSunday ? "Sunday" : "Holiday"}</span>
                         ) : (
                           <span className="block text-[#86868b]">Unmarked</span>
                         )}
@@ -454,9 +509,11 @@ export default function TeacherAttendancePage() {
               <div className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] text-[#6e6e73] md:hidden">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-semibold text-[#1d1d1f]">{calendarDetailLabel}</span>
-                  {selectedMonthDay && !selectedMonthDay.isHoliday ? <span className="font-semibold text-[#1d1d1f]">{selectedMonthDay.percentage}%</span> : null}
+                  {selectedMonthDay && !holidayReasonByDate.has(calendarDetailDateKey) ? <span className="font-semibold text-[#1d1d1f]">{selectedMonthDay.percentage}%</span> : null}
                 </div>
-                {selectedMonthDay ? (
+                {holidayReasonByDate.has(calendarDetailDateKey) ? (
+                  <p className="mt-1 font-semibold text-[#2456E6]">Holiday: {holidayReasonByDate.get(calendarDetailDateKey)}</p>
+                ) : selectedMonthDay ? (
                   selectedMonthDay.isHoliday ? (
                     <p className="mt-1 font-semibold text-[#2456E6]">Holiday: {selectedMonthDay.holidayReason}</p>
                   ) : (
@@ -569,8 +626,8 @@ export default function TeacherAttendancePage() {
             description="Select a date and provide a reason for the holiday."
             footer={
               <>
-                <ModalCloseButton onClick={() => setCreateHolidayOpen(false)} disabled={isCreatingHoliday} />
-                <Button onClick={handleCreateHoliday} variant="primary" disabled={isCreatingHoliday || !createHolidayDate || !createHolidayReason}>
+                <ModalCloseButton onClick={() => setCreateHolidayOpen(false)} />
+                <Button onClick={() => void handleCreateHoliday()} variant="primary" disabled={isCreatingHoliday || !createHolidayDate || !createHolidayReason}>
                   {isCreatingHoliday ? "Creating..." : "Create"}
                 </Button>
               </>
@@ -582,6 +639,7 @@ export default function TeacherAttendancePage() {
                 value={createHolidayDate}
                 onChange={setCreateHolidayDate}
                 disabled={isCreatingHoliday}
+                blockedDateReason={blockedDateReason}
               />
               <div className="space-y-1">
                 <label className="text-[12px] font-semibold text-[#5A6573]">Reason</label>
@@ -612,21 +670,59 @@ export default function TeacherAttendancePage() {
             ) : (
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                 {holidaysList.map(h => (
-                  <div key={h.id} className="flex items-center justify-between rounded-lg border border-[#E2E7EE] bg-[#F7F8FB] px-4 py-3">
-                    <div>
-                      <div className="text-[14px] font-semibold text-[#1d1d1f]">{formatDateShort(h.date)}</div>
-                      <div className="text-[12px] text-[#5A6573]">{h.reason}</div>
-                    </div>
-                    <button
-                      type="button"
-                      className="rounded-full p-2 text-red-500 transition hover:bg-red-500/10"
-                      onClick={() => handleDeleteHoliday(h.id)}
-                      title="Delete holiday"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                  <div key={h.id} className="rounded-lg border border-[#E2E7EE] bg-[#F7F8FB] px-4 py-3">
+                    {editingHolidayId === h.id ? (
+                      <form className="space-y-3" onSubmit={handleUpdateHoliday}>
+                        <DatePicker label="Holiday Date" value={editingHolidayDate} onChange={setEditingHolidayDate} disabled={isUpdatingHoliday} />
+                        <div className="space-y-1">
+                          <label className="text-[12px] font-semibold text-[#5A6573]">Reason</label>
+                          <input
+                            type="text"
+                            value={editingHolidayReason}
+                            onChange={(event) => setEditingHolidayReason(event.target.value)}
+                            className="w-full rounded-md border border-[#DCE1E8] px-3 py-2 text-[14px] outline-none transition focus:border-[#2456E6] focus:ring-2 focus:ring-[#2456E6]/10"
+                            disabled={isUpdatingHoliday}
+                            required
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                          <button className="btn-secondary h-9 px-3 text-[12px]" disabled={isUpdatingHoliday} onClick={() => setEditingHolidayId("")} type="button">Cancel</button>
+                          <button className="btn-primary h-9 px-3 text-[12px]" disabled={isUpdatingHoliday || !editingHolidayDate || !editingHolidayReason} type="submit">
+                            {isUpdatingHoliday ? "Saving..." : "Save changes"}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="text-[14px] font-semibold text-[#1d1d1f]">{formatDateShort(h.date)}</div>
+                          <div className="text-[12px] text-[#5A6573]">{h.reason}</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="btn-secondary h-8 px-3 text-[12px]"
+                            onClick={() => {
+                              setEditingHolidayId(h.id);
+                              setEditingHolidayDate(h.date.slice(0, 10));
+                              setEditingHolidayReason(h.reason);
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded-full p-2 text-red-500 transition hover:bg-red-500/10"
+                            onClick={() => handleDeleteHoliday(h.id)}
+                            title="Delete holiday"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

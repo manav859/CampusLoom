@@ -234,7 +234,7 @@ function attendanceAnalytics(records: AttendanceForSnapshot[], classAverageAtten
   for (let day = 1; day <= monthEnd.getDate(); day += 1) {
     const date = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
     const key = isoDate(date);
-    const status = recordByDate.get(key) ?? (date.getDay() === 0 ? "HOLIDAY" : "UNMARKED");
+    const status = date.getDay() === 0 ? "HOLIDAY" : recordByDate.get(key) ?? "UNMARKED";
     calendar.push({ date, status });
   }
 

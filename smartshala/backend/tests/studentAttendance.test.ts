@@ -14,11 +14,11 @@ const attendanceTabSummary = calculateStudentAttendanceSummary([...records].sort
 
 assert.equal(profileSummary.attendancePercentage, 50);
 assert.equal(attendanceTabSummary.attendancePercentage, profileSummary.attendancePercentage);
-assert.equal(attendanceTabSummary.totalDays, 5);
+assert.equal(attendanceTabSummary.totalDays, 4);
 assert.equal(attendanceTabSummary.absences, 2);
 assert.equal(attendanceTabSummary.late, 1);
-assert.equal(attendanceTabSummary.halfDays, 1);
-assert.equal(attendanceTabSummary.attended, 2.5);
+assert.equal(attendanceTabSummary.halfDays, 0);
+assert.equal(attendanceTabSummary.attended, 2);
 assert.equal(attendanceTabSummary.lastAbsentDate?.toISOString(), "2026-04-02T00:00:00.000Z");
 
 console.log("student attendance tests passed");

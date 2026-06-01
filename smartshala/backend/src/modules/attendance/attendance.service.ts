@@ -155,6 +155,14 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
 
   const classRecord = await assertClassAccess(user, classId);
   const normalizedDate = startOfDay(date);
+  const holiday = await prisma.holiday.findUnique({
+    where: { schoolId_date: { schoolId: user.schoolId, date: normalizedDate } }
+  });
+
+  if (normalizedDate.getDay() === 0 || holiday) {
+    throw new AppError(400, `Attendance cannot be marked on ${holiday?.reason ?? "Sunday"}.`, "ATTENDANCE_HOLIDAY");
+  }
+
   const submittedStudentIds = records.map((record) => record.studentId);
   const validStudents = await prisma.student.findMany({
     where: {
@@ -406,25 +414,26 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
     }
   });
 
-  const present = records.filter((record) => record.status === AttendanceStatus.PRESENT).length;
-  const absent = records.filter((record) => record.status === AttendanceStatus.ABSENT).length;
-  const late = records.filter((record) => record.status === AttendanceStatus.LATE).length;
-  const halfDay = records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
-  const attended = records.reduce((sum, record) => sum + Number(record.attendanceValue), 0);
+  const schoolDayRecords = records.filter((record) => record.session.date.getDay() !== 0);
+  const present = schoolDayRecords.filter((record) => record.status === AttendanceStatus.PRESENT).length;
+  const absent = schoolDayRecords.filter((record) => record.status === AttendanceStatus.ABSENT).length;
+  const late = schoolDayRecords.filter((record) => record.status === AttendanceStatus.LATE).length;
+  const halfDay = schoolDayRecords.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
+  const attended = schoolDayRecords.reduce((sum, record) => sum + Number(record.attendanceValue), 0);
 
   return {
     studentId: student.id,
     month,
     summary: {
-      totalDays: records.length,
+      totalDays: schoolDayRecords.length,
       present,
       absent,
       late,
       halfDay,
       attended,
-      percentage: percentage(attended, records.length)
+      percentage: percentage(attended, schoolDayRecords.length)
     },
-    daily: records.map((record) => ({
+    daily: schoolDayRecords.map((record) => ({
       date: formatDate(record.session.date),
       status: record.status
     }))
@@ -501,6 +510,27 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
         isHoliday: true,
         holidayReason: holiday.reason
       });
+    }
+  }
+
+  for (let day = 1; day <= end.getDate(); day++) {
+    const date = startOfDay(new Date(start.getFullYear(), start.getMonth(), day));
+    const formattedDate = formatDate(date);
+    if (date.getDay() === 0 && !sessionDates.has(formattedDate)) {
+      days.push({
+        date: formattedDate,
+        marked: false,
+        total: 0,
+        present: 0,
+        late: 0,
+        halfDay: 0,
+        absent: 0,
+        attended: 0,
+        percentage: 0,
+        isHoliday: true,
+        holidayReason: "Sunday"
+      });
+      sessionDates.add(formattedDate);
     }
   }
 
@@ -684,21 +714,22 @@ export async function monthlyStudentReport(user: Express.UserContext, studentId:
     include: { session: true },
     orderBy: { session: { date: "asc" } }
   });
-  const present = records.filter((record) => record.status === AttendanceStatus.PRESENT || record.status === AttendanceStatus.LATE).length;
-  const halfDay = records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
-  const attended = records.reduce((sum, record) => sum + attendanceValue(record.status), 0);
-  const absent = records.filter((record) => record.status === AttendanceStatus.ABSENT).length;
+  const schoolDayRecords = records.filter((record) => record.session.date.getDay() !== 0);
+  const present = schoolDayRecords.filter((record) => record.status === AttendanceStatus.PRESENT || record.status === AttendanceStatus.LATE).length;
+  const halfDay = schoolDayRecords.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
+  const attended = schoolDayRecords.reduce((sum, record) => sum + attendanceValue(record.status), 0);
+  const absent = schoolDayRecords.filter((record) => record.status === AttendanceStatus.ABSENT).length;
 
   return {
     student,
     month,
-    totalMarkedDays: records.length,
+    totalMarkedDays: schoolDayRecords.length,
     present,
     halfDay,
     attended,
     absent,
-    percentage: records.length ? Math.round((attended / records.length) * 100) : 0,
-    records
+    percentage: schoolDayRecords.length ? Math.round((attended / schoolDayRecords.length) * 100) : 0,
+    records: schoolDayRecords
   };
 }
 
@@ -708,6 +739,10 @@ export async function createHoliday(user: AttendanceUser, date: Date, reason: st
   }
 
   const normalizedDate = startOfDay(date);
+
+  if (normalizedDate.getDay() === 0) {
+    throw new AppError(400, "Sundays are already holidays", "SUNDAY_HOLIDAY");
+  }
 
   const existingSession = await prisma.attendanceSession.findFirst({
     where: { schoolId: user.schoolId, date: normalizedDate }
@@ -726,6 +761,49 @@ export async function createHoliday(user: AttendanceUser, date: Date, reason: st
       }
     });
     return holiday;
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new AppError(400, "Holiday already exists for this date", "DUPLICATE_HOLIDAY");
+    }
+    throw error;
+  }
+}
+
+export async function updateHoliday(user: AttendanceUser, holidayId: string, date: Date, reason: string) {
+  if (!isAdminRole(user.role)) {
+    throw new AppError(403, "You do not have permission to update holidays", "FORBIDDEN");
+  }
+
+  const normalizedDate = startOfDay(date);
+
+  if (normalizedDate.getDay() === 0) {
+    throw new AppError(400, "Sundays are already holidays", "SUNDAY_HOLIDAY");
+  }
+
+  const holiday = await prisma.holiday.findFirst({
+    where: { id: holidayId, schoolId: user.schoolId }
+  });
+  if (!holiday) throw notFound("Holiday");
+
+  const existingSession = await prisma.attendanceSession.findFirst({
+    where: { schoolId: user.schoolId, date: normalizedDate }
+  });
+
+  if (existingSession) {
+    throw new AppError(400, "Cannot move holiday to a date with marked attendance. Reset attendance first.", "ATTENDANCE_EXISTS");
+  }
+
+  try {
+    return await prisma.holiday.update({
+      where: {
+        id: holidayId,
+        schoolId: user.schoolId
+      },
+      data: {
+        date: normalizedDate,
+        reason
+      }
+    });
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       throw new AppError(400, "Holiday already exists for this date", "DUPLICATE_HOLIDAY");

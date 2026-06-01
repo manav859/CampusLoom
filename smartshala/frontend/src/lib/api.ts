@@ -232,6 +232,12 @@ export type ClassMonthlyAttendance = {
   }[];
 };
 
+export type Holiday = {
+  id: string;
+  date: string;
+  reason: string;
+};
+
 export type AttendanceDashboard = {
   totalClasses: number;
   markedClasses: number;
@@ -1086,12 +1092,17 @@ export const attendanceApi = {
   },
   listHolidays: (month: string) => {
     const params = new URLSearchParams({ month });
-    return apiFetch<{ id: string; date: string; reason: string }[]>(`/attendance/holidays?${params.toString()}`);
+    return apiFetch<Holiday[]>(`/attendance/holidays?${params.toString()}`);
   },
   createHoliday: (date: string, reason: string) =>
-    apiFetch<{ id: string; date: string; reason: string }>("/attendance/holidays", {
+    apiFetch<Holiday>("/attendance/holidays", {
       method: "POST",
       body: JSON.stringify({ date, reason })
+    }),
+  updateHoliday: (id: string, payload: { date: string; reason: string }) =>
+    apiFetch<Holiday>(`/attendance/holidays/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
     }),
   deleteHoliday: (id: string) =>
     apiFetch<void>(`/attendance/holidays/${id}`, {
