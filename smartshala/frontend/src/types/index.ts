@@ -3,6 +3,9 @@ export type Role = "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
 export type SessionUser = {
   id: string;
   fullName: string;
+  email?: string;
+  phone?: string;
+  academicBackground?: string;
   role: Role;
   schoolId?: string;
   tenantSchoolId?: string;

@@ -8,7 +8,6 @@ import type { SessionUser } from "@/types";
 const fieldClass = "mt-2 min-h-[44px] w-full rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[14px] font-medium text-[#031526] outline-none transition focus:border-[#2456E6] focus:ring-2 focus:ring-[#2456E6]/10 disabled:bg-[#F3F6F9] disabled:text-[#8A96A3]";
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -39,11 +38,11 @@ export default function ProfilePage() {
       try {
         const response = await apiFetch<{ user: SessionUser }>("/auth/me");
         if (!active) return;
-        setUser(response.user);
+  
         setFormData({
           fullName: response.user.fullName,
           email: response.user.email ?? "",
-          phone: response.user.phone,
+          phone: response.user.phone ?? "",
           academicBackground: response.user.academicBackground ?? ""
         });
       } catch (err) {
@@ -72,11 +71,11 @@ export default function ProfilePage() {
           academicBackground: formData.academicBackground.trim() === "" ? "" : formData.academicBackground
         })
       });
-      setUser(response.user);
+
       setFormData({
         fullName: response.user.fullName,
         email: response.user.email ?? "",
-        phone: response.user.phone,
+        phone: response.user.phone ?? "",
         academicBackground: response.user.academicBackground ?? ""
       });
       
