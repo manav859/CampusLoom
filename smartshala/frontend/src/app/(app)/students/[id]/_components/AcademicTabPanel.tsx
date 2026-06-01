@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
+import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -481,7 +482,9 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
                   </div>
                 )}
                 <div>
-                  <p className="text-[14px] font-semibold text-[#1d1d1f]">{sibling.fullName}</p>
+                  <Link href={`/students/${sibling.id}`} className="text-[14px] font-semibold text-[#2456E6] hover:underline">
+                    {sibling.fullName}
+                  </Link>
                   <p className="text-[12px] text-[#86868b]">{sibling.class.name} - {sibling.class.section}</p>
                 </div>
               </div>

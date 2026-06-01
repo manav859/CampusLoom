@@ -234,7 +234,13 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
                 className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
                 placeholder="dd/mm/yyyy"
                 value={formData.dateOfBirth}
-                onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                onChange={(e) => {
+                  let val = e.target.value;
+                  if ((val.length === 2 || val.length === 5) && val.length > formData.dateOfBirth.length) {
+                    val += "/";
+                  }
+                  setFormData({ ...formData, dateOfBirth: val });
+                }}
               />
               <p className="ml-1 text-[12px] font-medium text-[#5A6573]">Format: dd/mm/yyyy</p>
             </div>
@@ -331,16 +337,19 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
             </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
-            <div className="flex items-center rounded-[6px] border border-[#DCE1E8] bg-white px-4 py-3">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  checked={formData.transportRequired}
-                  className="rounded border-[rgba(0,0,0,0.1)] text-[#2456E6] focus:ring-[#2456E6]"
-                  onChange={(e) => setFormData({ ...formData, transportRequired: e.target.checked })}
-                  type="checkbox"
-                />
-                <span className="text-[13px] font-semibold text-[#1d1d1f]">Uses school transportation</span>
-              </label>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-transparent ml-1 select-none pointer-events-none" aria-hidden="true">Transport</label>
+              <div className="flex h-[42px] items-center rounded-[6px] border border-[#DCE1E8] bg-white px-4">
+                <label className="flex h-full w-full cursor-pointer items-center gap-2">
+                  <input
+                    checked={formData.transportRequired}
+                    className="rounded border-[rgba(0,0,0,0.1)] text-[#2456E6] focus:ring-[#2456E6]"
+                    onChange={(e) => setFormData({ ...formData, transportRequired: e.target.checked })}
+                    type="checkbox"
+                  />
+                  <span className="text-[13px] font-semibold text-[#1d1d1f]">Uses school transportation</span>
+                </label>
+              </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Transportation Fee</label>
