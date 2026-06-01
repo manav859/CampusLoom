@@ -381,7 +381,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           tone: "purple" as const
         }
       : null
-  ].filter(Boolean) as KpiCardProps[];
+  ].filter(Boolean) as Kpi[];
 
   /* ── Alert items ── */
   async function sendFeeReminder(item: FeeDefaulter) {
