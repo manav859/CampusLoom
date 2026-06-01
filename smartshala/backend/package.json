@@ -21,7 +21,8 @@
     "test:grading": "tsx tests/grading.test.ts",
     "test:attendance": "tsx tests/studentAttendance.test.ts",
     "test:marks-term": "tsx tests/marksExamTerm.test.ts",
-    "test:fee-adjustment": "tsx tests/feeAdjustmentSchema.test.ts"
+    "test:fee-adjustment": "tsx tests/feeAdjustmentSchema.test.ts",
+    "backup:master": "node scripts/backup-master-db.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

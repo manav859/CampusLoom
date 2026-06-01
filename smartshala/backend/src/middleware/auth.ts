@@ -26,8 +26,21 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
     if (!payload.sub) throw new Error("Missing subject");
-    if (req.tenant && payload.tenantSchoolId && payload.tenantSchoolId !== req.tenant.schoolId) {
-      throw new Error("Tenant mismatch");
+    if (req.tenant) {
+      if (!payload.tenantSchoolId) {
+        throw new AppError(
+          401,
+          "Token is not bound to a tenant",
+          "TENANT_CLAIM_MISSING"
+        );
+      }
+      if (payload.tenantSchoolId !== req.tenant.schoolId) {
+        throw new AppError(
+          403,
+          "Token tenant does not match requested school",
+          "TENANT_MISMATCH"
+        );
+      }
     }
     req.user = {
       id: payload.sub,
@@ -40,7 +53,8 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
       schoolName: payload.schoolName
     };
     next();
-  } catch {
+  } catch (err) {
+    if (err instanceof AppError) throw err;
     throw new AppError(401, "Invalid or expired token", "INVALID_TOKEN");
   }
 }

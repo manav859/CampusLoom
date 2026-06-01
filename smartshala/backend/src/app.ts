@@ -10,6 +10,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { notFoundHandler } from "./middleware/notFound.js";
 import { dbWarmup } from "./middleware/dbWarmup.js";
 import { tenantMiddleware } from "./middleware/tenant.middleware.js";
+import { requireTenantInMultiTenantMode } from "./middleware/requireTenant.js";
 import { apiRouter } from "./routes/index.js";
 import { dbHealthHandler } from "./routes/health.js";
 import { startDatabaseDeletionWorker } from "./services/databaseDeletion.service.js";
@@ -60,8 +61,8 @@ export function createApp() {
   app.get("/health/db", dbHealthHandler);
   app.use("/:schoolId/api", tenantMiddleware, apiRouter);
   app.use("/:schoolId/api/v1", tenantMiddleware, apiRouter);
-  app.use("/api", apiRouter);
-  app.use("/api/v1", apiRouter);
+  app.use("/api", requireTenantInMultiTenantMode, apiRouter);
+  app.use("/api/v1", requireTenantInMultiTenantMode, apiRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
   startDatabaseDeletionWorker();

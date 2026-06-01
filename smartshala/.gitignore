@@ -9,4 +9,5 @@ coverage/
 prisma/dev.db
 backend/src/generated/
 frontend/.next/
+tmp-backups/
 19-5.md
