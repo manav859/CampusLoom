@@ -9,6 +9,7 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
 import { apiFetch } from "@/lib/api";
 import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
+import { CreateTeacherModal } from "./new/CreateTeacherModal";
 
 type TeacherPeriod = {
   id: string;
@@ -109,6 +110,7 @@ export default function TeachersPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
   const [classTeacherFilter, setClassTeacherFilter] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
@@ -344,7 +346,7 @@ export default function TeachersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader hideBreadcrumbs title="Teacher management" action={isAdmin ? <Link href="/teachers/new" className="btn-primary">Add teacher</Link> : null} />
+      <PageHeader hideBreadcrumbs title="Teacher management" action={isAdmin ? <button onClick={() => setShowCreateModal(true)} className="btn-primary" type="button">Add teacher</button> : null} />
 
       <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[1fr_1fr_1fr_auto]">
@@ -723,6 +725,18 @@ export default function TeachersPage() {
         </div>,
         document.body
       )}
+
+      {showCreateModal ? (
+        <CreateTeacherModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => {
+            setShowCreateModal(false);
+            invalidateCache("teachers:list");
+            invalidateCache("teachers:list:inactive");
+            refreshTeachers();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

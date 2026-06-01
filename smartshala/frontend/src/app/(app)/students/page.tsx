@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { MarqueeText } from "@/components/ui/KpiCard";
@@ -11,6 +10,8 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { apiFetch, communicationApi, studentsApi } from "@/lib/api";
 import { formatDateShort, formatINR } from "@/lib/formatters";
 import { cachedFetch, invalidateCachePrefix } from "@/lib/prefetchCache";
+import { CreateStudentModal } from "./new/CreateStudentModal";
+import Link from "next/link";
 
 /* ── Types ── */
 type StudentRow = {
@@ -439,6 +440,7 @@ export default function StudentsPage() {
   const [isTeacher, setIsTeacher] = useState(false);
   const [canViewFees, setCanViewFees] = useState(false);
   const [openActionMenu, setOpenActionMenu] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; action: 'activate' | 'deactivate'; studentId: string | null; error?: string }>({ isOpen: false, action: 'deactivate', studentId: null });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedRows, setSelectedRows] = useState<Record<string, StudentRow>>({});
@@ -563,24 +565,24 @@ export default function StudentsPage() {
   const totalPages = Math.max(1, Math.ceil(resolvedTotal / perPage));
   const tableHeaders: { label: string; sortKey?: SortKey }[] = canViewFees
     ? [
-        { label: "" },
-        { label: "#" },
-        { label: "Student", sortKey: "name" },
-        { label: "Class", sortKey: "class" },
-        { label: "Fee status", sortKey: "feeStatus" },
-        { label: "Balance", sortKey: "pendingAmount" },
-        { label: "Last paid", sortKey: "lastPayment" },
-        { label: "Attendance", sortKey: "attendance" },
-        { label: "Actions" }
-      ]
+      { label: "" },
+      { label: "#" },
+      { label: "Student", sortKey: "name" },
+      { label: "Class", sortKey: "class" },
+      { label: "Fee status", sortKey: "feeStatus" },
+      { label: "Balance", sortKey: "pendingAmount" },
+      { label: "Last paid", sortKey: "lastPayment" },
+      { label: "Attendance", sortKey: "attendance" },
+      { label: "Actions" }
+    ]
     : [
-        { label: "" },
-        { label: "#" },
-        { label: "Student", sortKey: "name" },
-        { label: "Class", sortKey: "class" },
-        { label: "Attendance", sortKey: "attendance" },
-        { label: "Actions" }
-      ];
+      { label: "" },
+      { label: "#" },
+      { label: "Student", sortKey: "name" },
+      { label: "Class", sortKey: "class" },
+      { label: "Attendance", sortKey: "attendance" },
+      { label: "Actions" }
+    ];
   const selectedStudents = selectedIds
     .map((id) => selectedRows[id])
     .filter((student): student is StudentRow => Boolean(student));
@@ -964,10 +966,10 @@ export default function StudentsPage() {
               </svg>
               Import Students
             </button>
-            <Link href="/students/new" className="btn-primary gap-1.5 text-[13px]">
+            <button className="btn-primary gap-1.5 text-[13px]" onClick={() => setShowCreateModal(true)} type="button">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               Add Student
-            </Link>
+            </button>
           </div>
         )}
       </div>
@@ -1007,11 +1009,10 @@ export default function StudentsPage() {
             ) : null}
             <button
               onClick={() => { setShowInactive(!showInactive); setPage(1); }}
-              className={`flex h-12 min-w-0 items-center gap-2 rounded-[8px] border px-3 text-[13px] font-medium transition-all ${canViewFees ? "col-span-2 lg:w-44" : "lg:w-44"} ${
-                showInactive 
-                  ? "bg-[#0071e3] border-[#0071e3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.3)]" 
+              className={`flex h-12 min-w-0 items-center gap-2 rounded-[8px] border px-3 text-[13px] font-medium transition-all ${canViewFees ? "col-span-2 lg:w-44" : "lg:w-44"} ${showInactive
+                  ? "bg-[#0071e3] border-[#0071e3] text-white shadow-[0_2px_10px_rgba(0,113,227,0.3)]"
                   : "bg-white border-[rgba(0,0,0,0.08)] text-[#1d1d1f] hover:bg-[#f5f5f7]"
-              }`}
+                }`}
             >
               <div className={`h-2 w-2 rounded-full ${showInactive ? "bg-white animate-pulse" : "bg-[#86868b]"}`} />
               <MarqueeText text={showInactive ? "Showing Inactive" : "Show Inactive Only"} className="min-w-0 flex-1 text-left" />
@@ -1280,44 +1281,44 @@ export default function StudentsPage() {
           </div>
         </div>
 
-        </div>
+      </div>
 
-        {/* ── Pagination ── */}
-        <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          {resolvedTotal > 0 ? (
-            <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
-              Showing <span className="text-[#0F1419]">{displayStart}</span> to <span className="text-[#0F1419]">{displayEnd}</span> of <span className="text-[#0F1419]">{resolvedTotal}</span> students
-            </p>
-          ) : null}
-          <div className="flex w-full flex-nowrap items-center justify-center gap-2 overflow-x-auto sm:w-auto sm:gap-3">
+      {/* ── Pagination ── */}
+      <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        {resolvedTotal > 0 ? (
+          <p className="text-center text-[14px] font-semibold text-[#52687D] sm:text-left">
+            Showing <span className="text-[#0F1419]">{displayStart}</span> to <span className="text-[#0F1419]">{displayEnd}</span> of <span className="text-[#0F1419]">{resolvedTotal}</span> students
+          </p>
+        ) : null}
+        <div className="flex w-full flex-nowrap items-center justify-center gap-2 overflow-x-auto sm:w-auto sm:gap-3">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((p) => p - 1)}
+            className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#7A8390] transition hover:bg-[#F8FBFD] disabled:opacity-50 sm:px-4"
+            type="button"
+          >
+            Previous
+          </button>
+          {pageNumbers.map((pg) => (
             <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#7A8390] transition hover:bg-[#F8FBFD] disabled:opacity-50 sm:px-4"
+              key={pg}
+              onClick={() => setPage(pg)}
+              className={`min-h-[44px] min-w-[44px] shrink-0 rounded-[5px] border px-3 text-[14px] font-semibold transition ${page === pg ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#2456E6] hover:bg-[#F8FBFD]"}`}
               type="button"
             >
-              Previous
+              {pg}
             </button>
-            {pageNumbers.map((pg) => (
-              <button
-                key={pg}
-                onClick={() => setPage(pg)}
-                className={`min-h-[44px] min-w-[44px] shrink-0 rounded-[5px] border px-3 text-[14px] font-semibold transition ${page === pg ? "border-[#2456E6] bg-[#2456E6] text-white" : "border-[#C9D3DE] bg-white text-[#2456E6] hover:bg-[#F8FBFD]"}`}
-                type="button"
-              >
-                {pg}
-              </button>
-            ))}
-            <button
-              disabled={page >= totalPages || resolvedTotal === 0}
-              onClick={() => setPage((p) => p + 1)}
-              className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#2456E6] transition hover:bg-[#F8FBFD] disabled:opacity-50 sm:px-4"
-              type="button"
-            >
-              Next
-            </button>
-          </div>
+          ))}
+          <button
+            disabled={page >= totalPages || resolvedTotal === 0}
+            onClick={() => setPage((p) => p + 1)}
+            className="min-h-[44px] shrink-0 rounded-[5px] border border-[#C9D3DE] px-3 text-[14px] font-semibold text-[#2456E6] transition hover:bg-[#F8FBFD] disabled:opacity-50 sm:px-4"
+            type="button"
+          >
+            Next
+          </button>
         </div>
+      </div>
       {importDialog.isOpen && typeof window !== "undefined" && createPortal(
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" style={{ zIndex: 9999 }}>
           <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl">
@@ -1437,14 +1438,14 @@ export default function StudentsPage() {
               )}
             </div>
             <div className="flex border-t border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/50">
-              <button 
-                onClick={() => setConfirmDialog({ isOpen: false, action: 'deactivate', studentId: null })} 
+              <button
+                onClick={() => setConfirmDialog({ isOpen: false, action: 'deactivate', studentId: null })}
                 className="flex-1 py-3 text-[14px] font-medium text-[#1d1d1f] hover:bg-[#e5e5ea] transition-colors border-r border-[rgba(0,0,0,0.06)]"
               >
                 Cancel
               </button>
-              <button 
-                onClick={handleConfirmAction} 
+              <button
+                onClick={handleConfirmAction}
                 className={`flex-1 py-3 text-[14px] font-semibold transition-colors ${confirmDialog.action === 'deactivate' ? 'text-[#ff3b30] hover:bg-[#ff3b30]/10' : 'text-[#34c759] hover:bg-[#34c759]/10'}`}
               >
                 {confirmDialog.action === 'deactivate' ? 'Deactivate' : 'Activate'}
@@ -1517,6 +1518,30 @@ export default function StudentsPage() {
         </div>,
         document.body
       )}
+
+      {showCreateModal ? (
+        <CreateStudentModal
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => {
+            setShowCreateModal(false);
+            invalidateCachePrefix("students:");
+            setPage(1);
+            setLoadingList(true);
+            const params = new URLSearchParams({ limit: perPage.toString(), page: "1" });
+            if (search) params.set("search", search);
+            if (classId) params.set("classId", classId);
+            if (showInactive) params.set("showInactive", "true");
+            apiFetch<{ items: ApiStudentItem[]; total: number }>(`/students?${params.toString()}`)
+              .then((data) => {
+                const { rows, total: nextTotal } = resolveStudentList(data?.items, data?.total, 1, perPage);
+                setStudents(rows);
+                setTotal(nextTotal);
+              })
+              .catch(console.error)
+              .finally(() => setLoadingList(false));
+          }}
+        />
+      ) : null}
     </div>
   );
 }
