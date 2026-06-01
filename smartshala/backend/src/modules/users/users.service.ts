@@ -188,11 +188,11 @@ export async function listUsers(schoolId: string, query: unknown, role?: UserRol
   };
 }
 
-export async function createUser(schoolId: string, data: { fullName: string; email?: string; phone?: string; password: string; role: UserRole }) {
+export async function createUser(schoolId: string, data: { fullName: string; email?: string; phone?: string; password: string; role: UserRole; academicBackground?: string }) {
   const passwordHash = await bcrypt.hash(data.password, 10);
   const phone = data.phone?.trim() || `acct-${randomUUID()}`;
   return prisma.user.create({
-    data: { schoolId, fullName: data.fullName, email: data.email, phone, passwordHash, role: data.role },
+    data: { schoolId, fullName: data.fullName, email: data.email, phone, passwordHash, role: data.role, academicBackground: data.academicBackground },
     select: { id: true, fullName: true, email: true, phone: true, role: true, status: true }
   });
 }

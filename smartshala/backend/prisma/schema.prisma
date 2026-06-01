@@ -58,6 +58,7 @@ model User {
   role                     UserRole
   status                   UserStatus                @default(ACTIVE)
   isActive                 Boolean                   @default(true)
+  academicBackground       String?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   attendanceSessions       AttendanceSession[]       @relation("MarkedBy")

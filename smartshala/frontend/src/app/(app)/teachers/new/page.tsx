@@ -15,6 +15,7 @@ export default function NewTeacherPage() {
     email: "",
     phone: "",
     password: "",
+    academicBackground: "",
   });
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function NewTeacherPage() {
       const payload = {
         ...formData,
         email: formData.email || undefined,
+        academicBackground: formData.academicBackground || undefined,
       };
       
       await apiFetch("/users/teachers", {
@@ -77,6 +79,15 @@ export default function NewTeacherPage() {
                 placeholder="e.g. John Doe"
                 value={formData.fullName}
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Academic Background <span className="font-normal text-[#86868b]">(optional)</span></label>
+              <textarea
+                className="glass-input w-full min-h-[80px] resize-y"
+                placeholder="e.g. M.Sc. Mathematics, B.Ed."
+                value={formData.academicBackground}
+                onChange={(e) => setFormData({ ...formData, academicBackground: e.target.value })}
               />
             </div>
           </FormSection>

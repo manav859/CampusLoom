@@ -6,6 +6,7 @@ export const createTeacherSchema = z.object({
   email: z.string().email().trim().optional().or(z.literal("")),
   phone: z.string().trim().min(10),
   password: z.string().min(6),
+  academicBackground: z.string().trim().optional(),
   role: z.literal(UserRole.TEACHER).optional().default(UserRole.TEACHER)
 }).transform((data) => ({
   ...data,
