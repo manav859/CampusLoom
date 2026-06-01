@@ -252,7 +252,7 @@ export function useAttendance() {
         }
 
         const [classResult, dailyResult] = await Promise.allSettled([
-          withTimeout(classesApi.list(), 6000),
+          withTimeout(classesApi.list({ scope: "classTeacher" }), 6000),
           withTimeout(attendanceApi.daily(), 6000)
         ]);
         if (cancelled) return;
