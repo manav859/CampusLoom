@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AttendanceList } from "@/components/AttendanceList";
 import { AttendanceSummary } from "@/components/AttendanceSummary";
 import { Button } from "@/components/ui/Button";
@@ -50,12 +50,12 @@ function monthInputFromParts(year: number, monthIndex: number) {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
 }
 
-function dateInMonth(currentDate: string, month: string, _today: string) {
+function dateInMonth(currentDate: string, month: string, today: string) {
   const currentDay = Number(currentDate.slice(8, 10)) || 1;
   const [year, monthNumber] = month.split("-").map(Number);
   const lastDay = new Date(year, monthNumber, 0).getDate();
   const nextDate = `${month}-${String(Math.min(currentDay, lastDay)).padStart(2, "0")}`;
-  return nextDate;
+  return nextDate > today ? today : nextDate;
 }
 
 function monthLabel(month: string) {
@@ -99,6 +99,7 @@ export default function TeacherAttendancePage() {
   const [editingHolidayDate, setEditingHolidayDate] = useState("");
   const [editingHolidayReason, setEditingHolidayReason] = useState("");
   const [isUpdatingHoliday, setIsUpdatingHoliday] = useState(false);
+  const monthPickerRef = useRef<HTMLDivElement>(null);
   const classOptions = attendance.classes;
   const selectedClassRecord = attendance.selectedClass ?? classOptions.find((classItem) => classItem.id === attendance.selectedClassId);
   const firstAvailableClass = classOptions[0] ?? null;
@@ -176,6 +177,16 @@ export default function TeacherAttendancePage() {
     const [year = new Date().getFullYear()] = attendance.selectedMonth.split("-").map(Number);
     setMonthPickerYear(year);
   }, [attendance.selectedMonth]);
+
+  useEffect(() => {
+    if (!monthPickerOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (monthPickerRef.current?.contains(event.target as Node)) return;
+      setMonthPickerOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [monthPickerOpen]);
 
   const loadHolidays = useCallback(async () => {
     setIsLoadingHolidays(true);
@@ -357,7 +368,7 @@ export default function TeacherAttendancePage() {
                   buttonClassName="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
                   disabled={!hasAssignedClasses || attendance.submitting}
                   label="Day"
-                  min={attendance.today}
+                  max={attendance.today}
                   blockedDateReason={blockedDateReason}
                   onChange={(date) => {
                     setMonthPickerOpen(false);
@@ -367,7 +378,7 @@ export default function TeacherAttendancePage() {
                 />
               </div>
 
-              <div className="relative">
+              <div className="relative" ref={monthPickerRef}>
                 <button
                   className="flex min-h-[72px] w-full items-center justify-between gap-2 rounded-md border border-[#E2E7EE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] sm:px-4 sm:text-[14px]"
                   disabled={!hasAssignedClasses || attendance.submitting}
@@ -468,7 +479,7 @@ export default function TeacherAttendancePage() {
                   const isSunday = date.getDay() === 0;
                   const holidayReason = isSunday ? "Sunday" : (day as { holidayReason?: string } | undefined)?.holidayReason;
                   const isHoliday = Boolean(holidayReason) || Boolean((day as { isHoliday?: boolean } | undefined)?.isHoliday);
-                  const isPast = dateKey < attendance.today;
+                  const isFuture = dateKey > attendance.today;
 
                   return (
                     <button
@@ -481,9 +492,9 @@ export default function TeacherAttendancePage() {
                         }
                         selectDisplayDate(dateKey);
                       }}
-                      disabled={attendance.loading || attendance.submitting || isPast}
+                      disabled={attendance.loading || attendance.submitting || isFuture}
                       title={isHoliday ? `Holiday: ${holidayReason || "Holiday"}` : undefined}
-                      className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${isHoliday ? "cursor-help" : ""} ${isPast && !isHoliday ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
+                      className={`group relative min-h-[42px] rounded-lg border px-2 py-1.5 text-left transition hover:shadow-apple-sm disabled:cursor-not-allowed disabled:opacity-60 ${isHoliday ? "cursor-help" : ""} ${isFuture && !isHoliday ? "border-[#E2E7EE] bg-[#F7F8FB] text-[#A0A7B2]" : calendarDayClasses({ selected, marked: Boolean(day), isHoliday })
                         }`}
                     >
                       <span className={`block text-[12px] font-semibold leading-none ${isHoliday ? "text-[#5B21B6]" : "text-[#1d1d1f]"}`}>{cell.day}</span>
@@ -639,7 +650,7 @@ export default function TeacherAttendancePage() {
                 value={createHolidayDate}
                 onChange={setCreateHolidayDate}
                 disabled={isCreatingHoliday}
-                min={attendance.today}
+                max={attendance.today}
                 blockedDateReason={blockedDateReason}
               />
               <div className="space-y-1">
@@ -674,7 +685,7 @@ export default function TeacherAttendancePage() {
                   <div key={h.id} className="rounded-lg border border-[#E2E7EE] bg-[#F7F8FB] px-4 py-3">
                     {editingHolidayId === h.id ? (
                       <form className="space-y-3" onSubmit={handleUpdateHoliday}>
-                        <DatePicker label="Holiday Date" value={editingHolidayDate} onChange={setEditingHolidayDate} disabled={isUpdatingHoliday} min={attendance.today} />
+                        <DatePicker label="Holiday Date" value={editingHolidayDate} onChange={setEditingHolidayDate} disabled={isUpdatingHoliday} max={attendance.today} />
                         <div className="space-y-1">
                           <label className="text-[12px] font-semibold text-[#5A6573]">Reason</label>
                           <input

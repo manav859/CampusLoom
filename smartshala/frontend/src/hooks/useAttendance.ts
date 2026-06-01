@@ -35,12 +35,12 @@ function monthInputFromDate(date: string) {
   return date.slice(0, 7);
 }
 
-function dateInMonth(currentDate: string, month: string, _today: string) {
+function dateInMonth(currentDate: string, month: string, today: string) {
   const currentDay = Number(currentDate.slice(8, 10)) || 1;
   const [year, monthNumber] = month.split("-").map(Number);
   const lastDay = new Date(year, monthNumber, 0).getDate();
   const nextDate = `${month}-${String(Math.min(currentDay, lastDay)).padStart(2, "0")}`;
-  return nextDate;
+  return nextDate > today ? today : nextDate;
 }
 
 function readInitialDate() {
@@ -49,7 +49,7 @@ function readInitialDate() {
 
   const params = new URLSearchParams(window.location.search);
   const date = params.get("date");
-  if (isDateInput(date)) return date!;
+  if (isDateInput(date)) return date! > today ? today : date!;
 
   const month = params.get("month");
   if (isMonthInput(month)) return dateInMonth(today, month!, today);
@@ -340,7 +340,7 @@ export function useAttendance() {
 
   const selectDate = useCallback(async (date: string) => {
     if (!isDateInput(date)) return;
-    const nextDate = date;
+    const nextDate = date > todayAsDateInput() ? todayAsDateInput() : date;
     const requestId = loadRequestId.current + 1;
     loadRequestId.current = requestId;
     const month = monthInputFromDate(nextDate);
