@@ -138,7 +138,10 @@ async function teacherDashboard(user: Express.UserContext) {
   const today = startOfToday();
   const [classes, attendance, absentToday, pendingHomeworkSubmissions] = await Promise.all([
     prisma.class.findMany({
-      where: { schoolId: user.schoolId, classTeacherId: user.id },
+      where: {
+        schoolId: user.schoolId,
+        OR: [{ classTeacherId: user.id }, { teacherPeriodAssignments: { some: { teacherId: user.id } } }]
+      },
       include: { _count: { select: { students: true } } }
     }),
     dailyReport(user, today),
