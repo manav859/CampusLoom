@@ -225,7 +225,7 @@ export default function FeesDashboardPage() {
             </svg>
             <input
               autoFocus
-              className="min-w-0 flex-1 border-0 bg-transparent text-[14px] font-medium text-[#0F1419] outline-none focus:ring-0 placeholder:text-[#8C96A3]"
+              className="min-w-0 flex-1 border-none bg-transparent text-[14px] font-medium text-[#0F1419] outline-none shadow-none focus:border-transparent focus:ring-0 placeholder:text-[#8C96A3]"
               onChange={(event) => setPaymentSearch(event.target.value)}
               placeholder="Search by student name, admission no, or phone"
               value={paymentSearch}
