@@ -17,12 +17,12 @@ function calendarDayClasses(input: { selected: boolean; marked: boolean; isHolid
     return input.marked
       ? "border-[#007aff] bg-[#34c759]/15 ring-2 ring-[#007aff]/25"
       : input.isHoliday
-        ? "border-[#8e8e93]/30 bg-[#f5f5f7] ring-2 ring-[#007aff]/20"
+        ? "border-[#8B5CF6]/50 bg-[#F3E8FF] text-[#5B21B6] ring-2 ring-[#8B5CF6]/25"
         : "border-[#007aff] bg-[#007aff]/10";
   }
 
   if (input.marked) return "border-[#34c759]/25 bg-[rgba(52,199,89,0.12)]";
-  if (input.isHoliday) return "border-[#d1d1d6] bg-[#f5f5f7]";
+  if (input.isHoliday) return "border-[#C4B5FD] bg-[#F3E8FF] text-[#5B21B6] hover:bg-[#EDE9FE]";
   return "border-[rgba(0,0,0,0.06)] bg-white/50";
 }
 
@@ -639,6 +639,7 @@ export default function TeacherAttendancePage() {
                 value={createHolidayDate}
                 onChange={setCreateHolidayDate}
                 disabled={isCreatingHoliday}
+                min={attendance.today}
                 blockedDateReason={blockedDateReason}
               />
               <div className="space-y-1">
@@ -673,7 +674,7 @@ export default function TeacherAttendancePage() {
                   <div key={h.id} className="rounded-lg border border-[#E2E7EE] bg-[#F7F8FB] px-4 py-3">
                     {editingHolidayId === h.id ? (
                       <form className="space-y-3" onSubmit={handleUpdateHoliday}>
-                        <DatePicker label="Holiday Date" value={editingHolidayDate} onChange={setEditingHolidayDate} disabled={isUpdatingHoliday} />
+                        <DatePicker label="Holiday Date" value={editingHolidayDate} onChange={setEditingHolidayDate} disabled={isUpdatingHoliday} min={attendance.today} />
                         <div className="space-y-1">
                           <label className="text-[12px] font-semibold text-[#5A6573]">Reason</label>
                           <input
