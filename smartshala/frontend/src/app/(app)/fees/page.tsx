@@ -226,7 +226,7 @@ export default function FeesDashboardPage() {
             <input
               autoFocus
               type="text"
-              className="min-w-0 flex-1 !border-none bg-transparent text-[14px] font-medium text-[#0F1419] !outline-none !shadow-none focus:!border-transparent focus:!ring-0 focus:!outline-none focus:!shadow-none placeholder:text-[#8C96A3]"
+              className="min-w-0 flex-1 !border-none bg-transparent text-[14px] font-medium text-[#0F1419] !outline-none !shadow-none focus:!border-transparent focus:!ring-0 focus:!outline-none focus:!shadow-none focus-visible:!ring-0 focus-visible:!ring-offset-0 focus-visible:!outline-none placeholder:text-[#8C96A3]"
               onChange={(event) => setPaymentSearch(event.target.value)}
               placeholder="Search by student name, admission no, or phone"
               value={paymentSearch}
