@@ -1,6 +1,6 @@
 import { prisma, withRetry } from "../../core/prisma.js";
 import { notFound } from "../../core/errors.js";
-import { generateReportCardPdf, type ReportCardData } from "./report-card-pdf.js";
+import { generateReportCardPdf, type ReportCardData, type TermCell } from "./report-card-pdf.js";
 
 // Helper to determine next class
 function getNextClass(className: string): string {
@@ -8,7 +8,7 @@ function getNextClass(className: string): string {
   if (name === "NURSERY") return "Class LKG";
   if (name === "LKG") return "Class UKG";
   if (name === "UKG") return "Class 1";
-  
+
   const num = parseInt(name, 10);
   if (!isNaN(num)) {
     if (num === 12) return "Graduated";
@@ -17,39 +17,34 @@ function getNextClass(className: string): string {
   return "Next Class";
 }
 
-// Helpers to match exam to category
-function getExamCategory(examName: string, term: string): "PT1" | "HY" | "PT2" | "AN" | null {
-  const name = examName.toUpperCase();
-  const termStr = term.toUpperCase();
-  
-  if (name.includes("PT1") || name.includes("PT 1") || name.includes("PERIODIC TEST 1") || name.includes("UNIT TEST 1") || name.includes("UT1") || name.includes("UT 1")) {
-    return "PT1";
-  }
-  if (name.includes("PT2") || name.includes("PT 2") || name.includes("PERIODIC TEST 2") || name.includes("UNIT TEST 2") || name.includes("UT2") || name.includes("UT 2")) {
-    return "PT2";
-  }
-  if (name.includes("HY") || name.includes("HALF YEARLY") || name.includes("MID TERM") || name.includes("MID-TERM") || termStr === "MID_TERM" || termStr === "TERM_1") {
-    return "HY";
-  }
-  if (name.includes("AN") || name.includes("ANNUAL") || name.includes("FINAL") || name.includes("YEARLY") || termStr === "FINAL" || termStr === "TERM_2") {
-    return "AN";
-  }
-  
-  // Default fallbacks based on term if name didn't match
-  if (termStr === "UNIT_TEST" || termStr === "CLASS_TEST") {
-    return "PT1"; 
-  }
-  if (termStr === "MID_TERM" || termStr === "TERM_1") {
-    return "HY";
-  }
-  if (termStr === "FINAL" || termStr === "TERM_2") {
-    return "AN";
-  }
-  
+// Display labels for exam terms (must match the labels used in the exams UI).
+const TERM_LABELS: Record<string, string> = {
+  CLASS_TEST: "Class Test",
+  MID_TERM: "Mid-Term",
+  FINAL: "Final",
+  TERM_1: "Term 1",
+  TERM_2: "Term 2"
+};
+
+// Resolve an exam result to a display term key, or null to exclude it.
+// Unit tests are always excluded.
+function resolveTermKey(examTerm: string | null | undefined, examName: string | undefined): string | null {
+  const term = (examTerm || "").toUpperCase();
+  if (term === "UNIT_TEST") return null;
+  if (term in TERM_LABELS) return term;
+
+  // No linked exam term — infer from the assessment/exam name.
+  const name = (examName || "").toUpperCase();
+  if (name.includes("UNIT TEST") || /\bUT\s?\d?\b/.test(name)) return null;
+  if (name.includes("CLASS TEST")) return "CLASS_TEST";
+  if (name.includes("MID")) return "MID_TERM";
+  if (name.includes("FINAL") || name.includes("ANNUAL")) return "FINAL";
+  if (name.includes("TERM 1") || name.includes("TERM1")) return "TERM_1";
+  if (name.includes("TERM 2") || name.includes("TERM2")) return "TERM_2";
   return null;
 }
 
-// Grade calculation helper based on the CBSE scale in the reference image
+// Grade calculation helper based on the CBSE scale shown on the card.
 function gradeForPercentage(percent: number): string {
   if (percent >= 91) return "A1";
   if (percent >= 81) return "A2";
@@ -63,162 +58,107 @@ function gradeForPercentage(percent: number): string {
 
 export async function getStudentReportCardPdf(user: Express.UserContext, studentId: string): Promise<Buffer> {
   return withRetry(async () => {
-    // 1. Fetch student detail
     const student = await prisma.student.findFirst({
-      where: {
-        id: studentId,
-        schoolId: user.schoolId
-      },
-      include: {
-        class: true,
-        school: true
-      }
+      where: { id: studentId, schoolId: user.schoolId },
+      include: { class: true, school: true }
     });
 
     if (!student) throw notFound("Student");
 
-    // 2. Fetch all subjects for the class
     const subjects = await prisma.subject.findMany({
-      where: {
-        schoolId: user.schoolId,
-        classId: student.classId
-      }
+      where: { schoolId: user.schoolId, classId: student.classId }
     });
 
-    // 3. Fetch student's exam results
     const examResults = await prisma.examResult.findMany({
-      where: {
-        schoolId: user.schoolId,
-        studentId: student.id
-      },
-      include: {
-        exam: true
-      }
+      where: { schoolId: user.schoolId, studentId: student.id },
+      include: { exam: true }
     });
 
-    // Group exams and results by subject & category
-    const subjectMap = new Map<string, {
-      subjectName: string;
-      PT1?: { obtained: number; max: number; isAbsent?: boolean } | null;
-      HY?: { obtained: number; max: number; isAbsent?: boolean } | null;
-      PT2?: { obtained: number; max: number; isAbsent?: boolean } | null;
-      AN?: { obtained: number; max: number; isAbsent?: boolean } | null;
-    }>();
-
-    // Initialize map with all class subjects
-    subjects.forEach((sub) => {
-      subjectMap.set(sub.name.toLowerCase(), {
-        subjectName: sub.name,
-        PT1: null,
-        HY: null,
-        PT2: null,
-        AN: null
-      });
-    });
-
-    // Process exam results and map them to categories
+    // Determine which term columns to show: every non-unit-test term the
+    // student actually has results in, ordered by earliest exam date.
+    const termEarliest = new Map<string, number>();
     examResults.forEach((res) => {
+      const key = resolveTermKey(res.exam?.term, res.exam?.name || res.assessmentName);
+      if (!key) return;
+      const when = (res.exam?.examDate ?? res.examDate)?.getTime() ?? 0;
+      const prev = termEarliest.get(key);
+      if (prev === undefined || when < prev) termEarliest.set(key, when);
+    });
+    const terms = Array.from(termEarliest.entries())
+      .sort((a, b) => a[1] - b[1])
+      .map(([key]) => ({ key, label: TERM_LABELS[key] ?? key }));
+
+    // Build per-subject marks keyed by term. Multiple exams in the same
+    // term+subject are aggregated (summed), which keeps the max-marks
+    // weighting consistent.
+    type SubjectRow = { subjectName: string; marks: Record<string, TermCell | null> };
+    const subjectMap = new Map<string, SubjectRow>();
+
+    const emptyMarks = (): Record<string, TermCell | null> => {
+      const m: Record<string, TermCell | null> = {};
+      terms.forEach((t) => { m[t.key] = null; });
+      return m;
+    };
+
+    subjects.forEach((sub) => {
+      subjectMap.set(sub.name.toLowerCase(), { subjectName: sub.name, marks: emptyMarks() });
+    });
+
+    examResults.forEach((res) => {
+      const termKey = resolveTermKey(res.exam?.term, res.exam?.name || res.assessmentName);
+      if (!termKey) return;
+
       const subName = res.subject || "General";
       const key = subName.toLowerCase();
-      
-      const examNameStr = res.exam?.name || res.assessmentName || "";
-      const examTermStr = res.exam?.term || "UNIT_TEST";
-      
-      const category = getExamCategory(examNameStr, examTermStr);
-      if (!category) return;
-
       if (!subjectMap.has(key)) {
-        subjectMap.set(key, {
-          subjectName: subName,
-          PT1: null,
-          HY: null,
-          PT2: null,
-          AN: null
-        });
+        subjectMap.set(key, { subjectName: subName, marks: emptyMarks() });
       }
 
-      const item = subjectMap.get(key)!;
-      item[category] = {
-        obtained: Number(res.marksObtained),
-        max: Number(res.maxMarks),
-        isAbsent: res.isAbsent
-      };
+      const row = subjectMap.get(key)!;
+      const obtained = res.isAbsent ? 0 : Number(res.marksObtained);
+      const max = Number(res.maxMarks);
+      const existing = row.marks[termKey];
+      if (existing) {
+        row.marks[termKey] = {
+          obtained: existing.obtained + obtained,
+          max: existing.max + max,
+          isAbsent: existing.isAbsent && res.isAbsent
+        };
+      } else {
+        row.marks[termKey] = { obtained, max, isAbsent: res.isAbsent };
+      }
     });
 
-    // Compile scholastic data and calculate percentages/grades/results
-    const subjectResultsList = Array.from(subjectMap.values()).map((sub) => {
-      // Calculate weighted percentage
-      let weightedSum = 0;
-      let totalWeight = 0;
-
-      const terms = [
-        { data: sub.PT1, weight: 10 },
-        { data: sub.HY, weight: 30 },
-        { data: sub.PT2, weight: 10 },
-        { data: sub.AN, weight: 50 }
-      ];
-
-      terms.forEach((term) => {
-        if (term.data && term.data.max > 0) {
-          const pct = term.data.isAbsent ? 0 : (term.data.obtained / term.data.max) * 100;
-          weightedSum += pct * (term.weight / 100);
-          totalWeight += term.weight;
-        }
+    // Compute per-subject finals: % = total obtained / total max (max-marks weighted).
+    const subjectResults = Array.from(subjectMap.values()).map((sub) => {
+      let obt = 0;
+      let max = 0;
+      terms.forEach((t) => {
+        const cell = sub.marks[t.key];
+        if (cell) { obt += cell.obtained; max += cell.max; }
       });
-
-      // If no exams conducted at all, default percentage to 0
-      const finalPercentage = totalWeight > 0 ? (weightedSum * (100 / totalWeight)) : 0;
-      const finalGrade = totalWeight > 0 ? gradeForPercentage(finalPercentage) : "-";
-
-      // Pass criteria: >= 33% in AN exam, or if AN is missing, fallback to finalPercentage >= 33
-      let finalResult: "PASS" | "FAIL" | "N/A" = "N/A";
-      if (sub.AN && sub.AN.max > 0) {
-        if (sub.AN.isAbsent) {
-          finalResult = "FAIL";
-        } else {
-          const anPct = (sub.AN.obtained / sub.AN.max) * 100;
-          finalResult = anPct >= 33 ? "PASS" : "FAIL";
-        }
-      } else if (totalWeight > 0) {
-        finalResult = finalPercentage >= 33 ? "PASS" : "FAIL";
-      }
-
-      return {
-        ...sub,
-        finalPercentage,
-        finalGrade,
-        finalResult
-      };
+      const hasMarks = max > 0;
+      const finalPercentage = hasMarks ? (obt / max) * 100 : 0;
+      const finalGrade = hasMarks ? gradeForPercentage(finalPercentage) : "-";
+      const finalResult: "PASS" | "FAIL" | "N/A" = hasMarks ? (finalPercentage >= 33 ? "PASS" : "FAIL") : "N/A";
+      return { subjectName: sub.subjectName, marks: sub.marks, finalPercentage, finalGrade, finalResult };
     });
 
-    // Summary calculations
-    let overallWeightedPct = 0;
-    let validSubjectsCount = 0;
+    // Overall summary, also max-marks weighted.
     let totalMarksObtained = 0;
     let totalMaxMarks = 0;
     let passesAllSubjects = true;
-
-    subjectResultsList.forEach((sub) => {
-      overallWeightedPct += sub.finalPercentage;
-      validSubjectsCount++;
-
-      // Sum all obtained and max marks across all terms for total marks
-      const terms = [sub.PT1, sub.HY, sub.PT2, sub.AN];
+    subjectResults.forEach((sub) => {
       terms.forEach((t) => {
-        if (t) {
-          totalMarksObtained += t.isAbsent ? 0 : t.obtained;
-          totalMaxMarks += t.max;
-        }
+        const cell = sub.marks[t.key];
+        if (cell) { totalMarksObtained += cell.obtained; totalMaxMarks += cell.max; }
       });
-
-      if (sub.finalResult === "FAIL") {
-        passesAllSubjects = false;
-      }
+      if (sub.finalResult === "FAIL") passesAllSubjects = false;
     });
 
-    const finalPercentage = validSubjectsCount > 0 ? (overallWeightedPct / validSubjectsCount) : 0;
-    const finalGrade = validSubjectsCount > 0 ? gradeForPercentage(finalPercentage) : "-";
-    const result = passesAllSubjects && finalPercentage >= 33 ? "PASS" : "FAIL";
+    const finalPercentage = totalMaxMarks > 0 ? (totalMarksObtained / totalMaxMarks) * 100 : 0;
+    const finalGrade = totalMaxMarks > 0 ? gradeForPercentage(finalPercentage) : "-";
+    const result: "PASS" | "FAIL" = passesAllSubjects && finalPercentage >= 33 ? "PASS" : "FAIL";
 
     const reportCardData: ReportCardData = {
       student: {
@@ -243,13 +183,8 @@ export async function getStudentReportCardPdf(user: Express.UserContext, student
         affiliationBoard: student.school.affiliationBoard,
         logoUrl: student.school.logoUrl
       },
-      subjectResults: subjectResultsList,
-      coScholastic: {
-        workEducation: "--",
-        artEducation: "--",
-        healthPhysicalEdu: "--",
-        discipline: "--"
-      },
+      terms,
+      subjectResults,
       summary: {
         finalPercentage,
         finalGrade,
