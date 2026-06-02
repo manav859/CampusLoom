@@ -7,8 +7,10 @@ type Segment = { label: string; value: number; color: string };
 export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "Finance" }: { segments?: Segment[]; title?: string; eyebrow?: string }) {
   const data = segments ?? [];
   const [mode, setMode] = useState<"donut" | "bar">("donut");
+  const [activeLabel, setActiveLabel] = useState<string | null>("Pending");
 
   const total = data.reduce((s, d) => s + d.value, 0);
+  const activeSegment = data.find(s => s.label === activeLabel) || data.find(s => s.label === "Unmarked") || data[0] || { label: "Total", value: total, color: "#1d1d1f" };
   const cx = 50, cy = 50, sw = 6;
   const hasData = total > 0;
   const rings = data.map((seg, i) => {
@@ -65,8 +67,8 @@ export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "
                 ))}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-medium text-[#86868b]">Total</span>
-                <span className="mt-0.5 text-[20px] font-bold tracking-tight text-[#1d1d1f]">{total.toLocaleString()}</span>
+                <span className="text-[11px] font-medium text-[#86868b]">{activeSegment.label}</span>
+                <span className="mt-0.5 text-[20px] font-bold tracking-tight" style={{ color: activeSegment.color }}>{activeSegment.value.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -87,12 +89,19 @@ export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-1 sm:gap-2">
         {data.map((seg) => (
-          <span key={seg.label} className="flex items-center gap-1.5 text-[11px] font-medium text-[#424245]">
+          <button
+            key={seg.label}
+            onClick={() => setActiveLabel(seg.label)}
+            type="button"
+            className={`flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium transition-colors ${
+              activeSegment.label === seg.label ? "bg-[#f5f5f7] text-[#1d1d1f]" : "text-[#424245] hover:bg-[#f5f5f7]"
+            }`}
+          >
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: seg.color }} />
             {seg.label}
-          </span>
+          </button>
         ))}
       </div>
     </div>
