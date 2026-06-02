@@ -9,17 +9,14 @@ export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "
   const [mode, setMode] = useState<"donut" | "bar">("donut");
 
   const total = data.reduce((s, d) => s + d.value, 0);
-  const r = 40, cx = 50, cy = 50, sw = 12;
+  const cx = 50, cy = 50, sw = 6;
   const hasData = total > 0;
-  const circumference = 2 * Math.PI * r;
-  let strokeOffset = 0;
-  const arcs = data.filter((seg) => seg.value > 0).map((seg) => {
-    const length = (seg.value / total) * circumference;
-    const arc = { ...seg, length, offset: strokeOffset };
-    strokeOffset += length;
-    return arc;
+  const rings = data.map((seg, i) => {
+    const r = Math.max(10, 44 - i * 8);
+    const circumference = 2 * Math.PI * r;
+    const length = hasData ? (seg.value / total) * circumference : 0;
+    return { ...seg, r, circumference, length };
   });
-  const primaryPct = hasData && data.length > 0 ? Math.round((data[0].value / total) * 100) : 0;
 
   return (
     <div className="dashboard-panel-card flex h-full flex-col p-4 sm:p-5">
@@ -47,26 +44,29 @@ export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "
           <div className="flex h-full w-full items-center justify-center">
             <div className="relative aspect-square w-full max-w-[160px]">
               <svg viewBox="0 0 100 100" className="h-full w-full">
-                <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f5f5f7" strokeWidth={sw} />
-                {arcs.map((arc) => (
-                  <circle
-                    key={arc.label}
-                    cx={cx}
-                    cy={cy}
-                    r={r}
-                    fill="none"
-                    stroke={arc.color}
-                    strokeWidth={sw}
-                    strokeLinecap="butt"
-                    strokeDasharray={`${arc.length} ${circumference}`}
-                    strokeDashoffset={-arc.offset}
-                    transform={`rotate(-90 ${cx} ${cy})`}
-                  />
+                {rings.map((ring) => (
+                  <g key={ring.label}>
+                    <circle cx={cx} cy={cy} r={ring.r} fill="none" stroke={ring.color} strokeWidth={sw} opacity={0.15} />
+                    {ring.length > 0 && (
+                      <circle
+                        cx={cx}
+                        cy={cy}
+                        r={ring.r}
+                        fill="none"
+                        stroke={ring.color}
+                        strokeWidth={sw}
+                        strokeLinecap="round"
+                        strokeDasharray={`${ring.length} ${ring.circumference}`}
+                        strokeDashoffset={0}
+                        transform={`rotate(-90 ${cx} ${cy})`}
+                      />
+                    )}
+                  </g>
                 ))}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[22px] font-bold tracking-tight text-[#1d1d1f]">{primaryPct}%</span>
-                <span className="text-[10px] font-medium text-[#86868b]">collected</span>
+                <span className="text-[11px] font-medium text-[#86868b]">Total</span>
+                <span className="mt-0.5 text-[20px] font-bold tracking-tight text-[#1d1d1f]">{total.toLocaleString()}</span>
               </div>
             </div>
           </div>
