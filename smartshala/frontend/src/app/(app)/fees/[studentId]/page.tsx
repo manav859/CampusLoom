@@ -201,7 +201,6 @@ export default function StudentFeeLedgerPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button className="btn-secondary min-h-9 px-3 text-[12px]" onClick={() => setNotice("Invoice draft generated from current ledger balance.")} type="button">Generate invoice</button>
                 <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("CONCESSION")} type="button">Issue concession</button>
                 <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("DISCOUNT")} type="button">Apply discount</button>
               </div>

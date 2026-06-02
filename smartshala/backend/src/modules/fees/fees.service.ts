@@ -1027,7 +1027,6 @@ async function buildReceiptPdfFromReceipt(receipt: NonNullable<Awaited<ReturnTyp
       city: receipt.school.city,
       state: receipt.school.state,
       phone: receipt.school.phone,
-      gstin: receipt.school.gstin,
       udiseNumber: receipt.school.udiseNumber,
       affiliationBoard: receipt.school.affiliationBoard,
       logoUrl: receipt.school.logoUrl

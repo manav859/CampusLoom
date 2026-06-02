@@ -860,14 +860,13 @@ export type SchoolProfile = {
   city: string | null;
   state: string | null;
   phone: string | null;
-  gstin: string | null;
   udiseNumber: string | null;
   affiliationBoard: string | null;
   logoUrl: string | null;
   timetablePeriodCount: number;
 };
 
-export type SchoolProfilePayload = Pick<SchoolProfile, "name" | "city" | "state" | "phone" | "gstin" | "udiseNumber" | "affiliationBoard" | "logoUrl" | "timetablePeriodCount">;
+export type SchoolProfilePayload = Pick<SchoolProfile, "name" | "city" | "state" | "phone" | "udiseNumber" | "affiliationBoard" | "logoUrl" | "timetablePeriodCount">;
 
 export type DatabaseDeletionStatus = {
   schoolId: string;

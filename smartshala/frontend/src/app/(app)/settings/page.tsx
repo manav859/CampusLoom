@@ -24,7 +24,6 @@ const emptyProfile: SchoolProfilePayload = {
   city: "",
   state: "",
   phone: "",
-  gstin: "",
   udiseNumber: "",
   affiliationBoard: "CBSE",
   logoUrl: "",
@@ -76,7 +75,6 @@ export default function SettingsPage() {
           city: row.city ?? "",
           state: row.state ?? "",
           phone: row.phone ?? "",
-          gstin: row.gstin ?? "",
           udiseNumber: row.udiseNumber ?? "",
           affiliationBoard: row.affiliationBoard ?? "CBSE",
           logoUrl: row.logoUrl ?? "",
@@ -138,7 +136,6 @@ export default function SettingsPage() {
       city: saved.city ?? "",
       state: saved.state ?? "",
       phone: saved.phone ?? "",
-      gstin: saved.gstin ?? "",
       udiseNumber: saved.udiseNumber ?? "",
       affiliationBoard: saved.affiliationBoard ?? "CBSE",
       logoUrl: saved.logoUrl ?? "",
@@ -337,16 +334,10 @@ export default function SettingsPage() {
             <input className={fieldClass} disabled={loading || saving} onChange={(event) => updateField("phone", event.target.value)} value={profile.phone ?? ""} />
           </label>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="text-[13px] font-semibold text-[#031526]">GSTIN</span>
-              <input className={`${fieldClass} uppercase`} disabled={loading || saving} onChange={(event) => updateField("gstin", event.target.value.toUpperCase())} value={profile.gstin ?? ""} />
-            </label>
-            <label className="block">
-              <span className="text-[13px] font-semibold text-[#031526]">U-DISE number</span>
-              <input className={fieldClass} disabled={loading || saving} onChange={(event) => updateField("udiseNumber", event.target.value)} value={profile.udiseNumber ?? ""} />
-            </label>
-          </div>
+          <label className="block">
+            <span className="text-[13px] font-semibold text-[#031526]">U-DISE number</span>
+            <input className={fieldClass} disabled={loading || saving} onChange={(event) => updateField("udiseNumber", event.target.value)} value={profile.udiseNumber ?? ""} />
+          </label>
 
           <label className="block">
             <span className="text-[13px] font-semibold text-[#031526]">Affiliation board</span>

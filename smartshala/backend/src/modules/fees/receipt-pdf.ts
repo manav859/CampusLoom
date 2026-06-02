@@ -8,7 +8,6 @@ type ReceiptData = {
     city?: string | null;
     state?: string | null;
     phone?: string | null;
-    gstin?: string | null;
     udiseNumber?: string | null;
     affiliationBoard?: string | null;
     logoUrl?: string | null;

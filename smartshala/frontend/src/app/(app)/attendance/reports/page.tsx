@@ -110,8 +110,7 @@ export default function AttendanceReportsPage() {
     if (!schoolProfile) return "";
     return [
       schoolProfile.affiliationBoard ? `Board: ${schoolProfile.affiliationBoard}` : "",
-      schoolProfile.udiseNumber ? `U-DISE: ${schoolProfile.udiseNumber}` : "",
-      schoolProfile.gstin ? `GSTIN: ${schoolProfile.gstin}` : ""
+      schoolProfile.udiseNumber ? `U-DISE: ${schoolProfile.udiseNumber}` : ""
     ].filter(Boolean).join(" | ");
   }, [schoolProfile]);
 

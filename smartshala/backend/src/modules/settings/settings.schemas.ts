@@ -7,7 +7,6 @@ export const schoolProfileSchema = z.object({
   city: optionalText,
   state: optionalText,
   phone: optionalText,
-  gstin: optionalText,
   udiseNumber: optionalText,
   affiliationBoard: optionalText,
   logoUrl: z.string().trim().max(250_000).optional().nullable().transform((value) => value || null),

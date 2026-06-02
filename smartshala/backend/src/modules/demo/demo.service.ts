@@ -246,7 +246,6 @@ export async function resetAndSeedDemoData(user: Express.UserContext, body: unkn
       city: "Ahmedabad",
       state: "Gujarat",
       phone: "079-4102-8821",
-      gstin: "24AABCS1429B1Z8",
       udiseNumber: "24071234567",
       affiliationBoard: "CBSE"
     }
