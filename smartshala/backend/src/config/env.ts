@@ -22,6 +22,10 @@ const envSchema = z.object({
   REFRESH_TOKEN_EXPIRES_IN: z.string().default("7d"),
   FRONTEND_URL: z.string().url().default("http://localhost:3000"),
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
+  COOKIE_SECURE: z
+    .preprocess((value) => value === undefined ? undefined : !(value === "false" || value === false), z.boolean())
+    .default(true),
+  COOKIE_DOMAIN: z.string().optional(),
   LOG_LEVEL: z.string().default("info"),
   PRISMA_LOG_LEVEL: z.string().default("error,warn"),
   DEMO_RESET_ENABLED: z

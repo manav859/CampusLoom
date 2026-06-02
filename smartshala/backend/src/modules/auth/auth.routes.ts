@@ -4,7 +4,7 @@ import { validate } from "../../middleware/validate.js";
 import { rateLimit } from "../../lib/rateLimit.js";
 import type { Request } from "express";
 import * as controller from "./auth.controller.js";
-import { forgotPasswordSchema, loginSchema, refreshSchema, registerSchema, updateProfileSchema, changePasswordSchema } from "./auth.schemas.js";
+import { forgotPasswordSchema, loginSchema, registerSchema, updateProfileSchema, changePasswordSchema } from "./auth.schemas.js";
 
 export const authRouter = Router();
 
@@ -60,7 +60,6 @@ authRouter.post("/forgot-password",
 
 authRouter.post("/refresh",
   refreshLimiter,
-  validate({ body: refreshSchema }),
   controller.refresh
 );
 authRouter.get("/me", requireAuth, controller.me);

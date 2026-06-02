@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { env } from "@/lib/env";
+import { tokenStore } from "@/lib/tokenStore";
 
 type SchoolRow = {
   schoolId: string;
@@ -90,12 +91,13 @@ async function superAdminFetch<T>(path: string, options: RequestInit = {}): Prom
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
 
-  const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.superAdminToken") : null;
+  const token = tokenStore.get();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const response = await fetch(`${env.apiBaseUrl}/super-admin${path}`, {
     ...options,
     headers,
+    credentials: "include",
     cache: "no-store"
   });
 
@@ -129,7 +131,9 @@ export default function SuperAdminPage() {
   const [newUser, setNewUser] = useState({ fullName: "", email: "", phone: "", password: "", role: "TEACHER" as TenantUser["role"] });
 
   useEffect(() => {
-    const storedToken = window.localStorage.getItem("smartshala.superAdminToken");
+    // Token is held in memory only (no httpOnly refresh cookie exists for the
+    // super-admin endpoint yet), so it is lost on a full page refresh.
+    const storedToken = tokenStore.get();
     if (storedToken) setToken(storedToken);
   }, []);
 
@@ -166,7 +170,7 @@ export default function SuperAdminPage() {
         method: "POST",
         body: JSON.stringify({ email, password })
       });
-      window.localStorage.setItem("smartshala.superAdminToken", result.accessToken);
+      tokenStore.set(result.accessToken);
       setToken(result.accessToken);
       setPassword("");
     } catch (err) {
@@ -393,7 +397,7 @@ export default function SuperAdminPage() {
   }
 
   function logout() {
-    window.localStorage.removeItem("smartshala.superAdminToken");
+    tokenStore.clear();
     setToken(null);
     setSchools([]);
     setUsersPayload(null);

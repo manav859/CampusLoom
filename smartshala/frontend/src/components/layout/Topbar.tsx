@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { SessionUser } from "@/types";
 import { clearCache, invalidateCache } from "@/lib/prefetchCache";
-import { settingsApi, whatsappApi, type NotificationLog } from "@/lib/api";
+import { authApi, settingsApi, whatsappApi, type NotificationLog } from "@/lib/api";
+import { tokenStore } from "@/lib/tokenStore";
 import { withSchoolPath } from "@/lib/tenant";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { LanguageToggle } from "./PlatformLanguage";
@@ -325,10 +326,14 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
     setMenuOpen(false);
   }, [pathname]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();   // server revokes the refresh token and clears the httpOnly cookie
+    } catch {
+      // proceed even if offline
+    }
     clearCache();
-    window.localStorage.removeItem("smartshala.accessToken");
-    window.localStorage.removeItem("smartshala.refreshToken");
+    tokenStore.clear();
     window.localStorage.removeItem("smartshala.user");
     router.replace("/login");
   }, [router]);

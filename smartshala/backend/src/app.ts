@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import type { RequestHandler } from "express";
 import express from "express";
@@ -53,6 +54,7 @@ export function createApp() {
       credentials: true
     })
   );
+  app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
   app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
   app.use(pinoHttp({ logger }));

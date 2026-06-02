@@ -3,7 +3,8 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Role, SessionUser } from "@/types";
-import { authApi } from "@/lib/api";
+import { authApi, refreshAccessToken } from "@/lib/api";
+import { tokenStore } from "@/lib/tokenStore";
 import { clearCache, prefetchForRole } from "@/lib/prefetchCache";
 import { schoolIdFromPath, withResolvedSchoolPath, withSchoolPath } from "@/lib/tenant";
 import { PlatformTranslator } from "./PlatformLanguage";
@@ -103,7 +104,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     async function hydrateSession() {
-      const token = window.localStorage.getItem("smartshala.accessToken");
+      // Access token lives in memory only. On a page refresh it is gone, so try to
+      // restore the session from the httpOnly refresh cookie before giving up.
+      let token = tokenStore.get();
+      if (!token) {
+        token = await refreshAccessToken();
+        if (token) tokenStore.set(token);
+      }
+      if (cancelled) return;
       if (!token) {
         router.replace(withSchoolPath("/login", pathname));
         return;
@@ -131,8 +139,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         setReady(true);
       } catch {
         clearCache();
-        window.localStorage.removeItem("smartshala.accessToken");
-        window.localStorage.removeItem("smartshala.refreshToken");
+        tokenStore.clear();
         window.localStorage.removeItem("smartshala.user");
         router.replace(withSchoolPath("/login", pathname));
       }

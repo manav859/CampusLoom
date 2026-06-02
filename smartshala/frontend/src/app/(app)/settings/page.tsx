@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { settingsApi, type DatabaseDeletionStatus, type SchoolProfilePayload } from "@/lib/api";
+import { authApi, settingsApi, type DatabaseDeletionStatus, type SchoolProfilePayload } from "@/lib/api";
+import { tokenStore } from "@/lib/tokenStore";
 import { communicationTemplates, renderCommunicationTemplate } from "@/lib/communicationTemplates";
 import { invalidateCache } from "@/lib/prefetchCache";
 
@@ -236,8 +237,8 @@ export default function SettingsPage() {
       setDeletionPassword("");
       setDeletionPasswordVerified(false);
       setDeletionNotice("Database deletion scheduled. You can cancel it before the scheduled date.");
-      window.localStorage.removeItem("smartshala.accessToken");
-      window.localStorage.removeItem("smartshala.refreshToken");
+      await authApi.logout().catch(() => {});   // revoke refresh token + clear the httpOnly cookie
+      tokenStore.clear();
       window.localStorage.removeItem("smartshala.user");
       router.replace("/login");
     } catch (err) {

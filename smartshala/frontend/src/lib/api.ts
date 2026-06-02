@@ -1,10 +1,32 @@
 import { env } from "./env";
 import { tenantApiBase } from "./tenant";
+import { tokenStore } from "./tokenStore";
 import type { Role, SessionUser } from "@/types";
 
 type ApiOptions = RequestInit & {
   auth?: boolean;
 };
+
+/**
+ * Exchange the httpOnly refresh cookie for a fresh access token.
+ * The cookie is sent automatically via credentials: "include".
+ * Returns the new access token, or null if the session cannot be restored.
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const response = await fetch(`${tenantApiBase(env.apiBaseUrl, "/auth/refresh")}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store"
+    });
+    if (!response.ok) return null;
+    const data = await response.json().catch(() => null);
+    return typeof data?.accessToken === "string" ? data.accessToken : null;
+  } catch {
+    return null;
+  }
+}
 
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
@@ -43,32 +65,45 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2)
 
 
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  const url = `${tenantApiBase(env.apiBaseUrl, path)}${path}`;
 
-  if (options.auth !== false && typeof window !== "undefined") {
-    const token = window.localStorage.getItem("smartshala.accessToken");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
+  const send = (token: string | null) => {
+    const headers = new Headers(options.headers);
+    headers.set("Content-Type", "application/json");
+    if (options.auth !== false && token) headers.set("Authorization", `Bearer ${token}`);
+    return fetchWithRetry(url, {
+      ...options,
+      headers,
+      credentials: "include",
+      cache: "no-store"
+    });
+  };
+
+  let response = await send(tokenStore.get());
+
+  // Silent refresh: on a 401 from a protected (non-auth) request, exchange the
+  // refresh cookie for a new access token and retry the original request once.
+  if (
+    response.status === 401 &&
+    typeof window !== "undefined" &&
+    !path.includes("/auth/")
+  ) {
+    const peek = await response.clone().json().catch(() => null);
+    if (peek?.error?.code !== "INVALID_PASSWORD") {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        tokenStore.set(newToken);
+        response = await send(newToken);
+      } else {
+        tokenStore.clear();
+        window.location.href = "/login";
+        throw new Error("Session expired");
+      }
+    }
   }
-
-  const response = await fetchWithRetry(`${tenantApiBase(env.apiBaseUrl, path)}${path}`, {
-    ...options,
-    headers,
-    cache: "no-store"
-  });
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    if (
-      response.status === 401 &&
-      typeof window !== "undefined" &&
-      !path.includes("/auth/") &&
-      payload?.error?.code !== "INVALID_PASSWORD"
-    ) {
-      window.localStorage.removeItem("smartshala.accessToken");
-      window.localStorage.removeItem("smartshala.refreshToken");
-      window.location.href = "/login";
-    }
     if (payload?.error?.code === "VALIDATION_ERROR" && payload.error.details) {
       const details = payload.error.details.fieldErrors;
       const firstError = Object.entries(details).map(([field, msgs]) => `${field}: ${(msgs as any)[0]}`).join(", ");
@@ -82,33 +117,44 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 }
 
 export async function apiFormFetch<T>(path: string, body: FormData, options: ApiOptions = {}): Promise<T> {
-  const headers = new Headers(options.headers);
+  const url = `${tenantApiBase(env.apiBaseUrl, path)}${path}`;
 
-  if (options.auth !== false && typeof window !== "undefined") {
-    const token = window.localStorage.getItem("smartshala.accessToken");
-    if (token) headers.set("Authorization", `Bearer ${token}`);
+  const send = (token: string | null) => {
+    const headers = new Headers(options.headers);
+    if (options.auth !== false && token) headers.set("Authorization", `Bearer ${token}`);
+    return fetchWithRetry(url, {
+      ...options,
+      method: options.method ?? "POST",
+      headers,
+      body,
+      credentials: "include",
+      cache: "no-store"
+    });
+  };
+
+  let response = await send(tokenStore.get());
+
+  if (
+    response.status === 401 &&
+    typeof window !== "undefined" &&
+    !path.includes("/auth/")
+  ) {
+    const peek = await response.clone().json().catch(() => null);
+    if (peek?.error?.code !== "INVALID_PASSWORD") {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        tokenStore.set(newToken);
+        response = await send(newToken);
+      } else {
+        tokenStore.clear();
+        window.location.href = "/login";
+        throw new Error("Session expired");
+      }
+    }
   }
-
-  const response = await fetchWithRetry(`${tenantApiBase(env.apiBaseUrl, path)}${path}`, {
-    ...options,
-    method: options.method ?? "POST",
-    headers,
-    body,
-    cache: "no-store"
-  });
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    if (
-      response.status === 401 &&
-      typeof window !== "undefined" &&
-      !path.includes("/auth/") &&
-      payload?.error?.code !== "INVALID_PASSWORD"
-    ) {
-      window.localStorage.removeItem("smartshala.accessToken");
-      window.localStorage.removeItem("smartshala.refreshToken");
-      window.location.href = "/login";
-    }
     if (payload?.error?.code === "VALIDATION_ERROR" && payload.error.details) {
       const details = payload.error.details.fieldErrors;
       const firstError = Object.entries(details).map(([field, msgs]) => `${field}: ${(msgs as any)[0]}`).join(", ");
@@ -135,7 +181,6 @@ export const authApi = {
   login: (identifier: string, password: string) =>
     apiFetch<{
       accessToken: string;
-      refreshToken: string;
       user: SessionUser;
     }>("/auth/login", {
       method: "POST",
@@ -1139,11 +1184,10 @@ export const feesApi = {
       body: JSON.stringify(payload)
     }),
   receiptPdfBlob: async (receiptId: string) => {
-    const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.accessToken") : null;
+    const token = tokenStore.get();
     const response = await fetch(`${tenantApiBase(env.apiBaseUrl)}/fees/receipts/${receiptId}/pdf`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
     });
     if (!response.ok) throw new Error("Failed to download receipt");
     return response.blob();
@@ -1217,8 +1261,9 @@ export const studentsApi = {
     return apiFormFetch<StudentDetail["documents"][number]>(`/students/${studentId}/documents`, formData);
   },
   downloadDocument: async (studentId: string, documentId: string, filename: string) => {
-    const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.accessToken") : null;
+    const token = tokenStore.get();
     const response = await fetch(`${tenantApiBase(env.apiBaseUrl)}/students/${studentId}/documents/${documentId}/download`, {
+      credentials: "include",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined
     });
     if (!response.ok) throw new Error("Failed to download document");
@@ -1243,11 +1288,10 @@ export const studentsApi = {
       body: JSON.stringify(payload)
     }),
   reportCardPdfBlob: async (studentId: string) => {
-    const token = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.accessToken") : null;
+    const token = tokenStore.get();
     const response = await fetch(`${tenantApiBase(env.apiBaseUrl, `/students/${studentId}/report-card/pdf`)}/students/${studentId}/report-card/pdf`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
     });
     if (!response.ok) throw new Error("Failed to download report card");
     return response.blob();

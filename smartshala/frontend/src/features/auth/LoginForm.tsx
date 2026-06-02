@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Field, Modal, TextInput, Toast } from "@/components/ui";
 import { authApi } from "@/lib/api";
+import { tokenStore } from "@/lib/tokenStore";
 import { clearCache } from "@/lib/prefetchCache";
 import { withResolvedSchoolPath } from "@/lib/tenant";
 
@@ -114,8 +115,8 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
     try {
       clearCache();
       const result = await authApi.login(identifier.trim(), password);
-      window.localStorage.setItem("smartshala.accessToken", result.accessToken);
-      window.localStorage.setItem("smartshala.refreshToken", result.refreshToken);
+      tokenStore.set(result.accessToken);
+      // refreshToken is now an httpOnly cookie set by the server — do not touch it
       const tenantSchoolId = result.user.tenantSchoolId ?? tenantSchoolIdFromToken(result.accessToken);
       const user = { ...result.user, tenantSchoolId: tenantSchoolId ?? result.user.tenantSchoolId };
       window.localStorage.setItem("smartshala.user", JSON.stringify(user));
