@@ -15,7 +15,6 @@ model School {
   city                     String?
   state                    String?
   phone                    String?
-  gstin                    String?
   udiseNumber              String?
   affiliationBoard         String?
   logoUrl                  String?

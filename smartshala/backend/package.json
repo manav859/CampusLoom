@@ -17,6 +17,7 @@
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "tenant:register-existing": "node scripts/register-existing-school.mjs",
+    "tenant:migrate-all": "node scripts/migrate-tenants.mjs",
     "lint": "tsc --noEmit",
     "test:grading": "tsx tests/grading.test.ts",
     "test:attendance": "tsx tests/studentAttendance.test.ts",

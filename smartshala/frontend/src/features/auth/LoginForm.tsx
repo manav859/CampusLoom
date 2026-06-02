@@ -36,6 +36,7 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
   const [resetError, setResetError] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
   const copy = {
     en: {
       languageLabel: "Language",
@@ -47,6 +48,10 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
       support: "Trouble signing in? Call +91-98765-43210",
       submit: "Sign in",
       loading: "Signing in...",
+      identifierRequired: "Enter your email or phone number.",
+      identifierInvalid: "Enter a valid email or 10-digit phone number.",
+      passwordRequired: "Enter your password.",
+      passwordTooShort: "Password must be at least 6 characters.",
       resetTitle: "Reset password",
       resetIntro: "Enter your registered email or phone. We will record the request and support will verify it before any password change.",
       resetIdentifier: "Registered email or phone",
@@ -66,6 +71,10 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
       support: "\u0938\u093E\u0907\u0928 \u0907\u0928 \u092E\u0947\u0902 \u092A\u0930\u0947\u0936\u093E\u0928\u0940? +91-98765-43210 \u092A\u0930 \u0915\u0949\u0932 \u0915\u0930\u0947\u0902",
       submit: "\u0938\u093E\u0907\u0928 \u0907\u0928 \u0915\u0930\u0947\u0902",
       loading: "\u0938\u093E\u0907\u0928 \u0907\u0928 \u0939\u094B \u0930\u0939\u093E \u0939\u0948...",
+      identifierRequired: "\u0905\u092A\u0928\u093E \u0908\u092E\u0947\u0932 \u092F\u093E \u092B\u094B\u0928 \u0928\u0902\u092C\u0930 \u0926\u0930\u094D\u091C \u0915\u0930\u0947\u0902\u0964",
+      identifierInvalid: "\u090F\u0915 \u0935\u0948\u0927 \u0908\u092E\u0947\u0932 \u092F\u093E 10 \u0905\u0902\u0915\u094B\u0902 \u0915\u093E \u092B\u094B\u0928 \u0928\u0902\u092C\u0930 \u0926\u0930\u094D\u091C \u0915\u0930\u0947\u0902\u0964",
+      passwordRequired: "\u0905\u092A\u0928\u093E \u092A\u093E\u0938\u0935\u0930\u094D\u0921 \u0926\u0930\u094D\u091C \u0915\u0930\u0947\u0902\u0964",
+      passwordTooShort: "\u092A\u093E\u0938\u0935\u0930\u094D\u0921 \u0915\u092E \u0938\u0947 \u0915\u092E 6 \u0905\u0915\u094D\u0937\u0930 \u0915\u093E \u0939\u094B\u0928\u093E \u091A\u093E\u0939\u093F\u090F\u0964",
       resetTitle: "\u092A\u093E\u0938\u0935\u0930\u094D\u0921 \u0930\u0940\u0938\u0947\u091F",
       resetIntro: "\u0905\u092A\u0928\u093E \u092A\u0902\u091C\u0940\u0915\u0943\u0924 \u0908\u092E\u0947\u0932 \u092F\u093E \u092B\u094B\u0928 \u0926\u0930\u094D\u091C \u0915\u0930\u0947\u0902\u0964 \u0905\u0928\u0941\u0930\u094B\u0927 \u0930\u093F\u0915\u0949\u0930\u094D\u0921 \u0939\u094B\u0917\u093E \u0914\u0930 \u092A\u093E\u0938\u0935\u0930\u094D\u0921 \u092C\u0926\u0932\u0928\u0947 \u0938\u0947 \u092A\u0939\u0932\u0947 \u0938\u092A\u094B\u0930\u094D\u091F \u0938\u0924\u094D\u092F\u093E\u092A\u0928 \u0915\u0930\u0947\u0917\u093E\u0964",
       resetIdentifier: "\u092A\u0902\u091C\u0940\u0915\u0943\u0924 \u0908\u092E\u0947\u0932 \u092F\u093E \u092B\u094B\u0928",
@@ -77,13 +86,34 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
     }
   }[language];
 
+  function validate() {
+    const next: { identifier?: string; password?: string } = {};
+    const value = identifier.trim();
+    if (!value) {
+      next.identifier = copy.identifierRequired;
+    } else {
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+      const isPhone = /^[6-9]\d{9}$/.test(value.replace(/[\s-]/g, ""));
+      if (!isEmail && !isPhone) next.identifier = copy.identifierInvalid;
+    }
+    if (!password) {
+      next.password = copy.passwordRequired;
+    } else if (password.length < 6) {
+      next.password = copy.passwordTooShort;
+    }
+    return next;
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setError("");
+    const errors = validate();
+    setFieldErrors(errors);
+    if (errors.identifier || errors.password) return;
+    setLoading(true);
     try {
       clearCache();
-      const result = await authApi.login(identifier, password);
+      const result = await authApi.login(identifier.trim(), password);
       window.localStorage.setItem("smartshala.accessToken", result.accessToken);
       window.localStorage.setItem("smartshala.refreshToken", result.refreshToken);
       const tenantSchoolId = result.user.tenantSchoolId ?? tenantSchoolIdFromToken(result.accessToken);
@@ -146,22 +176,31 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
           </div>
         </div>
 
-        <Field label={copy.identifier}>
+        <Field label={copy.identifier} error={fieldErrors.identifier}>
           <TextInput
             value={identifier}
-            onChange={(event) => setIdentifier(event.target.value)}
-            required
+            onChange={(event) => {
+              setIdentifier(event.target.value);
+              if (fieldErrors.identifier) setFieldErrors((prev) => ({ ...prev, identifier: undefined }));
+            }}
+            autoComplete="username"
+            inputMode="email"
+            aria-invalid={Boolean(fieldErrors.identifier)}
           />
         </Field>
 
-        <Field label={copy.password}>
+        <Field label={copy.password} error={fieldErrors.password}>
           <div className="relative mt-2">
             <TextInput
               className="pr-12"
               type={showPassword ? "text" : "password"}
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (fieldErrors.password) setFieldErrors((prev) => ({ ...prev, password: undefined }));
+              }}
+              autoComplete="current-password"
+              aria-invalid={Boolean(fieldErrors.password)}
             />
             <button
               aria-label={showPassword ? copy.hidePassword : copy.showPassword}

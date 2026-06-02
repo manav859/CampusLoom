@@ -80,7 +80,20 @@ async function deployMasterMigrations() {
   }
 }
 
+async function deployTenantMigrations() {
+  if (!process.env.MASTER_DATABASE_URL) return;
+
+  // Best effort: a single unreachable tenant database must not block the server
+  // from starting for every other school. Failures are logged and re-run later.
+  console.log("Running Prisma tenant migrations...");
+  const result = await run("node", ["scripts/migrate-tenants.mjs"], { env: process.env });
+  if (result.code !== 0) {
+    console.warn("Some tenant migrations failed — continuing startup. Re-run `npm run tenant:migrate-all` to retry.");
+  }
+}
+
 await deployMasterMigrations();
 await deployMigrations();
+await deployTenantMigrations();
 const server = await run("node", ["dist/server.js"], { stdio: "inherit" });
 process.exit(server.code);
