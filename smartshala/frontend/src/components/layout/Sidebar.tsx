@@ -290,12 +290,14 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
 
 export function Sidebar({
   role,
+  fullName,
   open = false,
   onClose,
   isPinned,
   setIsPinned
 }: {
   role: Role;
+  fullName: string;
   open?: boolean;
   onClose?: () => void;
   isPinned: boolean;
@@ -303,6 +305,12 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const links = linksForRole(role);
+  const initials = fullName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "U";
 
   const [isHovered, setIsHovered] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -470,13 +478,13 @@ export function Sidebar({
         <div className="border-t border-[#f5f5f7] px-3.5 py-4">
           <div className="flex items-center">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#0071e3] to-[#5ac8fa] text-[10px] font-bold text-white shadow-lg shadow-blue-500/20">
-              AD
+              {initials}
             </div>
             <div className={`min-w-0 transition-all duration-300 ease-in-out ${
               isExpanded ? "opacity-100 max-w-[220px] ml-2.5" : "opacity-100 max-w-[220px] ml-2.5 md:opacity-0 md:max-w-0 md:ml-0 md:overflow-hidden"
             }`}>
-              <p className="truncate text-[12px] font-semibold text-[#1d1d1f]">Admin</p>
-              <p className="truncate text-[10px] text-[#86868b]">Principal</p>
+              <p className="truncate text-[12px] font-semibold text-[#1d1d1f]">{fullName}</p>
+              <p className="truncate text-[10px] capitalize text-[#86868b]">{role.toLowerCase()}</p>
             </div>
           </div>
         </div>

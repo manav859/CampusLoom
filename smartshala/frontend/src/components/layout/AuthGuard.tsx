@@ -182,6 +182,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           onClose={() => setSidebarOpen(false)}
           open={sidebarOpen}
           role={user.role}
+          fullName={user.fullName}
           isPinned={sidebarPinned}
           setIsPinned={setSidebarPinned}
         />
