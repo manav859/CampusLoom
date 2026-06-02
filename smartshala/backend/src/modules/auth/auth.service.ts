@@ -3,8 +3,10 @@ import jwt from "jsonwebtoken";
 import { NotificationKind, NotificationStatus, UserRole, UserStatus } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
 import { env } from "../../config/env.js";
+import { logger } from "../../config/logger.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError } from "../../core/errors.js";
+import { maskIdentifier } from "../../utils/maskSensitive.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { legacyTenantSchoolId } from "../../tenant/legacyTenant.js";
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
@@ -170,37 +172,50 @@ export async function register(data: RegisterInput) {
   };
 }
 
-export async function login(identifier: string, password: string) {
+export async function login(identifier: string, password: string, requestIp: string = "unknown") {
   const normalizedIdentifier = identifier.trim();
-  const tenantContext = getTenantContext();
 
-  if (tenantContext) {
-    return loginWithClient(prisma, normalizedIdentifier, password, tenantContext.schoolId);
-  }
+  try {
+    const tenantContext = getTenantContext();
 
-  const tenant = await tenantForPublicLogin(normalizedIdentifier);
-  if (tenant) {
-    return loginWithClient(getTenantPrismaClient(tenant.dbUrl), normalizedIdentifier, password, tenant.schoolId);
-  }
-
-  // Check if the school exists but is inactive (pending approval)
-  if (isMasterDbConfigured()) {
-    const pendingSchool = await masterPrisma.school.findFirst({
-      where: {
-        OR: [{ email: normalizedIdentifier }, { phone: normalizedIdentifier }],
-        isActive: false
-      },
-      select: { schoolId: true, paymentStatus: true, deletionStatus: true }
-    });
-    if (pendingSchool) {
-      if (pendingSchool.deletionStatus === "DELETED") {
-        throw new AppError(403, "This school has been deleted. Please contact support.", "SCHOOL_DELETED");
-      }
-      throw new AppError(403, "Your school activation is pending. Please wait for admin approval.", "ACTIVATION_PENDING");
+    if (tenantContext) {
+      return await loginWithClient(prisma, normalizedIdentifier, password, tenantContext.schoolId, requestIp);
     }
-  }
 
-  return loginWithClient(prisma, normalizedIdentifier, password);
+    const tenant = await tenantForPublicLogin(normalizedIdentifier);
+    if (tenant) {
+      return await loginWithClient(getTenantPrismaClient(tenant.dbUrl), normalizedIdentifier, password, tenant.schoolId, requestIp);
+    }
+
+    // Check if the school exists but is inactive (pending approval)
+    if (isMasterDbConfigured()) {
+      const pendingSchool = await masterPrisma.school.findFirst({
+        where: {
+          OR: [{ email: normalizedIdentifier }, { phone: normalizedIdentifier }],
+          isActive: false
+        },
+        select: { schoolId: true, paymentStatus: true, deletionStatus: true }
+      });
+      if (pendingSchool) {
+        if (pendingSchool.deletionStatus === "DELETED") {
+          throw new AppError(403, "This school has been deleted. Please contact support.", "SCHOOL_DELETED");
+        }
+        throw new AppError(403, "Your school activation is pending. Please wait for admin approval.", "ACTIVATION_PENDING");
+      }
+    }
+
+    return await loginWithClient(prisma, normalizedIdentifier, password, undefined, requestIp);
+  } catch (err) {
+    logger.warn({
+      evt: "auth.login",
+      outcome: "failure",
+      reason: err instanceof AppError ? err.code : "UNKNOWN",
+      identifier: maskIdentifier(normalizedIdentifier),
+      ip: requestIp,
+      schoolId: getTenantContext()?.schoolId ?? null
+    });
+    throw err;
+  }
 }
 
 async function tenantForPublicLogin(identifier: string) {
@@ -275,7 +290,7 @@ async function tenantForLoginUser(identifier: string) {
   return results.find((s) => s !== null) ?? null;
 }
 
-async function loginWithClient(client: PrismaClient, identifier: string, password: string, tenantSchoolId?: string) {
+async function loginWithClient(client: PrismaClient, identifier: string, password: string, tenantSchoolId?: string, requestIp: string = "unknown") {
   const user = await client.user.findFirst({
     where: {
       OR: [{ email: identifier }, { phone: identifier }],
@@ -314,6 +329,15 @@ async function loginWithClient(client: PrismaClient, identifier: string, passwor
       tokenHash,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     }
+  });
+
+  logger.info({
+    evt: "auth.login",
+    outcome: "success",
+    userId: user.id,
+    role: user.role,
+    schoolId: user.schoolId ?? null,
+    ip: requestIp
   });
 
   return {
@@ -499,10 +523,17 @@ export async function refresh(refreshToken: string) {
   };
 }
 
-export async function logout(userId: string) {
+export async function logout(userId: string, schoolId: string | null = null, requestIp: string = "unknown") {
   await prisma.refreshToken.updateMany({
     where: { userId, revokedAt: null },
     data: { revokedAt: new Date() }
+  });
+
+  logger.info({
+    evt: "auth.logout",
+    userId,
+    schoolId: schoolId ?? null,
+    ip: requestIp
   });
 }
 

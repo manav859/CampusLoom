@@ -38,7 +38,7 @@ superAdminRouter.post(
   rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "super-admin-login" }),
   validate({ body: superAdminLoginSchema }),
   asyncHandler(async (req, res) => {
-    res.json(await loginSuperAdmin(req.body.email, req.body.password));
+    res.json(await loginSuperAdmin(req.body.email, req.body.password, req.ip ?? "unknown"));
   })
 );
 

@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"exit: $?\")",
+      "Read(//d/d/siteonlab/CampusLoom/smartshala/backend/**)",
+      "Read(//d/d/siteonlab/CampusLoom/smartshala/backend/scripts/**)",
+      "Bash(node --check scripts/migrate-tenants.mjs)",
+      "Bash(node --check scripts/render-start.mjs)",
+      "Bash(git add *)",
+      "Bash(git commit -m '@ *)",
+      "Bash(git commit *)",
+      "Bash(git fetch *)",
+      "Bash(npm run *)",
+      "Bash(echo \"=== tsc exit: $? ===\")",
+      "Bash(git push *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://smartshala-backend.onrender.com/api/health --max-time 30)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://smartshala-backend.onrender.com/health --max-time 30)",
+      "Bash(curl -s -X POST https://smartshala-backend.onrender.com/api/auth/login -H \"Content-Type: application/json\" -d '{\"identifier\":\"probe@test.com\",\"password\":\"whatever123\"}' --max-time 40)",
+      "Bash(curl -s https://smartshala-backend.onrender.com/api/health --max-time 30)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST https://smartshala-backend.onrender.com/api/auth/login -H \"Content-Type: application/json\" -d '{\"identifier\":\"probe@test.com\",\"password\":\"whatever123\"}' --max-time 30)",
+      "Bash(echo \"EXIT:$?\")"
+    ]
+  }
+}

@@ -6,6 +6,7 @@ import { PasswordResetStatus, PaymentStatus, TenantDeletionStatus } from "../../
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
 import { logger } from "../../config/logger.js";
+import { maskIdentifier } from "../../utils/maskSensitive.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
 import { expireTrials, trialEndsFrom } from "../../services/trial.service.js";
@@ -33,10 +34,16 @@ async function tenantSchoolOrThrow(schoolId: string) {
   return school;
 }
 
-export async function loginSuperAdmin(email: string, password: string) {
+export async function loginSuperAdmin(email: string, password: string, requestIp: string = "unknown") {
   assertSuperAdminConfigured();
 
   if (email.toLowerCase() !== env.SUPER_ADMIN_EMAIL!.toLowerCase()) {
+    logger.warn({
+      evt: "auth.super_admin.login",
+      outcome: "failure",
+      reason: "INVALID_CREDENTIALS",
+      ip: requestIp
+    });
     throw new AppError(401, "Invalid credentials", "INVALID_SUPER_ADMIN_CREDENTIALS");
   }
 
@@ -44,7 +51,15 @@ export async function loginSuperAdmin(email: string, password: string) {
     ? await bcrypt.compare(password, env.SUPER_ADMIN_PASSWORD_HASH)
     : password === env.SUPER_ADMIN_PASSWORD;
 
-  if (!valid) throw new AppError(401, "Invalid credentials", "INVALID_SUPER_ADMIN_CREDENTIALS");
+  if (!valid) {
+    logger.warn({
+      evt: "auth.super_admin.login",
+      outcome: "failure",
+      reason: "INVALID_CREDENTIALS",
+      ip: requestIp
+    });
+    throw new AppError(401, "Invalid credentials", "INVALID_SUPER_ADMIN_CREDENTIALS");
+  }
 
   const token = jwt.sign(
     {
@@ -54,6 +69,13 @@ export async function loginSuperAdmin(email: string, password: string) {
     env.JWT_ACCESS_SECRET,
     { expiresIn: "8h", subject: "super-admin" }
   );
+
+  logger.info({
+    evt: "auth.super_admin.login",
+    outcome: "success",
+    email: maskIdentifier(email),
+    ip: requestIp
+  });
 
   return {
     accessToken: token,

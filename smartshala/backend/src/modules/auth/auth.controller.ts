@@ -8,7 +8,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const result = await authService.login(req.body.identifier, req.body.password);
+  const result = await authService.login(req.body.identifier, req.body.password, req.ip ?? "unknown");
   res.json(result);
 });
 
@@ -28,7 +28,7 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-  await authService.logout(req.user!.id);
+  await authService.logout(req.user!.id, req.user!.schoolId ?? null, req.ip ?? "unknown");
   res.status(204).send();
 });
 

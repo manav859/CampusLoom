@@ -13,6 +13,7 @@ import {
   Prisma
 } from "@prisma/client";
 import { prisma, withRetry } from "../../core/prisma.js";
+import { logger } from "../../config/logger.js";
 import { getPagination } from "../../core/pagination.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { gradeForPercentage } from "../../core/grading.js";
@@ -1005,10 +1006,15 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
             performanceRate: null,
             performanceClassification: null
           };
-      const { attendanceRecords: _attendanceRecords, feeAssignments: _feeAssignments, examResults: _examResults, homeworkRecords: _homeworkRecords, ...payload } = student as any;
+      const { attendanceRecords: _attendanceRecords, feeAssignments: _feeAssignments, examResults: _examResults, homeworkRecords: _homeworkRecords, consentGiven, consentGivenAt, consentGivenBy, consentMethod, ...payload } = student as any;
+      // Consent records are admin-only data — exclude from non-Principal/Admin responses.
+      const consentFields = isPrincipalRole(user.role)
+        ? { consentGiven, consentGivenAt, consentGivenBy, consentMethod }
+        : {};
 
       return {
         ...payload,
+        ...consentFields,
         ...performance,
         ...(canViewFees ? { feeAssignments, lastPayment: latestPayment, feeBalance } : {}),
         ...(canViewAttendance
@@ -1121,11 +1127,26 @@ export async function getStudent(user: Express.UserContext, id: string) {
     const currentRank = canViewAcademic
       ? await cached(`rank:${user.schoolId}:${student.classId}:${student.id}`, 30_000, () => currentRankForStudent(user.schoolId, student.classId, student.id))
       : null;
-    const { examResults: _examResults, homeworkRecords: _homeworkRecords, feeAssignments: _feeAssignments, attendanceRecords: _attendanceRecords, ...studentPayload } =
-      studentRecord as any;
+    const {
+      examResults: _examResults,
+      homeworkRecords: _homeworkRecords,
+      feeAssignments: _feeAssignments,
+      attendanceRecords: _attendanceRecords,
+      consentGiven,
+      consentGivenAt,
+      consentGivenBy,
+      consentMethod,
+      ...studentPayload
+    } = studentRecord as any;
+
+    // Consent records are admin-only data — exclude from TEACHER/ACCOUNTANT/PARENT responses.
+    const consentFields = isPrincipalRole(user.role)
+      ? { consentGiven, consentGivenAt, consentGivenBy, consentMethod }
+      : {};
 
     return {
       ...studentPayload,
+      ...consentFields,
       access: {
         role: user.role,
         allowedTabs
@@ -1360,16 +1381,29 @@ export async function createStudent(user: Express.UserContext, data: Record<stri
     studentData.admissionNumber = await generateAdmissionNumber(schoolId);
   }
 
-  const student = await prisma.student.create({ 
-    data: { 
-      ...studentData, 
+  const student = await prisma.student.create({
+    data: {
+      ...studentData,
       schoolId,
       transportRequired: Boolean(studentData.transportRequired),
       transportFeeAmount: studentData.transportRequired ? Number(studentData.transportFeeAmount ?? 0) : 0,
       joiningDate: studentData.joiningDate ? new Date(studentData.joiningDate as string) : new Date(),
       dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth as string) : null,
-    } as never 
+      consentGiven: data.consentGiven ?? false,
+      consentGivenAt: data.consentGiven ? new Date() : null,
+      consentGivenBy: data.consentGivenBy ?? null,
+      consentMethod: data.consentMethod ?? null,
+    } as never
   });
+
+  if (!data.consentGiven) {
+    logger.warn({
+      evt: "compliance.consent_missing",
+      studentId: student.id,
+      schoolId,
+      message: "Student created without guardian consent recorded (DPDP requirement)"
+    });
+  }
 
   if (feeStructureId) {
     await assignFee(schoolId, student.id, feeStructureId);

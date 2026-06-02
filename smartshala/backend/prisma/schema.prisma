@@ -143,6 +143,10 @@ model Student {
   guardianName        String?
   guardianPhone       String?
   guardianOccupation  String?
+  consentGiven        Boolean                @default(false)
+  consentGivenAt      DateTime?
+  consentGivenBy      String?
+  consentMethod       String?
   address             String?
   joiningDate         DateTime               @default(now())
   transportRequired   Boolean                @default(false)

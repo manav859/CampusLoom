@@ -30,7 +30,10 @@ export const studentSchema = z.object({
   transportRequired: z.coerce.boolean().optional(),
   transportFeeAmount: z.coerce.number().min(0).optional(),
   isActive: z.boolean().optional(),
-  feeStructureId: z.string().uuid().optional()
+  feeStructureId: z.string().uuid().optional(),
+  consentGiven: z.boolean().optional().default(false),
+  consentGivenBy: z.string().max(100).optional(),
+  consentMethod: z.enum(["verbal", "written", "digital"]).optional()
 });
 
 export const importStudentsSchema = z.object({
