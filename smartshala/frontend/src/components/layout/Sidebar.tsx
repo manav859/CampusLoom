@@ -53,11 +53,11 @@ const adminLinks: NavItem[] = [
     label: "Reports",
     icon: "reports",
     children: [
-      { label: "Daily attendance report", href: "/reports/daily-attendance", icon: "attendance" },
-      { label: "Student performance report", href: "/reports/student-performance", icon: "students" },
-      { label: "Subject wise report", href: "/reports/subject-wise", icon: "reports" },
-      { label: "Teacher performance", href: "/reports/teacher-performance", icon: "teachers" },
-      { label: "Exam reports", href: "/reports/exams", icon: "exams" }
+      { label: "Daily Attendance Report", href: "/reports/daily-attendance", icon: "attendance" },
+      { label: "Student Performance Report", href: "/reports/student-performance", icon: "students" },
+      { label: "Subject Wise Report", href: "/reports/subject-wise", icon: "reports" },
+      { label: "Teacher Performance", href: "/reports/teacher-performance", icon: "teachers" },
+      { label: "Exam Reports", href: "/reports/exams", icon: "exams" }
     ]
   },
   { label: "Fees", href: "/fees", icon: "fees" },
@@ -67,7 +67,7 @@ const adminLinks: NavItem[] = [
     label: "Logs",
     icon: "logs",
     children: [
-      { label: "Message logs", href: "/notifications", icon: "communication" },
+      { label: "Message Logs", href: "/notifications", icon: "communication" },
       { label: "Activity Logs", href: "/activity-logs", icon: "logs" }
     ]
   },
@@ -79,7 +79,7 @@ const teacherLinks: NavItem[] = [
   { label: "Classes", href: "/teacher/classes", icon: "classes" },
   { label: "Homework", href: "/teacher/homework", icon: "homework" },
   { label: "Marks", href: "/teacher/marks", icon: "analytics" },
-  { label: "Comms hub", href: "/teacher/communication", icon: "communication" },
+  { label: "Comms Hub", href: "/teacher/communication", icon: "communication" },
   { label: "Mark Attendance", href: "/attendance", icon: "attendance" },
   { label: "Students", href: "/students", icon: "students" }
 ];
