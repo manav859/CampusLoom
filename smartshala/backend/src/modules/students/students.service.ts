@@ -226,16 +226,25 @@ function attendanceAnalytics(records: AttendanceForSnapshot[], classAverageAtten
   const summary = calculateStudentAttendanceSummary(sortedRecords);
 
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   const recordByDate = new Map(attendanceRows.map((record) => [isoDate(record.date), record.status]));
   const calendar: { date: Date; status: AttendanceStatus | "HOLIDAY" | "UNMARKED" }[] = [];
 
-  for (let day = 1; day <= monthEnd.getDate(); day += 1) {
-    const date = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
-    const key = isoDate(date);
-    const status = date.getDay() === 0 ? "HOLIDAY" : recordByDate.get(key) ?? "UNMARKED";
-    calendar.push({ date, status });
+  // Build a full-month grid for every month the records span, plus the current
+  // month, so the month filter on the student page has real months to switch between.
+  const monthKeys = new Set<string>(attendanceRows.map((record) => `${record.date.getFullYear()}-${record.date.getMonth()}`));
+  monthKeys.add(`${now.getFullYear()}-${now.getMonth()}`);
+  const months = [...monthKeys]
+    .map((key) => key.split("-").map(Number) as [number, number])
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+
+  for (const [year, month] of months) {
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    for (let day = 1; day <= lastDay; day += 1) {
+      const date = new Date(year, month, day);
+      const key = isoDate(date);
+      const status = date.getDay() === 0 ? "HOLIDAY" : recordByDate.get(key) ?? "UNMARKED";
+      calendar.push({ date, status });
+    }
   }
 
   const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

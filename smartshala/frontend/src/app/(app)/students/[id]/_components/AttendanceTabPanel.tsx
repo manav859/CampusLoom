@@ -75,9 +75,12 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
   const analytics = student.attendanceAnalytics;
   const metrics = analytics.metrics;
 
-  /* ── Monthly filter state ── */
+  /* ── Monthly filter state (default to the current month for a clean, aligned view) ── */
   const availableMonths = useMemo(() => getAvailableMonths(analytics.calendar), [analytics.calendar]);
-  const [selectedMonthKey, setSelectedMonthKey] = useState<string>("all");
+  const currentMonthKey = `${new Date().getFullYear()}-${new Date().getMonth()}`;
+  const [selectedMonthKey, setSelectedMonthKey] = useState<string>(
+    availableMonths.some((m) => m.key === currentMonthKey) ? currentMonthKey : "all"
+  );
 
   /* ── Filter calendar days by selected month ── */
   const filteredCalendar = useMemo(() => {
@@ -203,17 +206,17 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
           </div>
 
           <div className="overflow-x-auto pt-5">
-          <div className="mx-auto inline-grid min-w-[336px] grid-cols-7 gap-2 rounded-[10px] bg-[#F7F8FB] p-3 sm:min-w-[448px] sm:gap-2.5 sm:p-4">
+          <div className="grid w-full min-w-[336px] grid-cols-7 gap-2 rounded-[10px] bg-[#F7F8FB] p-3 sm:gap-2.5 sm:p-4">
               {weekdays.map((day) => (
                 <div className="mb-1 text-center text-[10px] font-bold uppercase tracking-wider text-[#86868b]" key={day}>{day}</div>
               ))}
               {calendarSlots.map((slot) => {
-                if (slot.type === "blank") return <div key={slot.id} className="h-11 w-10 rounded-[8px] bg-transparent sm:h-12 sm:w-12" />;
+                if (slot.type === "blank") return <div key={slot.id} className="h-12 w-full rounded-[8px] bg-transparent sm:h-14" />;
                 const date = new Date(slot.date);
                 const letter = slot.status === "PRESENT" ? "P" : slot.status === "ABSENT" ? "A" : slot.status === "LATE" ? "L" : slot.status === "HALF_DAY" ? "HD" : slot.status === "HOLIDAY" ? "H" : "";
                 return (
                   <div
-                    className={`flex h-11 w-10 flex-col items-center justify-center rounded-[10px] shadow-sm ring-1 ring-inset ring-black/[0.05] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:h-12 sm:w-12 ${statusClasses(slot.status)}`}
+                    className={`flex h-12 w-full flex-col items-center justify-center rounded-[10px] shadow-sm ring-1 ring-inset ring-black/[0.05] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:h-14 ${statusClasses(slot.status)}`}
                     key={slot.date}
                     title={`${dateLabel(slot.date)} - ${statusLabel(slot.status)}`}
                   >
