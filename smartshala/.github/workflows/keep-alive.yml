@@ -1,0 +1,35 @@
+name: Keep Render backend alive
+
+# Render's free web services spin down after ~15 minutes of inactivity.
+# This workflow pings a lightweight health endpoint every 10 minutes so the
+# service never goes idle long enough to be frozen.
+
+on:
+  schedule:
+    # Every 10 minutes. Note: GitHub may delay scheduled runs under load,
+    # so we ping more often than the 15-min Render timeout for safety margin.
+    - cron: "*/10 * * * *"
+  # Allow manual runs from the Actions tab for testing.
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: |
+          URL="${{ vars.BACKEND_HEALTH_URL }}"
+          if [ -z "$URL" ]; then
+            echo "::error::Repository variable BACKEND_HEALTH_URL is not set."
+            echo "Set it under Settings -> Secrets and variables -> Actions -> Variables."
+            exit 1
+          fi
+          echo "Pinging $URL"
+          # --fail makes curl exit non-zero on HTTP errors (>=400).
+          # Retry to tolerate the cold-start delay when the service was asleep.
+          curl --fail --silent --show-error \
+               --retry 5 --retry-delay 15 --retry-all-errors \
+               --max-time 90 \
+               "$URL"
+          echo ""
+          echo "Backend is awake."
