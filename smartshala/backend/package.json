@@ -26,6 +26,8 @@
     "backup:master": "node scripts/backup-master-db.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1059.0",
+    "@aws-sdk/s3-request-presigner": "^3.1059.0",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",

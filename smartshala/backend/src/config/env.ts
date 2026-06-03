@@ -34,7 +34,13 @@ const envSchema = z.object({
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
-  REDIS_URL: z.string().url().optional()
+  REDIS_URL: z.string().url().optional(),
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().default("ap-south-1"),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_KEY: z.string().optional(),
+  S3_ENDPOINT: z.string().url().optional(), // for S3-compatible (Cloudflare R2, MinIO)
+  S3_KEY_PREFIX: z.string().default("student-documents")
 });
 
 const parsed = envSchema.safeParse(process.env);

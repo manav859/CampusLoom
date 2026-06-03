@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { Request, Response } from "express";
 import { asyncHandler } from "../../core/asyncHandler.js";
 import * as studentsService from "./students.service.js";
@@ -24,10 +25,23 @@ export const uploadStudentDocument = asyncHandler(async (req: Request, res: Resp
 });
 
 export const downloadStudentDocument = asyncHandler(async (req: Request, res: Response) => {
-  const file = await studentsService.getStudentDocumentFile(req.user!, req.params.id, req.params.documentId);
+  const { downloadUrl, fileName } = await studentsService.downloadStudentDocument(
+    req.user!,
+    req.params.id,
+    req.params.documentId
+  );
 
+  if (downloadUrl.startsWith("http")) {
+    // S3 presigned URL — redirect the client.
+    res.redirect(302, downloadUrl);
+    return;
+  }
+
+  // Local fallback — serve the file directly (dev only). The key uses forward
+  // slashes; join() maps it onto the local uploads/ directory.
+  const localPath = join(process.cwd(), "uploads", ...downloadUrl.split("/"));
   await new Promise<void>((resolve, reject) => {
-    res.download(file.filePath, file.originalName, (error) => {
+    res.download(localPath, fileName, (error) => {
       if (error) {
         reject(error);
         return;

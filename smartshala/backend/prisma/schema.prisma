@@ -250,6 +250,7 @@ model StudentDocument {
   mimeType     String
   sizeBytes    Int
   storageKey   String
+  storageProvider String?          @default("local") // "s3" | "local"
   uploadedAt   DateTime            @default(now())
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt

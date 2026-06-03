@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { access, mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import {
   AttendanceStatus,
   BehaviourSeverity,
@@ -20,6 +18,8 @@ import { gradeForPercentage } from "../../core/grading.js";
 import { calculateStudentAttendanceSummary } from "../../core/studentAttendance.js";
 import { recordAuditLog } from "../../core/auditLog.js";
 import { assignFee } from "../fees/fees.service.js";
+import { env } from "../../config/env.js";
+import { uploadFile, getDownloadUrl } from "../../services/storageService.js";
 
 type AttendanceForSnapshot = {
   status: AttendanceStatus;
@@ -144,22 +144,8 @@ function feeStatus(pendingAmount: number, paidAmount: number) {
   return paidAmount > 0 ? InstallmentStatus.PARTIAL : InstallmentStatus.PENDING;
 }
 
-function documentStorageRoot() {
-  return path.resolve(process.cwd(), "uploads", "student-documents");
-}
-
 function sanitizeFileName(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 120) || "document";
-}
-
-function safeDocumentPath(storageKey: string) {
-  const root = documentStorageRoot();
-  const filePath = path.resolve(root, storageKey);
-  const relative = path.relative(root, filePath);
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new AppError(400, "Invalid document storage key", "INVALID_DOCUMENT_PATH");
-  }
-  return filePath;
 }
 
 function documentResponse(document: {
@@ -1203,11 +1189,15 @@ export async function uploadStudentDocument(
     if (!student) throw notFound("Student");
 
     const documentId = randomUUID();
-    const originalName = sanitizeFileName(file.originalname);
-    const storageKey = path.join(user.schoolId, student.id, `${documentId}-${originalName}`);
-    const filePath = safeDocumentPath(storageKey);
-    await mkdir(path.dirname(filePath), { recursive: true });
-    await writeFile(filePath, file.buffer);
+    const safeFileName = sanitizeFileName(file.originalname);
+    const storageKey = `${env.S3_KEY_PREFIX}/${user.schoolId}/${student.id}/${documentId}-${safeFileName}`;
+
+    const { storageKey: savedKey, storageProvider } = await uploadFile({
+      buffer: file.buffer,
+      key: storageKey,
+      mimeType: file.mimetype,
+      originalName: file.originalname
+    });
 
     const document = await prisma.studentDocument.create({
       data: {
@@ -1220,7 +1210,8 @@ export async function uploadStudentDocument(
         originalName: file.originalname,
         mimeType: file.mimetype,
         sizeBytes: file.size,
-        storageKey
+        storageKey: savedKey,
+        storageProvider
       },
       include: { uploadedBy: { select: { id: true, fullName: true, role: true } } }
     });
@@ -1229,7 +1220,8 @@ export async function uploadStudentDocument(
   }, { label: "uploadStudentDocument" });
 }
 
-export async function getStudentDocumentFile(user: Express.UserContext, studentId: string, documentId: string) {
+export async function downloadStudentDocument(user: Express.UserContext, studentId: string, documentId: string) {
+  // Auth check — unchanged: only Principal/Admin may download student documents.
   if (!isPrincipalRole(user.role)) {
     throw new AppError(403, "Only Principal/Admin users can download student documents", "FORBIDDEN");
   }
@@ -1242,22 +1234,16 @@ export async function getStudentDocumentFile(user: Express.UserContext, studentI
     },
     select: {
       originalName: true,
-      mimeType: true,
       storageKey: true
     }
   });
   if (!document) throw notFound("Document");
+  if (!document.storageKey) throw notFound("Document file");
 
-  const filePath = safeDocumentPath(document.storageKey);
-  await access(filePath).catch(() => {
-    throw notFound("Document file");
-  });
+  // S3: short-lived presigned URL. Local: the storage key (controller serves it).
+  const downloadUrl = await getDownloadUrl(document.storageKey);
 
-  return {
-    filePath,
-    originalName: document.originalName,
-    mimeType: document.mimeType
-  };
+  return { downloadUrl, fileName: document.originalName };
 }
 
 export async function createBehaviourRecord(user: Express.UserContext, studentId: string, data: Record<string, unknown>) {
