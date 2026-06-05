@@ -66,6 +66,11 @@ export function FeeOverviewChart({ segments, title = "Fee Overview", eyebrow = "
                   )
                 ))}
               </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[20px] font-bold tracking-tight" style={{ color: activeSegment.color }}>
+                  {Math.round((activeSegment.value / total) * 100)}%
+                </span>
+              </div>
             </div>
             <div className="flex min-w-0 flex-col">
               <span className="text-[11px] font-medium text-[#86868b]">{activeSegment.label}</span>
