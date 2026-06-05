@@ -439,10 +439,9 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const totalCollected = Number(fees?.totalCollected ?? 0);
   const totalPending = Number(fees?.totalPending ?? 0);
   const totalOverdue = Math.min(Number(fees?.totalOverdue ?? 0), totalPending);
-  const currentPending = Math.max(totalPending - totalOverdue, 0);
   const feeSegments = [
     { label: "Collected", value: totalCollected, color: "#34c759" },
-    { label: "Pending", value: currentPending, color: "#ff9500" },
+    { label: "Pending", value: totalPending, color: "#ff9500" },
     { label: "Overdue", value: totalOverdue, color: "#ff3b30" },
   ];
   const teacherWorkSegments = [

@@ -9,15 +9,20 @@ export function FeeOverviewChart({ segments, title = "Fee Overview", eyebrow = "
   const [mode, setMode] = useState<"donut" | "bar">("donut");
   const [activeLabel, setActiveLabel] = useState<string | null>("Pending");
 
-  const total = data.reduce((s, d) => s + d.value, 0);
+  // Segments may overlap (e.g. Overdue is a subset of Pending), so the donut is
+  // built only from the non-overlapping base segments whose values sum to the whole.
+  const donutSegments = data.filter((s) => s.label !== "Overdue");
+  const total = donutSegments.reduce((s, d) => s + d.value, 0);
   const activeSegment = data.find(s => s.label === activeLabel) || data.find(s => s.label === "Unmarked") || data[0] || { label: "Total", value: total, color: "#1d1d1f" };
-  const cx = 50, cy = 50, sw = 6;
+  const cx = 50, cy = 50, r = 40, sw = 12;
   const hasData = total > 0;
-  const rings = data.map((seg, i) => {
-    const r = Math.max(10, 44 - i * 8);
-    const circumference = 2 * Math.PI * r;
+  const circumference = 2 * Math.PI * r;
+  let offset = 0;
+  const arcs = donutSegments.map((seg) => {
     const length = hasData ? (seg.value / total) * circumference : 0;
-    return { ...seg, r, circumference, length };
+    const arc = { ...seg, length, dashOffset: -offset };
+    offset += length;
+    return arc;
   });
 
   return (
@@ -43,48 +48,49 @@ export function FeeOverviewChart({ segments, title = "Fee Overview", eyebrow = "
             <p className="mt-1 text-[12px] font-medium text-[#86868b]">Collection, pending, and overdue totals will appear after fees are assigned.</p>
           </div>
         ) : mode === "donut" ? (
-          <div className="flex h-full w-full items-center justify-center">
-            <div className="relative aspect-square w-full max-w-[160px]">
+          <div className="flex h-full w-full items-center justify-center gap-5">
+            <div className="relative aspect-square w-full max-w-[150px] shrink-0">
               <svg viewBox="0 0 100 100" className="h-full w-full">
-                {rings.map((ring) => (
-                  <g key={ring.label}>
-                    <circle cx={cx} cy={cy} r={ring.r} fill="none" stroke={ring.color} strokeWidth={sw} opacity={0.15} />
-                    {ring.length > 0 && (
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={ring.r}
-                        fill="none"
-                        stroke={ring.color}
-                        strokeWidth={sw}
-                        strokeLinecap="round"
-                        strokeDasharray={`${ring.length} ${ring.circumference}`}
-                        strokeDashoffset={0}
-                        transform={`rotate(-90 ${cx} ${cy})`}
-                      />
-                    )}
-                  </g>
+                <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f0f0f2" strokeWidth={sw} />
+                {arcs.map((arc) => (
+                  arc.length > 0 && (
+                    <circle
+                      key={arc.label}
+                      cx={cx}
+                      cy={cy}
+                      r={r}
+                      fill="none"
+                      stroke={arc.color}
+                      strokeWidth={sw}
+                      strokeDasharray={`${arc.length} ${circumference}`}
+                      strokeDashoffset={arc.dashOffset}
+                      transform={`rotate(-90 ${cx} ${cy})`}
+                    />
+                  )
                 ))}
               </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[11px] font-medium text-[#86868b]">{activeSegment.label}</span>
-                <span className="mt-0.5 text-[20px] font-bold tracking-tight" style={{ color: activeSegment.color }}>{activeSegment.value.toLocaleString()}</span>
-              </div>
+            </div>
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[11px] font-medium text-[#86868b]">{activeSegment.label}</span>
+              <span className="mt-0.5 text-[22px] font-bold leading-tight tracking-tight" style={{ color: activeSegment.color }}>{activeSegment.value.toLocaleString()}</span>
             </div>
           </div>
         ) : (
           <div className="flex w-full flex-col justify-center gap-5 px-2">
-            {data.map((seg, i) => (
-              <div key={seg.label}>
-                <div className="mb-1.5 flex justify-between text-[12px] font-medium text-[#424245]">
-                  <span>{seg.label}</span>
-                  <span className="font-bold text-[#1d1d1f]">{Math.round((seg.value / total) * 100)}%</span>
+            {data.map((seg, i) => {
+              const pct = total > 0 ? Math.min(100, (seg.value / total) * 100) : 0;
+              return (
+                <div key={seg.label}>
+                  <div className="mb-1.5 flex justify-between text-[12px] font-medium text-[#424245]">
+                    <span>{seg.label}</span>
+                    <span className="font-bold text-[#1d1d1f]">{Math.round(pct)}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-[#f5f5f7]">
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: seg.color, transition: `width 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.1}s` }} />
+                  </div>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-[#f5f5f7]">
-                  <div className="h-full rounded-full" style={{ width: `${(seg.value / total) * 100}%`, backgroundColor: seg.color, transition: `width 0.8s cubic-bezier(0.25,0.1,0.25,1) ${i * 0.1}s` }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
