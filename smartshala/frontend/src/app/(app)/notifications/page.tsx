@@ -289,7 +289,7 @@ export default function NotificationsPage() {
               <p className="kpi-metric-value">{failedCount}</p>
             </div>
             <div className="kpi-metric-card p-6">
-              <p className="kpi-metric-label">Credits remaining</p>
+              <p className="kpi-metric-label">Credits Remaining</p>
               <p className="kpi-metric-value">{creditsRemaining.toLocaleString("en-IN")}</p>
             </div>
           </>
@@ -375,7 +375,7 @@ export default function NotificationsPage() {
                   <FilterHeader filterKey="type" label="Type" />
                 </th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">Recipient</th>
-                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">Sent by</th>
+                <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">Sent By</th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">Message</th>
                 <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold text-[#031526]">
                   <FilterHeader filterKey="status" label="Status" />

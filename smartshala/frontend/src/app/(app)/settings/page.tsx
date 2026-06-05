@@ -283,13 +283,13 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader hideBreadcrumbs title="School and notification settings" />
+      <PageHeader hideBreadcrumbs title="School and Notification Settings" />
       {error ? <div className="rounded-[6px] border border-[#FCE3E5] bg-[#FCE3E5] p-4 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
       {notice ? <div className="rounded-[6px] border border-[#D6F0DF] bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
 
       <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
         <form className="space-y-5 rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6" onSubmit={saveProfile}>
-          <h2 className="text-[17px] font-semibold text-[#031526]">School profile</h2>
+          <h2 className="text-[17px] font-semibold text-[#031526]">School Profile</h2>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white">
@@ -315,7 +315,7 @@ export default function SettingsPage() {
           </div>
 
           <label className="block">
-            <span className="text-[13px] font-semibold text-[#031526]">School name</span>
+            <span className="text-[13px] font-semibold text-[#031526]">School Name</span>
             <input className={fieldClass} disabled={loading || saving} onChange={(event) => updateField("name", event.target.value)} value={profile.name} />
           </label>
 
@@ -341,7 +341,7 @@ export default function SettingsPage() {
           </label>
 
           <label className="block">
-            <span className="text-[13px] font-semibold text-[#031526]">Affiliation board</span>
+            <span className="text-[13px] font-semibold text-[#031526]">Affiliation Board</span>
             <select className={fieldClass} disabled={loading || saving} onChange={(event) => updateField("affiliationBoard", event.target.value)} value={profile.affiliationBoard ?? "CBSE"}>
               <option value="CBSE">CBSE</option>
               <option value="ICSE">ICSE</option>
@@ -352,7 +352,7 @@ export default function SettingsPage() {
           </label>
 
           <label className="block">
-            <span className="text-[13px] font-semibold text-[#031526]">Periods per day</span>
+            <span className="text-[13px] font-semibold text-[#031526]">Periods Per Day</span>
             <input className={fieldClass} disabled={loading || saving} max={12} min={1} onChange={(event) => updateField("timetablePeriodCount", Number(event.target.value))} type="number" value={profile.timetablePeriodCount ?? 8} />
             <span className="mt-1 block text-[12px] font-medium text-[#5A6573]">Used by teacher timetable assignment and free-period planning.</span>
           </label>
@@ -366,7 +366,7 @@ export default function SettingsPage() {
         <section className="rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#031526]">WhatsApp templates</h2>
+              <h2 className="text-[17px] font-semibold text-[#031526]">WhatsApp Templates</h2>
               <p className="mt-1 text-[13px] font-medium text-[#5A6573]">Edit English and Hindi variants, then save below.</p>
             </div>
             <span className="w-fit rounded-full bg-[#F7F8FB] px-3 py-1 text-[12px] font-semibold text-[#5A6573]">{editedCount} edited</span>
@@ -432,8 +432,8 @@ export default function SettingsPage() {
       <section className="rounded-[6px] border border-[#F2B8B5] bg-[#FFF8F8] p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-2xl">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#C8242C]">Danger zone</p>
-            <h2 className="mt-2 text-[20px] font-semibold text-[#031526]">Delete this school database</h2>
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#C8242C]">Danger Zone</p>
+            <h2 className="mt-2 text-[20px] font-semibold text-[#031526]">Delete This School Database</h2>
             <p className="mt-2 text-[13px] leading-6 text-[#5A6573]">This schedules deletion of the current school's Neon database after 3 days. The school remains usable during the waiting period, and an admin can cancel before the scheduled time.</p>
             {deletionStatus ? (
               <div className="mt-4 rounded-[6px] border border-[#F2B8B5] bg-white p-4 text-[13px] text-[#424B57]">
@@ -446,7 +446,7 @@ export default function SettingsPage() {
 
           <div className="w-full max-w-md rounded-[6px] border border-[#F2B8B5] bg-white p-4">
             <label className="block">
-              <span className="text-[13px] font-semibold text-[#031526]">Admin password</span>
+              <span className="text-[13px] font-semibold text-[#031526]">Admin Password</span>
               <input
                 className={fieldClass}
                 disabled={deletionBusy}

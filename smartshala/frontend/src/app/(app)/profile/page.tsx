@@ -132,14 +132,14 @@ export default function ProfilePage() {
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
         {/* Profile Details Form */}
         <form className="space-y-5 rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6" onSubmit={saveProfile}>
-          <h2 className="text-[17px] font-semibold text-[#031526]">Basic details</h2>
+          <h2 className="text-[17px] font-semibold text-[#031526]">Basic Details</h2>
           
           {profileError ? <div className="rounded-[6px] border border-[#FCE3E5] bg-[#FCE3E5] p-3 text-[13px] font-semibold text-[#C8242C]">{profileError}</div> : null}
           {profileNotice ? <div className="rounded-[6px] border border-[#D6F0DF] bg-[#E1F5EA] p-3 text-[13px] font-semibold text-[#0F8A4A]">{profileNotice}</div> : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="text-[13px] font-semibold text-[#031526]">Full name</span>
+              <span className="text-[13px] font-semibold text-[#031526]">Full Name</span>
               <input 
                 className={fieldClass} 
                 disabled={loading || savingProfile} 
@@ -149,7 +149,7 @@ export default function ProfilePage() {
               />
             </label>
             <label className="block">
-              <span className="text-[13px] font-semibold text-[#031526]">Email address</span>
+              <span className="text-[13px] font-semibold text-[#031526]">Email Address</span>
               <input 
                 type="email"
                 className={fieldClass} 
@@ -162,7 +162,7 @@ export default function ProfilePage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
-              <span className="text-[13px] font-semibold text-[#031526]">Phone number</span>
+              <span className="text-[13px] font-semibold text-[#031526]">Phone Number</span>
               <input 
                 className={fieldClass} 
                 disabled={loading || savingProfile} 
@@ -172,7 +172,7 @@ export default function ProfilePage() {
               />
             </label>
             <label className="block">
-              <span className="text-[13px] font-semibold text-[#031526]">Academic background</span>
+              <span className="text-[13px] font-semibold text-[#031526]">Academic Background</span>
               <input 
                 className={fieldClass} 
                 disabled={loading || savingProfile} 
@@ -184,19 +184,19 @@ export default function ProfilePage() {
 
           <button className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[6px] bg-[#2456E6] px-5 text-[14px] font-semibold text-white hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto" disabled={loading || savingProfile} type="submit">
             {savingProfile ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-            {savingProfile ? "Saving..." : "Save details"}
+            {savingProfile ? "Saving..." : "Save Details"}
           </button>
         </form>
 
         {/* Change Password Form */}
         <form className="space-y-5 rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6" onSubmit={savePassword}>
-          <h2 className="text-[17px] font-semibold text-[#031526]">Change password</h2>
+          <h2 className="text-[17px] font-semibold text-[#031526]">Change Password</h2>
           
           {passwordError ? <div className="rounded-[6px] border border-[#FCE3E5] bg-[#FCE3E5] p-3 text-[13px] font-semibold text-[#C8242C]">{passwordError}</div> : null}
           {passwordNotice ? <div className="rounded-[6px] border border-[#D6F0DF] bg-[#E1F5EA] p-3 text-[13px] font-semibold text-[#0F8A4A]">{passwordNotice}</div> : null}
 
           <label className="block">
-            <span className="text-[13px] font-semibold text-[#031526]">Current password</span>
+            <span className="text-[13px] font-semibold text-[#031526]">Current Password</span>
             <input 
               className={fieldClass} 
               disabled={loading || savingPassword} 
@@ -208,7 +208,7 @@ export default function ProfilePage() {
           </label>
           
           <label className="block">
-            <span className="text-[13px] font-semibold text-[#031526]">New password</span>
+            <span className="text-[13px] font-semibold text-[#031526]">New Password</span>
             <input 
               className={fieldClass} 
               disabled={loading || savingPassword} 
