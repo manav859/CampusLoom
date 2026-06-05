@@ -4,21 +4,18 @@ import { useState } from "react";
 
 type Segment = { label: string; value: number; color: string };
 
-export function FeeOverviewChart({ segments, title = "Fee Overview", eyebrow = "Finance" }: { segments?: Segment[]; title?: string; eyebrow?: string }) {
+export function FeeOverviewChart({ segments, title = "Fee Overview", eyebrow = "Finance", valuePrefix = "" }: { segments?: Segment[]; title?: string; eyebrow?: string; valuePrefix?: string }) {
   const data = segments ?? [];
   const [mode, setMode] = useState<"donut" | "bar">("donut");
   const [activeLabel, setActiveLabel] = useState<string | null>("Pending");
 
-  // Segments may overlap (e.g. Overdue is a subset of Pending), so the donut is
-  // built only from the non-overlapping base segments whose values sum to the whole.
-  const donutSegments = data.filter((s) => s.label !== "Overdue");
-  const total = donutSegments.reduce((s, d) => s + d.value, 0);
+  const total = data.reduce((s, d) => s + d.value, 0);
   const activeSegment = data.find(s => s.label === activeLabel) || data.find(s => s.label === "Unmarked") || data[0] || { label: "Total", value: total, color: "#1d1d1f" };
   const cx = 50, cy = 50, r = 40, sw = 12;
   const hasData = total > 0;
   const circumference = 2 * Math.PI * r;
   let offset = 0;
-  const arcs = donutSegments.map((seg) => {
+  const arcs = data.map((seg) => {
     const length = hasData ? (seg.value / total) * circumference : 0;
     const arc = { ...seg, length, dashOffset: -offset };
     offset += length;
@@ -72,7 +69,7 @@ export function FeeOverviewChart({ segments, title = "Fee Overview", eyebrow = "
             </div>
             <div className="flex min-w-0 flex-col">
               <span className="text-[11px] font-medium text-[#86868b]">{activeSegment.label}</span>
-              <span className="mt-0.5 text-[22px] font-bold leading-tight tracking-tight" style={{ color: activeSegment.color }}>{activeSegment.value.toLocaleString()}</span>
+              <span className="mt-0.5 text-[22px] font-bold leading-tight tracking-tight" style={{ color: activeSegment.color }}>{valuePrefix}{activeSegment.value.toLocaleString()}</span>
             </div>
           </div>
         ) : (

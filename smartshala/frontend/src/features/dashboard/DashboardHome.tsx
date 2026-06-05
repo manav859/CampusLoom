@@ -438,11 +438,9 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   /* ── Fee chart segments ── */
   const totalCollected = Number(fees?.totalCollected ?? 0);
   const totalPending = Number(fees?.totalPending ?? 0);
-  const totalOverdue = Math.min(Number(fees?.totalOverdue ?? 0), totalPending);
   const feeSegments = [
     { label: "Collected", value: totalCollected, color: "#34c759" },
-    { label: "Pending", value: totalPending, color: "#ff9500" },
-    { label: "Overdue", value: totalOverdue, color: "#ff3b30" },
+    { label: "Pending", value: totalPending, color: "#ff3b30" },
   ];
   const teacherWorkSegments = [
     { label: "Marked", value: markedClasses, color: "#34c759" },
@@ -576,6 +574,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
               eyebrow={mode === "ADMIN" ? "Finance" : "Teacher Workload"}
               segments={mode === "ADMIN" ? feeSegments : teacherWorkSegments}
               title={mode === "ADMIN" ? "Fee Overview" : "Today's Actions"}
+              valuePrefix={mode === "ADMIN" ? "₹" : ""}
             />
           </>
         )}
