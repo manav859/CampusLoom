@@ -13,8 +13,7 @@ type StickyHeaderProps = {
   feeBalance: number;
   totalAbsentThisMonth: number;
   performanceRate: number | null;
-  performanceClassification: PerformanceClassification;
-  isPerformanceFallback: boolean;
+  performanceClassification: PerformanceClassification | null;
   canViewAcademic: boolean;
   canViewAttendance: boolean;
   canViewFees: boolean;
@@ -30,7 +29,8 @@ function attendanceStatus(percentage: number): { label: string; tone: PillTone }
   return { label: "Attendance: Low", tone: "danger" };
 }
 
-function academicStatus(classification: PerformanceClassification): { label: string; tone: PillTone } {
+function academicStatus(classification: PerformanceClassification | null): { label: string; tone: PillTone } {
+  if (classification === null) return { label: "Academic: No data", tone: "neutral" };
   return { label: `Academic: ${classification}`, tone: performanceTone(classification) };
 }
 
@@ -197,7 +197,6 @@ export function StickyHeader({
   feeBalance,
   performanceRate,
   performanceClassification,
-  isPerformanceFallback,
   canViewAcademic,
   canViewAttendance,
   canViewFees
@@ -210,12 +209,12 @@ export function StickyHeader({
   /* KPI tones */
   const attendanceTone: KpiTone = attendancePercentage >= 85 ? "good" : attendancePercentage >= 75 ? "warn" : "danger";
   const feeTone: KpiTone = feeBalance <= 0 ? "good" : "warn";
-  const performanceKpiTone = performanceTone(performanceClassification) as KpiTone;
+  const performanceKpiTone: KpiTone = performanceClassification === null ? "neutral" : (performanceTone(performanceClassification) as KpiTone);
   const performanceValue = performanceRate === null ? "No data" : `${performanceRate}%`;
   const canContactParent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN" || student.access?.role === "TEACHER";
   const canEditStudent = student.access?.role === "PRINCIPAL" || student.access?.role === "ADMIN";
   const parentShareMessage = encodeURIComponent(
-    `SmartShala profile update for ${student.fullName}: attendance ${attendancePercentage}%, academic ${performanceClassification}, fee balance ${money(feeBalance)}.`
+    `SmartShala profile update for ${student.fullName}: attendance ${attendancePercentage}%, academic ${performanceClassification ?? "No data"}, fee balance ${money(feeBalance)}.`
   );
   const actionButtonClass =
     "inline-flex items-center justify-center gap-1.5 rounded-[6px] border border-[#DCE1E8] bg-white px-3.5 py-2 text-[12px] font-semibold text-[#1d1d1f] transition-all duration-200 hover:bg-[#F7F8FB]";

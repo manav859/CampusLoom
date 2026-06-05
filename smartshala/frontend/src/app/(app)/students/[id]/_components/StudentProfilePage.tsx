@@ -11,7 +11,6 @@ import { StudentProfileTabs } from "./StudentProfileTabs";
 import {
   absentThisMonth,
   attendanceSummary,
-  fallbackPerformanceClassification,
   performanceClassification,
   performanceRate
 } from "./studentProfileUtils";
@@ -136,9 +135,7 @@ export function StudentProfilePage() {
   const performance = student.performanceRate ?? performanceRate(student.examAverage, student.homeworkCompletion, attendancePercentage);
   const classification =
     student.performanceClassification ??
-    performanceClassification(performance) ??
-    fallbackPerformanceClassification(attendancePercentage, feeBalance);
-  const isPerformanceFallback = performance === null;
+    performanceClassification(performance);
   const attendanceWithSnapshot = {
     total: attendanceMetrics.totalDays || attendance.total,
     absent: attendanceMetrics.totalDays ? attendanceMetrics.absences : attendance.absent,
@@ -155,7 +152,6 @@ export function StudentProfilePage() {
         totalAbsentThisMonth={monthlyAbsences}
         performanceRate={performance}
         performanceClassification={classification}
-        isPerformanceFallback={isPerformanceFallback}
         canViewAcademic={canViewAcademic}
         canViewAttendance={canViewAttendance}
         canViewFees={canViewFees}

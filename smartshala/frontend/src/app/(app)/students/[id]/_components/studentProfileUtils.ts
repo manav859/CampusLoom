@@ -81,24 +81,11 @@ export function performanceClassification(rate: number | null): PerformanceClass
   return "At Risk";
 }
 
-export function fallbackPerformanceClassification(attendancePercentage: number, pendingFees: number): PerformanceClassification {
-  const risk = riskLabel(attendancePercentage, pendingFees);
-  if (risk === "High") return "At Risk";
-  if (risk === "Medium") return "Needs Attention";
-  return "Good";
-}
-
 export function performanceTone(classification: PerformanceClassification) {
   if (classification === "Excellent") return "good";
   if (classification === "Good") return "good";
   if (classification === "Needs Attention") return "warn";
   return "danger";
-}
-
-export function riskLabel(attendancePercentage: number, pendingFees: number) {
-  if ((attendancePercentage > 0 && attendancePercentage < 75) || pendingFees > 0) return "High";
-  if (attendancePercentage > 0 && attendancePercentage < 85) return "Medium";
-  return "Low";
 }
 
 export function riskTone(risk: string): NonNullable<Kpi["tone"]> {
