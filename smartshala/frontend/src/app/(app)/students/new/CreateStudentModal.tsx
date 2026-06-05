@@ -167,7 +167,7 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
   };
 
   return (
-    <SideModal eyebrow="Students" onClose={onClose} title="Register new student" width="lg">
+    <SideModal eyebrow="Students" onClose={onClose} title="Register New Student" width="lg">
       {errorMsg && (
         <div className="flex items-center gap-3 rounded-[6px] border border-[#FCE3E5] bg-[rgba(255,59,48,0.1)] p-4 text-[13px] font-medium text-[#d70015]">
           <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -280,13 +280,13 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
                     )}
                   </div>
                   <div>
-                  <label className="text-[13px] font-semibold text-[#1d1d1f]">Student photo</label>
+                  <label className="text-[13px] font-semibold text-[#1d1d1f]">Student Photo</label>
                   <p className="mt-1 text-[12px] font-medium text-[#5A6573]">JPG or PNG up to 5MB.</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <label className="inline-flex cursor-pointer items-center justify-center rounded-[6px] border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB]">
-                    {studentPhotoUrl ? "Change photo" : "Upload photo"}
+                    {studentPhotoUrl ? "Change Photo" : "Upload Photo"}
                     <input
                       accept="image/jpeg,image/png"
                       className="sr-only"
@@ -296,7 +296,7 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
                   </label>
                   {studentPhotoUrl ? (
                     <button className="rounded-[6px] border border-[#F1B8BD] bg-white px-4 py-2 text-[13px] font-semibold text-[#C8242C] hover:bg-[#FCE3E5]" onClick={() => setStudentPhotoUrl(null)} type="button">
-                      Remove photo
+                      Remove Photo
                     </button>
                   ) : null}
                 </div>
@@ -316,7 +316,7 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
                 value={formData.classId}
                 onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
               >
-                <option value="">Select class</option>
+                <option value="">Select Class</option>
                 {classes.map((cls) => (
                   <option key={cls.id} value={cls.id}>{cls.name} — Section {cls.section}</option>
                 ))}
@@ -329,7 +329,7 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
                 value={formData.feeStructureId}
                 onChange={(e) => setFormData({ ...formData, feeStructureId: e.target.value })}
               >
-                <option value="">Select fee structure</option>
+                <option value="">Select Fee Structure</option>
                 {feeStructures.map((fs) => (
                   <option key={fs.id} value={fs.id}>{fs.name} ({formatINR(fs.totalAmount, { compact: false })}) — {fs.academicYear}</option>
                 ))}
@@ -463,7 +463,7 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
             </div>
 
             <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4">
-              <h4 className="mb-3 text-[14px] font-semibold text-[#1d1d1f]">Other guardian</h4>
+              <h4 className="mb-3 text-[14px] font-semibold text-[#1d1d1f]">Other Guardian</h4>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Name</label>

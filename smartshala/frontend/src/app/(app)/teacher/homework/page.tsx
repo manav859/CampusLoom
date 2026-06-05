@@ -410,8 +410,8 @@ export default function TeacherHomeworkPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Teacher workspace</p>
-          <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Homework management</h1>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Teacher Workspace</p>
+          <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Homework Management</h1>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <StatusPill label={`${assignments.length} assignments`} tone={assignments.length ? "good" : "neutral"} />
@@ -421,7 +421,7 @@ export default function TeacherHomeworkPage() {
             onClick={() => setCreateModalOpen(true)}
             type="button"
           >
-            Assign homework
+            Assign Homework
           </button>
         </div>
       </div>
@@ -439,7 +439,7 @@ export default function TeacherHomeworkPage() {
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         size="lg"
-        title="Assign homework"
+        title="Assign Homework"
         description={selectedClass ? `Class ${selectedClass.name}-${selectedClass.section} | ${selectedClass.studentCount} students` : "Create and assign homework to a full class."}
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -547,7 +547,7 @@ export default function TeacherHomeworkPage() {
 
             <div className="grid gap-4 lg:grid-cols-3">
               <label className="block">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Estimated time</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Estimated Time</span>
                 <input
                   className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
                   min={1}
@@ -557,8 +557,8 @@ export default function TeacherHomeworkPage() {
                   value={estimatedTime}
                 />
               </label>
-              {renderDatePicker("Assigned date", assignedDate, setAssignedDate)}
-              {renderDatePicker("Due date", dueDate, setDueDate, assignedDate)}
+              {renderDatePicker("Assigned Date", assignedDate, setAssignedDate)}
+              {renderDatePicker("Due Date", dueDate, setDueDate, assignedDate)}
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
@@ -576,7 +576,7 @@ export default function TeacherHomeworkPage() {
               </label>
 
               <label className="block">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Rubric / answer key attachment</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Rubric / Answer Key Attachment</span>
                 <input
                   accept=".pdf,.jpg,.jpeg,.png"
                   className="mt-1.5 min-h-[46px] w-full rounded-xl border border-dashed border-[#C9D3DE] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
@@ -594,7 +594,7 @@ export default function TeacherHomeworkPage() {
               type="submit"
             >
               {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-              {saving ? "Assigning..." : "Assign to class"}
+              {saving ? "Assigning..." : "Assign to Class"}
             </button>
           </div>
         </form>
@@ -604,7 +604,7 @@ export default function TeacherHomeworkPage() {
         <div className="w-full overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
           <div className="flex flex-col gap-4 border-b border-[#C9D3DE] px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <h2 className="text-[20px] font-semibold text-[#031526]">Assignment list</h2>
+              <h2 className="text-[20px] font-semibold text-[#031526]">Assignment List</h2>
               <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Submission tracking updates from homework submission rows.</p>
             </div>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -824,7 +824,7 @@ export default function TeacherHomeworkPage() {
             <section className="min-h-[100dvh] w-[100vw] overflow-hidden rounded-none border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
               <div className="flex flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 pr-14 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Submission tracking</h2>
+                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Submission Tracking</h2>
                   <p className="mt-0.5 text-[13px] text-[#86868b]">
                     {selectedAssignment.title} | Due {formatDateShort(selectedAssignment.dueDate)}
                   </p>

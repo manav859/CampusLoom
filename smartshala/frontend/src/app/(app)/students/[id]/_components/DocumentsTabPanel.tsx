@@ -61,6 +61,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
   const [status, setStatus] = useState<{ tone: "good" | "warn" | "danger"; message: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const counts = useMemo(
     () =>
@@ -134,6 +135,21 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
     }
   }
 
+  async function handleDelete(document: StudentDocument) {
+    if (!window.confirm(`Delete "${document.name}"? This permanently removes the file.`)) return;
+    setDeletingId(document.id);
+    setStatus(null);
+    try {
+      await studentsApi.deleteDocument(student.id, document.id);
+      setDocuments((current) => current.filter((item) => item.id !== document.id));
+      setStatus({ tone: "good", message: "Document deleted." });
+    } catch (error) {
+      setStatus({ tone: "danger", message: error instanceof Error ? error.message : "Delete failed." });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <section className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -148,7 +164,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
 
       <section className="grid gap-4 lg:grid-cols-[360px_1fr]">
         <form className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5" onSubmit={handleUpload}>
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Upload document</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Upload Document</h2>
           <div className="mt-5 space-y-4">
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Type</span>
@@ -226,7 +242,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
 
         <div className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
           <div className="border-b border-[#E7EBF0] px-5 py-4">
-            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Document audit trail</h2>
+            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Document Audit Trail</h2>
             <p className="mt-0.5 text-[13px] text-[#86868b]">Files are listed latest first with uploader and date metadata.</p>
           </div>
           <div className="space-y-3 p-4 md:hidden">
@@ -243,12 +259,17 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
                     <StatusPill label={typeLabel(document.type)} tone={typeTone(document.type)} />
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-3 text-[12px]">
-                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Uploaded by</p><p className="mt-1 truncate font-bold text-[#0F1419]">{document.uploadedBy.fullName}</p></div>
+                    <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Uploaded By</p><p className="mt-1 truncate font-bold text-[#0F1419]">{document.uploadedBy.fullName}</p></div>
                     <div className="rounded-[6px] bg-[#F7F8FB] p-3"><p className="font-semibold text-[#7A8390]">Size</p><p className="mt-1 font-bold text-[#0F1419]">{formatBytes(document.sizeBytes)}</p></div>
                   </div>
-                  <button className="mt-3 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-2 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB]" disabled={downloadingId === document.id} onClick={() => handleDownload(document)} type="button">
-                    {downloadingId === document.id ? "Opening..." : "Download"}
-                  </button>
+                  <div className="mt-3 flex gap-2">
+                    <button className="flex-1 rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-2 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-50" disabled={downloadingId === document.id} onClick={() => handleDownload(document)} type="button">
+                      {downloadingId === document.id ? "Opening..." : "Download"}
+                    </button>
+                    <button className="flex-1 rounded-[6px] border border-[#E2B4B4] bg-white px-3 py-2 text-[12px] font-semibold text-[#C0322B] hover:bg-[#FBF1F1] disabled:cursor-not-allowed disabled:opacity-50" disabled={deletingId === document.id} onClick={() => handleDelete(document)} type="button">
+                      {deletingId === document.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
                 </article>
               ))
             )}
@@ -257,7 +278,7 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
             <table className="w-full min-w-[820px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
               <thead>
                 <tr className="table-head-row">
-                  {["Name", "Type", "Uploaded by", "Date", "Size", "Action"].map((head) => (
+                  {["Name", "Type", "Uploaded By", "Date", "Size", "Action"].map((head) => (
                     <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                   ))}
                 </tr>
@@ -279,14 +300,24 @@ export default function DocumentsTabPanel({ student }: DocumentsTabPanelProps) {
                       <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{formatDateTimeShort(document.uploadedAt)}</td>
                       <td className="border-b border-[#C9D3DE] px-4 py-4 text-center text-[#424B57]">{formatBytes(document.sizeBytes)}</td>
                       <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
-                        <button
-                          className="rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition hover:bg-[rgba(0,0,0,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
-                          disabled={downloadingId === document.id}
-                          onClick={() => handleDownload(document)}
-                          type="button"
-                        >
-                          {downloadingId === document.id ? "Opening..." : "Download"}
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            className="rounded-lg border border-[rgba(0,0,0,0.08)] px-3 py-1.5 text-[12px] font-semibold text-[#1d1d1f] transition hover:bg-[rgba(0,0,0,0.04)] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={downloadingId === document.id}
+                            onClick={() => handleDownload(document)}
+                            type="button"
+                          >
+                            {downloadingId === document.id ? "Opening..." : "Download"}
+                          </button>
+                          <button
+                            className="rounded-lg border border-[#E2B4B4] px-3 py-1.5 text-[12px] font-semibold text-[#C0322B] transition hover:bg-[#FBF1F1] disabled:cursor-not-allowed disabled:opacity-50"
+                            disabled={deletingId === document.id}
+                            onClick={() => handleDelete(document)}
+                            type="button"
+                          >
+                            {deletingId === document.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

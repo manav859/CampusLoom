@@ -55,7 +55,7 @@ export default function TeacherClassesPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow="Teacher workspace" title="My classes" />
+      <PageHeader eyebrow="Teacher Workspace" title="My Classes" />
 
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 p-4 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
 
@@ -86,15 +86,15 @@ export default function TeacherClassesPage() {
                     <span className="h-1.5 w-1.5 rounded-full bg-[#526071]" />
                     {classRecord._count?.students ?? 0} students
                   </span>
-                  {isMyClass ? <StatusPill label="My class" tone="good" /> : null}
+                  {isMyClass ? <StatusPill label="My Class" tone="good" /> : null}
                 </div>
               </div>
 
               <div className="mt-6">
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8C96A3]">Assigned subjects</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#8C96A3]">Assigned Subjects</p>
                 <div className="mt-3 flex min-h-7 flex-wrap items-center gap-x-5 gap-y-2">
                   {(classRecord.subjects ?? []).length === 0 ? (
-                    <span className="rounded-[6px] bg-[#ff9500]/10 px-2.5 py-1 text-[12px] font-semibold text-[#c93400]">Subjects pending</span>
+                    <span className="rounded-[6px] bg-[#ff9500]/10 px-2.5 py-1 text-[12px] font-semibold text-[#c93400]">Subjects Pending</span>
                   ) : (
                     classRecord.subjects?.map((subject) => (
                       <span className="text-[12px] font-semibold text-[#2A3340]" key={subject.id}>
@@ -106,21 +106,21 @@ export default function TeacherClassesPage() {
               </div>
 
               <div className="mt-5 flex min-h-12 items-center justify-between rounded-[10px] bg-[#F0F2F6] px-4 text-[13px]">
-                <span className="font-medium text-[#6e6e73]">Academic year</span>
+                <span className="font-medium text-[#6e6e73]">Academic Year</span>
                 <span className="font-semibold text-[#1d1d1f]">{classRecord.academicYear}</span>
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 {isMyClass ? (
                   <Link className="rounded-[7px] border border-[#2456E6] bg-[#2456E6] px-3 py-2.5 text-center text-[12px] font-semibold text-white hover:bg-[#1B45BD] sm:col-span-2" href={`/attendance?classId=${classRecord.id}`}>
-                    Mark attendance
+                    Mark Attendance
                   </Link>
                 ) : null}
                 <Link className="rounded-[7px] border border-[#C2C9D4] bg-white px-3 py-2.5 text-center text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`/teacher/homework?classId=${classRecord.id}`}>
-                  Assign homework
+                  Assign Homework
                 </Link>
                 <Link className="rounded-[7px] border border-[#C2C9D4] bg-white px-3 py-2.5 text-center text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href={`/classes/${classRecord.id}`}>
-                  View roster
+                  View Roster
                 </Link>
               </div>
             </article>

@@ -92,19 +92,19 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="kpi-metric-card kpi-metric-card-good p-4">
-          <p className="kpi-metric-label">WhatsApp logs</p>
+          <p className="kpi-metric-label">WhatsApp Logs</p>
           <p className="kpi-metric-value">{whatsappCount}</p>
           {whatsappCount === 0 ? <a className="mt-2 inline-flex text-[12px] font-semibold text-[#2456E6]" href="/teacher/communication">Send WhatsApp</a> : null}
         </div>
         <div className="kpi-metric-card p-4">
-          <p className="kpi-metric-label">Manual notes</p>
+          <p className="kpi-metric-label">Manual Notes</p>
           <p className="kpi-metric-value">{noteCount}</p>
-          {noteCount === 0 ? <a className="mt-2 inline-flex text-[12px] font-semibold text-[#2456E6]" href="/teacher/communication">Add manual note</a> : null}
+          {noteCount === 0 ? <a className="mt-2 inline-flex text-[12px] font-semibold text-[#2456E6]" href="/teacher/communication">Add Manual Note</a> : null}
         </div>
         <div className="kpi-metric-card p-4">
-          <p className="kpi-metric-label">Call logs</p>
+          <p className="kpi-metric-label">Call Logs</p>
           <p className="kpi-metric-value">{callCount}</p>
-          {callCount === 0 ? <a className="mt-2 inline-flex text-[12px] font-semibold text-[#2456E6]" href="/teacher/communication">Log a call</a> : null}
+          {callCount === 0 ? <a className="mt-2 inline-flex text-[12px] font-semibold text-[#2456E6]" href="/teacher/communication">Log a Call</a> : null}
         </div>
       </div>
 
@@ -112,7 +112,7 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
         <div className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
           <div className="flex flex-col gap-4 border-b border-[#E7EBF0] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Communication audit trail</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Communication Audit Trail</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">Latest parent communication appears first.</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -186,7 +186,7 @@ export default function CommunicationTabPanel({ student }: CommunicationTabPanel
                       <td className="border-b border-[#C9D3DE] px-4 py-4 text-center">
                         <div className="flex flex-wrap gap-2">
                           <button className="rounded-lg bg-[#F7F8FB] px-3 py-1.5 text-[11px] font-bold text-[#2456E6] hover:bg-[#E2F0FB]" onClick={() => setSelectedLog(log)} type="button">
-                            View full
+                            View Full
                           </button>
                           {log.type === "WHATSAPP" && log.status === "FAILED" ? (
                             <button

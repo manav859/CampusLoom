@@ -72,7 +72,7 @@ export default function NewFeeStructurePage() {
   };
 
   return (
-    <SideModal eyebrow="Fees" onClose={() => router.back()} title="Create fee structure">
+    <SideModal eyebrow="Fees" onClose={() => router.back()} title="Create Fee Structure">
       {errorMsg && (
         <div className="p-4 rounded-xl bg-[rgba(255,59,48,0.1)] border border-[rgba(255,59,48,0.2)] text-[#d70015] text-[13px] font-medium flex items-center gap-3">
           <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -128,7 +128,7 @@ export default function NewFeeStructurePage() {
           <FormSection title="Fee Details">
             <div className="grid gap-5 sm:grid-cols-3">
           <div className="space-y-1.5">
-            <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Total amount (INR)</label>
+            <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Total Amount (INR)</label>
             <input
               required
               type="number"

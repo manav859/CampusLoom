@@ -316,7 +316,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
 
   const adminKpis = [
     {
-      label: mode === "ADMIN" ? "Students" : "Assigned students",
+      label: mode === "ADMIN" ? "Students" : "Assigned Students",
       value: kpis.totalStudents ?? kpis.assignedStudents ?? 0,
       formula: mode === "ADMIN" ? "Active students in the school." : "Active students in classes assigned to you.",
       href: "/students",
@@ -324,7 +324,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     },
     mode === "ADMIN"
       ? {
-          label: "Marked today",
+          label: "Marked Today",
           value: `${markedTodayPercentage}%`,
           helper: `${markedClasses} of ${totalClasses} classes marked`,
           formula: "Classes marked today / total active classes.",
@@ -332,7 +332,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           tone: pendingClasses > 0 ? "amber" as const : "green" as const
         }
       : {
-          label: "Pending attendance",
+          label: "Pending Attendance",
           value: pendingClasses,
           helper: "Your classes today",
           formula: "Assigned classes without today's attendance submitted.",
@@ -349,7 +349,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           tone: "red" as const
         }
       : {
-          label: "Pending homework",
+          label: "Pending Homework",
           value: teacherPendingHomework,
           helper: "Your students",
           formula: "Not submitted homework across classes assigned to you.",
@@ -365,7 +365,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           tone: "amber" as const
         }
       : {
-          label: "Assigned classes",
+          label: "Assigned Classes",
           value: totalClasses,
           formula: "Total classes assigned to you.",
           href: "/teacher/classes",
@@ -404,7 +404,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
 
   const actionAlerts = data ? [
     ...defaulters.slice(0, 2).map((item) => ({
-      actionLabel: sendingReminderId === item.studentId ? "Sending..." : "Send reminder",
+      actionLabel: sendingReminderId === item.studentId ? "Sending..." : "Send Reminder",
       disabled: sendingReminderId === item.studentId,
       label: `${item.name} has ${formatINR(item.balance, { compact: false })} pending`,
       detail: `${item.class} - ${item.daysOverdue} days overdue`,
@@ -459,7 +459,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         <div className="border-b border-[#E7EBF0] px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-[18px] font-semibold text-[#0F1419]">Record payment</h2>
+              <h2 className="text-[18px] font-semibold text-[#0F1419]">Record Payment</h2>
               <p className="mt-1 text-[13px] text-[#5A6573]">Search student, then open fee ledger.</p>
             </div>
             <button className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setPaymentModalOpen(false)} type="button" aria-label="Close">
@@ -534,10 +534,10 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
 
       {mode === "ADMIN" ? (
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#2456E6] px-4 py-2 text-center text-[13px] font-semibold text-white hover:bg-[#1B45BD]" href="/attendance">Mark today&apos;s attendance</Link>
-          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/defaulters">Send fee reminder</Link>
-          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/students/new">Add student</Link>
-          <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => setPaymentModalOpen(true)} type="button">Record payment</button>
+          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#2456E6] px-4 py-2 text-center text-[13px] font-semibold text-white hover:bg-[#1B45BD]" href="/attendance">Mark Today&apos;s Attendance</Link>
+          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/fees/defaulters">Send Fee Reminder</Link>
+          <Link className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" href="/students/new">Add Student</Link>
+          <button className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-center text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => setPaymentModalOpen(true)} type="button">Record Payment</button>
         </div>
       ) : null}
 
@@ -570,13 +570,13 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
                 total: a.totalStudents,
                 value: a.attendancePercentage
               }))}
-              title={mode === "ADMIN" ? "Attendance in marked classes" : "Your class attendance"}
+              title={mode === "ADMIN" ? "Attendance in Marked Classes" : "Your Class Attendance"}
               classes={(data?.attendance ?? []).map((a) => a.className)}
             />
             <FeeOverviewChart
-              eyebrow={mode === "ADMIN" ? "Finance" : "Teacher workload"}
+              eyebrow={mode === "ADMIN" ? "Finance" : "Teacher Workload"}
               segments={mode === "ADMIN" ? feeSegments : teacherWorkSegments}
-              title={mode === "ADMIN" ? "Fee overview" : "Today's actions"}
+              title={mode === "ADMIN" ? "Fee Overview" : "Today's Actions"}
             />
           </>
         )}

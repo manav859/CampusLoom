@@ -15,11 +15,11 @@ type PaymentModalProps = {
 };
 
 const referenceFields: Partial<Record<PaymentMode, { name: keyof PaymentReferencePayload; label: string; placeholder: string }>> = {
-  UPI: { name: "upiTransactionId", label: "UPI transaction ID", placeholder: "e.g. 4132XXXX7890" },
-  CHEQUE: { name: "chequeNumber", label: "Cheque number", placeholder: "e.g. 006421" },
-  DD: { name: "ddNumber", label: "DD number", placeholder: "e.g. 841529" },
-  BANK_TRANSFER: { name: "bankReference", label: "Bank reference", placeholder: "e.g. NEFT/UTR reference" },
-  ONLINE_GATEWAY: { name: "gatewayTransactionId", label: "Gateway transaction ID", placeholder: "e.g. pay_XXXXXX" }
+  UPI: { name: "upiTransactionId", label: "UPI Transaction ID", placeholder: "e.g. 4132XXXX7890" },
+  CHEQUE: { name: "chequeNumber", label: "Cheque Number", placeholder: "e.g. 006421" },
+  DD: { name: "ddNumber", label: "DD Number", placeholder: "e.g. 841529" },
+  BANK_TRANSFER: { name: "bankReference", label: "Bank Reference", placeholder: "e.g. NEFT/UTR reference" },
+  ONLINE_GATEWAY: { name: "gatewayTransactionId", label: "Gateway Transaction ID", placeholder: "e.g. pay_XXXXXX" }
 };
 
 function todayInputValue() {
@@ -171,7 +171,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                   </svg>
                 </div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#34c759]">Payment recorded</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#34c759]">Payment Recorded</p>
                 <h2 className="mt-1 text-[22px] font-semibold tracking-tight text-[#1d1d1f]">{studentName}</h2>
               </div>
               <button className="flex h-8 w-8 items-center justify-center rounded-full bg-[#e8e8ed] hover:bg-[#d2d2d7] transition-colors" onClick={onClose} type="button">
@@ -193,7 +193,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
               </div>
               <div className="flex justify-between text-[13px]">
                 <span className="text-[#86868b]">Payment Type</span>
-                <span className="font-semibold text-[#1d1d1f]">{success.payment.feeComponent === "TRANSPORTATION_FEE" ? "Transportation fee" : "School fee"}</span>
+                <span className="font-semibold text-[#1d1d1f]">{success.payment.feeComponent === "TRANSPORTATION_FEE" ? "Transportation Fee" : "School Fee"}</span>
               </div>
               <div className="flex justify-between text-[13px]">
                 <span className="text-[#86868b]">Payment Mode</span>
@@ -271,7 +271,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
           <>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Record payment</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Record Payment</p>
                 <h2 className="mt-1.5 text-[22px] font-semibold tracking-tight text-[#1d1d1f]">{studentName}</h2>
                 <p className="mt-0.5 text-[13px] text-[#86868b]">Balance: {formatINR(maxAmount, { compact: false })}</p>
               </div>
@@ -297,7 +297,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                 />
               </label>
               <label className="block">
-                <span className="text-[13px] font-semibold text-[#1d1d1f]">Fee type</span>
+                <span className="text-[13px] font-semibold text-[#1d1d1f]">Fee Type</span>
                 <select
                   className="glass-input mt-2 min-h-[48px]"
                   onChange={(event) => setFeeComponent(event.target.value as FeeComponent)}
@@ -308,7 +308,7 @@ export function PaymentModal({ open, studentId, studentName, maxAmount, onClose,
                 </select>
               </label>
               <label className="block">
-                <span className="text-[13px] font-semibold text-[#1d1d1f]">Payment date</span>
+                <span className="text-[13px] font-semibold text-[#1d1d1f]">Payment Date</span>
                 <input
                   className="glass-input mt-2 min-h-[48px]"
                   onChange={(event) => setPaidAt(event.target.value)}

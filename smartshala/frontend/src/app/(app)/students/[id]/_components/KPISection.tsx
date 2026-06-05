@@ -21,13 +21,13 @@ export function KPISection({ student, attendance, pendingFees, performanceClassi
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <KpiCard label="Class" value={classLabel(student)} />
       <KpiCard
-        label="Recent attendance"
+        label="Recent Attendance"
         value={attendance.total ? `${attendance.percentage}%` : "No records"}
         tone={attendance.percentage >= 75 || attendance.total === 0 ? "good" : "danger"}
       />
-      <KpiCard label="Pending fees" value={money(pendingFees)} tone={pendingFees > 0 ? "warn" : "good"} />
+      <KpiCard label="Pending Fees" value={money(pendingFees)} tone={pendingFees > 0 ? "warn" : "good"} />
       <KpiCard
-        label={isPerformanceFallback ? "Performance fallback" : "Performance"}
+        label={isPerformanceFallback ? "Performance Fallback" : "Performance"}
         value={performanceClassification}
         tone={performanceTone(performanceClassification)}
       />

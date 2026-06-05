@@ -269,7 +269,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
         <form className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5" id="behaviour-form" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Add behaviour record</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Add Behaviour Record</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">Teacher entries appear in the principal behaviour view.</p>
             </div>
             {formMessage ? <span className="text-[12px] font-semibold text-[#248a3d]">{formMessage}</span> : null}
@@ -320,7 +320,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
           <div className="mt-4 flex justify-end">
             <button className="btn-primary min-h-[44px] gap-2 px-5 text-[14px]" disabled={saving} type="submit">
               {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-              {saving ? "Saving..." : "Save behaviour record"}
+              {saving ? "Saving..." : "Save Behaviour Record"}
             </button>
           </div>
         </form>
@@ -332,15 +332,15 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
           <p className="kpi-metric-value">{behaviour.counts.incidents}</p>
         </div>
         <div className="kpi-metric-card kpi-metric-card-good p-4">
-          <p className="kpi-metric-label">Positive achievements</p>
+          <p className="kpi-metric-label">Positive Achievements</p>
           <p className="kpi-metric-value">{behaviour.counts.achievements}</p>
         </div>
         <div className="kpi-metric-card kpi-metric-card-purple p-4">
-          <p className="kpi-metric-label">Counsellor notes</p>
+          <p className="kpi-metric-label">Counsellor Notes</p>
           <p className="kpi-metric-value">{behaviour.counts.counsellorNotes}</p>
         </div>
         <div className="kpi-metric-card p-4">
-          <p className="kpi-metric-label">Total records</p>
+          <p className="kpi-metric-label">Total Records</p>
           <p className="kpi-metric-value">{behaviour.counts.total}</p>
         </div>
       </div>
@@ -369,7 +369,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
         <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Recent incidents</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Recent Incidents</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">Action-focused behaviour signals.</p>
             </div>
             <StatusPill label={`${behaviour.counts.incidents} total`} tone={behaviour.counts.incidents > 0 ? "warn" : "good"} />
@@ -387,15 +387,15 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                   <p className="mt-1 text-[12px] font-medium text-[#86868b]">{formatDateShort(record.occurredAt)}</p>
                   <p className="mt-2 text-[13px] leading-5 text-[#6e6e73]">{record.summary}</p>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    {record.actionTaken ? <p className="text-[12px] font-semibold text-[#1d1d1f]">Action: {record.actionTaken}</p> : <p className="text-[12px] font-semibold text-[#c93400]">Action pending</p>}
+                    {record.actionTaken ? <p className="text-[12px] font-semibold text-[#1d1d1f]">Action: {record.actionTaken}</p> : <p className="text-[12px] font-semibold text-[#c93400]">Action Pending</p>}
                     {canTakeAction ? (
                       <button className="btn-secondary min-h-[34px] px-3 text-[12px]" onClick={() => openActionModal(record)} type="button">
-                        {record.actionTaken ? "Update action" : "Take action"}
+                        {record.actionTaken ? "Update Action" : "Take Action"}
                       </button>
                     ) : null}
                     {!record.isRestricted ? (
                       <button className="btn-secondary min-h-[34px] px-3 text-[12px]" disabled={notifyingId === record.id} onClick={() => notifyParent(record)} type="button">
-                        {notifyingId === record.id ? "Notifying..." : "Notify parent"}
+                        {notifyingId === record.id ? "Notifying..." : "Notify Parent"}
                       </button>
                     ) : null}
                   </div>
@@ -408,7 +408,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
         <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Positive achievements</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Positive Achievements</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">Strengths and growth moments.</p>
             </div>
             <StatusPill label={`${behaviour.counts.achievements} total`} tone="good" />
@@ -427,7 +427,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                   <p className="mt-2 text-[13px] leading-5 text-[#6e6e73]">{record.summary}</p>
                   {!record.isRestricted ? (
                     <button className="btn-secondary mt-3 min-h-[34px] px-3 text-[12px]" disabled={notifyingId === record.id} onClick={() => notifyParent(record)} type="button">
-                      {notifyingId === record.id ? "Notifying..." : "Notify parent"}
+                      {notifyingId === record.id ? "Notifying..." : "Notify Parent"}
                     </button>
                   ) : null}
                 </div>
@@ -439,7 +439,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
 
       <div className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="border-b border-[#E7EBF0] px-5 py-4">
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Behaviour record</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Behaviour Record</h2>
           <p className="mt-0.5 text-[13px] text-[#86868b]">Latest entries first, with restricted notes protected by role.</p>
         </div>
         <div className="space-y-3 p-4 md:hidden">
@@ -460,12 +460,12 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               <div className="mt-3 flex flex-wrap gap-2">
                 {canTakeAction && record.type === "INCIDENT" ? (
                   <button className="btn-secondary min-h-[34px] px-3 text-[12px]" onClick={() => openActionModal(record)} type="button">
-                    {record.actionTaken ? "Update action" : "Take action"}
+                    {record.actionTaken ? "Update Action" : "Take Action"}
                   </button>
                 ) : null}
                 {!record.isRestricted ? (
                   <button className="btn-secondary min-h-[34px] px-3 text-[12px]" disabled={notifyingId === record.id} onClick={() => notifyParent(record)} type="button">
-                    {notifyingId === record.id ? "Notifying..." : "Notify parent"}
+                    {notifyingId === record.id ? "Notifying..." : "Notify Parent"}
                   </button>
                 ) : null}
               </div>
@@ -501,12 +501,12 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
                         <span>{record.actionTaken ?? "Not recorded"}</span>
                         {canTakeAction && record.type === "INCIDENT" ? (
                           <button className="btn-secondary min-h-[34px] px-3 text-[12px]" onClick={() => openActionModal(record)} type="button">
-                            {record.actionTaken ? "Update action" : "Take action"}
+                            {record.actionTaken ? "Update Action" : "Take Action"}
                           </button>
                         ) : null}
                         {!record.isRestricted ? (
                           <button className="btn-secondary min-h-[34px] px-3 text-[12px]" disabled={notifyingId === record.id} onClick={() => notifyParent(record)} type="button">
-                            {notifyingId === record.id ? "Notifying..." : "Notify parent"}
+                            {notifyingId === record.id ? "Notifying..." : "Notify Parent"}
                           </button>
                         ) : null}
                       </div>
@@ -526,7 +526,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
           <form className="w-full max-w-2xl rounded-[6px] bg-white p-6 shadow-2xl" onSubmit={handleActionSubmit}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Behaviour action</p>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Behaviour Action</p>
                 <h2 className="mt-1 text-[20px] font-semibold text-[#1d1d1f]">{selectedIncident.title}</h2>
                 <p className="mt-1 text-[13px] font-medium text-[#86868b]">{formatDateShort(selectedIncident.occurredAt)}</p>
               </div>
@@ -535,23 +535,23 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
 
             <div className="mt-5 grid gap-3 rounded-[6px] border border-[#DCE1E8] bg-[#F7F8FB] p-4 text-[13px] text-[#6e6e73]">
               <div>
-                <p className="font-semibold text-[#1d1d1f]">Incident details</p>
+                <p className="font-semibold text-[#1d1d1f]">Incident Details</p>
                 <p className="mt-1 leading-6">{selectedIncident.summary}</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <p className="font-semibold text-[#1d1d1f]">Logged by</p>
+                  <p className="font-semibold text-[#1d1d1f]">Logged By</p>
                   <p className="mt-1">{selectedIncident.createdBy?.fullName ?? "System"}</p>
                 </div>
                 <div>
-                  <p className="font-semibold text-[#1d1d1f]">Current action</p>
+                  <p className="font-semibold text-[#1d1d1f]">Current Action</p>
                   <p className="mt-1">{selectedIncident.actionTaken ?? "Not recorded"}</p>
                 </div>
               </div>
             </div>
 
             <label className="mt-4 block space-y-1.5">
-              <span className="text-[12px] font-semibold text-[#6e6e73]">Action being taken</span>
+              <span className="text-[12px] font-semibold text-[#6e6e73]">Action Being Taken</span>
               <textarea
                 autoFocus
                 className="min-h-[120px] w-full resize-none rounded-[6px] border border-[#C9D3DE] px-3 py-2 text-[14px] leading-6 outline-none focus:border-[#2456E6]"
@@ -570,7 +570,7 @@ export default function BehaviourTabPanel({ student }: BehaviourTabPanelProps) {
               </button>
               <button className="btn-primary min-h-[44px] gap-2 px-5 text-[14px]" disabled={actionSaving} type="submit">
                 {actionSaving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-                {actionSaving ? "Saving..." : "Save action"}
+                {actionSaving ? "Saving..." : "Save Action"}
               </button>
             </div>
           </form>

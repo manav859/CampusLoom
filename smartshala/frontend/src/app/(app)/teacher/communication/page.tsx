@@ -222,8 +222,8 @@ export default function TeacherCommunicationPage() {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Teacher workspace</p>
-          <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Parent communication</h1>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Teacher Workspace</p>
+          <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Parent Communication</h1>
         </div>
         <StatusPill label={`${logs.length} logs`} tone={logs.length ? "good" : "neutral"} />
       </div>
@@ -233,7 +233,7 @@ export default function TeacherCommunicationPage() {
 
       <section className="grid gap-4 xl:grid-cols-[410px_1fr]">
         <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple" onSubmit={handleSubmit}>
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Send message</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Send Message</h2>
           <div className="mt-5 space-y-4">
             <label className="block">
               <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Class</span>
@@ -253,11 +253,11 @@ export default function TeacherCommunicationPage() {
             </label>
 
             <div>
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Send to</span>
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Send To</span>
               <div className="mt-1.5 grid grid-cols-2 gap-2 rounded-xl bg-[#f5f5f7] p-1">
                 {[
-                  { value: "STUDENT", label: "Individual student" },
-                  { value: "CLASS", label: "Entire class" }
+                  { value: "STUDENT", label: "Individual Student" },
+                  { value: "CLASS", label: "Entire Class" }
                 ].map((option) => (
                   <button
                     className={`rounded-lg px-3 py-2 text-[13px] font-semibold transition ${targetType === option.value ? "bg-white text-[#1d1d1f] shadow-apple-sm" : "text-[#6e6e73] hover:text-[#1d1d1f]"}`}
@@ -291,7 +291,7 @@ export default function TeacherCommunicationPage() {
             ) : null}
 
             <label className="block">
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Message type</span>
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Message Type</span>
               <select
                 className="mt-1.5 w-full rounded-xl border border-[rgba(0,0,0,0.08)] bg-white px-3 py-2.5 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#0071e3]"
                 disabled={sending}
@@ -301,7 +301,7 @@ export default function TeacherCommunicationPage() {
                 {communicationTemplates.map((template) => (
                   <option key={template.type} value={template.type}>{template.label}</option>
                 ))}
-                <option value="CUSTOM">Custom message</option>
+                <option value="CUSTOM">Custom Message</option>
               </select>
             </label>
 
@@ -328,7 +328,7 @@ export default function TeacherCommunicationPage() {
             ) : null}
 
             <div>
-              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Teacher quick templates</span>
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Teacher Quick Templates</span>
               <div className="mt-1.5 flex flex-wrap gap-2">
                 {teacherQuickTemplates.map((template) => (
                   <button
@@ -345,7 +345,7 @@ export default function TeacherCommunicationPage() {
                   onClick={() => setLibraryOpen((open) => !open)}
                   type="button"
                 >
-                  Template library
+                  Template Library
                 </button>
               </div>
               {libraryOpen ? (
@@ -381,7 +381,7 @@ export default function TeacherCommunicationPage() {
 
             {selectedTemplate ? (
               <div className="rounded-xl border border-[rgba(0,0,0,0.06)] bg-white px-4 py-3 text-[12px] text-[#6e6e73]">
-                <p className="font-semibold text-[#1d1d1f]">Template preview</p>
+                <p className="font-semibold text-[#1d1d1f]">Template Preview</p>
                 <p className="mt-2 leading-5">{renderCommunicationTemplate(selectedTemplate.variants.en, templateVariables)}</p>
                 <p className="mt-2 leading-6">{renderCommunicationTemplate(selectedTemplate.variants.hi, templateVariables)}</p>
               </div>
@@ -397,7 +397,7 @@ export default function TeacherCommunicationPage() {
               disabled={sending || loading || recipientCount === 0 || !message.trim()}
               type="submit"
             >
-              {sending ? "Queueing..." : "Send to parent"}
+              {sending ? "Queueing..." : "Send to Parent"}
             </button>
           </div>
         </form>
@@ -405,19 +405,19 @@ export default function TeacherCommunicationPage() {
         <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
           <div className="flex flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Communication log</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Communication Log</h2>
               <p className="mt-0.5 text-[13px] text-[#86868b]">Latest parent messages appear first and feed the student profile log.</p>
             </div>
             {selectedClass ? <StatusPill label={`Class ${selectedClass.name}-${selectedClass.section}`} tone="neutral" /> : null}
           </div>
           <div className="flex flex-wrap gap-2 border-b border-[rgba(0,0,0,0.06)] px-5 py-3">
             <select className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340]" onChange={(event) => { setLogTypeFilter(event.target.value as CommunicationMessageType | "ALL"); setLogPage(1); }} value={logTypeFilter}>
-              <option value="ALL">All types</option>
+              <option value="ALL">All Types</option>
               {communicationTemplates.map((template) => <option key={template.type} value={template.type}>{template.label}</option>)}
-              <option value="CUSTOM">Custom message</option>
+              <option value="CUSTOM">Custom Message</option>
             </select>
             <select className="rounded-lg border border-[#DCE1E8] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340]" onChange={(event) => { setLogStatusFilter(event.target.value as TeacherCommunicationLog["status"] | "ALL"); setLogPage(1); }} value={logStatusFilter}>
-              <option value="ALL">All statuses</option>
+              <option value="ALL">All Statuses</option>
               {["QUEUED", "SENT", "FAILED", "COMPLETED", "MISSED", "NOTE"].map((status) => <option key={status} value={status}>{status}</option>)}
             </select>
           </div>

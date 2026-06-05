@@ -151,7 +151,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
           {/* Total days — present/total format */}
           <div className="min-w-0 rounded-[8px] border border-[#B7E4C8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
             <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-[#52687D]">Total days</p>
+              <p className="text-[13px] font-semibold text-[#52687D]">Total Days</p>
               <p className="mt-1 text-[30px] font-bold leading-none text-[#0F2233]">
                 <span className="text-[#248a3d]">{presentDays}</span>
                 <span className="mx-0.5 font-medium text-[#aeaeb2]">/</span>
@@ -184,14 +184,14 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
 
           {/* Class context — grows to fill remaining height so the column bottom aligns with the calendar */}
           <aside className="flex flex-1 flex-col rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
-            <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Class context</h2>
+            <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Class Context</h2>
             <div className="mt-5 space-y-4">
               <div className="rounded-[6px] bg-[#F7F8FB] p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Student</p>
                 <p className="mt-1 text-[28px] font-bold leading-none text-[#1d1d1f]">{metrics.attendancePercentage}%</p>
               </div>
               <div className="rounded-[6px] bg-[#E2F0FB] p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1F6FB8]">Class average</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1F6FB8]">Class Average</p>
                 <p className="mt-1 text-[28px] font-bold leading-none text-[#0F2557]">
                   {metrics.classAverageAttendance === null ? "-" : `${metrics.classAverageAttendance}%`}
                 </p>
@@ -227,7 +227,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
               <div className="flex items-center gap-1.5 rounded-full bg-[#F3FBF6] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#34c759] shadow-sm" /> Present</div>
               <div className="flex items-center gap-1.5 rounded-full bg-[#FFF7F8] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#ff3b30] shadow-sm" /> Absent</div>
               <div className="flex items-center gap-1.5 rounded-full bg-[#FFF8ED] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#ff9500] shadow-sm" /> Late</div>
-              <div className="flex items-center gap-1.5 rounded-full bg-[#F4F0FF] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#7c3aed] shadow-sm" /> Half day</div>
+              <div className="flex items-center gap-1.5 rounded-full bg-[#F4F0FF] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#7c3aed] shadow-sm" /> Half Day</div>
               <div className="flex items-center gap-1.5 rounded-full bg-[#F7F8FB] px-2 py-1"><span className="h-2 w-2 rounded-full border border-black/10 bg-[#f5f5f7]" /> Holiday</div>
             </div>
           </div>
@@ -262,7 +262,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
       <section className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Absent dates</h2>
+            <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Absent Dates</h2>
             <p className="mt-1 text-[13px] text-[#86868b]">Recent recorded absences.</p>
           </div>
           <StatusPill label={`${absentDates.length} absences`} tone={absentDates.length > 0 ? "danger" : "good"} />
@@ -291,7 +291,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
 
       {/* ── Pattern detection ── */}
       <section className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
-        <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Pattern detection</h2>
+        <h2 className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">Pattern Detection</h2>
         <div className="mt-5 space-y-3">
           {analytics.repeatedWeekdayAbsences.length === 0 ? (
             <div className="flex items-center justify-center rounded-[6px] border border-dashed border-[#C9D3DE] bg-[#F7F8FB] py-8 text-[13px] font-medium text-[#86868b]">

@@ -45,7 +45,7 @@ export function CreateTeacherModal({ onClose, onCreated }: CreateTeacherModalPro
   };
 
   return (
-    <SideModal eyebrow="Teachers" onClose={onClose} title="Add new teacher">
+    <SideModal eyebrow="Teachers" onClose={onClose} title="Add New Teacher">
       {errorMsg && (
         <div className="p-4 rounded-xl bg-[rgba(255,59,48,0.1)] border border-[rgba(255,59,48,0.2)] text-[#d70015] text-[13px] font-medium flex items-center gap-3">
           <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">

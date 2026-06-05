@@ -281,7 +281,7 @@ export default function AnalyticsPage() {
     <div className="space-y-5 sm:space-y-6">
       <PageHeader
         hideBreadcrumbs
-        title="Attendance and fee risk insights"
+        title="Attendance and Fee Risk Insights"
         action={
           <>
             <button className="btn-secondary" onClick={() => downloadCsv(visibleRisks)} type="button">Export CSV</button>
@@ -304,14 +304,14 @@ export default function AnalyticsPage() {
 
       <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)] sm:p-6">
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Class performance</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Class Performance</h2>
           <div className="mt-5 max-h-[420px] overflow-y-auto pr-1">
             <SimpleBarChart items={classes.map((item) => ({ label: item.className, value: item.attendancePercentage }))} />
           </div>
         </div>
         <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)] sm:p-6">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Priority students</h2>
+            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Priority Students</h2>
             <StatusPill label={`${visibleRisks.length} open`} tone={visibleRisks.length ? "warn" : "good"} />
           </div>
           <div className="mt-5 max-h-[560px] space-y-3 overflow-y-auto pr-1">
@@ -381,7 +381,7 @@ export default function AnalyticsPage() {
                       {sendingId === row.studentId ? "Sending..." : "Message parent"}
                     </button>
                     <Link className="btn-secondary min-h-9 px-3 text-[12px]" href={`/students/${row.studentId}`}>View profile</Link>
-                    <button className="btn-secondary min-h-9 px-3 text-[12px]" onClick={() => markResolved(row.studentId)} type="button">Mark resolved</button>
+                    <button className="btn-secondary min-h-9 px-3 text-[12px]" onClick={() => markResolved(row.studentId)} type="button">Mark Resolved</button>
                   </div>
                 </div>
               </div>

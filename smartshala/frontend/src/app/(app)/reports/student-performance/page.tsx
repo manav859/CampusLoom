@@ -244,7 +244,7 @@ export default function StudentPerformanceReportPage() {
     <div className="space-y-6">
       <PageHeader
         hideBreadcrumbs
-        title="Student performance report"
+        title="Student Performance Report"
         action={<ReportExportActions disabled={loading || rows.length === 0} onExportCsv={exportCsv} onExportPdf={exportPdf} />}
       />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -283,7 +283,7 @@ export default function StudentPerformanceReportPage() {
             <thead className="table-head">
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Student</th>
-                <th className="px-5 py-3.5 font-semibold">Admission no</th>
+                <th className="px-5 py-3.5 font-semibold">Admission No</th>
                 <th className="px-5 py-3.5 font-semibold">
                   <span className="inline-flex">
                     <button

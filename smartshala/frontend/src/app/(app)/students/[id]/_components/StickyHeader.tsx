@@ -223,7 +223,7 @@ export function StickyHeader({
       {canContactParent ? (
         <>
           <a className={mobileMenuItemClass} href={`tel:${student.parentPhone}`} onClick={() => setMobileActionsOpen(false)}>
-            <PhoneIcon /> Call parent
+            <PhoneIcon /> Call Parent
           </a>
           <a className="flex items-center gap-2 rounded-[6px] bg-[#25d366] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#20bd5a]" href={whatsappLink(student.parentPhone)} rel="noreferrer" target="_blank" onClick={() => setMobileActionsOpen(false)}>
             <WhatsAppIcon /> WhatsApp
@@ -234,7 +234,7 @@ export function StickyHeader({
         </>
       ) : null}
       <button className={mobileMenuItemClass} onClick={() => { setMobileActionsOpen(false); window.print(); }} type="button">
-        <PrintIcon /> Print profile
+        <PrintIcon /> Print Profile
       </button>
       <button className={mobileMenuItemClass} onClick={async () => {
         setMobileActionsOpen(false);
@@ -251,11 +251,11 @@ export function StickyHeader({
           <line x1="16" y1="17" x2="8" y2="17" />
           <polyline points="10 9 9 9 8 9" />
         </svg>
-        Report card
+        Report Card
       </button>
       {canViewFees ? (
         <Link className={mobileMenuItemClass} href={`/fees/${student.id}`} onClick={() => setMobileActionsOpen(false)}>
-          <LedgerIcon /> Fee ledger
+          <LedgerIcon /> Fee Ledger
         </Link>
       ) : null}
     </div>
@@ -317,7 +317,7 @@ export function StickyHeader({
                   href={`tel:${student.parentPhone}`}
                 >
                   <PhoneIcon />
-                  Call parent
+                  Call Parent
                 </a>
                 <a
                   className="inline-flex items-center justify-center gap-1.5 rounded-[6px] bg-[#25d366] px-3.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#20bd5a]"
@@ -345,7 +345,7 @@ export function StickyHeader({
               type="button"
             >
               <PrintIcon />
-              Print profile
+              Print Profile
             </button>
             <button
               className={actionButtonClass}
@@ -365,7 +365,7 @@ export function StickyHeader({
                 <line x1="16" y1="17" x2="8" y2="17" />
                 <polyline points="10 9 9 9 8 9" />
               </svg>
-              Report card
+              Report Card
             </button>
             {canViewFees ? (
               <Link
@@ -373,7 +373,7 @@ export function StickyHeader({
                 href={`/fees/${student.id}`}
               >
                 <LedgerIcon />
-                Fee ledger
+                Fee Ledger
               </Link>
             ) : null}
           </div>
@@ -385,9 +385,9 @@ export function StickyHeader({
         {/* ── Bottom row: KPI mini-cards ── */}
         <div className="grid grid-cols-1 gap-2.5 px-4 py-3 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
           {canViewAttendance ? <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} /> : null}
-          {canViewAcademic ? <MiniKpiCard label="Current rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" /> : null}
-          {canViewFees ? <MiniKpiCard label="Fee balance" value={money(feeBalance)} tone={feeTone} /> : null}
-          {canViewAcademic ? <MiniKpiCard label="Overall performance" value={performanceValue} tone={performanceKpiTone} /> : null}
+          {canViewAcademic ? <MiniKpiCard label="Current Rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" /> : null}
+          {canViewFees ? <MiniKpiCard label="Fee Balance" value={money(feeBalance)} tone={feeTone} /> : null}
+          {canViewAcademic ? <MiniKpiCard label="Overall Performance" value={performanceValue} tone={performanceKpiTone} /> : null}
         </div>
       </section>
     </div>

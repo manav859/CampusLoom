@@ -69,7 +69,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
       <div className={`rounded-[6px] border p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5 ${lowCompletion ? "border-[#F1B8BD] bg-[#FFF7F8]" : "border-[#DCE1E8] bg-white"}`}>
         <div className="grid gap-5 lg:grid-cols-[220px_1fr] lg:items-center">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Homework completion</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Homework Completion</p>
             <p className={`mt-2 text-[52px] font-bold leading-none tracking-tight ${lowCompletion ? "text-[#c90011]" : "text-[#1d1d1f]"}`}>
               {homework.counts.total ? `${completion}%` : "--"}
             </p>
@@ -81,7 +81,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="kpi-metric-card kpi-metric-card-good min-h-[96px] p-4">
-              <p className="kpi-metric-label">On time</p>
+              <p className="kpi-metric-label">On Time</p>
               <p className="kpi-metric-value text-[24px] leading-7">{homework.counts.onTime}</p>
             </div>
             <div className="kpi-metric-card kpi-metric-card-warn min-h-[96px] p-4">
@@ -104,7 +104,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
       <section className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Subject completion</h2>
+            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Subject Completion</h2>
             <p className="text-[12px] font-medium text-[#86868b]">Low completion is highlighted below 50%.</p>
           </div>
           <StatusPill label={`${homework.counts.total} assignments`} tone={homework.counts.total ? "good" : "neutral"} />
@@ -134,7 +134,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
 
       <section className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="border-b border-[#E7EBF0] px-5 py-4">
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Assignment log</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Assignment Log</h2>
         </div>
         <div className="space-y-3 p-4 md:hidden">
           {homework.assignments.length === 0 ? (
@@ -157,7 +157,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
                 </div>
                 {canNudgeParent && needsParentNudge(assignment.status) ? (
                   <button className="mt-3 w-full rounded-[6px] border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB]" disabled={sendingAssignmentId === assignment.id} onClick={() => nudgeParent(assignment)} type="button">
-                    {sendingAssignmentId === assignment.id ? "Sending..." : "Nudge parent"}
+                    {sendingAssignmentId === assignment.id ? "Sending..." : "Nudge Parent"}
                   </button>
                 ) : null}
               </article>
@@ -168,7 +168,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
           <table className="w-full min-w-[920px] border-collapse bg-white text-center text-[14px] text-[#001B33]">
             <thead>
               <tr className="table-head-row">
-                {["Assignment", "Subject", "Assigned", "Due", "Status", "Marks", "Teacher note", "Action"].map((head) => (
+                {["Assignment", "Subject", "Assigned", "Due", "Status", "Marks", "Teacher Note", "Action"].map((head) => (
                   <th className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center text-[14px] font-semibold text-[#031526]" key={head}>{head}</th>
                 ))}
               </tr>
@@ -198,7 +198,7 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
                           onClick={() => nudgeParent(assignment)}
                           type="button"
                         >
-                          {sendingAssignmentId === assignment.id ? "Sending..." : "Nudge parent"}
+                          {sendingAssignmentId === assignment.id ? "Sending..." : "Nudge Parent"}
                         </button>
                       ) : (
                         <span className="text-[12px] text-[#86868b]">-</span>

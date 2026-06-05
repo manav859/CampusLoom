@@ -143,7 +143,7 @@ export default function ExamReportsPage() {
     <div className="space-y-6">
       <PageHeader
         hideBreadcrumbs
-        title="Exam reports"
+        title="Exam Reports"
         action={<ReportExportActions disabled={loadingData || rows.length === 0} onExportCsv={exportCsv} onExportPdf={exportPdf} />}
       />
 
@@ -180,7 +180,7 @@ export default function ExamReportsPage() {
             <thead className="table-head">
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Student</th>
-                <th className="px-5 py-3.5 font-semibold">Admission no</th>
+                <th className="px-5 py-3.5 font-semibold">Admission No</th>
                 <th className="px-5 py-3.5 font-semibold">Class</th>
                 <th className="px-5 py-3.5 font-semibold">Exam</th>
                 <th className="px-5 py-3.5 font-semibold">Subject</th>

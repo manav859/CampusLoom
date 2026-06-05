@@ -82,9 +82,9 @@ export default function ClassDetailPage() {
     .sort((a, b) => a - b);
   const rollNumbersStartAtOne = sortedRolls.length === 0 || sortedRolls.every((roll, index) => roll === index + 1);
   const statCards = [
-    { label: "Class attendance", value: stats?.attendancePercent === null || !stats ? "No data" : `${stats.attendancePercent}%`, helper: `Last ${stats?.attendanceWindowDays ?? 30} days` },
-    { label: "Marks average", value: stats?.marksAveragePercent === null || !stats ? "No data" : `${stats.marksAveragePercent}%`, helper: "All recorded exams" },
-    { label: "Fee collection", value: stats?.feeCollectionPercent === null || !stats ? "No data" : `${stats.feeCollectionPercent}%`, helper: "Collected vs assigned" }
+    { label: "Class Attendance", value: stats?.attendancePercent === null || !stats ? "No data" : `${stats.attendancePercent}%`, helper: `Last ${stats?.attendanceWindowDays ?? 30} days` },
+    { label: "Marks Average", value: stats?.marksAveragePercent === null || !stats ? "No data" : `${stats.marksAveragePercent}%`, helper: "All recorded exams" },
+    { label: "Fee Collection", value: stats?.feeCollectionPercent === null || !stats ? "No data" : `${stats.feeCollectionPercent}%`, helper: "Collected vs assigned" }
   ];
 
   return (
@@ -92,7 +92,7 @@ export default function ClassDetailPage() {
       <div className="flex items-center justify-between">
         <PageHeader eyebrow={`Class ${classData.name}-${classData.section}`} title={`${classData.name} - Section ${classData.section}`} />
         <div className="flex gap-2 print:hidden">
-          <button className="btn-secondary px-5 py-2" onClick={() => window.print()} type="button">Print class list</button>
+          <button className="btn-secondary px-5 py-2" onClick={() => window.print()} type="button">Print Class List</button>
           <button className="btn-secondary px-5 py-2" onClick={() => router.back()} type="button">Back</button>
         </div>
       </div>
@@ -144,7 +144,7 @@ export default function ClassDetailPage() {
               <tr>
                 <th className="px-5 py-3.5 font-semibold">Photo</th>
                 <th className="px-5 py-3.5 font-semibold">Roster #</th>
-                <th className="px-5 py-3.5 font-semibold">Assigned roll</th>
+                <th className="px-5 py-3.5 font-semibold">Assigned Roll</th>
                 <th className="px-5 py-3.5 font-semibold">Student Name</th>
                 <th className="px-5 py-3.5 font-semibold">Admission #</th>
                 <th className="px-5 py-3.5 font-semibold">Parent Contact</th>

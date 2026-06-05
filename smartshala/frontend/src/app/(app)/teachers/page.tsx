@@ -347,23 +347,23 @@ export default function TeachersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader hideBreadcrumbs title="Teacher management" action={isAdmin ? <button onClick={() => setShowCreateModal(true)} className="btn-primary" type="button">Add teacher</button> : null} />
+      <PageHeader hideBreadcrumbs title="Teacher Management" action={isAdmin ? <button onClick={() => setShowCreateModal(true)} className="btn-primary" type="button">Add Teacher</button> : null} />
 
       <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[1fr_1fr_1fr_auto]">
           <select className="glass-input text-[13px]" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-            <option value="">All statuses</option>
+            <option value="">All Statuses</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
           <select className="glass-input text-[13px]" value={classTeacherFilter} onChange={(event) => setClassTeacherFilter(event.target.value)}>
-            <option value="">All class teachers</option>
+            <option value="">All Class Teachers</option>
             {classTeacherOptions.map((item) => (
               <option key={item} value={item}>Class {item}</option>
             ))}
           </select>
           <select className="glass-input text-[13px]" value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}>
-            <option value="">All subjects</option>
+            <option value="">All Subjects</option>
             {subjectOptions.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
@@ -376,7 +376,7 @@ export default function TeachersPage() {
             type="button"
           >
             <div className={`h-2 w-2 rounded-full ${showInactive ? "bg-white" : "bg-[#86868b]"}`} />
-            {showInactive ? "Showing inactive" : "Show inactive"}
+            {showInactive ? "Showing Inactive" : "Show Inactive"}
           </button>
         </div>
       </div>
@@ -418,7 +418,7 @@ export default function TeachersPage() {
 
                 <div className="mt-4 grid grid-cols-2 gap-2 text-[12px]">
                   <div className="rounded-[6px] bg-[#F7F8FB] p-3">
-                    <p className="font-bold uppercase tracking-[0.08em] text-[#86868b]">Class teacher</p>
+                    <p className="font-bold uppercase tracking-[0.08em] text-[#86868b]">Class Teacher</p>
                     <p className="mt-1 font-semibold text-[#1d1d1f]">{classTeacherLabel(teacher)}</p>
                   </div>
                   <div className="rounded-[6px] bg-[#F7F8FB] p-3">
@@ -462,7 +462,7 @@ export default function TeachersPage() {
         <table className="w-full min-w-[980px] text-left text-[13px]">
           <thead className="table-head">
             <tr>
-              {["Name", "Email", "Phone", "Class teacher", "Periods", "Status", ""].map((head, i) => (
+              {["Name", "Email", "Phone", "Class Teacher", "Periods", "Status", ""].map((head, i) => (
                 <th className="px-5 py-3.5 font-semibold" key={i}>{head}</th>
               ))}
             </tr>
@@ -569,7 +569,7 @@ export default function TeachersPage() {
           <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[6px] bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
             <div className="flex shrink-0 flex-col gap-3 border-b border-[rgba(0,0,0,0.06)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div className="min-w-0">
-                <h2 className="text-[18px] font-semibold text-[#1d1d1f]">Manage classes and subjects</h2>
+                <h2 className="text-[18px] font-semibold text-[#1d1d1f]">Manage Classes and Subjects</h2>
                 <p className="mt-0.5 text-[13px] text-[#86868b]">
                   {assignmentContext.teacher.fullName} gets {assignmentPeriodCount} periods per day. Leave class as free period when unassigned.
                 </p>
@@ -655,7 +655,7 @@ export default function TeachersPage() {
                             }))
                           }
                         >
-                          <option value="">Free period</option>
+                          <option value="">Free Period</option>
                           {assignmentContext.classes.map((classRecord) => (
                             <option key={classRecord.id} value={classRecord.id}>Class {classLabel(classRecord)}</option>
                           ))}
@@ -674,7 +674,7 @@ export default function TeachersPage() {
                               }))
                             }
                           >
-                            <option value="">Select subject</option>
+                            <option value="">Select Subject</option>
                             {subjects.map((subject) => (
                               <option key={subject.id} value={subject.id}>{subject.name}</option>
                             ))}
@@ -700,7 +700,7 @@ export default function TeachersPage() {
               <button className="min-h-10 rounded-[6px] px-4 text-[13px] font-semibold text-[#1d1d1f] hover:bg-white" onClick={() => setAssignmentContext(null)} type="button">Cancel</button>
               <button className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[6px] bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50" disabled={assignmentSaving || hasAssignmentConflicts} onClick={saveAssignments} type="button">
                 {assignmentSaving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-                {assignmentSaving ? "Saving..." : "Save periods"}
+                {assignmentSaving ? "Saving..." : "Save Periods"}
               </button>
             </div>
           </div>

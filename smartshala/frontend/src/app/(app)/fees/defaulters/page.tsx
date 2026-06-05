@@ -104,7 +104,7 @@ export default function DefaultersPage() {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <PageHeader hideBreadcrumbs title="Defaulter follow-up queue" action={<Link className="btn-secondary" href="/fees">Back to fees</Link>} />
+      <PageHeader hideBreadcrumbs title="Defaulter Follow-up Queue" action={<Link className="btn-secondary" href="/fees">Back to Fees</Link>} />
 
       {notice ? <div className="rounded-[8px] bg-[#E1F5EA] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
       {error ? <div className="rounded-[8px] bg-[#FCE3E5] px-4 py-3 text-[13px] font-medium text-[#C8242C]">{error}</div> : null}
@@ -121,27 +121,27 @@ export default function DefaultersPage() {
             />
           </div>
           <select className={selectClass} onChange={(event) => setClassFilter(event.target.value)} value={classFilter}>
-            <option value="">All classes</option>
+            <option value="">All Classes</option>
             {classOptions.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
           <select className={selectClass} onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
-            <option value="">All fee statuses</option>
-            <option value="PENDING">Pending fees</option>
-            <option value="PARTIAL">Partial fees</option>
-            <option value="OVERDUE">Overdue fees</option>
+            <option value="">All Fee Statuses</option>
+            <option value="PENDING">Pending Fees</option>
+            <option value="PARTIAL">Partial Fees</option>
+            <option value="OVERDUE">Overdue Fees</option>
           </select>
           <select className={selectClass} onChange={(event) => setOverdueFilter(event.target.value)} value={overdueFilter}>
-            <option value="">All due ages</option>
-            <option value="current">Not overdue</option>
+            <option value="">All Due Ages</option>
+            <option value="current">Not Overdue</option>
             <option value="1-7">1-7 days</option>
             <option value="8-30">8-30 days</option>
             <option value="30+">30+ days</option>
           </select>
           <select className={selectClass} onChange={(event) => setSortKey(event.target.value)} value={sortKey}>
-            <option value="overdue-desc">Longest overdue</option>
-            <option value="overdue-asc">Newest due</option>
-            <option value="balance-desc">Highest balance</option>
-            <option value="balance-asc">Lowest balance</option>
+            <option value="overdue-desc">Longest Overdue</option>
+            <option value="overdue-asc">Newest Due</option>
+            <option value="balance-desc">Highest Balance</option>
+            <option value="balance-asc">Lowest Balance</option>
             <option value="name-asc">Name A-Z</option>
           </select>
           {hasFilters ? (
@@ -208,7 +208,7 @@ export default function DefaultersPage() {
               {Array.from({ length: 6 }).map((_, index) => <col className="w-1/6" key={index} />)}
             </colgroup>
             <thead className="bg-[var(--brand-secondary)] text-white">
-              <tr>{["Student", "Class", "Balance", "Days overdue", "Status", "Action"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
+              <tr>{["Student", "Class", "Balance", "Days Overdue", "Status", "Action"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
             </thead>
             <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
               {loading ? (

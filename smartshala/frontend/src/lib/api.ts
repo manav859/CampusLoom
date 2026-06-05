@@ -1267,6 +1267,22 @@ export const studentsApi = {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined
     });
     if (!response.ok) throw new Error("Failed to download document");
+
+    // S3 mode: backend returns a presigned URL as JSON. Navigate to it directly
+    // (the object's Content-Disposition forces a download). Local-dev mode:
+    // backend streams the file bytes, so fall back to a blob download.
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const { downloadUrl } = (await response.json()) as { downloadUrl: string };
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
+
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1277,6 +1293,10 @@ export const studentsApi = {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   },
+  deleteDocument: (studentId: string, documentId: string) =>
+    apiFetch<{ id: string }>(`/students/${studentId}/documents/${documentId}`, {
+      method: "DELETE"
+    }),
   createBehaviourRecord: (studentId: string, payload: BehaviourRecordPayload) =>
     apiFetch<StudentDetail["behaviourAnalytics"]["records"][number]>(`/students/${studentId}/behaviour`, {
       method: "POST",

@@ -182,7 +182,7 @@ export default function AttendanceReportsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader hideBreadcrumbs title="Daily attendance report" />
+        <PageHeader hideBreadcrumbs title="Daily Attendance Report" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)}
         </div>
@@ -205,11 +205,11 @@ export default function AttendanceReportsPage() {
     <div className="space-y-6">
       <PageHeader
         hideBreadcrumbs
-        title="Daily attendance report"
+        title="Daily Attendance Report"
         action={
           <div className="flex flex-wrap gap-2">
             <button className="btn-secondary min-h-10 px-4 text-[13px]" disabled={pendingClassIds.size === 0} onClick={nudgeTeachers} type="button">
-              Nudge teachers
+              Nudge Teachers
             </button>
             <button className="btn-primary min-h-10 px-4 text-[13px]" onClick={exportCsv} type="button">
               Export CSV
@@ -263,7 +263,7 @@ export default function AttendanceReportsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="kpi-metric-card p-5">
-          <p className="kpi-metric-label">Total classes</p>
+          <p className="kpi-metric-label">Total Classes</p>
           <p className="kpi-metric-value">{totalClassesCount}</p>
         </div>
         <div className="kpi-metric-card kpi-metric-card-good p-5">
@@ -275,7 +275,7 @@ export default function AttendanceReportsPage() {
           <p className="kpi-metric-value">{data?.pendingClasses ?? 0}</p>
         </div>
         <div className="kpi-metric-card p-5">
-          <p className="kpi-metric-label">Avg. attendance (marked)</p>
+          <p className="kpi-metric-label">Avg. Attendance (Marked)</p>
           <p className="kpi-metric-value">{data?.attendancePercentage ?? 0}%</p>
           <p className="mt-1 text-[12px] font-medium text-[#86868b]">{markedCount} of {totalClassesCount} classes marked</p>
         </div>
@@ -292,7 +292,7 @@ export default function AttendanceReportsPage() {
 
       <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-6 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Class-wise trend</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Class-wise Trend</h2>
           <div className="mt-5">
             {chartItems.length > 0 ? <SimpleBarChart items={chartItems} /> : <p className="text-[13px] text-[#86868b]">No classes available.</p>}
           </div>
@@ -306,7 +306,7 @@ export default function AttendanceReportsPage() {
                   <th className="px-5 py-3.5 font-semibold">Teacher</th>
                   <th className="px-5 py-3.5 font-semibold">Total</th>
                   <th className="px-5 py-3.5 font-semibold">Present</th>
-                  <th className="px-5 py-3.5 font-semibold">Half day</th>
+                  <th className="px-5 py-3.5 font-semibold">Half Day</th>
                   <th className="px-5 py-3.5 font-semibold">Absent</th>
                   <th className="px-5 py-3.5 font-semibold">Rate</th>
                 </tr>

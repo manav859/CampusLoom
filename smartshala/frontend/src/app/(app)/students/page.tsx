@@ -569,9 +569,9 @@ export default function StudentsPage() {
       { label: "#" },
       { label: "Student", sortKey: "name" },
       { label: "Class", sortKey: "class" },
-      { label: "Fee status", sortKey: "feeStatus" },
+      { label: "Fee Status", sortKey: "feeStatus" },
       { label: "Balance", sortKey: "pendingAmount" },
-      { label: "Last paid", sortKey: "lastPayment" },
+      { label: "Last Paid", sortKey: "lastPayment" },
       { label: "Attendance", sortKey: "attendance" },
       { label: "Actions" }
     ]
@@ -593,14 +593,14 @@ export default function StudentsPage() {
   const isInitialListLoading = loadingList && !hasLoadedStudents;
   const selectAllLabel = "Select All";
   const classOptions = [
-    { label: "All classes", value: "" },
+    { label: "All Classes", value: "" },
     ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))
   ];
   const feeStatusOptions = [
-    { label: "All fee statuses", value: "" },
-    { label: "Paid fees", value: "PAID" },
-    { label: "Pending fees", value: "PENDING" },
-    { label: "Overdue fees", value: "OVERDUE" }
+    { label: "All Fee Statuses", value: "" },
+    { label: "Paid Fees", value: "PAID" },
+    { label: "Pending Fees", value: "PENDING" },
+    { label: "Overdue Fees", value: "OVERDUE" }
   ];
   const pageNumbers = useMemo(() => {
     const first = Math.max(1, Math.min(page - 1, Math.max(1, totalPages - 3)));
@@ -1046,13 +1046,13 @@ export default function StudentsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" disabled={loadingList} onClick={toggleAllPagesSelection} type="button">
-              {allFilteredSelected ? "Clear all pages" : "Select All"}
+              {allFilteredSelected ? "Clear All Pages" : "Select All"}
             </button>
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("whatsapp")} type="button">Send WhatsApp</button>
-            {isAdmin ? <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("promote")} type="button">Promote class</button> : null}
+            {isAdmin ? <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => openBulkDialog("promote")} type="button">Promote Class</button> : null}
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={exportSelectedCsv} type="button">Export CSV</button>
             <button className="rounded-lg border border-[#C2C9D4] bg-white px-3 py-2 text-[12px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={exportSelectedPdf} type="button">Export PDF</button>
-            {isAdmin ? <button className="rounded-lg bg-[#C8242C] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#a51d24]" onClick={() => openBulkDialog("inactive")} type="button">Mark inactive</button> : null}
+            {isAdmin ? <button className="rounded-lg bg-[#C8242C] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#a51d24]" onClick={() => openBulkDialog("inactive")} type="button">Mark Inactive</button> : null}
             <button className="rounded-lg px-3 py-2 text-[12px] font-semibold text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => { setSelectedIds([]); setSelectedRows({}); }} type="button">Clear</button>
           </div>
         </div>
@@ -1211,7 +1211,7 @@ export default function StudentsPage() {
                                   href="/attendance"
                                   className="inline-flex items-center rounded-lg border border-[#C2C9D4] bg-white px-3 py-1.5 text-[11px] font-bold text-[#2A3340] transition-colors hover:bg-[#F7F8FB]"
                                 >
-                                  Quick mark
+                                  Quick Mark
                                 </Link>
                               </>
                             ) : null}
@@ -1238,7 +1238,7 @@ export default function StudentsPage() {
                                         onClick={() => setOpenActionMenu(null)}
                                         type="button"
                                       >
-                                        Send reminder
+                                        Send Reminder
                                       </button>
                                     ) : null}
                                     {isAdmin ? (
@@ -1323,14 +1323,14 @@ export default function StudentsPage() {
         <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" style={{ zIndex: 9999 }}>
           <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-[#DCE1E8] px-6 py-4">
-              <h3 className="text-[18px] font-semibold text-[#0F1419]">Import students</h3>
+              <h3 className="text-[18px] font-semibold text-[#0F1419]">Import Students</h3>
               <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{importDialog.fileName || "Use the ready CSV template, fill student data, then upload it here."}</p>
             </div>
             <div className="space-y-4 px-6 py-5">
               <div className="rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-[14px] font-semibold text-[#0F1419]">Download empty CSV template</p>
+                    <p className="text-[14px] font-semibold text-[#0F1419]">Download Empty CSV Template</p>
                     <p className="mt-1 text-[12px] font-medium leading-5 text-[#5A6573]">The file is prebuilt with all student import columns. Fill the rows in Excel or Google Sheets, save as .csv, then upload the filled file.</p>
                   </div>
                   <button
@@ -1356,7 +1356,7 @@ export default function StudentsPage() {
                   onClick={() => importInputRef.current?.click()}
                   type="button"
                 >
-                  Import filled CSV
+                  Import Filled CSV
                 </button>
               </div>
               {importDialog.error ? <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{importDialog.error}</div> : null}
@@ -1402,7 +1402,7 @@ export default function StudentsPage() {
                 type="button"
               >
                 {importDialog.busy ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-                {importDialog.busy ? "Importing..." : `Save ${importDialog.rows.length} students`}
+                {importDialog.busy ? "Importing..." : `Save ${importDialog.rows.length} Students`}
               </button>
             </div>
           </div>
@@ -1460,7 +1460,7 @@ export default function StudentsPage() {
           <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="border-b border-[#DCE1E8] px-6 py-4">
               <h3 className="text-[18px] font-semibold text-[#0F1419]">
-                {bulkDialog.action === "whatsapp" ? "Send WhatsApp" : bulkDialog.action === "promote" ? "Promote class" : "Mark inactive"}
+                {bulkDialog.action === "whatsapp" ? "Send WhatsApp" : bulkDialog.action === "promote" ? "Promote Class" : "Mark Inactive"}
               </h3>
               <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{selectedCount} selected students</p>
             </div>
@@ -1478,13 +1478,13 @@ export default function StudentsPage() {
 
               {bulkDialog.action === "promote" ? (
                 <label className="block">
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Target class</span>
+                  <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[#5A6573]">Target Class</span>
                   <CustomSelect
                     ariaLabel="Target class"
                     className="mt-2 h-11 w-full rounded-xl text-[14px]"
                     menuClassName="left-0 right-auto w-full"
                     onChange={(value) => setBulkDialog((prev) => ({ ...prev, targetClassId: value }))}
-                    options={[{ label: "Select class", value: "" }, ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))]}
+                    options={[{ label: "Select Class", value: "" }, ...classes.map((cls) => ({ label: `${cls.name}-${cls.section}`, value: cls.id }))]}
                     value={bulkDialog.targetClassId}
                     wrapperClassName="block w-full"
                   />

@@ -64,10 +64,10 @@ function ClassCard({ cls, isAdmin, onDelete }: { cls: ClassData; isAdmin: boolea
       </div>
 
       <div className="mt-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8C96A3]">Assigned subjects</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8C96A3]">Assigned Subjects</p>
         <div className="mt-2 flex min-h-6 flex-wrap items-center gap-x-3 gap-y-1.5">
           {subjects.length === 0 ? (
-            <span className="rounded-[6px] bg-[#ff9500]/10 px-2 py-0.5 text-[11px] font-semibold text-[#c93400]">Subjects pending</span>
+            <span className="rounded-[6px] bg-[#ff9500]/10 px-2 py-0.5 text-[11px] font-semibold text-[#c93400]">Subjects Pending</span>
           ) : (
             visibleSubjects.map((subject) => (
               <span className="text-[11px] font-semibold text-[#2A3340]" key={subject.id}>
@@ -157,7 +157,7 @@ export default function ClassesPage() {
         </div>
         {isAdmin ? (
           <Link href="/classes/new" className="btn-primary min-h-[44px] w-full justify-center sm:w-auto">
-            Create class
+            Create Class
           </Link>
         ) : null}
       </div>

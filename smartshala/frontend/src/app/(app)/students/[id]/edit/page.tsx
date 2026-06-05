@@ -217,7 +217,7 @@ export default function EditStudentPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 pb-12">
-      <PageHeader eyebrow="Students" title="Edit student details" />
+      <PageHeader eyebrow="Students" title="Edit Student Details" />
 
       {errorMsg ? (
         <div className="rounded-[6px] border border-[#FCE3E5] bg-[rgba(255,59,48,0.1)] p-4 text-[13px] font-medium text-[#d70015]">
@@ -239,44 +239,44 @@ export default function EditStudentPage() {
                 )}
               </div>
               <div>
-                <p className="text-[13px] font-semibold text-[#1d1d1f]">Student profile photo</p>
+                <p className="text-[13px] font-semibold text-[#1d1d1f]">Student Profile Photo</p>
                 <p className="mt-1 text-[12px] font-medium text-[#5A6573]">JPG or PNG up to 5MB.</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <label className="inline-flex cursor-pointer items-center justify-center rounded-[6px] border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2456E6] hover:bg-[#F7F8FB]">
-                {formData.profilePhotoUrl ? "Change photo" : "Upload photo"}
+                {formData.profilePhotoUrl ? "Change Photo" : "Upload Photo"}
                 <input accept="image/jpeg,image/png" className="sr-only" type="file" onChange={(event) => selectPhoto(event.target.files?.[0] ?? null)} />
               </label>
               {formData.profilePhotoUrl ? (
                 <button className="rounded-[6px] border border-[#F1B8BD] bg-white px-4 py-2 text-[13px] font-semibold text-[#C8242C] hover:bg-[#FCE3E5]" onClick={() => setFormData({ ...formData, profilePhotoUrl: null })} type="button">
-                  Remove photo
+                  Remove Photo
                 </button>
               ) : null}
             </div>
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <label className="space-y-1.5">
-              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Full name</span>
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Full Name</span>
               <input required minLength={2} className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.fullName} onChange={(e) => setFormData({ ...formData, fullName: e.target.value })} />
             </label>
             <label className="space-y-1.5">
-              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Admission number</span>
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Admission Number</span>
               <input required className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.admissionNumber} onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })} />
             </label>
             <label className="space-y-1.5">
-              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Class & section</span>
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Class & Section</span>
               <select required className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.classId} onChange={(e) => setFormData({ ...formData, classId: e.target.value })}>
-                <option value="">Select class</option>
+                <option value="">Select Class</option>
                 {classes.map((item) => (
                   <option key={item.id} value={item.id}>{item.name} - Section {item.section}</option>
                 ))}
               </select>
             </label>
             <label className="space-y-1.5">
-              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Fee structure</span>
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Fee Structure</span>
               <select className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" value={formData.feeStructureId} onChange={(e) => setFormData({ ...formData, feeStructureId: e.target.value })}>
-                <option value="">Select fee structure</option>
+                <option value="">Select Fee Structure</option>
                 {feeStructures.map((feeStructure) => (
                   <option key={feeStructure.id} value={feeStructure.id}>
                     {feeStructure.name} ({formatINR(feeStructure.totalAmount, { compact: false })}) - {feeStructure.academicYear}
@@ -294,7 +294,7 @@ export default function EditStudentPage() {
               Uses school transportation
             </label>
             <label className="space-y-1.5">
-              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Transportation fee</span>
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Transportation Fee</span>
               <input
                 className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6] disabled:bg-[#F7F8FB] disabled:text-[#86868b]"
                 disabled={!formData.transportRequired}
@@ -306,11 +306,11 @@ export default function EditStudentPage() {
               />
             </label>
             <label className="space-y-1.5">
-              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Roll number</span>
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Roll Number</span>
               <input className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]" min={1} type="number" value={formData.rollNumber} onChange={(e) => setFormData({ ...formData, rollNumber: e.target.value })} />
             </label>
             <label className="space-y-1.5">
-              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Date of birth</span>
+              <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Date of Birth</span>
               <DatePicker
                 buttonClassName="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-[6px] border border-[#C9D3DE] bg-white px-3 py-2.5 text-left text-[14px] outline-none focus:border-[#2456E6]"
                 max={new Date().toISOString().slice(0, 10)}
@@ -331,21 +331,21 @@ export default function EditStudentPage() {
         </section>
 
         <section className="space-y-4">
-          <h3 className="text-[15px] font-bold text-[#1d1d1f]">Guardian details</h3>
+          <h3 className="text-[15px] font-bold text-[#1d1d1f]">Guardian Details</h3>
           <div className="grid gap-5 sm:grid-cols-2">
             {[
-              ["parentName", "Primary parent name", true],
-              ["parentPhone", "Primary parent phone", true],
-              ["alternatePhone", "Alternate phone", false],
-              ["fatherName", "Father name", false],
-              ["fatherPhone", "Father phone", false],
-              ["fatherOccupation", "Father occupation", false],
-              ["motherName", "Mother name", false],
-              ["motherPhone", "Mother phone", false],
-              ["motherOccupation", "Mother occupation", false],
-              ["guardianName", "Other guardian name", false],
-              ["guardianPhone", "Other guardian phone", false],
-              ["guardianOccupation", "Other guardian occupation", false]
+              ["parentName", "Primary Parent Name", true],
+              ["parentPhone", "Primary Parent Phone", true],
+              ["alternatePhone", "Alternate Phone", false],
+              ["fatherName", "Father Name", false],
+              ["fatherPhone", "Father Phone", false],
+              ["fatherOccupation", "Father Occupation", false],
+              ["motherName", "Mother Name", false],
+              ["motherPhone", "Mother Phone", false],
+              ["motherOccupation", "Mother Occupation", false],
+              ["guardianName", "Other Guardian Name", false],
+              ["guardianPhone", "Other Guardian Phone", false],
+              ["guardianOccupation", "Other Guardian Occupation", false]
             ].map(([key, label, required]) => (
               <label className="space-y-1.5" key={key as string}>
                 <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">{label}</span>
@@ -375,7 +375,7 @@ export default function EditStudentPage() {
           </button>
           <button className="btn-primary gap-2 rounded-[6px] px-10 py-2.5 disabled:opacity-50" disabled={saving} type="submit">
             {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-            {saving ? "Saving..." : "Save changes"}
+            {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </form>

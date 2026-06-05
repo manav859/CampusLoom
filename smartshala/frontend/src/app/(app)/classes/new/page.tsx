@@ -82,7 +82,7 @@ export default function NewClassPage() {
   }
 
   return (
-    <SideModal eyebrow="Classes" onClose={() => router.back()} title="Create new class">
+    <SideModal eyebrow="Classes" onClose={() => router.back()} title="Create New Class">
       {errorMsg && (
         <div className="p-4 rounded-xl bg-[rgba(255,59,48,0.1)] border border-[rgba(255,59,48,0.2)] text-[#d70015] text-[13px] font-medium flex items-center gap-3">
           <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -158,13 +158,13 @@ export default function NewClassPage() {
               </select>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Stream for higher classes</label>
+              <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Stream for Higher Classes</label>
               <select
                 className="glass-input w-full"
                 value={formData.stream}
                 onChange={(e) => setFormData({ ...formData, stream: e.target.value })}
               >
-                <option value="">Not applicable</option>
+                <option value="">Not Applicable</option>
                 <option value="Science">Science</option>
                 <option value="Commerce">Commerce</option>
                 <option value="Arts">Arts</option>
@@ -183,7 +183,7 @@ export default function NewClassPage() {
                 value={formData.classTeacherId}
                 onChange={(e) => setFormData({ ...formData, classTeacherId: e.target.value })}
               >
-                <option value="">Select a teacher</option>
+                <option value="">Select a Teacher</option>
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>{t.fullName}</option>
                 ))}

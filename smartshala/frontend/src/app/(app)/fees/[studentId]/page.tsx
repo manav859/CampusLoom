@@ -193,7 +193,7 @@ export default function StudentFeeLedgerPage() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Ledger summary</h2>
+                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Ledger Summary</h2>
                   <StatusPill label={humanizeConstant(ledger.status)} tone={statusTone(ledger.status)} />
                 </div>
                 <p className="mt-1 text-[13px] text-[#86868b]">
@@ -201,8 +201,8 @@ export default function StudentFeeLedgerPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("CONCESSION")} type="button">Issue concession</button>
-                <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("DISCOUNT")} type="button">Apply discount</button>
+                <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("CONCESSION")} type="button">Issue Concession</button>
+                <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("DISCOUNT")} type="button">Apply Discount</button>
               </div>
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -263,7 +263,7 @@ export default function StudentFeeLedgerPage() {
           {ledger.adjustments.length > 0 ? (
             <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
               <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
-                <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Concessions and discounts</h2>
+                <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Concessions and Discounts</h2>
                 <p className="mt-0.5 text-[13px] text-[#86868b]">Approved fee reductions are preserved with reason and recorder.</p>
               </div>
               <div className="overflow-x-auto">
@@ -302,7 +302,7 @@ export default function StudentFeeLedgerPage() {
           <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
             <div className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
               <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
-                <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Transaction ledger</h2>
+                <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Transaction Ledger</h2>
                 <p className="mt-0.5 text-[13px] text-[#86868b]">Every payment is posted with its running balance.</p>
               </div>
               <div className="overflow-x-auto">
@@ -373,7 +373,7 @@ export default function StudentFeeLedgerPage() {
             </div>
 
             <aside className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Payment timeline</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Payment Timeline</h2>
               <div className="mt-5 space-y-5">
                 {ledger.transactionLedger.length === 0 ? (
                   <div className="rounded-xl bg-[rgba(0,0,0,0.02)] p-4 text-[13px] font-medium text-[#86868b]">No payments posted yet.</div>

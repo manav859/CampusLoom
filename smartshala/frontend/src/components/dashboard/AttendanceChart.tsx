@@ -24,7 +24,7 @@ function isoDate(offsetDays = 0) {
   return `${year}-${month}-${day}`;
 }
 
-export function AttendanceChart({ data, title = "Attendance trend", classes = [] }: { data?: ChartPoint[]; title?: string; classes?: string[] }) {
+export function AttendanceChart({ data, title = "Attendance Trend", classes = [] }: { data?: ChartPoint[]; title?: string; classes?: string[] }) {
   const [filter, setFilter] = useState("All");
   const [on, setOn] = useState(false);
   const [tooltip, setTooltip] = useState<{ point: ChartPoint; x: number; y: number } | null>(null);
@@ -262,7 +262,7 @@ function PastWeekModal({
                   <p className="mt-1 text-[24px] font-bold text-[#1d1d1f]">{average}%</p>
                 </div>
                 <div className="rounded-xl border border-[#DCE1E8] px-4 py-3">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Marked classes</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Marked Classes</p>
                   <p className="mt-1 text-[24px] font-bold text-[#1d1d1f]">{markedRows.length}</p>
                 </div>
                 <div className="rounded-xl border border-[#DCE1E8] px-4 py-3">

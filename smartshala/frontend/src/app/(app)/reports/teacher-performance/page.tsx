@@ -116,7 +116,7 @@ export default function TeacherPerformanceReportPage() {
     <div className="space-y-6">
       <PageHeader
         hideBreadcrumbs
-        title="Teacher performance"
+        title="Teacher Performance"
         action={<ReportExportActions disabled={loading || rows.length === 0} onExportCsv={exportCsv} onExportPdf={exportPdf} />}
       />
       <ReportTable colSpan={8} empty={loading ? "Loading teachers..." : "No teachers found."} isEmpty={loading || rows.length === 0} minWidth="min-w-[1080px]">
@@ -126,8 +126,8 @@ export default function TeacherPerformanceReportPage() {
               <tr>
                 <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Teacher</th>
                 <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Phone</th>
-                <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Class teacher for</th>
-                <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Assigned periods</th>
+                <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Class Teacher For</th>
+                <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Assigned Periods</th>
                 <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Subjects</th>
                 <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Marked</th>
                 <th className="px-5 py-3.5 font-semibold text-center whitespace-nowrap">Pending</th>

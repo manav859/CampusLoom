@@ -25,6 +25,7 @@ studentsRouter.get(
   controller.getStudentReportCardPdf
 );
 studentsRouter.get("/:id/documents/:documentId/download", requireRole(documentRoles), controller.downloadStudentDocument);
+studentsRouter.delete("/:id/documents/:documentId", requireRole(documentRoles), controller.deleteStudentDocument);
 studentsRouter.post(
   "/:id/documents",
   requireRole(documentRoles),

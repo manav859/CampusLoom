@@ -37,8 +37,8 @@ export default function PrincipalAttendanceDashboardPage() {
     return (
       <div className="space-y-5">
         <header>
-          <p className="text-sm font-semibold text-action">Attendance dashboard</p>
-          <h1 className="text-2xl font-bold text-ink">Today at a glance</h1>
+          <p className="text-sm font-semibold text-action">Attendance Dashboard</p>
+          <h1 className="text-2xl font-bold text-ink">Today at a Glance</h1>
         </header>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)}
@@ -68,7 +68,7 @@ export default function PrincipalAttendanceDashboardPage() {
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard label="Total classes" value={data.totalClasses} />
+        <KpiCard label="Total Classes" value={data.totalClasses} />
         <KpiCard label="Marked" value={data.markedClasses} tone="good" />
         <KpiCard label="Pending" value={data.pendingClasses} tone={data.pendingClasses > 0 ? "warn" : "good"} />
         <KpiCard label="Attendance" value={`${data.attendancePercentage}%`} tone="good" />
@@ -76,17 +76,17 @@ export default function PrincipalAttendanceDashboardPage() {
 
       <section className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-sm font-medium text-emerald-700">Students present</p>
+          <p className="text-sm font-medium text-emerald-700">Students Present</p>
           <p className="mt-2 text-3xl font-bold text-emerald-900">{data.students.present}</p>
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm font-medium text-red-700">Students absent</p>
+          <p className="text-sm font-medium text-red-700">Students Absent</p>
           <p className="mt-2 text-3xl font-bold text-red-900">{data.students.absent}</p>
         </div>
       </section>
 
       <section className="rounded-lg border border-line bg-panel p-4">
-        <h2 className="font-semibold text-ink">Pending classes</h2>
+        <h2 className="font-semibold text-ink">Pending Classes</h2>
         <div className="mt-3 space-y-2">
           {data.alerts.length === 0 ? (
             <p className="text-sm text-neutral-600">All classes have submitted attendance.</p>

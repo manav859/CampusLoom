@@ -60,7 +60,7 @@ export function EditHistoryPanel({ history }: EditHistoryPanelProps) {
     <section className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[16px] font-semibold text-[var(--ink-900)]">Edit history</h2>
+          <h2 className="text-[16px] font-semibold text-[var(--ink-900)]">Edit History</h2>
           <p className="text-[12px] font-medium text-[var(--ink-500)]">Latest immutable record changes for this student.</p>
         </div>
         <span className="text-[12px] font-semibold text-[var(--ink-500)]">{history.length} events</span>

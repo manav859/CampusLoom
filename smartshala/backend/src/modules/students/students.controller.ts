@@ -32,8 +32,10 @@ export const downloadStudentDocument = asyncHandler(async (req: Request, res: Re
   );
 
   if (downloadUrl.startsWith("http")) {
-    // S3 presigned URL — redirect the client.
-    res.redirect(302, downloadUrl);
+    // S3 presigned URL — return it as JSON so the client navigates directly to
+    // S3 (a 302 would be auto-followed by fetch and blocked by the CSP
+    // connect-src directive).
+    res.json({ downloadUrl, fileName });
     return;
   }
 
@@ -49,6 +51,10 @@ export const downloadStudentDocument = asyncHandler(async (req: Request, res: Re
       resolve();
     });
   });
+});
+
+export const deleteStudentDocument = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await studentsService.deleteStudentDocument(req.user!, req.params.id, req.params.documentId));
 });
 
 export const createStudent = asyncHandler(async (req: Request, res: Response) => {

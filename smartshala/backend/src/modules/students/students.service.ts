@@ -19,7 +19,7 @@ import { calculateStudentAttendanceSummary } from "../../core/studentAttendance.
 import { recordAuditLog } from "../../core/auditLog.js";
 import { assignFee } from "../fees/fees.service.js";
 import { env } from "../../config/env.js";
-import { uploadFile, getDownloadUrl } from "../../services/storageService.js";
+import { uploadFile, getDownloadUrl, deleteFile } from "../../services/storageService.js";
 
 type AttendanceForSnapshot = {
   status: AttendanceStatus;
@@ -1244,6 +1244,31 @@ export async function downloadStudentDocument(user: Express.UserContext, student
   const downloadUrl = await getDownloadUrl(document.storageKey);
 
   return { downloadUrl, fileName: document.originalName };
+}
+
+export async function deleteStudentDocument(user: Express.UserContext, studentId: string, documentId: string) {
+  return withRetry(async () => {
+    if (!isPrincipalRole(user.role)) {
+      throw new AppError(403, "Only Principal/Admin users can delete student documents", "FORBIDDEN");
+    }
+
+    const document = await prisma.studentDocument.findFirst({
+      where: {
+        id: documentId,
+        studentId,
+        schoolId: user.schoolId
+      },
+      select: { id: true, storageKey: true }
+    });
+    if (!document) throw notFound("Document");
+
+    if (document.storageKey) {
+      await deleteFile(document.storageKey);
+    }
+    await prisma.studentDocument.delete({ where: { id: document.id } });
+
+    return { id: document.id };
+  }, { label: "deleteStudentDocument" });
 }
 
 export async function createBehaviourRecord(user: Express.UserContext, studentId: string, data: Record<string, unknown>) {

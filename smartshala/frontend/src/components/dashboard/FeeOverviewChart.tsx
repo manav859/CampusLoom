@@ -4,7 +4,7 @@ import { useState } from "react";
 
 type Segment = { label: string; value: number; color: string };
 
-export function FeeOverviewChart({ segments, title = "Fee overview", eyebrow = "Finance" }: { segments?: Segment[]; title?: string; eyebrow?: string }) {
+export function FeeOverviewChart({ segments, title = "Fee Overview", eyebrow = "Finance" }: { segments?: Segment[]; title?: string; eyebrow?: string }) {
   const data = segments ?? [];
   const [mode, setMode] = useState<"donut" | "bar">("donut");
   const [activeLabel, setActiveLabel] = useState<string | null>("Pending");

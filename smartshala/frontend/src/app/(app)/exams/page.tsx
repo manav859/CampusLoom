@@ -428,7 +428,7 @@ export default function AdminExamsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Admin workspace</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">Admin Workspace</p>
           <h1 className="mt-1 text-[24px] font-semibold tracking-tight text-[#1d1d1f]">Exams &amp; Marks</h1>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -522,7 +522,7 @@ export default function AdminExamsPage() {
 
             <div className="grid gap-4 lg:grid-cols-4">
               <label className="block">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Exam name</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Exam Name</span>
                 <input
                   className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
                   onChange={(e) => setName(e.target.value)}
@@ -532,7 +532,7 @@ export default function AdminExamsPage() {
 
               {/* Term picker */}
               <div className="relative">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Term / type</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Term / Type</span>
                 <button
                   className="mt-1.5 flex min-h-[46px] w-full items-center justify-between rounded-xl border border-[#C9D3DE] bg-white px-3 text-left text-[13px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#2456E6] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10"
                   onClick={() => setTermPickerOpen(!termPickerOpen)}
@@ -558,7 +558,7 @@ export default function AdminExamsPage() {
               </div>
 
               <label className="block">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Max marks</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Max Marks</span>
                 <input
                   className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
                   min={1}
@@ -568,7 +568,7 @@ export default function AdminExamsPage() {
                 />
               </label>
               <label className="block">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Passing marks (Opt)</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[#86868b]">Passing Marks (Opt)</span>
                 <input
                   className="mt-1.5 min-h-[46px] w-full rounded-xl border border-[#C9D3DE] bg-white px-3 text-[13px] font-medium text-[#1d1d1f] outline-none focus:border-[#2456E6]"
                   min={0}
@@ -675,7 +675,7 @@ export default function AdminExamsPage() {
       <section className="space-y-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-1">
           <div>
-            <h2 className="text-[20px] font-semibold text-[#031526]">Exam history</h2>
+            <h2 className="text-[20px] font-semibold text-[#031526]">Exam History</h2>
             <p className="mt-0.5 text-[14px] font-medium text-[#52687D]">Saved exams feed the Academic tab and performance reports.</p>
           </div>
           {(filterClassNames.size > 0 || filterSubjectNames.size > 0 || filterExamNamesSet.size > 0) ? (
@@ -738,7 +738,7 @@ export default function AdminExamsPage() {
                       onClick={() => openExam(exam.id)}
                       type="button"
                     >
-                      {loadingExamId === exam.id ? "Loading..." : "View students"}
+                      {loadingExamId === exam.id ? "Loading..." : "View Students"}
                     </button>
                   </article>
                 ))}
@@ -831,7 +831,7 @@ export default function AdminExamsPage() {
                             onClick={() => openExam(exam.id)}
                             type="button"
                           >
-                            {loadingExamId === exam.id ? "Loading..." : "View students"}
+                            {loadingExamId === exam.id ? "Loading..." : "View Students"}
                           </button>
                         </td>
                       </tr>

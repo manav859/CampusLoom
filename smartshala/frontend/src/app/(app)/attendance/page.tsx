@@ -279,7 +279,7 @@ export default function TeacherAttendancePage() {
     <div className="w-full space-y-6">
       <PageHeader
         hideBreadcrumbs
-        title="Reliable attendance"
+        title="Reliable Attendance"
         action={
           <div className="flex gap-2">
             <button
@@ -296,7 +296,7 @@ export default function TeacherAttendancePage() {
               onClick={() => setResetConfirmOpen(true)}
               disabled={!attendance.canEdit || attendance.submitting || attendance.loading || !hasAssignedClasses}
             >
-              Reset all present
+              Reset All Present
             </button>
           </div>
         }
@@ -456,8 +456,8 @@ export default function TeacherAttendancePage() {
             <section className="min-w-0 space-y-3 rounded-md border border-[#E2E7EE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)]">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Monthly view</p>
-                  <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{classLabel} attendance calendar</h2>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Monthly View</p>
+                  <h2 className="text-[18px] font-semibold text-[#1d1d1f]">{classLabel} Attendance Calendar</h2>
                 </div>
                 <p className="text-[12px] text-[#86868b]">Daily attendance snapshot</p>
               </div>
@@ -600,7 +600,7 @@ export default function TeacherAttendancePage() {
                 disabled={submitDisabled}
               >
                 {attendance.submitting ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-                {attendance.submitting ? "Saving attendance..." : "Save attendance"}
+                {attendance.submitting ? "Saving Attendance..." : "Save Attendance"}
               </button>
             </div>
           </div>
@@ -608,7 +608,7 @@ export default function TeacherAttendancePage() {
           <Modal
             isOpen={resetConfirmOpen}
             onClose={() => setResetConfirmOpen(false)}
-            title="Reset all present?"
+            title="Reset All Present?"
             description={`This changes every ${classLabel} student on ${selectedDateLabel} to Present. Review the list before saving.`}
             footer={
               <>
@@ -620,7 +620,7 @@ export default function TeacherAttendancePage() {
                   }}
                   variant="primary"
                 >
-                  Reset all present
+                  Reset All Present
                 </Button>
               </>
             }
@@ -725,7 +725,7 @@ export default function TeacherAttendancePage() {
                             type="button"
                             className="rounded-full p-2 text-red-500 transition hover:bg-red-500/10"
                             onClick={() => handleDeleteHoliday(h.id)}
-                            title="Delete holiday"
+                            title="Delete Holiday"
                           >
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

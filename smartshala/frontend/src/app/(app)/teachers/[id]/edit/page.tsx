@@ -110,7 +110,7 @@ export default function EditTeacherPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <PageHeader eyebrow="Teachers" title="Edit teacher details" />
+      <PageHeader eyebrow="Teachers" title="Edit Teacher Details" />
 
       {errorMsg ? (
         <div className="rounded-xl border border-[rgba(255,59,48,0.2)] bg-[rgba(255,59,48,0.1)] p-4 text-[13px] font-medium text-[#d70015]">
@@ -120,7 +120,7 @@ export default function EditTeacherPage() {
 
       <form onSubmit={handleSubmit} className="glass-card space-y-5 p-8">
         <label className="block space-y-1.5">
-          <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Full name</span>
+          <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Full Name</span>
           <input
             required
             minLength={2}
@@ -133,7 +133,7 @@ export default function EditTeacherPage() {
 
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="space-y-1.5">
-            <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Email address</span>
+            <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Email Address</span>
             <input
               className="glass-input w-full"
               placeholder="teacher@school.com"
@@ -143,7 +143,7 @@ export default function EditTeacherPage() {
             />
           </label>
           <label className="space-y-1.5">
-            <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Phone number</span>
+            <span className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Phone Number</span>
             <input
               required
               minLength={10}
@@ -169,7 +169,7 @@ export default function EditTeacherPage() {
           </button>
           <button className="btn-primary gap-2 rounded-xl px-8 py-2.5 disabled:opacity-50" disabled={saving || Boolean(errorMsg && errorMsg === "Teacher not found.")} type="submit">
             {saving ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
-            {saving ? "Saving..." : "Save changes"}
+            {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </form>

@@ -20,7 +20,7 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
   return (
     <div className="overflow-hidden rounded-[8px] border border-[#DCE1E8] bg-white shadow-[var(--shadow-card)]">
       <div className="border-b border-[#DCE1E8] px-4 py-4 sm:px-6 sm:py-5">
-        <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Student fee accounts</h2>
+        <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Student Fee Accounts</h2>
         <p className="mt-1 text-[13px] text-[#86868b]">Open a student ledger to record payment or view receipts.</p>
       </div>
 
@@ -50,7 +50,7 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
                     <p className="mt-1 truncate whitespace-nowrap text-[14px] font-semibold text-[#0F1419]">{formatINR(row.pendingAmount)}</p>
                   </div>
                 </div>
-                <p className="mt-3 text-[12px] font-semibold text-[#2456E6]">Open ledger</p>
+                <p className="mt-3 text-[12px] font-semibold text-[#2456E6]">Open Ledger</p>
               </Link>
             ))}
           </div>

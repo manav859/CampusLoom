@@ -46,7 +46,7 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
     <section className="dashboard-panel-card flex h-[360px] flex-col p-4 sm:p-6">
       <div className="flex shrink-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Today&apos;s actions</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Today&apos;s Actions</h2>
           <p className="mt-0.5 text-[13px] text-[#86868b]">Priority follow-ups across attendance and fees.</p>
         </div>
         <Link className="shrink-0 text-[13px] font-medium text-[#0071e3] transition-colors hover:text-[#0077ed]" href="/notifications">Logs -&gt;</Link>

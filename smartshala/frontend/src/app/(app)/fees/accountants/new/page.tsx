@@ -46,7 +46,7 @@ export default function NewAccountantPage() {
   }
 
   return (
-    <SideModal eyebrow="Fees" onClose={() => router.back()} title="Add accountant">
+    <SideModal eyebrow="Fees" onClose={() => router.back()} title="Add Accountant">
       {errorMsg ? (
         <div className="mb-5 flex items-center gap-3 rounded-xl border border-[rgba(255,59,48,0.2)] bg-[rgba(255,59,48,0.1)] p-4 text-[13px] font-medium text-[#d70015]">
           <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -60,7 +60,7 @@ export default function NewAccountantPage() {
         <div>
           <FormSection title="Basic Details" defaultOpen>
             <div className="space-y-1.5">
-          <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Full name</label>
+          <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Full Name</label>
           <input
             className="glass-input w-full"
             minLength={2}
@@ -75,7 +75,7 @@ export default function NewAccountantPage() {
           <FormSection title="Login Details">
             <div className="space-y-5">
         <div className="space-y-1.5">
-          <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Email address</label>
+          <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Email Address</label>
           <input
             className="glass-input w-full"
             onChange={(event) => setFormData({ ...formData, email: event.target.value })}
@@ -88,7 +88,7 @@ export default function NewAccountantPage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Initial password</label>
+          <label className="ml-1 text-[13px] font-semibold text-[#1d1d1f]">Initial Password</label>
           <input
             className="glass-input w-full"
             minLength={6}

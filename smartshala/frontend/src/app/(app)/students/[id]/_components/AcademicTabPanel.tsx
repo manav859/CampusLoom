@@ -165,7 +165,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
               <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#7e53db]/20 bg-[#7e53db]/10 text-[11px] font-bold tracking-normal text-[#6341ac]">
                 AI
               </span>
-              <h2 className="truncate text-[17px] font-semibold text-[#1d1d1f]">Action insight</h2>
+              <h2 className="truncate text-[17px] font-semibold text-[#1d1d1f]">Action Insight</h2>
             </div>
             <button
               aria-label="How is this generated?"
@@ -185,11 +185,11 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className="kpi-metric-card kpi-metric-card-good min-h-[96px] p-4">
-              <p className="kpi-metric-label">Fees paid</p>
+              <p className="kpi-metric-label">Fees Paid</p>
               <p className="kpi-metric-value text-[24px] leading-7">{money(paidFees)}</p>
             </div>
             <div className="kpi-metric-card min-h-[96px] p-4">
-              <p className="kpi-metric-label">Attendance records</p>
+              <p className="kpi-metric-label">Attendance Records</p>
               <p className="kpi-metric-value text-[24px] leading-7">{attendance.total}</p>
             </div>
           </div>
@@ -199,7 +199,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
       <section className="overflow-hidden rounded-[6px] border border-[#DCE1E8] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="flex flex-col gap-3 border-b border-[#E7EBF0] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
           <div>
-            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam analytics</h2>
+            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam Analytics</h2>
             <p className="text-[12px] font-medium text-[#86868b]">Each mark includes class average, grade, and rank.</p>
           </div>
           <div className="flex items-center gap-2">
@@ -250,7 +250,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
                     <p className="mt-1 text-[15px] font-bold text-[#0F1419]">{exam.percentage}%</p>
                   </div>
                   <div className="rounded-[6px] bg-[#F7F8FB] p-3">
-                    <p className="font-semibold text-[#7A8390]">Class avg</p>
+                    <p className="font-semibold text-[#7A8390]">Class Avg</p>
                     <p className="mt-1 text-[15px] font-bold text-[#0F1419]">{exam.classAverage}%</p>
                   </div>
                   <div className="rounded-[6px] bg-[#F7F8FB] p-3">
@@ -306,7 +306,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
         <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam score comparison</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Exam Score Comparison</h2>
               <p className="mt-1 text-[12px] font-medium text-[#86868b]">Student score against class average for the latest exams.</p>
             </div>
           </div>
@@ -346,7 +346,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
         <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Subject analysis</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Subject Analysis</h2>
               <p className="mt-1 text-[12px] font-medium text-[#86868b]">Clear side-by-side averages by subject.</p>
             </div>
           </div>
@@ -398,7 +398,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
         <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Marks distribution</h2>
+              <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Marks Distribution</h2>
               <p className="mt-1 text-[12px] font-medium text-[#86868b]">Histogram of this student&apos;s recorded exam percentages.</p>
             </div>
             <StatusPill label={`${analytics.exams.length} exams`} tone={hasExams ? "good" : "neutral"} />
@@ -423,7 +423,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
         </div>
 
         <aside className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">At-risk signals</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">At-Risk Signals</h2>
           <p className="mt-1 text-[12px] font-medium text-[#86868b]">Signals combine attendance, fees, marks, and homework.</p>
           <div className="mt-5 space-y-3">
             {riskSignals.length === 0 ? (
@@ -440,7 +440,7 @@ export default function AcademicTabPanel({ student, attendance, pendingFees, pai
       </section>
 
       <section className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-5">
-        <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Homework completion by subject</h2>
+        <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Homework Completion by Subject</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {!hasSubjects ? (
             <div className="rounded-[6px] bg-[#F7F8FB] p-4 text-[13px] font-medium text-[#86868b]">No subject homework data recorded yet.</div>

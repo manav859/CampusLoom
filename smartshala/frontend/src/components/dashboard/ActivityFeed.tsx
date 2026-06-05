@@ -41,7 +41,7 @@ export function ActivityFeed({
       <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Activity</p>
-          <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">Recent events</h3>
+          <h3 className="mt-0.5 text-[15px] font-semibold text-[#1d1d1f]">Recent Events</h3>
         </div>
         {selectedDate && onDateChange ? (
           <DatePicker

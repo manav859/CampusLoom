@@ -321,7 +321,7 @@ export default function SubjectWiseReportPage() {
     <div className="space-y-6">
       <PageHeader
         hideBreadcrumbs
-        title="Subject wise student performance"
+        title="Subject Wise Student Performance"
         action={<ReportExportActions disabled={loading || rows.length === 0} onExportCsv={exportCsv} onExportPdf={exportPdf} />}
       />
       <div className="flex flex-wrap gap-2 md:hidden">
@@ -356,7 +356,7 @@ export default function SubjectWiseReportPage() {
             <thead className="table-head">
               <tr>
                 <th className="px-4 py-3.5 text-left font-semibold">Student</th>
-                <th className="px-4 py-3.5 text-left font-semibold">Admission no</th>
+                <th className="px-4 py-3.5 text-left font-semibold">Admission No</th>
                 <th className="px-3 py-3.5 text-left font-semibold">{renderFilter("class", "Class", selectedClasses)}</th>
                 <th className="px-3 py-3.5 text-left font-semibold">{renderFilter("subject", "Subject", selectedSubjects)}</th>
                 <th className="px-3 py-3.5 text-center font-semibold">Exams</th>
@@ -380,7 +380,7 @@ export default function SubjectWiseReportPage() {
                     </span>
                   </button>
                 </th>
-                <th className="px-3 py-3.5 text-left font-semibold">Latest exam</th>
+                <th className="px-3 py-3.5 text-left font-semibold">Latest Exam</th>
                 <th className="px-3 py-3.5 text-center font-semibold">Grade</th>
                 <th className="px-3 py-3.5 text-center font-semibold">{renderFilter("status", "Status", selectedStatuses)}</th>
               </tr>

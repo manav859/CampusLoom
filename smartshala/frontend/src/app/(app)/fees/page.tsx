@@ -210,7 +210,7 @@ export default function FeesDashboardPage() {
         <div className="border-b border-[#E7EBF0] px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-[18px] font-semibold text-[#0F1419]">Record payment</h2>
+              <h2 className="text-[18px] font-semibold text-[#0F1419]">Record Payment</h2>
               <p className="mt-1 text-[13px] text-[#5A6573]">Search student, then open fee ledger.</p>
             </div>
             <button className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setPaymentModalOpen(false)} type="button" aria-label="Close">
@@ -275,14 +275,14 @@ export default function FeesDashboardPage() {
       {paymentModal}
       <PageHeader
         hideBreadcrumbs
-        title="Collection command center"
+        title="Collection Command Center"
         action={
           <>
-            {isAdmin ? <button className="btn-primary" onClick={() => setPaymentModalOpen(true)} type="button">Record payment</button> : null}
-            {isAdmin ? <a className="btn-secondary" href="#fee-structures">Manage fee structures</a> : null}
-            {isAdmin ? <Link className="btn-secondary" href="/fees/accountants/new">Add accountant</Link> : null}
-            {isAdmin ? <Link className="btn-secondary" href="/fees/new">New structure</Link> : null}
-            <Link className="btn-secondary" href="/fees/defaulters">View defaulters</Link>
+            {isAdmin ? <button className="btn-primary" onClick={() => setPaymentModalOpen(true)} type="button">Record Payment</button> : null}
+            {isAdmin ? <a className="btn-secondary" href="#fee-structures">Manage Fee Structures</a> : null}
+            {isAdmin ? <Link className="btn-secondary" href="/fees/accountants/new">Add Accountant</Link> : null}
+            {isAdmin ? <Link className="btn-secondary" href="/fees/new">New Structure</Link> : null}
+            <Link className="btn-secondary" href="/fees/defaulters">View Defaulters</Link>
           </>
         }
       />
@@ -295,9 +295,9 @@ export default function FeesDashboardPage() {
           Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
-            <FeeCard label="Total collection" value={formatINR(data?.totalCollected ?? 0)} tone="good" />
+            <FeeCard label="Total Collection" value={formatINR(data?.totalCollected ?? 0)} tone="good" />
             <FeeCard label="Outstanding" value={formatINR(data?.totalPending ?? 0)} tone="warn" />
-            <FeeCard label="Total assigned" value={formatINR(data?.totalDue ?? 0)} />
+            <FeeCard label="Total Assigned" value={formatINR(data?.totalDue ?? 0)} />
             <FeeCard label="Defaulters" value={data?.defaulterCount ?? 0} tone="danger" helper="Pending active accounts" />
           </>
         )}
@@ -315,7 +315,7 @@ export default function FeesDashboardPage() {
             <div className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)] sm:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Collection snapshot</h2>
+                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Collection Snapshot</h2>
                   <p className="mt-0.5 text-[13px] text-[#86868b]">Collected versus outstanding for the current fee ledger.</p>
                 </div>
                 <Link className="inline-flex min-h-9 items-center justify-center rounded-[6px] border border-[#C8242C] bg-[#C8242C] px-3 text-[12px] font-semibold text-white hover:bg-[#A91D24]" href="/fees/defaulters">
@@ -336,12 +336,12 @@ export default function FeesDashboardPage() {
               </div>
               <div className="mt-4 grid gap-2">
                 <Link className="flex min-h-11 items-center justify-between rounded-[6px] border border-[#DCE1E8] bg-white px-4 py-3 text-[13px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB]" href="/fees/defaulters" title="Queue of students needing fee follow-up">
-                  Open defaulter follow-up queue
+                  Open Defaulter Follow-up Queue
                   <span className="text-[#86868b]">View</span>
                 </Link>
                 {isAdmin ? (
                   <Link className="flex min-h-11 items-center justify-between rounded-[6px] border border-[#DCE1E8] bg-white px-4 py-3 text-[13px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F7F8FB]" href="/notifications" title="Receipt and WhatsApp delivery audit trail">
-                    Review WhatsApp receipts
+                    Review WhatsApp Receipts
                     <span className="text-[#86868b]">Open</span>
                   </Link>
                 ) : null}
@@ -354,12 +354,12 @@ export default function FeesDashboardPage() {
       <section className="space-y-4 pt-4" id="fee-structures">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Fee structures</h2>
+            <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Fee Structures</h2>
             <p className="text-[13px] text-[#86868b]">Edit active structures, duplicate drafts, or archive old plans.</p>
           </div>
           {isAdmin ? (
             <div className="flex flex-wrap gap-2">
-              <Link className="btn-secondary min-h-10 px-4 text-[13px]" href="/fees/new">Create new</Link>
+              <Link className="btn-secondary min-h-10 px-4 text-[13px]" href="/fees/new">Create New</Link>
             </div>
           ) : null}
         </div>
@@ -408,7 +408,7 @@ export default function FeesDashboardPage() {
               getRowKey={(row) => row.id}
               columns={[
                 { key: "name", header: "Structure", render: (row) => <span className="font-semibold text-[#1d1d1f]">{row.name}</span> },
-                { key: "year", header: "Academic year", render: (row) => row.academicYear },
+                { key: "year", header: "Academic Year", render: (row) => row.academicYear },
                 { key: "amount", header: "Total", render: (row) => formatINR(Number(row.totalAmount)) },
                 { key: "frequency", header: "Frequency", render: (row) => humanizeConstant(row.frequency) },
                 { key: "class", header: "Class", render: (row) => row.class ? `${row.class.name}-${row.class.section}` : "All classes" },
@@ -435,26 +435,26 @@ export default function FeesDashboardPage() {
       <Modal
         isOpen={Boolean(editing)}
         onClose={() => setEditing(null)}
-        title="Edit fee structure"
+        title="Edit Fee Structure"
         description="Changes affect the fee plan definition. Existing student ledgers keep their recorded payments."
         footer={
           <>
             <ModalCloseButton onClick={() => setEditing(null)} />
-            <Button form="fee-structure-edit" isLoading={saving} type="submit">Save changes</Button>
+            <Button form="fee-structure-edit" isLoading={saving} type="submit">Save Changes</Button>
           </>
         }
       >
         <form className="grid gap-4 sm:grid-cols-2" id="fee-structure-edit" onSubmit={submitStructure}>
           <label className="sm:col-span-2">
-            <span className="text-[13px] font-semibold text-[#1d1d1f]">Structure name</span>
+            <span className="text-[13px] font-semibold text-[#1d1d1f]">Structure Name</span>
             <input className="glass-input mt-2" onChange={(event) => setForm({ ...form, name: event.target.value })} required value={form.name} />
           </label>
           <label>
-            <span className="text-[13px] font-semibold text-[#1d1d1f]">Academic year</span>
+            <span className="text-[13px] font-semibold text-[#1d1d1f]">Academic Year</span>
             <input className="glass-input mt-2" onChange={(event) => setForm({ ...form, academicYear: event.target.value })} required value={form.academicYear} />
           </label>
           <label>
-            <span className="text-[13px] font-semibold text-[#1d1d1f]">Total amount</span>
+            <span className="text-[13px] font-semibold text-[#1d1d1f]">Total Amount</span>
             <input className="glass-input mt-2" min={1} onChange={(event) => setForm({ ...form, totalAmount: event.target.value })} required type="number" value={form.totalAmount} />
           </label>
           <label>

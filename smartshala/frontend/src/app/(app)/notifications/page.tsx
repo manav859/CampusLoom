@@ -260,13 +260,13 @@ export default function NotificationsPage() {
     <div className="space-y-6">
       <PageHeader
         hideBreadcrumbs
-        title="Parent notification logs"
+        title="Parent Notification Logs"
         action={(
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <button className="rounded-lg border border-[#D6DCE5] bg-white px-4 py-2 text-[13px] font-semibold text-[#D92D20] hover:bg-[#FFF1F0] disabled:opacity-50" disabled={logs.length === 0 || clearing} onClick={clearLogs} type="button">
-              {clearing ? "Clearing..." : "Clear notifications"}
+              {clearing ? "Clearing..." : "Clear Notifications"}
             </button>
-            <button className="btn-primary">Send message</button>
+            <button className="btn-primary">Send Message</button>
           </div>
         )}
       />
@@ -281,11 +281,11 @@ export default function NotificationsPage() {
         ) : (
           <>
             <div className="kpi-metric-card kpi-metric-card-good p-6">
-              <p className="kpi-metric-label">Total sent today</p>
+              <p className="kpi-metric-label">Total Sent Today</p>
               <p className="kpi-metric-value">{sentToday}</p>
             </div>
             <div className="kpi-metric-card kpi-metric-card-danger p-6">
-              <p className="kpi-metric-label">Failed count</p>
+              <p className="kpi-metric-label">Failed Count</p>
               <p className="kpi-metric-value">{failedCount}</p>
             </div>
             <div className="kpi-metric-card p-6">

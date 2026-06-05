@@ -14,10 +14,10 @@ export function WhatsAppWidget({ logs, loading }: { logs: NotificationLog[]; loa
     <section className="glass-card-interactive p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">WhatsApp activity</h2>
+          <h2 className="text-[17px] font-semibold text-[#1d1d1f]">WhatsApp Activity</h2>
           <p className="mt-0.5 text-[13px] text-[#86868b]">Latest parent communication status.</p>
         </div>
-        <Link className="text-[13px] font-medium text-[#0071e3] hover:text-[#0077ed] transition-colors" href="/notifications">View all →</Link>
+        <Link className="text-[13px] font-medium text-[#0071e3] hover:text-[#0077ed] transition-colors" href="/notifications">View All →</Link>
       </div>
       {loading ? (
         <p className="mt-5 rounded-xl bg-[rgba(0,0,0,0.02)] px-4 py-4 text-[13px] text-[#86868b]">Loading WhatsApp logs…</p>

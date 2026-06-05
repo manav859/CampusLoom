@@ -41,7 +41,7 @@ export function AttendanceSummary({ total, present, absent, late, halfDay = 0, a
       </div>
       <div className={metricCardClasses(layout, "kpi-metric-card-purple")}>
         <div>
-          <p className="kpi-metric-label">Half day</p>
+          <p className="kpi-metric-label">Half Day</p>
           {pending ? <p className="mt-1 text-[11px] font-medium text-[#B95A00]">Attendance pending</p> : attended !== undefined ? <p className="mt-1 text-[11px] font-medium text-[#86868b]">{attended} attended</p> : null}
         </div>
         <p className="kpi-metric-value">{halfDay}</p>

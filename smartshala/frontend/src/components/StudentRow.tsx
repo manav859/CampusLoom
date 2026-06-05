@@ -59,7 +59,7 @@ function StudentRowComponent({ student, onToggle, onSetStatus, disabled = false 
               disabled={disabled}
               key={status}
               onClick={() => onSetStatus(student.id, status)}
-              title={status === "PRESENT" ? "Present" : status === "LATE" ? "Late" : status === "HALF_DAY" ? "Half day" : "Absent"}
+              title={status === "PRESENT" ? "Present" : status === "LATE" ? "Late" : status === "HALF_DAY" ? "Half Day" : "Absent"}
               type="button"
             >
               {status === "PRESENT" ? "P" : status === "LATE" ? "L" : status === "HALF_DAY" ? "H" : "A"}
