@@ -1246,8 +1246,24 @@ export const whatsappApi = {
   clear: () => apiFetch<{ success: boolean; count: number }>("/wa/logs", { method: "DELETE" })
 };
 
+export type StudentSearchItem = {
+  id: string;
+  fullName: string;
+  admissionNumber: string;
+  class?: { name: string; section: string } | null;
+};
+
+export type TeacherSearchItem = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string;
+};
+
 export const studentsApi = {
   get: (studentId: string) => apiFetch<StudentDetail>(`/students/${studentId}`),
+  search: (term: string) =>
+    apiFetch<{ items: StudentSearchItem[] }>(`/students?search=${encodeURIComponent(term)}&limit=5`),
   importStudents: (students: Array<Record<string, unknown>>) =>
     apiFetch<{ importedCount: number; students: StudentDetail[] }>("/students/import", {
       method: "POST",
@@ -1337,4 +1353,9 @@ export const studentsApi = {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+};
+
+export const teachersApi = {
+  search: (term: string) =>
+    apiFetch<{ items: TeacherSearchItem[] }>(`/users/teachers?search=${encodeURIComponent(term)}&limit=5`)
 };

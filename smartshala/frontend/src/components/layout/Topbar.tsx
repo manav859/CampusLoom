@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { SessionUser } from "@/types";
 import { clearCache, invalidateCache } from "@/lib/prefetchCache";
-import { authApi, settingsApi, whatsappApi, type NotificationLog } from "@/lib/api";
+import { authApi, settingsApi, studentsApi, teachersApi, whatsappApi, type NotificationLog, type StudentSearchItem, type TeacherSearchItem } from "@/lib/api";
 import { tokenStore } from "@/lib/tokenStore";
 import { withSchoolPath } from "@/lib/tenant";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
@@ -139,14 +139,67 @@ function ResultIcon({ icon }: { icon: SearchIconName }) {
   );
 }
 
+type PersonResult = {
+  href: string;
+  icon: SearchIconName;
+  subtitle: string;
+  title: string;
+  type: "Student" | "Teacher";
+};
+
 function GlobalSearch({ mobile = false, role }: { mobile?: boolean; role: SessionUser["role"] }) {
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [people, setPeople] = useState<PersonResult[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const canSearchTeachers = adminRoles.includes(role);
+
+  // Live student/teacher lookup from their modules (debounced).
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) {
+      setPeople([]);
+      return;
+    }
+    let active = true;
+    const timer = setTimeout(async () => {
+      const [studentRes, teacherRes] = await Promise.allSettled([
+        studentsApi.search(term),
+        canSearchTeachers ? teachersApi.search(term) : Promise.resolve({ items: [] as TeacherSearchItem[] })
+      ]);
+      if (!active) return;
+      const students: PersonResult[] =
+        studentRes.status === "fulfilled"
+          ? studentRes.value.items.map((s: StudentSearchItem) => ({
+              type: "Student",
+              icon: "students",
+              href: `/students/${s.id}`,
+              title: s.fullName,
+              subtitle: [s.admissionNumber, s.class ? `${s.class.name}-${s.class.section}` : null].filter(Boolean).join(" · ")
+            }))
+          : [];
+      const teachers: PersonResult[] =
+        teacherRes.status === "fulfilled"
+          ? teacherRes.value.items.map((t: TeacherSearchItem) => ({
+              type: "Teacher",
+              icon: "teachers",
+              href: `/teachers/${t.id}/edit`,
+              title: t.fullName,
+              subtitle: t.email || t.phone || "Teacher"
+            }))
+          : [];
+      setPeople([...students, ...teachers]);
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [query, canSearchTeachers]);
 
   const results = useMemo(() => {
     const allowed = searchResults.filter((item) => item.roles.includes(role));
@@ -187,10 +240,13 @@ function GlobalSearch({ mobile = false, role }: { mobile?: boolean; role: Sessio
     if (open && mobile) inputRef.current?.focus();
   }, [mobile, open]);
 
-  function goTo(item: SearchResult) {
+  // People (from Students/Teachers modules) rank above static module shortcuts.
+  const navHrefs = useMemo(() => [...people.map((p) => p.href), ...results.map((r) => r.href)], [people, results]);
+
+  function goTo(href: string) {
     setOpen(false);
     setQuery("");
-    router.push(withSchoolPath(item.href, pathname));
+    router.push(withSchoolPath(href, pathname));
   }
 
   return (
@@ -225,18 +281,18 @@ function GlobalSearch({ mobile = false, role }: { mobile?: boolean; role: Sessio
           onKeyDown={(event) => {
             if (event.key === "ArrowDown") {
               event.preventDefault();
-              setActiveIndex((index) => Math.min(index + 1, results.length - 1));
+              setActiveIndex((index) => Math.min(index + 1, navHrefs.length - 1));
             } else if (event.key === "ArrowUp") {
               event.preventDefault();
               setActiveIndex((index) => Math.max(index - 1, 0));
-            } else if (event.key === "Enter" && results[activeIndex]) {
+            } else if (event.key === "Enter" && navHrefs[activeIndex]) {
               event.preventDefault();
-              goTo(results[activeIndex]);
+              goTo(navHrefs[activeIndex]);
             } else if (event.key === "Escape") {
               setOpen(false);
             }
           }}
-          placeholder="Search Modules"
+          placeholder="Search students, teachers, modules"
           ref={inputRef}
           type="search"
           value={query}
@@ -259,30 +315,57 @@ function GlobalSearch({ mobile = false, role }: { mobile?: boolean; role: Sessio
       </div>
 
       {open ? (
-        <div className={`${mobile ? "fixed left-3 right-3 top-[62px] z-[131]" : "absolute left-0 right-0 top-[calc(100%+8px)] z-[130]"} max-h-[min(440px,calc(100vh-88px))] overflow-y-auto rounded-[12px] border border-[#DCE1E8] bg-white/98 p-2 shadow-[0_18px_48px_-24px_rgba(15,20,25,0.5)] backdrop-blur-xl`}>
-          {results.length ? (
+        <div className={`${mobile ? "fixed left-3 right-3 top-[62px] z-[131]" : "absolute left-0 right-0 top-[calc(100%+8px)] z-[130]"} max-h-[min(440px,calc(100vh-88px))] overflow-y-auto rounded-[12px] border border-[#DCE1E8] bg-white p-2 shadow-[0_18px_48px_-24px_rgba(15,20,25,0.5)]`}>
+          {people.length || results.length ? (
             <div className="space-y-1">
-              {results.map((item, index) => (
+              {people.length ? (
+                <p className="px-3 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#8C96A3]">People</p>
+              ) : null}
+              {people.map((item, index) => (
                 <button
                   className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-2.5 text-left transition ${index === activeIndex ? "bg-[#EEF3FF]" : "hover:bg-[#F7F8FB]"}`}
-                  key={`${item.href}-${item.title}`}
+                  key={item.href}
                   onMouseEnter={() => setActiveIndex(index)}
                   onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => goTo(item)}
+                  onClick={() => goTo(item.href)}
                   type="button"
                 >
                   <ResultIcon icon={item.icon} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px] font-bold text-[#0F1419]">{item.title}</span>
-                    <span className="mt-0.5 block truncate text-[12px] font-medium text-[#5A6573]">{item.description}</span>
+                    <span className="mt-0.5 block truncate text-[12px] font-medium text-[#5A6573]">{item.subtitle}</span>
                   </span>
+                  <span className="shrink-0 rounded-full bg-[#EEF3FF] px-2 py-0.5 text-[10px] font-bold text-[#2456E6]">{item.type}</span>
                 </button>
               ))}
+
+              {results.length ? (
+                <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[#8C96A3]">Modules</p>
+              ) : null}
+              {results.map((item, index) => {
+                const navIndex = people.length + index;
+                return (
+                  <button
+                    className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-2.5 text-left transition ${navIndex === activeIndex ? "bg-[#EEF3FF]" : "hover:bg-[#F7F8FB]"}`}
+                    key={`${item.href}-${item.title}`}
+                    onMouseEnter={() => setActiveIndex(navIndex)}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => goTo(item.href)}
+                    type="button"
+                  >
+                    <ResultIcon icon={item.icon} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-bold text-[#0F1419]">{item.title}</span>
+                      <span className="mt-0.5 block truncate text-[12px] font-medium text-[#5A6573]">{item.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="px-4 py-8 text-center">
               <p className="text-[13px] font-bold text-[#0F1419]">No results found</p>
-              <p className="mt-1 text-[12px] font-medium text-[#86868b]">Try student, fees, report, attendance, or settings.</p>
+              <p className="mt-1 text-[12px] font-medium text-[#86868b]">Try a student name, teacher, fees, report, or settings.</p>
             </div>
           )}
         </div>
