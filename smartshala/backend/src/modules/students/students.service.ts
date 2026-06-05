@@ -774,15 +774,17 @@ function performanceSnapshot(
   attendancePercentage: number,
   homeworkCompletionOverride?: number | null
 ) {
-  const examAverage = average(
-    examResults
-      .map((result) => {
-        const maxMarks = toNumber(result.maxMarks);
-        if (maxMarks <= 0) return null;
-        return clampPercentage((toNumber(result.marksObtained) / maxMarks) * 100);
-      })
-      .filter((value): value is number => value !== null)
-  );
+  // Weight each exam by its max-marks: a 100-mark final counts more than a 5-mark
+  // quiz. examAverage = total marks obtained / total max-marks across all exams.
+  let totalObtained = 0;
+  let totalMax = 0;
+  for (const result of examResults) {
+    const maxMarks = toNumber(result.maxMarks);
+    if (maxMarks <= 0) continue;
+    totalObtained += toNumber(result.marksObtained);
+    totalMax += maxMarks;
+  }
+  const examAverage = totalMax > 0 ? Math.round(clampPercentage((totalObtained / totalMax) * 100)) : null;
 
   const homeworkCompletion =
     homeworkCompletionOverride ??
@@ -819,20 +821,24 @@ async function currentRankForStudent(schoolId: string, classId: string, studentI
     }
   });
 
+  // Only students with a real performance score are ranked against each other, so
+  // the comparison stays apples-to-apples (a no-data student's attendance % must
+  // not compete against another student's performance %). No-data students are
+  // unranked and the profile shows "Not ranked" for them.
   const ranked = classmates
     .map((classmate) => {
       const attendancePercentage = attendanceSnapshot(classmate.attendanceRecords).attendancePercentage;
       return {
         id: classmate.id,
         fullName: classmate.fullName,
-        attendancePercentage,
         performanceRate: performanceSnapshot(classmate.examResults, classmate.homeworkRecords, attendancePercentage).performanceRate,
         feeBalance: classmate.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0)
       };
     })
+    .filter((item): item is typeof item & { performanceRate: number } => item.performanceRate !== null)
     .sort(
       (a, b) =>
-        (b.performanceRate ?? b.attendancePercentage) - (a.performanceRate ?? a.attendancePercentage) ||
+        b.performanceRate - a.performanceRate ||
         a.feeBalance - b.feeBalance ||
         a.fullName.localeCompare(b.fullName)
     );

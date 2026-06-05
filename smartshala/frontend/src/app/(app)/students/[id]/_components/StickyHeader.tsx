@@ -80,15 +80,23 @@ const kpiToneStyles: Record<KpiTone, { hover: string; accent: string; iconBg: st
   danger: { hover: "hover:border-[#C8242C]", accent: "text-[#C8242C]", iconBg: "bg-[#FCE3E5]" },
 };
 
-function MiniKpiCard({ label, value, tone = "neutral" }: { label: string; value: string; tone?: KpiTone }) {
+function MiniKpiCard({ label, value, tone = "neutral", info }: { label: string; value: string; tone?: KpiTone; info?: string }) {
   const s = kpiToneStyles[tone];
   return (
-    <div className={`flex min-h-[96px] items-center gap-3 rounded-[6px] border border-[#E2E7EE] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,20,25,0.04)] transition-colors duration-200 sm:h-[112px] sm:gap-4 sm:px-5 sm:py-4 ${s.hover}`}>
+    <div className={`group/kpi relative flex min-h-[96px] items-center gap-3 overflow-visible rounded-[6px] border border-[#E2E7EE] bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,20,25,0.04)] transition-colors duration-200 sm:h-[112px] sm:gap-4 sm:px-5 sm:py-4 ${s.hover}`}>
+      {info ? (
+        <span className="group/tooltip absolute right-3 top-3 z-20 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#9AA5B1] bg-white text-[11px] font-bold text-[#6B7785]" tabIndex={0}>
+          ?
+          <span className="pointer-events-none absolute right-0 top-7 z-30 w-64 rounded-md border border-[#DCE1E8] bg-white px-3 py-2 text-left text-[12px] font-medium leading-5 text-[#2A3340] opacity-0 shadow-[0_12px_32px_-12px_rgba(15,20,25,0.35)] transition-opacity duration-150 group-hover/tooltip:opacity-100 group-focus/tooltip:opacity-100">
+            {info}
+          </span>
+        </span>
+      ) : null}
       <div className={`hidden h-14 w-14 shrink-0 items-center justify-center rounded-[8px] sm:flex ${s.iconBg}`}>
         <KpiIcon label={label} className={`h-6 w-6 ${s.accent}`} />
       </div>
       <div className="min-w-0 flex-1">
-        <MarqueeText text={label} className="text-[15px] font-medium leading-6 text-[#52687D]" />
+        <MarqueeText text={label} className="pr-6 text-[15px] font-medium leading-6 text-[#52687D]" />
         <MarqueeText text={value} className="mt-0.5 text-[27px] font-semibold leading-8 tracking-normal text-[#0F2233]" />
       </div>
     </div>
@@ -384,10 +392,10 @@ export function StickyHeader({
 
         {/* ── Bottom row: KPI mini-cards ── */}
         <div className="grid grid-cols-1 gap-2.5 px-4 py-3 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
-          {canViewAttendance ? <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} /> : null}
-          {canViewAcademic ? <MiniKpiCard label="Current Rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" /> : null}
-          {canViewFees ? <MiniKpiCard label="Fee Balance" value={money(feeBalance)} tone={feeTone} /> : null}
-          {canViewAcademic ? <MiniKpiCard label="Overall Performance" value={performanceValue} tone={performanceKpiTone} /> : null}
+          {canViewAttendance ? <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} info="Share of days present across the last 60 attendance records. Half-days count as partial presence." /> : null}
+          {canViewAcademic ? <MiniKpiCard label="Current Rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" info="Position within the class by Overall Performance, highest first. Ties break by lower fee balance, then name. Students with no exam or homework data are unranked." /> : null}
+          {canViewFees ? <MiniKpiCard label="Fee Balance" value={money(feeBalance)} tone={feeTone} info="Total outstanding amount across all of this student's fee assignments." /> : null}
+          {canViewAcademic ? <MiniKpiCard label="Overall Performance" value={performanceValue} tone={performanceKpiTone} info="Weighted score: 60% exam average (total marks obtained ÷ total max marks) + 20% homework completion + 20% attendance. Needs exam and homework data to compute." /> : null}
         </div>
       </section>
     </div>
