@@ -2,6 +2,7 @@ import { AttendanceStatus, NotificationKind, Prisma, UserRole } from "@prisma/cl
 import { logger } from "../../config/logger.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { recordAuditLog } from "../../core/auditLog.js";
 import { buildAttendanceAbsentMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 
@@ -183,6 +184,12 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
     });
   }
 
+  const existingSession = await prisma.attendanceSession.findUnique({
+    where: { schoolId_classId_date: { schoolId: user.schoolId, classId, date: normalizedDate } },
+    select: { records: { select: { studentId: true, status: true } } }
+  });
+  const previousRecords = existingSession?.records ?? [];
+
   const createdSession = await prisma.$transaction(async (tx) => {
     const session = await tx.attendanceSession.upsert({
       where: {
@@ -237,6 +244,28 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
     if (!createdSession) throw notFound("Attendance session");
     return createdSession;
   }, { timeout: 15000 });
+
+  const className = `${classRecord.name}-${classRecord.section}`;
+  const involvedStudentIds = [...new Set([...previousRecords.map((record) => record.studentId), ...submittedStudentIds])];
+  const studentNames = await prisma.student.findMany({
+    where: { schoolId: user.schoolId, id: { in: involvedStudentIds } },
+    select: { id: true, fullName: true }
+  });
+  const nameById = new Map(studentNames.map((student) => [student.id, student.fullName]));
+  const namedRecords = (entries: { studentId: string; status: AttendanceStatus }[]) =>
+    entries.map((entry) => ({ studentId: entry.studentId, name: nameById.get(entry.studentId) ?? "Student", status: entry.status }));
+  const isUpdate = previousRecords.length > 0;
+
+  void recordAuditLog({
+    schoolId: user.schoolId,
+    actorId: user.id,
+    entityType: "ATTENDANCE",
+    entityId: createdSession.id,
+    action: isUpdate ? "UPDATE" : "CREATE",
+    summary: `${isUpdate ? "Updated" : "Marked"} attendance for ${className} on ${formatDate(normalizedDate)}`,
+    before: isUpdate ? { className, date: formatDate(normalizedDate), records: namedRecords(previousRecords) } : undefined,
+    after: { className, date: formatDate(normalizedDate), records: namedRecords(records) }
+  }).catch(() => undefined);
 
   queueAbsentAttendanceNotifications({
     schoolId: user.schoolId,

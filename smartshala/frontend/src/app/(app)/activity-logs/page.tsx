@@ -75,6 +75,7 @@ function actionLabel(action: string) {
 }
 
 function moduleLabel(log: ActivityLog) {
+  if (log.entityType === "AUTH") return "Account";
   const label = humanizeConstant(log.entityType);
   if (label.toLowerCase() === "students") return "Student";
   return label;
@@ -93,36 +94,83 @@ function targetName(log: ActivityLog) {
   return typeof value === "string" ? value : "";
 }
 
-function attendanceDetails(log: ActivityLog) {
-  const after = (log.afterJson ?? {}) as Record<string, unknown>;
-  const enriched = after.attendance && typeof after.attendance === "object" ? after.attendance as Record<string, unknown> : null;
-  const body = bodyOf(log);
-  const records = Array.isArray(body.records) ? body.records : [];
-  const isAttendanceMark = log.entityType === "ATTENDANCE" && (records.length > 0 || Boolean(enriched));
-  if (!isAttendanceMark) return null;
+type AttendanceRecord = { studentId: string; name: string; status: string };
 
-  const counts = records.reduce((acc, item) => {
-    if (!item || typeof item !== "object") return acc;
-    const status = (item as Record<string, unknown>).status;
-    if (status === "PRESENT") acc.present += 1;
-    if (status === "ABSENT") acc.absent += 1;
-    if (status === "HALF_DAY") acc.halfDay += 1;
-    if (status === "LATE") acc.late += 1;
+function statusLabel(status: string) {
+  if (status === "PRESENT") return "Present";
+  if (status === "ABSENT") return "Absent";
+  if (status === "HALF_DAY") return "Half day";
+  if (status === "LATE") return "Late";
+  return humanizeConstant(status);
+}
+
+function toAttendanceRecords(value: unknown): AttendanceRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    if (typeof record.status !== "string") return [];
+    return [{
+      studentId: typeof record.studentId === "string" ? record.studentId : "",
+      name: typeof record.name === "string" ? record.name : "",
+      status: record.status
+    }];
+  });
+}
+
+function attendanceDetails(log: ActivityLog) {
+  if (log.entityType !== "ATTENDANCE") return null;
+  const after = (log.afterJson ?? {}) as Record<string, unknown>;
+  const before = (log.beforeJson ?? {}) as Record<string, unknown>;
+  const body = bodyOf(log);
+
+  // New rich format stores named records on afterJson; older logs only have body.records (status only, no names).
+  const records = after.records !== undefined ? toAttendanceRecords(after.records) : toAttendanceRecords(body.records);
+  if (records.length === 0) return null;
+
+  const beforeRecords = toAttendanceRecords(before.records);
+  const hasNames = records.some((record) => record.name);
+
+  const counts = records.reduce((acc, record) => {
+    if (record.status === "PRESENT") acc.present += 1;
+    if (record.status === "ABSENT") acc.absent += 1;
+    if (record.status === "HALF_DAY") acc.halfDay += 1;
+    if (record.status === "LATE") acc.late += 1;
     return acc;
   }, { present: 0, absent: 0, halfDay: 0, late: 0 });
 
   return {
-    className: typeof enriched?.className === "string" ? enriched.className : "selected class",
-    present: typeof enriched?.present === "number" ? enriched.present : counts.present,
-    absent: typeof enriched?.absent === "number" ? enriched.absent : counts.absent,
-    halfDay: typeof enriched?.halfDay === "number" ? enriched.halfDay : counts.halfDay,
-    late: typeof enriched?.late === "number" ? enriched.late : counts.late
+    className: typeof after.className === "string" ? after.className : "",
+    records,
+    beforeRecords,
+    isUpdate: beforeRecords.length > 0,
+    hasNames,
+    counts
   };
+}
+
+function authAction(log: ActivityLog) {
+  if (log.entityType !== "AUTH") return null;
+  const after = (log.afterJson ?? {}) as Record<string, unknown>;
+  const path = typeof after.path === "string" ? after.path : "";
+  if (path.includes("/auth/logout")) return "Signed out";
+  if (path.includes("/auth/me/password")) return "Changed password";
+  if (path.includes("/auth/me")) return "Updated profile";
+  if (path.includes("/auth/login")) return "Signed in";
+  if (path.includes("/auth/register")) return "Registered account";
+  if (path.includes("/auth/forgot-password")) return "Requested password reset";
+  return null;
 }
 
 function description(log: ActivityLog) {
   const attendance = attendanceDetails(log);
-  if (attendance) return `Attendance Marked for class ${attendance.className}`;
+  if (attendance) {
+    const verb = attendance.isUpdate ? "updated" : "marked";
+    return `Attendance ${verb}${attendance.className ? ` for ${attendance.className}` : ""}`;
+  }
+
+  const auth = authAction(log);
+  if (auth) return auth;
 
   if (!log.summary.includes(" /") && !log.summary.includes(" PATCH ") && !log.summary.includes(" POST ") && !log.summary.includes(" PUT ")) {
     return log.summary;
@@ -165,14 +213,35 @@ function flattenDetails(value: unknown, prefix = ""): [string, unknown][] {
 function diffLines(log: ActivityLog) {
   const attendance = attendanceDetails(log);
   if (attendance) {
+    if (attendance.isUpdate && attendance.hasNames) {
+      const beforeStatus = new Map(attendance.beforeRecords.map((record) => [record.studentId, record.status]));
+      const changes = attendance.records
+        .filter((record) => beforeStatus.get(record.studentId) !== record.status)
+        .map((record) => {
+          const previous = beforeStatus.get(record.studentId);
+          const name = record.name || "Student";
+          return previous
+            ? `${name}: ${statusLabel(previous)} -> ${statusLabel(record.status)}`
+            : `${name}: ${statusLabel(record.status)} (newly added)`;
+        });
+      if (changes.length === 0) return ["No status changes"];
+      const capped = changes.slice(0, 15);
+      if (changes.length > capped.length) capped.push(`+${changes.length - capped.length} more changes`);
+      return capped;
+    }
     return [
-      `Class name: ${attendance.className}`,
-      `Total present: ${attendance.present}`,
-      `Absent: ${attendance.absent}`,
-      `Half day: ${attendance.halfDay}`,
-      `Late: ${attendance.late}`
+      `Present: ${attendance.counts.present}`,
+      `Absent: ${attendance.counts.absent}`,
+      `Half day: ${attendance.counts.halfDay}`,
+      `Late: ${attendance.counts.late}`
     ];
   }
+
+  const auth = authAction(log);
+  if (auth === "Signed out") return ["Session ended."];
+  if (auth === "Changed password") return ["Account password was updated."];
+  if (auth === "Signed in") return ["Signed in to the account."];
+  if (auth === "Requested password reset") return ["A password reset link was requested."];
 
   const before = (log.beforeJson ?? {}) as Record<string, unknown>;
   const rawAfter = (log.afterJson ?? {}) as Record<string, unknown>;
