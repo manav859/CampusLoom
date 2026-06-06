@@ -768,14 +768,9 @@ async function academicAnalytics(schoolId: string, classId: string, studentId: s
   };
 }
 
-function performanceSnapshot(
-  examResults: ExamForPerformance[],
-  homeworkRecords: HomeworkForPerformance[],
-  attendancePercentage: number,
-  homeworkCompletionOverride?: number | null
-) {
-  // Weight each exam by its max-marks: a 100-mark final counts more than a 5-mark
-  // quiz. examAverage = total marks obtained / total max-marks across all exams.
+// Weight each exam by its max-marks: a 100-mark final counts more than a 5-mark
+// quiz. examAverage = total marks obtained / total max-marks across all exams.
+function examAverageFor(examResults: ExamForPerformance[]) {
   let totalObtained = 0;
   let totalMax = 0;
   for (const result of examResults) {
@@ -784,7 +779,16 @@ function performanceSnapshot(
     totalObtained += toNumber(result.marksObtained);
     totalMax += maxMarks;
   }
-  const examAverage = totalMax > 0 ? Math.round(clampPercentage((totalObtained / totalMax) * 100)) : null;
+  return totalMax > 0 ? Math.round(clampPercentage((totalObtained / totalMax) * 100)) : null;
+}
+
+function performanceSnapshot(
+  examResults: ExamForPerformance[],
+  homeworkRecords: HomeworkForPerformance[],
+  attendancePercentage: number,
+  homeworkCompletionOverride?: number | null
+) {
+  const examAverage = examAverageFor(examResults);
 
   const homeworkCompletion =
     homeworkCompletionOverride ??
@@ -810,38 +814,21 @@ async function currentRankForStudent(schoolId: string, classId: string, studentI
     select: {
       id: true,
       fullName: true,
-      examResults: { select: { marksObtained: true, maxMarks: true } },
-      homeworkRecords: { select: { completionPercentage: true } },
-      attendanceRecords: {
-        take: 60,
-        orderBy: { createdAt: "desc" },
-        select: { status: true, attendanceValue: true, session: { select: { date: true } } }
-      },
-      feeAssignments: { select: { pendingAmount: true } }
+      examResults: { select: { marksObtained: true, maxMarks: true } }
     }
   });
 
-  // Only students with a real performance score are ranked against each other, so
-  // the comparison stays apples-to-apples (a no-data student's attendance % must
-  // not compete against another student's performance %). No-data students are
+  // Rank is purely exam-marks based: students are ordered by their exam average
+  // (total marks obtained / total max marks). Students with no exam data are
   // unranked and the profile shows "Not ranked" for them.
   const ranked = classmates
-    .map((classmate) => {
-      const attendancePercentage = attendanceSnapshot(classmate.attendanceRecords).attendancePercentage;
-      return {
-        id: classmate.id,
-        fullName: classmate.fullName,
-        performanceRate: performanceSnapshot(classmate.examResults, classmate.homeworkRecords, attendancePercentage).performanceRate,
-        feeBalance: classmate.feeAssignments.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0)
-      };
-    })
-    .filter((item): item is typeof item & { performanceRate: number } => item.performanceRate !== null)
-    .sort(
-      (a, b) =>
-        b.performanceRate - a.performanceRate ||
-        a.feeBalance - b.feeBalance ||
-        a.fullName.localeCompare(b.fullName)
-    );
+    .map((classmate) => ({
+      id: classmate.id,
+      fullName: classmate.fullName,
+      examAverage: examAverageFor(classmate.examResults)
+    }))
+    .filter((item): item is typeof item & { examAverage: number } => item.examAverage !== null)
+    .sort((a, b) => b.examAverage - a.examAverage || a.fullName.localeCompare(b.fullName));
 
   const rank = ranked.findIndex((item) => item.id === studentId);
   return rank >= 0 ? rank + 1 : null;

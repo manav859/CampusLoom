@@ -392,7 +392,7 @@ export function StickyHeader({
         {/* ── Bottom row: KPI mini-cards ── */}
         <div className="grid grid-cols-1 gap-2.5 px-4 py-3 sm:grid-cols-2 sm:px-5 lg:grid-cols-4">
           {canViewAttendance ? <MiniKpiCard label="Attendance %" value={`${attendancePercentage}%`} tone={attendanceTone} info="Share of days present across the last 60 attendance records. Half-days count as partial presence." /> : null}
-          {canViewAcademic ? <MiniKpiCard label="Current Rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" info="Position within the class by Overall Performance, highest first. Ties break by lower fee balance, then name. Students with no exam or homework data are unranked." /> : null}
+          {canViewAcademic ? <MiniKpiCard label="Current Rank" value={currentRank ? `#${currentRank}` : "Not ranked"} tone="neutral" info="Position within the class by exam average (total marks obtained ÷ total max marks), highest first. Ties break by name. Students with no exam data are unranked." /> : null}
           {canViewFees ? <MiniKpiCard label="Fee Balance" value={money(feeBalance)} tone={feeTone} info="Total outstanding amount across all of this student's fee assignments." /> : null}
           {canViewAcademic ? <MiniKpiCard label="Overall Performance" value={performanceValue} tone={performanceKpiTone} info="Weighted score: 60% exam average (total marks obtained ÷ total max marks) + 20% homework completion + 20% attendance. Needs exam and homework data to compute." /> : null}
         </div>

@@ -16,6 +16,7 @@ type StudentPerformanceRow = {
   fullName: string;
   class: { name: string; section: string };
   attendancePercentage?: number | null;
+  examAverage?: number | null;
   performanceRate?: number | null;
   performanceClassification?: PerformanceClassification | null;
   pendingAmount?: number | null;
@@ -83,7 +84,7 @@ export default function StudentPerformanceReportPage() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [classFilterOpen, setClassFilterOpen] = useState(false);
   const classFilterButtonRef = useRef<HTMLButtonElement>(null);
@@ -175,6 +176,25 @@ export default function StudentPerformanceReportPage() {
     };
   }, [classFilterOpen]);
 
+  // Class rank by exam average (matches the profile's Current Rank): within each
+  // class, active students with exam data are ordered by exam average descending,
+  // ties broken by name. Students with no exam data (or inactive) are unranked.
+  const rankByStudent = useMemo(() => {
+    const map = new Map<string, number>();
+    const byClass = new Map<string, StudentPerformanceRow[]>();
+    rows.forEach((row) => {
+      if (!row.isActive || row.examAverage === null || row.examAverage === undefined) return;
+      const key = classKey(row);
+      (byClass.get(key) ?? byClass.set(key, []).get(key)!).push(row);
+    });
+    byClass.forEach((classRows) => {
+      classRows
+        .sort((a, b) => (b.examAverage ?? 0) - (a.examAverage ?? 0) || a.fullName.localeCompare(b.fullName))
+        .forEach((row, index) => map.set(row.id, index + 1));
+    });
+    return map;
+  }, [rows]);
+
   const sortedRows = useMemo(
     () => {
       const term = search.trim().toLowerCase();
@@ -193,13 +213,17 @@ export default function StudentPerformanceReportPage() {
         : filteredRows;
 
       return [...filteredByClass].sort((a, b) => {
-        const left = a.performanceRate ?? -1;
-        const right = b.performanceRate ?? -1;
-        const result = left - right || a.fullName.localeCompare(b.fullName);
+        const rankA = rankByStudent.get(a.id);
+        const rankB = rankByStudent.get(b.id);
+        // Unranked students always sort to the bottom, regardless of direction.
+        if (rankA === undefined && rankB === undefined) return a.fullName.localeCompare(b.fullName);
+        if (rankA === undefined) return 1;
+        if (rankB === undefined) return -1;
+        const result = rankA - rankB || a.fullName.localeCompare(b.fullName);
         return sortDirection === "asc" ? result : -result;
       });
     },
-    [rows, search, selectedClasses, sortDirection]
+    [rows, search, selectedClasses, sortDirection, rankByStudent]
   );
 
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / perPage));
@@ -214,15 +238,19 @@ export default function StudentPerformanceReportPage() {
 
   function reportRows() {
     return [
-      ["Student", "Admission no", "Class", "Attendance", "Performance", "Status"],
-      ...sortedRows.map((row) => [
-        row.fullName,
-        row.admissionNumber,
-        classKey(row),
-        percent(row.attendancePercentage),
-        overallPerformance(row).value,
-        row.isActive ? "Active" : "Inactive"
-      ])
+      ["Student", "Admission no", "Class", "Class Rank", "Attendance", "Performance", "Status"],
+      ...sortedRows.map((row) => {
+        const rank = rankByStudent.get(row.id);
+        return [
+          row.fullName,
+          row.admissionNumber,
+          classKey(row),
+          rank ? `#${rank}` : "Not ranked",
+          percent(row.attendancePercentage),
+          overallPerformance(row).value,
+          row.isActive ? "Active" : "Inactive"
+        ];
+      })
     ];
   }
 
@@ -277,7 +305,7 @@ export default function StudentPerformanceReportPage() {
         </button>
       </div>
       <div className="hidden md:block">
-        <ReportTable colSpan={6} empty={loading ? "Loading students..." : "No students found."} isEmpty={loading || pageRows.length === 0} minWidth="min-w-[820px]">
+        <ReportTable colSpan={7} empty={loading ? "Loading students..." : "No students found."} isEmpty={loading || pageRows.length === 0} minWidth="min-w-[900px]">
           {!loading && pageRows.length > 0 ? (
             <>
             <thead className="table-head">
@@ -302,31 +330,35 @@ export default function StudentPerformanceReportPage() {
                     </button>
                   </span>
                 </th>
-                <th className="px-5 py-3.5 font-semibold">Attendance</th>
                 <th className="px-5 py-3.5 font-semibold">
                   <button
                     className="inline-flex items-center gap-2 font-semibold text-white"
                     onClick={() => setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"))}
+                    title="Class rank by exam average"
                     type="button"
                   >
-                    Performance
+                    Rank
                     <span className="inline-flex gap-0.5 text-[12px]" aria-hidden>
                       <span className={sortDirection === "asc" ? "text-white" : "text-white/55"}>&uarr;</span>
                       <span className={sortDirection === "desc" ? "text-white" : "text-white/55"}>&darr;</span>
                     </span>
                   </button>
                 </th>
+                <th className="px-5 py-3.5 font-semibold">Attendance</th>
+                <th className="px-5 py-3.5 font-semibold">Performance</th>
                 <th className="px-5 py-3.5 font-semibold">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EEF1F5]">
               {pageRows.map((row) => {
                 const performance = overallPerformance(row);
+                const rank = rankByStudent.get(row.id);
                 return (
                   <tr className="table-row" key={row.id}>
                     <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{row.fullName}</td>
                     <td className="px-5 py-4 text-[#5A6573]">{row.admissionNumber}</td>
                     <td className="px-5 py-4 text-[#5A6573]">{classKey(row)}</td>
+                    <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{rank ? `#${rank}` : <span className="font-medium text-[#86868b]">Not ranked</span>}</td>
                     <td className="px-5 py-4 text-[#5A6573]">{percent(row.attendancePercentage)}</td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-2">
@@ -394,6 +426,7 @@ export default function StudentPerformanceReportPage() {
         ) : (
           pageRows.map((row) => {
             const performance = overallPerformance(row);
+            const rank = rankByStudent.get(row.id);
             return (
               <article className="rounded-[8px] border border-[#DCE1E8] bg-white p-4 shadow-[var(--shadow-card)]" key={row.id}>
                 <div className="flex items-start justify-between gap-3">
@@ -404,6 +437,10 @@ export default function StudentPerformanceReportPage() {
                   <Link className="shrink-0 text-[13px] font-semibold text-[#2456E6]" href={`/students/${row.id}`}>View</Link>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3 text-[13px]">
+                  <div>
+                    <p className="text-[12px] font-semibold text-[#86868b]">Class Rank</p>
+                    <p className="mt-1 font-semibold text-[#1d1d1f]">{rank ? `#${rank}` : "Not ranked"}</p>
+                  </div>
                   <div>
                     <p className="text-[12px] font-semibold text-[#86868b]">Attendance</p>
                     <p className="mt-1 font-semibold text-[#1d1d1f]">{percent(row.attendancePercentage)}</p>
