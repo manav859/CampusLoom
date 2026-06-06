@@ -295,9 +295,9 @@ export default function FeesDashboardPage() {
           Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
-            <FeeCard label="Total Collection" value={formatINR(data?.totalCollected ?? 0)} tone="good" />
-            <FeeCard label="Outstanding" value={formatINR(data?.totalPending ?? 0)} tone="warn" />
-            <FeeCard label="Total Assigned" value={formatINR(data?.totalDue ?? 0)} />
+            <FeeCard label="Total Collection" value={formatINR(data?.totalCollected ?? 0)} exact={formatINR(data?.totalCollected ?? 0, { compact: false })} tone="good" />
+            <FeeCard label="Outstanding" value={formatINR(data?.totalPending ?? 0)} exact={formatINR(data?.totalPending ?? 0, { compact: false })} tone="warn" />
+            <FeeCard label="Total Assigned" value={formatINR(data?.totalDue ?? 0)} exact={formatINR(data?.totalDue ?? 0, { compact: false })} />
             <FeeCard label="Defaulters" value={data?.defaulterCount ?? 0} tone="danger" helper="Pending active accounts" />
           </>
         )}
