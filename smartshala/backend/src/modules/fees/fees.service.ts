@@ -7,6 +7,7 @@ import { recordAuditLog } from "../../core/auditLog.js";
 import { buildFeeReceiptMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 import { generateReceiptPdf } from "./receipt-pdf.js";
+import { ensureAcademicYear, getCurrentAcademicYear } from "../academicYears/academicYears.service.js";
 
 type FeeStructureInput = {
   classId?: string;
@@ -308,12 +309,15 @@ export async function createFeeStructure(schoolId: string, data: FeeStructureInp
       if (!classRecord) throw notFound("Class");
     }
 
+    const academicYearId = await ensureAcademicYear(schoolId, normalized.academicYear);
+
     return prisma.feeStructure.create({
       data: {
         schoolId,
         classId: normalized.classId,
         name: normalized.name,
         academicYear: normalized.academicYear,
+        academicYearId,
         frequency: normalized.frequency,
         totalAmount: normalized.totalAmount,
         installments: {
@@ -330,9 +334,11 @@ export async function createFeeStructure(schoolId: string, data: FeeStructureInp
   }, { label: "createFeeStructure" });
 }
 
-export async function listFeeStructures(schoolId: string) {
+export async function listFeeStructures(schoolId: string, academicYearId?: string) {
+  // Scope to a single academic year (explicit one, else the current year).
+  const yearId = academicYearId ?? (await getCurrentAcademicYear(schoolId))?.id;
   return withRetry(() => prisma.feeStructure.findMany({
-    where: { schoolId },
+    where: { schoolId, ...(yearId ? { academicYearId: yearId } : {}) },
     include: { class: true, installments: { orderBy: { sortOrder: "asc" } } },
     orderBy: { createdAt: "desc" }
   }), { label: "listFeeStructures" });
@@ -375,6 +381,8 @@ export async function updateFeeStructure(schoolId: string, id: string, data: Par
       }
     }
 
+    const nextAcademicYearId = data.academicYear ? await ensureAcademicYear(schoolId, data.academicYear) : undefined;
+
     return prisma.$transaction(async (tx) => {
       if (data.installments) {
         await tx.feeInstallment.deleteMany({ where: { feeStructureId: id } });
@@ -386,6 +394,7 @@ export async function updateFeeStructure(schoolId: string, id: string, data: Par
           classId: data.classId === undefined ? undefined : data.classId,
           name: data.name,
           academicYear: data.academicYear,
+          academicYearId: nextAcademicYearId,
           frequency: data.frequency,
           totalAmount: data.totalAmount,
           isActive: data.isActive,
@@ -420,6 +429,7 @@ export async function duplicateFeeStructure(schoolId: string, id: string) {
         classId: existing.classId,
         name: `${existing.name} Copy`,
         academicYear: existing.academicYear,
+        academicYearId: existing.academicYearId,
         frequency: existing.frequency,
         totalAmount: existing.totalAmount,
         isActive: false,

@@ -23,6 +23,7 @@
     "test:attendance": "tsx tests/studentAttendance.test.ts",
     "test:marks-term": "tsx tests/marksExamTerm.test.ts",
     "test:fee-adjustment": "tsx tests/feeAdjustmentSchema.test.ts",
+    "test:rollover": "tsx tests/academicYearRollover.test.ts",
     "backup:master": "node scripts/backup-master-db.mjs"
   },
   "dependencies": {

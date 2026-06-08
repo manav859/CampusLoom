@@ -1,6 +1,7 @@
 import { UserRole } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { ensureAcademicYear, getCurrentAcademicYear } from "../academicYears/academicYears.service.js";
 
 const defaultClassSubjects = ["English", "Hindi", "Mathematics", "Science", "Social Studies"];
 
@@ -54,7 +55,12 @@ async function replaceClassSubjects(schoolId: string, classId: string, subjects:
   });
 }
 
-export async function listClasses(user: Express.UserContext, options: { scope?: "classTeacher" } = {}) {
+export async function listClasses(user: Express.UserContext, options: { scope?: "classTeacher"; academicYearId?: string } = {}) {
+  // Scope to a single academic year: the explicit one when supplied, otherwise
+  // the school's current year. Schools with no academic year yet see all classes.
+  const yearId = options.academicYearId ?? (await getCurrentAcademicYear(user.schoolId))?.id;
+  const academicYearFilter = yearId ? { academicYearId: yearId } : {};
+
   const parentClassIds =
     user.role === UserRole.PARENT
       ? (
@@ -72,6 +78,7 @@ export async function listClasses(user: Express.UserContext, options: { scope?: 
   const classes = await prisma.class.findMany({
     where: {
       schoolId: user.schoolId,
+      ...academicYearFilter,
       ...((user.role as string) === UserRole.TEACHER
         ? options.scope === "classTeacher"
           ? { classTeacherId: user.id }
@@ -101,6 +108,7 @@ export async function listClasses(user: Express.UserContext, options: { scope?: 
   const hydratedClasses = await prisma.class.findMany({
     where: {
       schoolId: user.schoolId,
+      ...academicYearFilter,
       ...((user.role as string) === UserRole.TEACHER
         ? options.scope === "classTeacher"
           ? { classTeacherId: user.id }
@@ -136,7 +144,8 @@ export async function createClass(
     if (!teacher) throw new AppError(400, "Class teacher must be an active teacher in this school", "INVALID_TEACHER");
   }
   const { subjects, ...classData } = data;
-  const created = await prisma.class.create({ data: { schoolId, ...classData } });
+  const academicYearId = await ensureAcademicYear(schoolId, classData.academicYear);
+  const created = await prisma.class.create({ data: { schoolId, ...classData, academicYearId } });
   await replaceClassSubjects(schoolId, created.id, subjects, created.classTeacherId);
   return created;
 }

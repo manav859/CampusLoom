@@ -3,7 +3,12 @@ import { asyncHandler } from "../../core/asyncHandler.js";
 import * as classesService from "./classes.service.js";
 
 export const listClasses = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await classesService.listClasses(req.user!, { scope: req.query.scope === "classTeacher" ? "classTeacher" : undefined }));
+  res.json(
+    await classesService.listClasses(req.user!, {
+      scope: req.query.scope === "classTeacher" ? "classTeacher" : undefined,
+      academicYearId: typeof req.query.academicYearId === "string" ? req.query.academicYearId : undefined
+    })
+  );
 });
 
 export const createClass = asyncHandler(async (req: Request, res: Response) => {

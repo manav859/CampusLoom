@@ -111,6 +111,9 @@ export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [academicYearId, setAcademicYearId] = useState<string | null>(() =>
+    typeof window !== "undefined" ? window.localStorage.getItem("smartshala.academicYearId") : null
+  );
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
@@ -125,11 +128,18 @@ export default function ClassesPage() {
   }, []);
 
   useEffect(() => {
-    cachedFetch(`classes:list:${isAdmin ? "ADMIN" : "SCOPED"}`, () => apiFetch<ClassData[]>("/classes"))
+    const handler = (event: Event) => setAcademicYearId((event as CustomEvent).detail?.academicYearId ?? null);
+    window.addEventListener("smartshala:academic-year", handler);
+    return () => window.removeEventListener("smartshala:academic-year", handler);
+  }, []);
+
+  useEffect(() => {
+    const query = academicYearId ? `?academicYearId=${academicYearId}` : "";
+    cachedFetch(`classes:list:${isAdmin ? "ADMIN" : "SCOPED"}:${academicYearId ?? "current"}`, () => apiFetch<ClassData[]>(`/classes${query}`))
       .then((data) => setClasses(data || []))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [isAdmin]);
+  }, [isAdmin, academicYearId]);
 
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; id: string | null; error?: string }>({ isOpen: false, id: null });
 

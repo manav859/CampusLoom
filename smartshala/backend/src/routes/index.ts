@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { academicYearsRouter } from "../modules/academicYears/academicYears.routes.js";
 import { activityRouter } from "../modules/activity/activity.routes.js";
 import { apiHealthHandler, dbHealthHandler } from "./health.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
@@ -32,6 +33,7 @@ apiRouter.use("/tenant-setup", tenantSetupRouter);
 apiRouter.use(auditMutatingRequest);
 
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/academic-years", academicYearsRouter);
 apiRouter.use("/activity-logs", activityRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/classes", classesRouter);

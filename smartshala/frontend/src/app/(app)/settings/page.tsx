@@ -7,6 +7,7 @@ import { authApi, settingsApi, type DatabaseDeletionStatus, type SchoolProfilePa
 import { tokenStore } from "@/lib/tokenStore";
 import { communicationTemplates, renderCommunicationTemplate } from "@/lib/communicationTemplates";
 import { invalidateCache } from "@/lib/prefetchCache";
+import { AcademicYearSection } from "./AcademicYearSection";
 
 const previewVariables = {
   studentName: "Aarav Patel",
@@ -286,6 +287,8 @@ export default function SettingsPage() {
       <PageHeader hideBreadcrumbs title="School and Notification Settings" />
       {error ? <div className="rounded-[6px] border border-[#FCE3E5] bg-[#FCE3E5] p-4 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
       {notice ? <div className="rounded-[6px] border border-[#D6F0DF] bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
+
+      <AcademicYearSection />
 
       <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
         <form className="space-y-5 rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6" onSubmit={saveProfile}>

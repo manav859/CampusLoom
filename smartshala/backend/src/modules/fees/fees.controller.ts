@@ -7,7 +7,7 @@ export const dashboard = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const listFeeStructures = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await feesService.listFeeStructures(req.user!.schoolId));
+  res.json(await feesService.listFeeStructures(req.user!.schoolId, typeof req.query.academicYearId === "string" ? req.query.academicYearId : undefined));
 });
 
 export const getFeeStructure = asyncHandler(async (req: Request, res: Response) => {

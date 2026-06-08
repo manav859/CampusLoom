@@ -987,14 +987,82 @@ function normalizeActivityLogResponse(response: ActivityLogResponse): ActivityLo
 }
 
 export const classesApi = {
-  list: (options?: { scope?: "classTeacher" }) => {
+  list: (options?: { scope?: "classTeacher"; academicYearId?: string }) => {
     const params = new URLSearchParams();
     if (options?.scope) params.set("scope", options.scope);
+    if (options?.academicYearId) params.set("academicYearId", options.academicYearId);
     const query = params.toString();
     return apiFetch<ClassSummary[]>(`/classes${query ? `?${query}` : ""}`);
   },
   students: (classId: string) => apiFetch<ClassStudent[]>(`/classes/${classId}/students`),
   stats: (classId: string) => apiFetch<ClassStats>(`/classes/${classId}/stats`)
+};
+
+export type AcademicYearStatus = "UPCOMING" | "ACTIVE" | "CLOSED";
+
+export type AcademicYear = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  status: AcademicYearStatus;
+  _count?: { classes: number };
+};
+
+export type RolloverClassProposal = {
+  sourceClassId: string;
+  name: string;
+  section: string;
+  studentCount: number;
+  classTeacher: { id: string; fullName: string } | null;
+  classTeacherId: string | null;
+  proposedAction: "PROMOTE" | "GRADUATE";
+  proposedTargetName: string | null;
+  proposedTargetSection: string;
+};
+
+export type RolloverPreview = {
+  currentYear: AcademicYear;
+  targetName: string;
+  targetDates: { startDate: string; endDate: string };
+  classes: RolloverClassProposal[];
+  arrears: { totalPending: number; studentCount: number };
+};
+
+export type RolloverMapping = {
+  sourceClassId: string;
+  action: "PROMOTE" | "GRADUATE";
+  targetName?: string;
+  targetSection?: string;
+  classTeacherId?: string | null;
+  heldBackStudentIds?: string[];
+};
+
+export type RolloverCommitPayload = {
+  targetYear: { name: string; startDate?: string; endDate?: string };
+  mappings: RolloverMapping[];
+  setCurrent: boolean;
+};
+
+export type RolloverResult = {
+  targetYear: AcademicYear;
+  classesCreated: number;
+  studentsPromoted: number;
+  studentsHeldBack: number;
+  studentsGraduated: number;
+  arrearsCarried: number;
+};
+
+export const academicYearsApi = {
+  list: () => apiFetch<AcademicYear[]>("/academic-years"),
+  current: () => apiFetch<AcademicYear | null>("/academic-years/current"),
+  create: (payload: { name: string; startDate: string; endDate: string }) =>
+    apiFetch<AcademicYear>("/academic-years", { method: "POST", body: JSON.stringify(payload) }),
+  rolloverPreview: (targetName?: string) =>
+    apiFetch<RolloverPreview>("/academic-years/rollover/preview", { method: "POST", body: JSON.stringify({ targetName }) }),
+  rolloverCommit: (payload: RolloverCommitPayload) =>
+    apiFetch<RolloverResult>("/academic-years/rollover/commit", { method: "POST", body: JSON.stringify(payload) })
 };
 
 export const marksApi = {
