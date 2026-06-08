@@ -14,7 +14,7 @@ export const getSchoolProfile = asyncHandler(async (req: Request, res: Response)
 });
 
 export const updateSchoolProfile = asyncHandler(async (req: Request, res: Response) => {
-  res.json(await settingsService.updateSchoolProfile(req.user!.schoolId, req.body));
+  res.json(await settingsService.updateSchoolProfile(req.user!.schoolId, req.body, req.user!.id));
 });
 
 function tenantSchoolIdFromRequest(req: Request) {

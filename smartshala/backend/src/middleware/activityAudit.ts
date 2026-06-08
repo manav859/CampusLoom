@@ -72,6 +72,7 @@ export function auditMutatingRequest(req: Request, res: Response, next: NextFunc
     if (/\/api(?:\/v1)?\/students(?:\/|$)/.test(req.originalUrl)) return;
     if (/\/api(?:\/v1)?\/attendance\/mark(?:\/|$|\?)/.test(req.originalUrl)) return;
     if (/\/api(?:\/v1)?\/fees\/(payment|payments|adjustments|fee-adjustments)(?:\/|$)/.test(req.originalUrl)) return;
+    if (/\/api(?:\/v1)?\/settings\/school-profile(?:\/|$|\?)/.test(req.originalUrl)) return;
     if (isNotificationSendAudit(req.originalUrl)) return;
 
     const entityType = entityFromPath(req.originalUrl);
