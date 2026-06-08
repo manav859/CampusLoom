@@ -107,6 +107,34 @@ const kpiToneStyles = {
   }
 };
 
+// Plain-language explanations shown on hover/tap so anyone can understand each card.
+const kpiInfo: Record<AnalyticsKpi["icon"], { title: string; description: string }> = {
+  attendance: {
+    title: "Attendance below 75%",
+    description: "Students who came to school on fewer than 75 out of every 100 days. They are missing a lot of class and may start falling behind."
+  },
+  combined: {
+    title: "Combined risk",
+    description: "Students with two problems at the same time — low attendance and unpaid fees. Help these students first."
+  },
+  repeat: {
+    title: "Repeat absentees",
+    description: "Students who have stayed absent again and again — not just once or twice. Usually a sign of a bigger problem at home or in class."
+  },
+  high: {
+    title: "High severity",
+    description: "The most serious cases. Call or meet these families today."
+  },
+  medium: {
+    title: "Medium severity",
+    description: "Cases worth watching. Follow up this week, before they get worse."
+  },
+  low: {
+    title: "Low severity",
+    description: "Small concerns only. Just keep an eye on these students — no urgent action needed."
+  }
+};
+
 function AnalyticsKpiIcon({ type, className }: { type: AnalyticsKpi["icon"]; className: string }) {
   if (type === "attendance") {
     return (
@@ -168,9 +196,14 @@ function AnalyticsKpiIcon({ type, className }: { type: AnalyticsKpi["icon"]; cla
 
 function AnalyticsKpiCard({ helper, icon, label, tone, value }: AnalyticsKpi) {
   const styles = kpiToneStyles[tone];
+  const info = kpiInfo[icon];
 
   return (
-    <div className={`flex h-[112px] min-w-0 items-center gap-3 rounded-[8px] border bg-white p-4 shadow-[var(--shadow-card)] sm:gap-4 sm:p-5 ${styles.border}`}>
+    <div
+      aria-label={`${label}. ${info.description}`}
+      className={`group relative z-0 flex h-[112px] min-w-0 cursor-help items-center gap-3 rounded-[8px] border bg-white p-4 shadow-[var(--shadow-card)] outline-none transition-shadow hover:z-30 focus-visible:z-30 focus-visible:ring-2 focus-visible:ring-[#2456E6]/30 sm:gap-4 sm:p-5 ${styles.border}`}
+      tabIndex={0}
+    >
       <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] sm:h-14 sm:w-14 ${styles.iconBg}`}>
         <AnalyticsKpiIcon type={icon} className={`h-6 w-6 sm:h-7 sm:w-7 ${styles.iconText}`} />
       </div>
@@ -178,6 +211,21 @@ function AnalyticsKpiCard({ helper, icon, label, tone, value }: AnalyticsKpi) {
         <p className="truncate text-[14px] font-semibold leading-5 text-[#52687D] sm:text-[15px]">{label}</p>
         <p className="mt-1 truncate text-[26px] font-bold leading-8 text-[#0F1419] [font-variant-numeric:tabular-nums]">{value}</p>
         {helper ? <p className="mt-0.5 truncate text-[12px] font-semibold leading-4 text-[#5A6573]" title={helper}>{helper}</p> : null}
+      </div>
+
+      <span
+        aria-hidden="true"
+        className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full border border-[#C9D3DE] text-[10px] font-bold italic leading-none text-[#8C96A3] transition-colors group-hover:border-[#2456E6] group-hover:text-[#2456E6]"
+      >
+        i
+      </span>
+
+      <div
+        role="tooltip"
+        className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 w-[260px] max-w-[78vw] -translate-x-1/2 translate-y-1 rounded-[10px] border border-[#E3E8EF] bg-white p-3 text-left opacity-0 shadow-[0_16px_40px_-12px_rgba(15,20,25,0.35)] transition-all duration-150 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100"
+      >
+        <p className={`text-[13px] font-bold ${styles.iconText}`}>{info.title}</p>
+        <p className="mt-1 text-[12.5px] leading-5 text-[#424B57]">{info.description}</p>
       </div>
     </div>
   );
