@@ -151,7 +151,7 @@ export default function OnboardPage() {
           termsAccepted: form.termsAccepted
         })
       });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => null);
       if (!response.ok) {
         // Extract field-level validation errors if available
         const details = payload?.error?.details;
@@ -169,11 +169,21 @@ export default function OnboardPage() {
             throw new Error("Please correct the highlighted errors.");
           }
         }
-        throw new Error(payload?.error?.message ?? "Onboarding failed");
+        throw new Error(
+          payload?.error?.message ??
+            `Onboarding failed (${response.status} ${response.statusText})`
+        );
+      }
+      if (!payload?.schoolId) {
+        throw new Error("Unexpected response from server. Please try again.");
       }
       router.replace(`/onboarding-success?schoolId=${payload.schoolId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Onboarding failed");
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        setError("Network error — please check your internet connection and try again.");
+      } else {
+        setError(err instanceof Error ? err.message : "Onboarding failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
