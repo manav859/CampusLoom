@@ -68,6 +68,7 @@ export function auditMutatingRequest(req: Request, res: Response, next: NextFunc
     if (!req.user) return;
     if (res.statusCode >= 400) return;
     if (req.originalUrl.includes("/activity-logs")) return;
+    if (req.originalUrl.includes("/auth/logout")) return;
     if (/\/api(?:\/v1)?\/students(?:\/|$)/.test(req.originalUrl)) return;
     if (/\/api(?:\/v1)?\/attendance\/mark(?:\/|$|\?)/.test(req.originalUrl)) return;
     if (/\/api(?:\/v1)?\/fees\/(payment|payments|adjustments|fee-adjustments)(?:\/|$)/.test(req.originalUrl)) return;

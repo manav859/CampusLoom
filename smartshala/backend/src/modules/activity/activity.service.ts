@@ -76,13 +76,14 @@ function logSearchText(log: { action: string; actor?: { fullName: string; role: 
   ].join(" ").toLowerCase();
 }
 
-function notificationSendAuditExclusion() {
+function hiddenAuditExclusions() {
   return {
     NOT: [
       { entityType: "WA", summary: { contains: "/wa/send", mode: "insensitive" as const } },
       { entityType: "WA", summary: { contains: "/wa/bulk", mode: "insensitive" as const } },
       { entityType: "WA", summary: { contains: "/retry", mode: "insensitive" as const } },
-      { entityType: "COMMUNICATION", summary: { contains: "/communication/messages", mode: "insensitive" as const } }
+      { entityType: "COMMUNICATION", summary: { contains: "/communication/messages", mode: "insensitive" as const } },
+      { summary: { contains: "/auth/logout", mode: "insensitive" as const } }
     ]
   } satisfies Prisma.AuditLogWhereInput;
 }
@@ -206,7 +207,7 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
   if (dateTo) dateTo.setHours(23, 59, 59, 999);
   const baseWhere = {
     schoolId: user.schoolId,
-    ...notificationSendAuditExclusion()
+    ...hiddenAuditExclusions()
   } satisfies Prisma.AuditLogWhereInput;
   const whereWithoutSearch = {
     ...baseWhere,
