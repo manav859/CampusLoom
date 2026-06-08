@@ -214,7 +214,7 @@ function flattenDetails(value: unknown, prefix = ""): [string, unknown][] {
   });
 }
 
-function diffLines(log: ActivityLog, labelsOnly = false) {
+function diffLines(log: ActivityLog) {
   const attendance = attendanceDetails(log);
   if (attendance) {
     if (attendance.isUpdate && attendance.hasNames) {
@@ -258,7 +258,6 @@ function diffLines(log: ActivityLog, labelsOnly = false) {
     .slice(0, 12)
     .map(([key, value]) => {
       const label = titleCase(key);
-      if (labelsOnly) return label;
       if (beforeFlat.has(key)) return `${label}: ${displayValue(beforeFlat.get(key), key)} -> ${displayValue(value, key)}`;
       return `${label}: ${displayValue(value, key)}`;
     });
@@ -705,15 +704,16 @@ export default function ActivityLogsPage() {
                 ) : (
                   rows.map((log) => {
                     const desc = description(log);
-                    const lines = diffLines(log, isUpdateAction(log.action));
+                    const lines = diffLines(log);
+                    const tooltipTitle = isUpdateAction(log.action) ? "What changed:" : desc;
                     return (
                       <tr className="transition-colors hover:bg-[#F8FBFD]" data-activity-log-row key={log.id}>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{moduleLabel(log)}</td>
                         <td className="border-b border-[#C9D3DE] px-4 py-4">
                           <span
                             className="inline-block max-w-[520px] cursor-default truncate align-bottom decoration-[#2456E6] underline-offset-4 hover:text-[#2456E6] hover:underline"
-                            onMouseEnter={(event) => showTooltip(event, desc, lines)}
-                            onMouseMove={(event) => showTooltip(event, desc, lines)}
+                            onMouseEnter={(event) => showTooltip(event, tooltipTitle, lines)}
+                            onMouseMove={(event) => showTooltip(event, tooltipTitle, lines)}
                             onMouseLeave={() => setTooltip(null)}
                           >
                             {desc}
