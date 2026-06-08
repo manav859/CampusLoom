@@ -11,6 +11,7 @@ type CreateSchoolDatabaseInput = {
   ownerName: string;
   email: string;
   phone: string;
+  address?: string;
   dbName: string;
   adminPassword: string;
 };
@@ -129,7 +130,8 @@ async function seedInitialAdmin(input: CreateSchoolDatabaseInput, databaseUrl: s
       create: {
         code: input.schoolId,
         name: input.schoolName,
-        phone: input.phone
+        phone: input.phone,
+        city: input.address ?? null
       }
     });
 

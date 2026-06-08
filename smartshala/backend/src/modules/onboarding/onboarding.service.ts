@@ -65,6 +65,7 @@ export async function onboardSchool(input: OnboardingInput) {
       ownerName: input.ownerName,
       email: input.email,
       phone: input.phone,
+      address: input.address,
       dbName,
       adminPassword: input.adminPassword
     });

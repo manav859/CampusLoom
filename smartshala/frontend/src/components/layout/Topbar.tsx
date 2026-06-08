@@ -382,6 +382,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
   const [notifLogs, setNotifLogs] = useState<NotificationLog[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
+  const [schoolCity, setSchoolCity] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -452,10 +453,15 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
     let active = true;
     settingsApi.schoolProfile()
       .then((profile) => {
-        if (active) setSchoolLogo(profile.logoUrl ?? null);
+        if (!active) return;
+        setSchoolLogo(profile.logoUrl ?? null);
+        setSchoolCity(profile.city ?? null);
       })
       .catch(() => {
-        if (active) setSchoolLogo(null);
+        if (active) {
+          setSchoolLogo(null);
+          setSchoolCity(null);
+        }
       });
     return () => {
       active = false;
@@ -523,20 +529,32 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
                   <span className="mobile-school-marquee-track">
                     <span>
                       {user.schoolName || "SmartShala Partner School"}
-                      <span className="text-[#86868b] font-normal"> - </span>
-                      <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
+                      {schoolCity && (
+                        <>
+                          <span className="text-[#86868b] font-normal"> - </span>
+                          <span className="text-[#86868b] font-normal text-[13px]">{schoolCity}</span>
+                        </>
+                      )}
                     </span>
                     <span aria-hidden="true">
                       {user.schoolName || "SmartShala Partner School"}
-                      <span className="text-[#86868b] font-normal"> - </span>
-                      <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
+                      {schoolCity && (
+                        <>
+                          <span className="text-[#86868b] font-normal"> - </span>
+                          <span className="text-[#86868b] font-normal text-[13px]">{schoolCity}</span>
+                        </>
+                      )}
                     </span>
                   </span>
                 </div>
                 <p className="hidden truncate text-[15px] font-semibold text-[#1d1d1f] tracking-tight leading-tight md:block">
                   {user.schoolName || "SmartShala Partner School"}
-                  <span className="text-[#86868b] font-normal"> · </span>
-                  <span className="text-[#86868b] font-normal text-[13px]">Ahmedabad</span>
+                  {schoolCity && (
+                    <>
+                      <span className="text-[#86868b] font-normal"> · </span>
+                      <span className="text-[#86868b] font-normal text-[13px]">{schoolCity}</span>
+                    </>
+                  )}
                 </p>
               </div>
             </div>
