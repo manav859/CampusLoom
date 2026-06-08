@@ -74,6 +74,10 @@ function actionLabel(action: string) {
   return humanizeConstant(action);
 }
 
+function isUpdateAction(action: string) {
+  return action === "REPLACE" || action === "UPDATE";
+}
+
 function moduleLabel(log: ActivityLog) {
   if (log.entityType === "AUTH") return "Account";
   const label = humanizeConstant(log.entityType);
@@ -210,7 +214,7 @@ function flattenDetails(value: unknown, prefix = ""): [string, unknown][] {
   });
 }
 
-function diffLines(log: ActivityLog) {
+function diffLines(log: ActivityLog, labelsOnly = false) {
   const attendance = attendanceDetails(log);
   if (attendance) {
     if (attendance.isUpdate && attendance.hasNames) {
@@ -254,6 +258,7 @@ function diffLines(log: ActivityLog) {
     .slice(0, 12)
     .map(([key, value]) => {
       const label = titleCase(key);
+      if (labelsOnly) return label;
       if (beforeFlat.has(key)) return `${label}: ${displayValue(beforeFlat.get(key), key)} -> ${displayValue(value, key)}`;
       return `${label}: ${displayValue(value, key)}`;
     });
@@ -700,7 +705,7 @@ export default function ActivityLogsPage() {
                 ) : (
                   rows.map((log) => {
                     const desc = description(log);
-                    const lines = diffLines(log);
+                    const lines = diffLines(log, isUpdateAction(log.action));
                     return (
                       <tr className="transition-colors hover:bg-[#F8FBFD]" data-activity-log-row key={log.id}>
                         <td className="whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4">{moduleLabel(log)}</td>
