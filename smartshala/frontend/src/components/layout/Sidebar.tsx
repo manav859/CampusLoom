@@ -294,7 +294,8 @@ export function Sidebar({
   open = false,
   onClose,
   isPinned,
-  setIsPinned
+  setIsPinned,
+  onOpenTutorial
 }: {
   role: Role;
   fullName: string;
@@ -302,6 +303,7 @@ export function Sidebar({
   onClose?: () => void;
   isPinned: boolean;
   setIsPinned: (pinned: boolean) => void;
+  onOpenTutorial?: () => void;
 }) {
   const pathname = usePathname();
   const links = linksForRole(role);
@@ -472,6 +474,28 @@ export function Sidebar({
               </Link>
             );
           })}
+
+          {/* Tutorial — opens the feature tour, available to everyone, anytime */}
+          <button
+            type="button"
+            onClick={() => {
+              onClose?.();
+              onOpenTutorial?.();
+            }}
+            className={`group flex min-h-[42px] w-full items-center rounded-lg border border-transparent py-2 text-[13px] font-semibold text-[#424245] transition-all duration-300 ease-apple hover:border-[#0071e3] hover:text-[#1d1d1f] ${
+              isExpanded ? "justify-start px-3" : "justify-center px-0"
+            }`}
+          >
+            <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="#000000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 7.5 12 3l10 4.5L12 12 2 7.5z" />
+              <path d="M6 9.7V15c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V9.7" />
+              <path d="M22 7.5V13" />
+            </svg>
+            <SidebarLabel expanded={isExpanded} label="Tutorial" />
+            <svg className={`ml-auto h-3.5 w-3.5 transition-all duration-300 ${isExpanded ? "block" : "hidden"}`} fill="none" viewBox="0 0 16 16">
+              <path d="m6 4 4 4-4 4" stroke="#000000" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+            </svg>
+          </button>
         </nav>
 
         {/* User avatar section at bottom */}

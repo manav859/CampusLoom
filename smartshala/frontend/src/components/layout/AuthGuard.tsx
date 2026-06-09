@@ -10,6 +10,11 @@ import { schoolIdFromPath, withResolvedSchoolPath, withSchoolPath } from "@/lib/
 import { PlatformTranslator } from "./PlatformLanguage";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { TutorialModal } from "@/components/tutorial/TutorialModal";
+
+function tutorialSeenKey(userId: string) {
+  return `smartshala.tutorialSeen.${userId}`;
+}
 
 const teacherAllowedPrefixes = ["/teacher", "/classes", "/attendance", "/students"];
 const accountantAllowedPrefixes = ["/fees", "/students"];
@@ -91,6 +96,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarPinned, setSidebarPinned] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+
+  const closeTutorial = () => {
+    setTutorialOpen(false);
+    if (user) {
+      try {
+        window.localStorage.setItem(tutorialSeenKey(user.id), "1");
+      } catch {
+        // ignore storage failures (private mode etc.)
+      }
+    }
+  };
 
   const handleToggleSidebar = () => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -165,6 +182,20 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     router.replace(withResolvedSchoolPath(roleHome(user.role), user.tenantSchoolId ?? pathSchoolId));
   }, [pathname, ready, router, user]);
 
+  // Show the feature tour automatically on a principal's/teacher's first login.
+  useEffect(() => {
+    if (!ready || !user) return;
+    const eligible = user.role === "PRINCIPAL" || user.role === "ADMIN" || user.role === "TEACHER";
+    if (!eligible) return;
+    try {
+      if (!window.localStorage.getItem(tutorialSeenKey(user.id))) {
+        setTutorialOpen(true);
+      }
+    } catch {
+      // ignore storage failures
+    }
+  }, [ready, user]);
+
   if (!ready || !user) {
     return <WorkspaceSkeleton />;
   }
@@ -192,11 +223,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           fullName={user.fullName}
           isPinned={sidebarPinned}
           setIsPinned={setSidebarPinned}
+          onOpenTutorial={() => setTutorialOpen(true)}
         />
         <div className="flex min-w-0 flex-1 flex-col pl-0 md:pl-[70px] transition-all duration-300">
           <main className="flex-1 px-4 pb-8 pt-3 sm:px-5 lg:px-6">{children}</main>
         </div>
       </div>
+      <TutorialModal isOpen={tutorialOpen} onClose={closeTutorial} />
     </div>
   );
 }

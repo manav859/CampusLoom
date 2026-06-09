@@ -84,6 +84,11 @@ const config: Config = {
         "fade-in": "fadeIn 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards",
         "slide-up": "slideUp 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards",
         "scale-in": "scaleIn 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards",
+        "tut-float": "tutFloat 3s ease-in-out infinite",
+        "tut-pop": "tutPop 2.6s ease-in-out infinite",
+        "tut-bar": "tutBar 2.6s ease-in-out infinite",
+        "tut-fill": "tutFill 3s ease-in-out infinite",
+        "tut-rise": "tutRise 3s ease-in-out infinite",
       },
       keyframes: {
         fadeIn: {
@@ -97,6 +102,30 @@ const config: Config = {
         scaleIn: {
           "0%": { opacity: "0", transform: "scale(0.96)" },
           "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        tutFloat: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
+        tutPop: {
+          "0%, 12%": { opacity: "0", transform: "scale(0.3)" },
+          "28%": { opacity: "1", transform: "scale(1.15)" },
+          "40%, 86%": { opacity: "1", transform: "scale(1)" },
+          "100%": { opacity: "0", transform: "scale(0.3)" },
+        },
+        tutBar: {
+          "0%, 100%": { transform: "scaleY(0.2)" },
+          "50%": { transform: "scaleY(1)" },
+        },
+        tutFill: {
+          "0%": { width: "0%", opacity: "1" },
+          "65%, 88%": { width: "100%", opacity: "1" },
+          "100%": { width: "0%", opacity: "0" },
+        },
+        tutRise: {
+          "0%": { opacity: "0", transform: "translateY(16px)" },
+          "22%, 80%": { opacity: "1", transform: "translateY(0)" },
+          "100%": { opacity: "0", transform: "translateY(-10px)" },
         },
       },
     },
