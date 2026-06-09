@@ -40,10 +40,14 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
                   </div>
                   <StatusPill label={row.status} tone={toneForStatus(row.status)} />
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="mt-4 grid grid-cols-3 gap-2">
                   <div className="rounded-[6px] bg-[#F7F8FB] px-3 py-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">Paid</p>
                     <p className="mt-1 truncate whitespace-nowrap text-[14px] font-semibold text-[#0F1419]">{formatINR(row.paidAmount)}</p>
+                  </div>
+                  <div className="rounded-[6px] bg-[#FCE8E9] px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#C8242C]">Due Now</p>
+                    <p className="mt-1 truncate whitespace-nowrap text-[14px] font-semibold text-[#0F1419]">{formatINR(row.currentOutstanding ?? 0)}</p>
                   </div>
                   <div className="rounded-[6px] bg-[#FFF2DC] px-3 py-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#B95A00]">Balance</p>
@@ -60,25 +64,26 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
       <div className="hidden max-h-[520px] overflow-y-auto overflow-x-hidden sm:block">
         <table className="w-full table-fixed text-left text-[13px]">
           <colgroup>
-            <col className="w-[27%]" />
+            <col className="w-[25%]" />
+            <col className="w-[10%]" />
             <col className="w-[11%]" />
-            <col className="w-[12%]" />
-            <col className="w-[15%]" />
-            <col className="w-[22%]" />
             <col className="w-[13%]" />
+            <col className="w-[13%]" />
+            <col className="w-[19%]" />
+            <col className="w-[9%]" />
           </colgroup>
           <thead className="sticky top-0 z-10 bg-[var(--brand-secondary)] text-white">
             <tr>
-              {["Student", "Class", "Paid", "Balance", "Status", "Ledger"].map((head) => (
+              {["Student", "Class", "Paid", "Due Now", "Balance", "Status", "Ledger"].map((head) => (
                 <th className="px-3 py-3.5 font-semibold xl:px-4" key={head}>{head}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
             {loading ? (
-              <tr><td className="px-6 py-12 text-center text-[#86868b]" colSpan={6}>Loading fee accounts...</td></tr>
+              <tr><td className="px-6 py-12 text-center text-[#86868b]" colSpan={7}>Loading fee accounts...</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td className="px-6 py-12 text-center text-[#86868b]" colSpan={6}>No pending fee accounts found.</td></tr>
+              <tr><td className="px-6 py-12 text-center text-[#86868b]" colSpan={7}>No pending fee accounts found.</td></tr>
             ) : (
               rows.map((row) => (
                 <tr key={row.id} className="table-row">
@@ -90,6 +95,7 @@ export function FeesTable({ rows, loading }: { rows: FeeAssignmentSummary[]; loa
                   </td>
                   <td className="px-3 py-4 text-[#6e6e73] xl:px-4">{classLabel(row.student.class)}</td>
                   <td className="whitespace-nowrap px-3 py-4 text-[#6e6e73] xl:px-4">{formatINR(row.paidAmount)}</td>
+                  <td className={`whitespace-nowrap px-3 py-4 font-semibold xl:px-4 ${(row.currentOutstanding ?? 0) > 0 ? "text-[#C8242C]" : "text-[#0F8A4A]"}`}>{formatINR(row.currentOutstanding ?? 0)}</td>
                   <td className="whitespace-nowrap px-3 py-4 font-semibold text-[#1d1d1f] xl:px-4">{formatINR(row.pendingAmount)}</td>
                   <td className="px-3 py-4 xl:px-4">
                     <StatusPill label={row.status} tone={toneForStatus(row.status)} />

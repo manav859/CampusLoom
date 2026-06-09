@@ -290,14 +290,16 @@ export default function FeesDashboardPage() {
       {notice ? <div className="rounded-xl bg-[#E1F5EA] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
       {error ? <div className="rounded-xl bg-[#FCE3E5] px-4 py-3 text-[13px] font-medium text-[#C8242C]">{error}</div> : null}
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         {loading ? (
-          Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
+          Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />)
         ) : (
           <>
-            <FeeCard label="Total Collection" value={formatINR(data?.totalCollected ?? 0)} exact={formatINR(data?.totalCollected ?? 0, { compact: false })} tone="good" />
-            <FeeCard label="Outstanding" value={formatINR(data?.totalPending ?? 0)} exact={formatINR(data?.totalPending ?? 0, { compact: false })} tone="warn" />
             <FeeCard label="Total Assigned" value={formatINR(data?.totalDue ?? 0)} exact={formatINR(data?.totalDue ?? 0, { compact: false })} />
+            <FeeCard label="Due to Date" value={formatINR(data?.dueToDate ?? 0)} exact={formatINR(data?.dueToDate ?? 0, { compact: false })} helper="Scheduled by today" />
+            <FeeCard label="Total Collection" value={formatINR(data?.totalCollected ?? 0)} exact={formatINR(data?.totalCollected ?? 0, { compact: false })} tone="good" />
+            <FeeCard label="Current Outstanding" value={formatINR(data?.currentOutstanding ?? 0)} exact={formatINR(data?.currentOutstanding ?? 0, { compact: false })} tone="danger" helper="Overdue vs schedule" />
+            <FeeCard label="Outstanding" value={formatINR(data?.totalPending ?? 0)} exact={formatINR(data?.totalPending ?? 0, { compact: false })} tone="warn" helper="Full-year balance" />
             <FeeCard label="Defaulters" value={data?.defaulterCount ?? 0} tone="danger" helper="Pending active accounts" />
           </>
         )}

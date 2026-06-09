@@ -263,7 +263,7 @@ export async function dashboard(schoolId: string) {
       pendingAmount: { gt: new Prisma.Decimal(0) }
     } satisfies Prisma.StudentFeeAssignmentWhereInput;
 
-    const [assignmentAgg, overdueAgg, overdueCount, defaulterCount, defaultersList] = await Promise.all([
+    const [assignmentAgg, overdueAgg, overdueCount, defaulterCount, defaultersList, scheduleRows] = await Promise.all([
       prisma.studentFeeAssignment.aggregate({
         where: activeAssignmentWhere,
         _sum: { totalAmount: true, paidAmount: true, pendingAmount: true }
@@ -282,21 +282,46 @@ export async function dashboard(schoolId: string) {
         where: pendingAssignmentWhere,
         include: {
           student: { include: { class: true } },
-          feeStructure: { include: { installments: { orderBy: { dueDate: "asc" }, take: 1 } } }
+          feeStructure: { include: { installments: { orderBy: { dueDate: "asc" } } } }
         },
         orderBy: { pendingAmount: "desc" },
         take: 10
+      }),
+      prisma.studentFeeAssignment.findMany({
+        where: activeAssignmentWhere,
+        select: {
+          totalAmount: true,
+          paidAmount: true,
+          feeStructure: { select: { installments: { select: { dueDate: true, amount: true } } } }
+        }
       })
     ]);
+
+    const scheduleTotals = scheduleRows.reduce(
+      (acc, assignment) => {
+        const schedule = computeCurrentDue(assignment);
+        acc.dueToDate += schedule.currentlyDue;
+        acc.currentCollected += schedule.currentCollected;
+        acc.currentOutstanding += schedule.currentOutstanding;
+        return acc;
+      },
+      { dueToDate: 0, currentCollected: 0, currentOutstanding: 0 }
+    );
 
     return {
       totalDue: toNumber(assignmentAgg._sum.totalAmount),
       totalCollected: toNumber(assignmentAgg._sum.paidAmount),
       totalPending: toNumber(assignmentAgg._sum.pendingAmount),
       totalOverdue: toNumber(overdueAgg._sum.pendingAmount),
+      dueToDate: toMoney(scheduleTotals.dueToDate),
+      currentCollected: toMoney(scheduleTotals.currentCollected),
+      currentOutstanding: toMoney(scheduleTotals.currentOutstanding),
       overdueInstallments: overdueCount,
       defaulterCount,
-      topDefaulters: defaultersList
+      topDefaulters: defaultersList.map((assignment) => ({
+        ...assignment,
+        currentOutstanding: computeCurrentDue(assignment).currentOutstanding
+      }))
     };
   }, { label: "feesDashboard" });
 }

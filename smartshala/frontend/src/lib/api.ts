@@ -372,6 +372,7 @@ export type FeeAssignmentSummary = {
   transportFeeAmount?: string | number;
   paidAmount: string | number;
   pendingAmount: string | number;
+  currentOutstanding?: number;
   status: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
   student: {
     id: string;
@@ -391,6 +392,9 @@ export type FeesDashboard = {
   totalCollected: number;
   totalPending: number;
   totalOverdue: number;
+  dueToDate: number;
+  currentCollected: number;
+  currentOutstanding: number;
   overdueInstallments: number;
   defaulterCount: number;
   topDefaulters: FeeAssignmentSummary[];
