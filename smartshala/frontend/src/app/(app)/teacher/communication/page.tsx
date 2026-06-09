@@ -232,7 +232,7 @@ export default function TeacherCommunicationPage() {
       {notice ? <div className="rounded-xl bg-[#34c759]/10 p-4 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}
 
       <section className="grid gap-4 xl:grid-cols-[410px_1fr]">
-        <form className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple" onSubmit={handleSubmit}>
+        <form data-tour="communication" className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple" onSubmit={handleSubmit}>
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Send Message</h2>
           <div className="mt-5 space-y-4">
             <label className="block">

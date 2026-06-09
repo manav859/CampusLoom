@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Role, SessionUser } from "@/types";
 import { authApi, refreshAccessToken } from "@/lib/api";
 import { tokenStore } from "@/lib/tokenStore";
@@ -11,6 +11,8 @@ import { PlatformTranslator } from "./PlatformLanguage";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { TutorialModal } from "@/components/tutorial/TutorialModal";
+import { SpotlightTour } from "@/components/tutorial/SpotlightTour";
+import { buildTourSteps, type FeatureKey, type TourStep } from "@/components/tutorial/tutorialContent";
 
 function tutorialSeenKey(userId: string) {
   return `smartshala.tutorialSeen.${userId}`;
@@ -98,6 +100,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [sidebarPinned, setSidebarPinned] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
+  const [tourSteps, setTourSteps] = useState<TourStep[] | null>(null);
+
   const closeTutorial = () => {
     setTutorialOpen(false);
     if (user) {
@@ -107,6 +111,22 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         // ignore storage failures (private mode etc.)
       }
     }
+  };
+
+  const navigateTour = useCallback(
+    (route: string) => {
+      const schoolId = user?.tenantSchoolId;
+      router.push(schoolId ? withResolvedSchoolPath(route, schoolId) : route);
+    },
+    [router, user?.tenantSchoolId]
+  );
+
+  const startTour = (featureKey?: FeatureKey) => {
+    if (!user) return;
+    const steps = buildTourSteps(user.role, featureKey);
+    if (steps.length === 0) return;
+    closeTutorial();
+    setTourSteps(steps);
   };
 
   const handleToggleSidebar = () => {
@@ -229,7 +249,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           <main className="flex-1 px-4 pb-8 pt-3 sm:px-5 lg:px-6">{children}</main>
         </div>
       </div>
-      <TutorialModal isOpen={tutorialOpen} onClose={closeTutorial} />
+      <TutorialModal isOpen={tutorialOpen} onClose={closeTutorial} onStartTour={startTour} />
+      {tourSteps ? <SpotlightTour steps={tourSteps} onClose={() => setTourSteps(null)} navigate={navigateTour} /> : null}
     </div>
   );
 }

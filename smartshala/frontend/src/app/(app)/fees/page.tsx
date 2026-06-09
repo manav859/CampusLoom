@@ -278,7 +278,7 @@ export default function FeesDashboardPage() {
         title="Collection Command Center"
         action={
           <>
-            {isAdmin ? <button className="btn-primary" onClick={() => setPaymentModalOpen(true)} type="button">Record Payment</button> : null}
+            {isAdmin ? <button data-tour="fees" className="btn-primary" onClick={() => setPaymentModalOpen(true)} type="button">Record Payment</button> : null}
             {isAdmin ? <a className="btn-secondary" href="#fee-structures">Manage Fee Structures</a> : null}
             {isAdmin ? <Link className="btn-secondary" href="/fees/accountants/new">Add Accountant</Link> : null}
             {isAdmin ? <Link className="btn-secondary" href="/fees/new">New Structure</Link> : null}
