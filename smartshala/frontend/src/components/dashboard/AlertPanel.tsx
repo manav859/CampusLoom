@@ -25,19 +25,25 @@ const severityLabels = {
 
 const toneStyles = {
   danger: {
-    cardBg: "bg-gradient-to-r from-[#ff3b30]/[0.02] to-white hover:from-[#ff3b30]/[0.05] hover:to-white border-[#ff3b30]/10",
-    borderLeft: "border-l-[#ff3b30]",
-    dot: "#ff3b30"
+    card: "border-[#ff3b30]/12 hover:border-[#ff3b30]/30 hover:bg-[#ff3b30]/[0.03]",
+    iconBg: "bg-[#ff3b30]/10",
+    iconColor: "text-[#d70015]",
+    dot: "#ff3b30",
+    icon: "M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
   },
   warn: {
-    cardBg: "bg-gradient-to-r from-[#ff9500]/[0.02] to-white hover:from-[#ff9500]/[0.05] hover:to-white border-[#ff9500]/10",
-    borderLeft: "border-l-[#ff9500]",
-    dot: "#ff9500"
+    card: "border-[#ff9500]/12 hover:border-[#ff9500]/30 hover:bg-[#ff9500]/[0.03]",
+    iconBg: "bg-[#ff9500]/10",
+    iconColor: "text-[#c93400]",
+    dot: "#ff9500",
+    icon: "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
   },
   neutral: {
-    cardBg: "bg-gradient-to-r from-[#86868b]/[0.02] to-white hover:from-[#86868b]/[0.05] hover:to-white border-[#86868b]/10",
-    borderLeft: "border-l-[#86868b]",
-    dot: "#86868b"
+    card: "border-[#86868b]/12 hover:border-[#86868b]/30 hover:bg-[#86868b]/[0.03]",
+    iconBg: "bg-[#86868b]/10",
+    iconColor: "text-[#424245]",
+    dot: "#86868b",
+    icon: "M12 16v-4m0-4h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"
   }
 };
 
@@ -64,26 +70,31 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
             const isClickable = !!alert.href;
 
             const content = (
-              <div className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[8px] border border-l-4 px-3.5 py-3.5 transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:shadow-md sm:gap-4 sm:px-4 ${currentTone.cardBg} ${currentTone.borderLeft}`}>
-                <div className="flex min-w-0 items-center gap-3.5">
-                  <span className="relative flex h-2.5 w-2.5 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: currentTone.dot }} />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ backgroundColor: currentTone.dot }} />
-                  </span>
-                  
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <p className="min-w-0 truncate text-[13.5px] font-semibold leading-tight text-[#1d1d1f] tracking-tight">{alert.label}</p>
-                      {alert.severity ? (
-                        <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityStyles[alert.severity]}`}>
-                          {severityLabels[alert.severity]}
-                        </span>
-                      ) : null}
-                    </div>
-                    {alert.detail ? (
-                      <p className="mt-1 text-[12px] font-medium text-[#5a6573] line-clamp-1">{alert.detail}</p>
+              <div className={`flex items-center gap-3.5 rounded-[12px] border bg-white px-3.5 py-3 transition-all duration-200 ${currentTone.card}`}>
+                <span className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${currentTone.iconBg} ${currentTone.iconColor}`}>
+                  <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={currentTone.icon} />
+                  </svg>
+                  {alert.severity === "critical" ? (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ backgroundColor: currentTone.dot }} />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full ring-2 ring-white" style={{ backgroundColor: currentTone.dot }} />
+                    </span>
+                  ) : null}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <p className="min-w-0 truncate text-[13.5px] font-semibold leading-tight text-[#1d1d1f] tracking-tight">{alert.label}</p>
+                    {alert.severity ? (
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityStyles[alert.severity]}`}>
+                        {severityLabels[alert.severity]}
+                      </span>
                     ) : null}
                   </div>
+                  {alert.detail ? (
+                    <p className="mt-0.5 text-[12px] font-medium text-[#5a6573] line-clamp-1">{alert.detail}</p>
+                  ) : null}
                 </div>
 
                 <div className="flex shrink-0 items-center justify-end gap-2">
