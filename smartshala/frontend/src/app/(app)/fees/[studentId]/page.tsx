@@ -205,10 +205,12 @@ export default function StudentFeeLedgerPage() {
                 <button className="btn-secondary min-h-9 px-3 text-[12px]" disabled={ledger.balance <= 0} onClick={() => openAdjustment("DISCOUNT")} type="button">Apply Discount</button>
               </div>
             </div>
-            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+            <div className="mt-5 grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
               {[
                 ["Total fees", formatINR(ledger.total), "text-[#1d1d1f]"],
+                ["Due to date", formatINR(ledger.dueToDate), "text-[#1d1d1f]"],
                 ["Paid", formatINR(ledger.paid), "text-[#248a3d]"],
+                ["Outstanding now", formatINR(ledger.currentOutstanding), ledger.currentOutstanding > 0 ? "text-[#C8242C]" : "text-[#248a3d]"],
                 ["Balance", formatINR(ledger.balance), ledger.balance > 0 ? "text-[#B95A00]" : "text-[#248a3d]"]
               ].map(([label, value, tone]) => (
                 <div className="border-t border-[#DCE1E8] pt-4" key={label}>
@@ -225,9 +227,9 @@ export default function StudentFeeLedgerPage() {
               <p className="mt-0.5 text-[13px] text-[#86868b]">{ledger.student.class.name}-{ledger.student.class.section} - Admission <span className="type-code">{ledger.student.admissionNumber}</span></p>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-[13px]">
+              <table className="w-full min-w-[720px] text-left text-[13px]">
                 <thead className="table-head">
-                  <tr>{["Fee", "Total", "Paid", "Balance", "Status"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
+                  <tr>{["Fee", "Total", "Paid", "Due now", "Balance", "Status"].map((head) => <th className="px-5 py-3.5 font-semibold" key={head}>{head}</th>)}</tr>
                 </thead>
                 <tbody className="divide-y divide-[rgba(0,0,0,0.04)]">
                   {ledger.assignments.map((assignment) => {
@@ -245,6 +247,7 @@ export default function StudentFeeLedgerPage() {
                         </td>
                         <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.total)}</td>
                         <td className="px-5 py-4 text-[#6e6e73]">{formatINR(assignment.paid)}</td>
+                        <td className={`px-5 py-4 font-semibold ${assignment.currentOutstanding > 0 ? "text-[#C8242C]" : "text-[#248a3d]"}`}>{formatINR(assignment.currentOutstanding)}</td>
                         <td className="px-5 py-4 font-semibold text-[#1d1d1f]">{formatINR(assignment.balance)}</td>
                         <td className="px-5 py-4">
                           <StatusPill label={humanizeConstant(assignment.status)} tone={statusTone(assignment.status)} />

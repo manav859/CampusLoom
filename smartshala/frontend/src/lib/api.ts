@@ -431,6 +431,10 @@ export type StudentFeeLedger = {
   total: number;
   paid: number;
   balance: number;
+  dueToDate: number;
+  currentOutstanding: number;
+  currentCollected: number;
+  upcomingDue: number;
   status: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
   assignments: {
     id: string;
@@ -439,6 +443,8 @@ export type StudentFeeLedger = {
     total: number;
     paid: number;
     balance: number;
+    currentlyDue: number;
+    currentOutstanding: number;
     status: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
     feeStructure: { name: string };
   }[];

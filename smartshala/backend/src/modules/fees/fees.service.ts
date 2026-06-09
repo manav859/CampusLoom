@@ -7,6 +7,7 @@ import { recordAuditLog } from "../../core/auditLog.js";
 import { buildFeeReceiptMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 import { generateReceiptPdf } from "./receipt-pdf.js";
+import { computeCurrentDue } from "./feeSchedule.js";
 import { ensureAcademicYear, getCurrentAcademicYear } from "../academicYears/academicYears.service.js";
 
 type FeeStructureInput = {
@@ -954,6 +955,15 @@ export async function getStudentLedger(schoolId: string, studentId: string) {
     const transactionLedger = buildTransactionLedger(student.feeAssignments);
     const payments = [...transactionLedger].sort((left, right) => right.paidAt.getTime() - left.paidAt.getTime() || right.id.localeCompare(left.id));
 
+    const assignmentsWithSchedule = student.feeAssignments.map((assignment) => ({
+      assignment,
+      schedule: computeCurrentDue(assignment)
+    }));
+    const dueToDate = toMoney(assignmentsWithSchedule.reduce((sum, { schedule }) => sum + schedule.currentlyDue, 0));
+    const currentOutstanding = toMoney(assignmentsWithSchedule.reduce((sum, { schedule }) => sum + schedule.currentOutstanding, 0));
+    const currentCollected = toMoney(assignmentsWithSchedule.reduce((sum, { schedule }) => sum + schedule.currentCollected, 0));
+    const upcomingDue = toMoney(assignmentsWithSchedule.reduce((sum, { schedule }) => sum + schedule.upcomingDue, 0));
+
     return {
       student: {
         id: student.id,
@@ -964,10 +974,16 @@ export async function getStudentLedger(schoolId: string, studentId: string) {
       total,
       paid,
       balance,
+      dueToDate,
+      currentOutstanding,
+      currentCollected,
+      upcomingDue,
       status,
-      assignments: student.feeAssignments.map((assignment) => ({
+      assignments: assignmentsWithSchedule.map(({ assignment, schedule }) => ({
         ...assignment,
-        ...mapAssignmentSummary(assignment)
+        ...mapAssignmentSummary(assignment),
+        currentlyDue: schedule.currentlyDue,
+        currentOutstanding: schedule.currentOutstanding
       })),
       transactionLedger,
       payments,

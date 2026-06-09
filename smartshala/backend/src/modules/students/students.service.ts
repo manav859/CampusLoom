@@ -18,6 +18,7 @@ import { gradeForPercentage } from "../../core/grading.js";
 import { calculateStudentAttendanceSummary } from "../../core/studentAttendance.js";
 import { recordAuditLog } from "../../core/auditLog.js";
 import { assignFee } from "../fees/fees.service.js";
+import { computeCurrentDue } from "../fees/feeSchedule.js";
 import { env } from "../../config/env.js";
 import { uploadFile, getDownloadUrl, deleteFile } from "../../services/storageService.js";
 
@@ -916,8 +917,13 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
                 feeAssignments: {
                   select: {
                     id: true,
+                    totalAmount: true,
+                    paidAmount: true,
                     pendingAmount: true,
                     status: true,
+                    feeStructure: {
+                      select: { installments: { select: { dueDate: true, amount: true } } }
+                    },
                     payments: {
                       select: { paidAt: true },
                       orderBy: { paidAt: "desc" },
@@ -962,16 +968,29 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
       const feeRows = (student as unknown as {
         feeAssignments?: {
           id: string;
+          totalAmount: unknown;
+          paidAmount: unknown;
           pendingAmount: unknown;
           status: unknown;
+          feeStructure?: { installments: { dueDate: Date; amount: unknown }[] };
           payments?: { paidAt: Date }[];
         }[];
       }).feeAssignments;
       const latestPayment = feeRows
         ?.flatMap((assignment) => assignment.payments ?? [])
         .sort((left, right) => right.paidAt.getTime() - left.paidAt.getTime())[0]?.paidAt ?? null;
-      const feeAssignments = feeRows?.map(({ payments: _payments, ...assignment }) => assignment);
+      const feeAssignments = feeRows?.map(({ payments: _payments, totalAmount: _totalAmount, feeStructure: _feeStructure, ...assignment }) => assignment);
       const feeBalance = feeRows?.reduce((sum, assignment) => sum + toNumber(assignment.pendingAmount), 0) ?? 0;
+      const currentOutstanding = feeRows?.reduce(
+        (sum, assignment) =>
+          sum +
+          computeCurrentDue({
+            totalAmount: assignment.totalAmount,
+            paidAmount: assignment.paidAmount,
+            feeStructure: { installments: assignment.feeStructure?.installments ?? [] }
+          }).currentOutstanding,
+        0
+      ) ?? 0;
       const attendancePercentage =
         canViewAttendance || canViewAcademic
           ? attendanceSnapshot(student.attendanceRecords ?? []).attendancePercentage
@@ -995,7 +1014,7 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
         ...payload,
         ...consentFields,
         ...performance,
-        ...(canViewFees ? { feeAssignments, lastPayment: latestPayment, feeBalance } : {}),
+        ...(canViewFees ? { feeAssignments, lastPayment: latestPayment, feeBalance, currentOutstanding } : {}),
         ...(canViewAttendance
           ? { attendancePercentage }
           : {})

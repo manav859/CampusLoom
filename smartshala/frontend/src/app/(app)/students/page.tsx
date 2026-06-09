@@ -24,6 +24,7 @@ type StudentRow = {
   /* enriched fields — filled from API or fallback */
   feeStatus: "PAID" | "PENDING" | "OVERDUE" | null;
   pendingAmount: number | null;
+  currentOutstanding: number | null;
   lastPayment: string | null;
   attendancePercentage: number | null;
 };
@@ -38,11 +39,12 @@ type ApiStudentItem = {
   feeAssignments?: { pendingAmount: string | number; status: string }[];
   feeStatus?: "PAID" | "PENDING" | "OVERDUE";
   pendingAmount?: number;
+  currentOutstanding?: number;
   lastPayment?: string | null;
   attendancePercentage?: number;
 };
 
-type SortKey = "name" | "class" | "feeStatus" | "pendingAmount" | "lastPayment" | "attendance";
+type SortKey = "name" | "class" | "feeStatus" | "pendingAmount" | "currentOutstanding" | "lastPayment" | "attendance";
 type SortDirection = "asc" | "desc";
 
 // Columns mirror the Register New Student modal fields (Personal → Academic & Fee → Guardian).
@@ -440,6 +442,7 @@ function sortValue(student: StudentRow, key: SortKey) {
   if (key === "class") return `${student.class.name}${student.class.section}`;
   if (key === "feeStatus") return student.feeStatus ?? "";
   if (key === "pendingAmount") return student.pendingAmount ?? Number.POSITIVE_INFINITY;
+  if (key === "currentOutstanding") return student.currentOutstanding ?? Number.POSITIVE_INFINITY;
   if (key === "lastPayment") return student.lastPayment ? new Date(student.lastPayment).getTime() : 0;
   return student.attendancePercentage ?? -1;
 }
@@ -462,9 +465,10 @@ function toStudentRows(items: ApiStudentItem[]): StudentRow[] {
     const hasFeeData = Array.isArray(s.feeAssignments);
     const assignments = s.feeAssignments ?? [];
     const pending = hasFeeData ? assignments.reduce((acc, a) => acc + Number(a.pendingAmount || 0), 0) : null;
+    const outstanding = hasFeeData ? Number(s.currentOutstanding ?? 0) : null;
     const status: StudentRow["feeStatus"] = !hasFeeData
       ? null
-      : assignments.some(a => a.status === "OVERDUE")
+      : (outstanding ?? 0) > 0 || assignments.some(a => a.status === "OVERDUE")
         ? "OVERDUE"
         : (pending ?? 0) > 0 ? "PENDING" : "PAID";
 
@@ -472,6 +476,7 @@ function toStudentRows(items: ApiStudentItem[]): StudentRow[] {
       ...s,
       feeStatus: status,
       pendingAmount: pending,
+      currentOutstanding: outstanding,
       lastPayment: s.lastPayment ?? null,
       attendancePercentage: s.attendancePercentage ?? null,
     };
@@ -632,6 +637,7 @@ export default function StudentsPage() {
       { label: "Student", sortKey: "name" },
       { label: "Class", sortKey: "class" },
       { label: "Fee Status", sortKey: "feeStatus" },
+      { label: "Due Now", sortKey: "currentOutstanding" },
       { label: "Balance", sortKey: "pendingAmount" },
       { label: "Last Paid", sortKey: "lastPayment" },
       { label: "Attendance", sortKey: "attendance" },
@@ -1261,6 +1267,9 @@ export default function StudentsPage() {
                               ) : (
                                 <span className="text-[#86868b]">Not available</span>
                               )}
+                            </td>
+                            <td className={`whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold ${pendingAmountClass(student.currentOutstanding)}`}>
+                              {student.currentOutstanding === null ? "-" : formatINR(student.currentOutstanding)}
                             </td>
                             <td className={`whitespace-nowrap border-b border-[#C9D3DE] px-4 py-4 text-center font-semibold ${pendingAmountClass(student.pendingAmount)}`}>
                               {student.pendingAmount === null ? "-" : formatINR(student.pendingAmount)}
