@@ -45,20 +45,32 @@ type ApiStudentItem = {
 type SortKey = "name" | "class" | "feeStatus" | "pendingAmount" | "lastPayment" | "attendance";
 type SortDirection = "asc" | "desc";
 
+// Columns mirror the Register New Student modal fields (Personal → Academic & Fee → Guardian).
+// parentName/parentPhone are derived from the guardians like the modal does, so they are not columns.
 const studentImportTemplateHeaders = [
   "fullName",
+  "rollNumber",
+  "gender",
+  "dateOfBirth",
+  "aadhaar",
+  "apaar",
   "className",
   "classSection",
-  "parentName",
-  "parentPhone",
-  "gender",
-  "rollNumber",
-  "dateOfBirth",
-  "address",
+  "feeStructure",
+  "transportRequired",
+  "transportFeeAmount",
+  "previousSchool",
+  "siblingDiscount",
   "fatherName",
   "fatherPhone",
+  "fatherOccupation",
   "motherName",
-  "motherPhone"
+  "motherPhone",
+  "motherOccupation",
+  "guardianName",
+  "guardianPhone",
+  "guardianOccupation",
+  "address"
 ];
 
 type ImportStudentRow = {
@@ -68,14 +80,27 @@ type ImportStudentRow = {
   classSection: string;
   parentName: string;
   parentPhone: string;
+  alternatePhone?: string;
   gender?: "MALE" | "FEMALE" | "OTHER";
   rollNumber?: number;
   dateOfBirth?: string;
+  aadhaar?: string;
+  apaar?: string;
+  feeStructure?: string;
+  transportRequired?: boolean;
+  transportFeeAmount?: number;
+  previousSchool?: string;
+  siblingDiscount?: boolean;
   address?: string;
   fatherName?: string;
   fatherPhone?: string;
+  fatherOccupation?: string;
   motherName?: string;
   motherPhone?: string;
+  motherOccupation?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianOccupation?: string;
 };
 
 /* ── Helpers ── */
@@ -148,6 +173,12 @@ function csvValue(row: Record<string, string>, names: string[]) {
   return "";
 }
 
+function csvBoolean(value: string): boolean | undefined {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return undefined;
+  return ["true", "yes", "y", "1"].includes(normalized);
+}
+
 function dateDisplayToIso(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -172,15 +203,33 @@ function parseStudentsCsv(text: string): ImportStudentRow[] {
     });
 
     const fullName = csvValue(raw, ["fullName", "studentName", "name"]);
-    const parentName = csvValue(raw, ["parentName", "guardianName"]);
-    const parentPhone = csvValue(raw, ["parentPhone", "guardianPhone", "phone"]);
     const genderRaw = csvValue(raw, ["gender"]).toUpperCase();
     const rollRaw = csvValue(raw, ["rollNumber", "roll"]);
     const dobRaw = csvValue(raw, ["dateOfBirth", "dob"]);
 
-    if (!fullName || !parentName || !parentPhone) {
-      throw new Error(`Row ${index + 1}: fullName, parentName, and parentPhone are required.`);
-    }
+    const fatherName = csvValue(raw, ["fatherName"]);
+    const fatherPhone = csvValue(raw, ["fatherPhone"]);
+    const motherName = csvValue(raw, ["motherName"]);
+    const motherPhone = csvValue(raw, ["motherPhone"]);
+    const guardianName = csvValue(raw, ["guardianName"]);
+    const guardianPhone = csvValue(raw, ["guardianPhone"]);
+
+    // Derive the primary parent like the create modal: first guardian with both name + phone.
+    const primaryGuardian = [
+      { name: fatherName, phone: fatherPhone },
+      { name: motherName, phone: motherPhone },
+      { name: guardianName, phone: guardianPhone }
+    ].find((guardian) => guardian.name && guardian.phone);
+    const parentName = csvValue(raw, ["parentName"]) || primaryGuardian?.name || "";
+    const parentPhone = csvValue(raw, ["parentPhone", "phone"]) || primaryGuardian?.phone || "";
+    const alternatePhone =
+      csvValue(raw, ["alternatePhone"]) || [motherPhone, fatherPhone, guardianPhone].find((phone) => phone && phone !== parentPhone) || "";
+
+    if (!fullName) throw new Error(`Row ${index + 1}: fullName is required.`);
+    if (!parentName || !parentPhone) throw new Error(`Row ${index + 1}: add at least one guardian with both name and phone.`);
+
+    const transportFeeRaw = csvValue(raw, ["transportFeeAmount"]);
+    const transportFeeAmount = transportFeeRaw && !Number.isNaN(Number(transportFeeRaw)) ? Number(transportFeeRaw) : undefined;
 
     rows.push({
       rowNumber: index + 1,
@@ -189,14 +238,27 @@ function parseStudentsCsv(text: string): ImportStudentRow[] {
       classSection: csvValue(raw, ["classSection", "section"]),
       parentName,
       parentPhone,
+      alternatePhone: alternatePhone || undefined,
       gender: ["MALE", "FEMALE", "OTHER"].includes(genderRaw) ? (genderRaw as ImportStudentRow["gender"]) : undefined,
       rollNumber: rollRaw ? Number(rollRaw) : undefined,
       dateOfBirth: dobRaw ? dateDisplayToIso(dobRaw) : undefined,
+      aadhaar: csvValue(raw, ["aadhaar"]) || undefined,
+      apaar: csvValue(raw, ["apaar"]) || undefined,
+      feeStructure: csvValue(raw, ["feeStructure", "feeStructureName"]) || undefined,
+      transportRequired: csvBoolean(csvValue(raw, ["transportRequired"])),
+      transportFeeAmount,
+      previousSchool: csvValue(raw, ["previousSchool"]) || undefined,
+      siblingDiscount: csvBoolean(csvValue(raw, ["siblingDiscount"])),
       address: csvValue(raw, ["address"]) || undefined,
-      fatherName: csvValue(raw, ["fatherName"]) || undefined,
-      fatherPhone: csvValue(raw, ["fatherPhone"]) || undefined,
-      motherName: csvValue(raw, ["motherName"]) || undefined,
-      motherPhone: csvValue(raw, ["motherPhone"]) || undefined
+      fatherName: fatherName || undefined,
+      fatherPhone: fatherPhone || undefined,
+      fatherOccupation: csvValue(raw, ["fatherOccupation"]) || undefined,
+      motherName: motherName || undefined,
+      motherPhone: motherPhone || undefined,
+      motherOccupation: csvValue(raw, ["motherOccupation"]) || undefined,
+      guardianName: guardianName || undefined,
+      guardianPhone: guardianPhone || undefined,
+      guardianOccupation: csvValue(raw, ["guardianOccupation"]) || undefined
     });
   }
 
@@ -817,6 +879,19 @@ export default function StudentsPage() {
     if (importDialog.rows.length === 0) return;
 
     const classMap = new Map(classes.map((cls) => [classKey(cls.name, cls.section), cls.id]));
+
+    // Resolve fee structures by name only when the CSV references them.
+    let feeStructureMap: Map<string, string> | null = null;
+    if (importDialog.rows.some((row) => row.feeStructure)) {
+      try {
+        const structures = await cachedFetch("fees:structures", () => apiFetch<{ id: string; name: string }[]>("/fees/structures"));
+        feeStructureMap = new Map((structures || []).map((fs) => [fs.name.trim().toLowerCase(), fs.id]));
+      } catch {
+        setImportDialog((prev) => ({ ...prev, error: "Unable to load fee structures to match the feeStructure column." }));
+        return;
+      }
+    }
+
     const payload = [];
 
     for (const row of importDialog.rows) {
@@ -826,19 +901,41 @@ export default function StudentsPage() {
         return;
       }
 
+      let feeStructureId: string | undefined;
+      if (row.feeStructure) {
+        feeStructureId = feeStructureMap?.get(row.feeStructure.trim().toLowerCase());
+        if (!feeStructureId) {
+          setImportDialog((prev) => ({ ...prev, error: `Row ${row.rowNumber}: fee structure "${row.feeStructure}" not found.` }));
+          return;
+        }
+      }
+
       payload.push({
         classId,
         fullName: row.fullName,
         parentName: row.parentName,
         parentPhone: row.parentPhone,
+        alternatePhone: row.alternatePhone,
         gender: row.gender,
         rollNumber: row.rollNumber,
         dateOfBirth: row.dateOfBirth,
+        aadhaar: row.aadhaar,
+        apaar: row.apaar,
+        previousSchool: row.previousSchool,
+        siblingDiscount: row.siblingDiscount,
+        transportRequired: row.transportRequired,
+        transportFeeAmount: row.transportFeeAmount,
+        feeStructureId,
         address: row.address,
         fatherName: row.fatherName,
         fatherPhone: row.fatherPhone,
+        fatherOccupation: row.fatherOccupation,
         motherName: row.motherName,
-        motherPhone: row.motherPhone
+        motherPhone: row.motherPhone,
+        motherOccupation: row.motherOccupation,
+        guardianName: row.guardianName,
+        guardianPhone: row.guardianPhone,
+        guardianOccupation: row.guardianOccupation
       });
     }
 

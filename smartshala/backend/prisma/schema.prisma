@@ -171,6 +171,10 @@ model Student {
   consentGivenBy      String?
   consentMethod       String?
   address             String?
+  aadhaar             String?
+  apaar               String?
+  previousSchool      String?
+  siblingDiscount     Boolean                @default(false)
   joiningDate         DateTime               @default(now())
   transportRequired   Boolean                @default(false)
   transportFeeAmount  Decimal                @default(0) @db.Decimal(12, 2)
