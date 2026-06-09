@@ -315,7 +315,6 @@ export default function TeacherAttendancePage() {
           <div className="relative col-span-2 rounded-md border border-[#E2E7EE] bg-white p-2 shadow-[0_1px_2px_rgba(15,20,25,0.06),0_8px_22px_-18px_rgba(15,20,25,0.45)] lg:col-span-1">
             <button
               aria-expanded={classPickerOpen}
-              data-tour="attendance"
               className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#DCE1E8] bg-white px-3 py-2.5 text-left text-[15px] font-semibold text-[#1d1d1f] outline-none transition hover:border-[#AAB4C2] focus:border-[#2456E6] focus:ring-4 focus:ring-[#2456E6]/10 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={(!hasAssignedClasses && attendance.classesLoading) || attendance.submitting}
               onClick={() => setClassPickerOpen((open) => !open)}

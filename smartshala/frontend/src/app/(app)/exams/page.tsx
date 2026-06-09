@@ -434,7 +434,6 @@ export default function AdminExamsPage() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <StatusPill label={`${filteredExams.length} exams`} tone={filteredExams.length ? "good" : "neutral"} />
           <button
-            data-tour="exams"
             className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-[6px] bg-[#2456E6] px-5 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(15,20,25,0.08)] transition hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={loading}
             onClick={() => setCreateModalOpen(true)}

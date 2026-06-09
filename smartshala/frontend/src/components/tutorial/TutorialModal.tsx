@@ -1,24 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { FEATURES, type FeatureKey } from "./tutorialContent";
+import { FEATURES, WELCOME_CHECKLIST, WelcomeIllustration, type FeatureKey } from "./tutorialContent";
+import { AttendanceMock, MarksMock, FeesMock, CommsMock } from "./TutorialMocks";
 
 type TutorialModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onStartTour: (featureKey?: FeatureKey) => void;
 };
 
-export function TutorialModal({ isOpen, onClose, onStartTour }: TutorialModalProps) {
+export function TutorialModal({ isOpen, onClose }: TutorialModalProps) {
   const [mounted, setMounted] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [done, setDone] = useState<Set<FeatureKey>>(new Set());
 
   useEffect(() => setMounted(true), []);
 
-  // Always restart at the first step whenever the tour is opened.
+  // Restart the demo whenever it is opened.
   useEffect(() => {
-    if (isOpen) setStepIndex(0);
+    if (isOpen) {
+      setStepIndex(0);
+      setDone(new Set());
+    }
   }, [isOpen]);
 
   useEffect(() => {
@@ -43,77 +47,62 @@ export function TutorialModal({ isOpen, onClose, onStartTour }: TutorialModalPro
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === FEATURES.length - 1;
   const isWelcome = step.key === "welcome";
+  const markDone = () => setDone((prev) => new Set(prev).add(step.key));
+  const stepDone = isWelcome || done.has(step.key);
+
+  const stage: Record<FeatureKey, ReactNode> = {
+    welcome: <WelcomeIllustration />,
+    attendance: <AttendanceMock accent={step.accent} onComplete={markDone} />,
+    marks: <MarksMock accent={step.accent} onComplete={markDone} />,
+    fees: <FeesMock accent={step.accent} onComplete={markDone} />,
+    communication: <CommsMock accent={step.accent} onComplete={markDone} />
+  };
+
+  const nextLabel = isLast ? "Finish" : isWelcome ? "Start" : "Next";
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="Feature tutorial">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="Interactive tutorial">
       <button className="absolute inset-0 cursor-default" aria-label="Close tutorial" onClick={onClose} type="button" />
 
-      <div className="relative flex max-h-[calc(100dvh-3rem)] w-full max-w-[460px] flex-col overflow-hidden rounded-[20px] bg-white shadow-[var(--shadow-modal)] animate-scale-in">
-        {/* Illustration stage */}
-        <div className="relative flex h-[200px] shrink-0 items-center justify-center overflow-hidden" style={{ background: `linear-gradient(160deg, ${step.accentSoft} 0%, #ffffff 100%)` }}>
-          <button
-            aria-label="Close tutorial"
-            className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#DCE1E8] bg-white/90 text-[#52687D] shadow-sm transition hover:bg-white hover:text-[#031526]"
-            onClick={onClose}
-            type="button"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6 6 18" />
-            </svg>
-          </button>
-          <div key={step.key} className="origin-center scale-90 animate-scale-in">{step.illustration}</div>
-        </div>
+      <div className="relative flex max-h-[calc(100dvh-3rem)] w-full max-w-[480px] flex-col overflow-hidden rounded-[20px] bg-white shadow-[var(--shadow-modal)] animate-scale-in">
+        <button
+          aria-label="Close tutorial"
+          className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#DCE1E8] bg-white/90 text-[#52687D] shadow-sm transition hover:bg-white hover:text-[#031526]"
+          onClick={onClose}
+          type="button"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
 
-        {/* Copy + how-to */}
-        <div className="min-h-0 overflow-y-auto px-6 pb-5 pt-4">
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: step.accent }}>
-            {isWelcome ? "Getting started" : `Step ${stepIndex} of ${FEATURES.length - 1}`}
-          </p>
-          <h2 className="mt-1 text-[20px] font-semibold tracking-tight text-[#1d1d1f]">{step.title}</h2>
-          <p className="mt-1.5 text-[14px] leading-6 text-[#5A6573]">{step.intro}</p>
-
-          {isWelcome ? (
-            <ul className="mt-3.5 space-y-2">
-              {step.howto.map((item) => (
-                <li key={item} className="flex items-center gap-2.5 text-[13.5px] font-medium text-[#2A3340]">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: step.accent }}>
-                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 13 4 4L19 7" /></svg>
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <ol className="mt-3.5 space-y-2.5">
-              {step.howto.map((item, index) => (
-                <li key={item} className="flex gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white" style={{ background: step.accent }}>
-                    {index + 1}
-                  </span>
-                  <span className="pt-0.5 text-[13.5px] leading-5 text-[#2A3340]">{item}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-
-          <div className="mt-3.5 flex items-start gap-2.5 rounded-xl px-3 py-2.5" style={{ background: step.accentSoft }}>
-            <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke={step.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.5.5 1 1.2 1 2.5h6c0-1.3.5-2 1-2.5A6 6 0 0 0 12 3Z" />
-            </svg>
-            <p className="text-[12.5px] font-medium leading-5 text-[#2A3340]">{step.tip}</p>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {/* Interactive stage */}
+          <div className="flex items-center justify-center px-5 py-7" style={{ background: `linear-gradient(160deg, ${step.accentSoft} 0%, #ffffff 100%)` }}>
+            <div key={step.key} className="animate-scale-in">{stage[step.key]}</div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onStartTour(isWelcome ? undefined : step.key)}
-            className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-[10px] border px-4 py-2.5 text-[13px] font-semibold transition-colors"
-            style={{ borderColor: step.accent, color: step.accent, background: `${step.accentSoft}` }}
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 18l6-6-6-6" />
-            </svg>
-            {isWelcome ? "Show me in the app (live walkthrough)" : "Show me in the app"}
-          </button>
+          {/* Copy */}
+          <div className="px-6 pb-5 pt-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: step.accent }}>
+              {isWelcome ? "Getting started" : `Step ${stepIndex} of ${FEATURES.length - 1}`}
+            </p>
+            <h2 className="mt-1 text-[20px] font-semibold tracking-tight text-[#1d1d1f]">{step.title}</h2>
+            <p className="mt-1.5 text-[14px] leading-6 text-[#5A6573]">{step.subtitle}</p>
+
+            {isWelcome ? (
+              <ul className="mt-3.5 space-y-2">
+                {WELCOME_CHECKLIST.map((item) => (
+                  <li key={item} className="flex items-center gap-2.5 text-[13.5px] font-medium text-[#2A3340]">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full" style={{ background: step.accent }}>
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 13 4 4L19 7" /></svg>
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </div>
 
         {/* Footer: progress + nav */}
@@ -137,12 +126,15 @@ export function TutorialModal({ isOpen, onClose, onStartTour }: TutorialModalPro
               Previous
             </button>
             <button
-              className="inline-flex h-9 items-center rounded-[8px] px-5 text-[13px] font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-              style={{ background: step.accent }}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] px-5 text-[13px] font-semibold text-white shadow-sm transition-all hover:opacity-90 ${stepDone && !isLast ? "ring-2 ring-offset-2" : ""}`}
+              style={{ background: step.accent, ...(stepDone && !isLast ? ({ "--tw-ring-color": step.accent } as React.CSSProperties) : {}) }}
               onClick={() => (isLast ? onClose() : setStepIndex((index) => Math.min(index + 1, FEATURES.length - 1)))}
               type="button"
             >
-              {isLast ? "Get Started" : "Next"}
+              {stepDone && !isWelcome && !isLast ? (
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 13 4 4L19 7" /></svg>
+              ) : null}
+              {nextLabel}
             </button>
           </div>
         </div>
