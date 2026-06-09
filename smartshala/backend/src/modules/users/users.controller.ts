@@ -27,6 +27,11 @@ export const updateTeacherAssignments = asyncHandler(async (req: Request, res: R
   res.json(await usersService.updateTeacherAssignments(req.user!.schoolId, req.params.id, req.body.periods));
 });
 
+export const resetTeacherPassword = asyncHandler(async (req: Request, res: Response) => {
+  await usersService.resetTeacherPassword(req.user!.schoolId, req.params.id, req.body.password);
+  res.json({ success: true });
+});
+
 export const updateUser = asyncHandler(async (req: Request, res: Response) => {
   res.json(await usersService.updateUser(req.user!.schoolId, req.params.id, req.body));
 });

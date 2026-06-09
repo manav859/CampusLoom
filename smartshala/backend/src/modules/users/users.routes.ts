@@ -3,7 +3,7 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./users.controller.js";
-import { createAccountantSchema, createTeacherSchema, teacherAssignmentParamsSchema, teacherPeriodAssignmentsSchema, updateUserSchema } from "./users.schemas.js";
+import { createAccountantSchema, createTeacherSchema, resetTeacherPasswordSchema, teacherAssignmentParamsSchema, teacherPeriodAssignmentsSchema, updateUserSchema } from "./users.schemas.js";
 
 export const usersRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
@@ -19,6 +19,12 @@ usersRouter.put(
   requireRole(adminRoles),
   validate({ params: teacherAssignmentParamsSchema, body: teacherPeriodAssignmentsSchema }),
   controller.updateTeacherAssignments
+);
+usersRouter.patch(
+  "/teachers/:id/password",
+  requireRole(adminRoles),
+  validate({ params: teacherAssignmentParamsSchema, body: resetTeacherPasswordSchema }),
+  controller.resetTeacherPassword
 );
 usersRouter.patch("/:id/activate", requireRole(adminRoles), controller.activateUser);
 usersRouter.patch("/:id", requireRole(adminRoles), validate({ body: updateUserSchema }), controller.updateUser);

@@ -212,6 +212,16 @@ export async function getTeacher(schoolId: string, id: string) {
   return teacher;
 }
 
+export async function resetTeacherPassword(schoolId: string, teacherId: string, newPassword: string) {
+  const teacher = await prisma.user.findFirst({
+    where: { id: teacherId, schoolId, role: UserRole.TEACHER },
+    select: { id: true }
+  });
+  if (!teacher) throw notFound("Teacher");
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: teacher.id }, data: { passwordHash } });
+}
+
 export async function updateUser(schoolId: string, id: string, data: Record<string, unknown>) {
   const exists = await prisma.user.findFirst({ where: { id, schoolId } });
   if (!exists) throw notFound("User");

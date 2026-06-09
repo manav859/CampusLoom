@@ -128,6 +128,14 @@ export default function TeachersPage() {
     action: "deactivate",
     teacherId: null
   });
+  const [resetPassword, setResetPassword] = useState<{ teacher: TeacherData | null; password: string; confirm: string; saving: boolean; error: string; success: boolean }>({
+    teacher: null,
+    password: "",
+    confirm: "",
+    saving: false,
+    error: "",
+    success: false
+  });
 
   useEffect(() => {
     const storedUser = typeof window !== "undefined" ? window.localStorage.getItem("smartshala.user") : null;
@@ -243,6 +251,30 @@ export default function TeachersPage() {
 
   const handleActivate = (id: string) => {
     setConfirmDialog({ isOpen: true, action: "activate", teacherId: id });
+  };
+
+  const handleResetPassword = (teacher: TeacherData) => {
+    setResetPassword({ teacher, password: "", confirm: "", saving: false, error: "", success: false });
+  };
+
+  const submitResetPassword = async () => {
+    const { teacher, password, confirm } = resetPassword;
+    if (!teacher) return;
+    if (password.length < 6) {
+      setResetPassword((prev) => ({ ...prev, error: "Password must be at least 6 characters." }));
+      return;
+    }
+    if (password !== confirm) {
+      setResetPassword((prev) => ({ ...prev, error: "Passwords do not match." }));
+      return;
+    }
+    setResetPassword((prev) => ({ ...prev, saving: true, error: "" }));
+    try {
+      await apiFetch(`/users/teachers/${teacher.id}/password`, { method: "PATCH", body: JSON.stringify({ password }) });
+      setResetPassword((prev) => ({ ...prev, saving: false, success: true }));
+    } catch (error: any) {
+      setResetPassword((prev) => ({ ...prev, saving: false, error: error?.message || "Failed to reset password." }));
+    }
   };
 
   const handleConfirmAction = async () => {
@@ -440,6 +472,9 @@ export default function TeachersPage() {
                     <button onClick={() => openAssignments(teacher.id)} className="inline-flex min-h-10 items-center justify-center rounded-[6px] bg-[#2456E6] px-3 text-[13px] font-semibold text-white" type="button">
                       Manage
                     </button>
+                    <button onClick={() => handleResetPassword(teacher)} className="col-span-2 inline-flex min-h-10 items-center justify-center rounded-[6px] border border-[#C9D3DE] bg-white px-3 text-[13px] font-semibold text-[#1d1d1f]" type="button">
+                      Reset Password
+                    </button>
                     {teacher.status === "ACTIVE" ? (
                       <button onClick={() => handleDelete(teacher.id)} className="col-span-2 inline-flex min-h-10 items-center justify-center rounded-[6px] border border-[#F0B8BC] bg-[#FFF5F5] px-3 text-[13px] font-semibold text-[#C8242C]" type="button">
                         Deactivate
@@ -526,6 +561,16 @@ export default function TeachersPage() {
                               className={`absolute right-0 z-30 min-w-[140px] overflow-hidden rounded-xl border border-[#DCE1E8] bg-white py-1 shadow-[0_12px_32px_-12px_rgba(15,20,25,0.35)] ${openUpward ? "bottom-8" : "top-8"}`}
                               data-row-action-menu
                             >
+                              <button
+                                className="block w-full px-3 py-2 text-left text-[12px] font-semibold text-[#1d1d1f] hover:bg-[#F1F3F6]"
+                                onClick={() => {
+                                  setOpenActionMenu(null);
+                                  handleResetPassword(teacher);
+                                }}
+                                type="button"
+                              >
+                                Reset Password
+                              </button>
                               {teacher.status === "ACTIVE" ? (
                                 <button
                                   className="block w-full px-3 py-2 text-left text-[12px] font-semibold text-[#C8242C] hover:bg-[#FCE3E5]"
@@ -721,6 +766,69 @@ export default function TeachersPage() {
               <button onClick={handleConfirmAction} className={`flex-1 py-3 text-[14px] font-semibold transition-colors ${confirmDialog.action === "deactivate" ? "text-[#ff3b30] hover:bg-[#ff3b30]/10" : "text-[#34c759] hover:bg-[#34c759]/10"}`}>
                 {confirmDialog.action === "deactivate" ? "Deactivate" : "Activate"}
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {resetPassword.teacher && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
+              <h3 className="text-[16px] font-semibold text-[#1d1d1f]">Reset Password</h3>
+              <p className="mt-0.5 text-[13px] text-[#86868b]">Set a new login password for {resetPassword.teacher.fullName}.</p>
+            </div>
+            {resetPassword.success ? (
+              <div className="px-5 py-6">
+                <div className="rounded-lg bg-[#34c759]/10 p-3 text-[13px] font-medium text-[#0F8A4A]">
+                  Password updated. Share the new password with the teacher.
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 px-5 py-5">
+                <div>
+                  <label className="mb-1 block text-[12px] font-semibold text-[#52687D]">New Password</label>
+                  <input
+                    autoFocus
+                    type="password"
+                    className="glass-input w-full text-[13px]"
+                    placeholder="At least 6 characters"
+                    value={resetPassword.password}
+                    onChange={(event) => setResetPassword((prev) => ({ ...prev, password: event.target.value, error: "" }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[12px] font-semibold text-[#52687D]">Confirm Password</label>
+                  <input
+                    type="password"
+                    className="glass-input w-full text-[13px]"
+                    placeholder="Re-enter password"
+                    value={resetPassword.confirm}
+                    onChange={(event) => setResetPassword((prev) => ({ ...prev, confirm: event.target.value, error: "" }))}
+                  />
+                </div>
+                {resetPassword.error ? <div className="rounded-lg bg-[rgba(255,59,48,0.1)] p-3 text-[12px] font-medium text-[#d70015]">{resetPassword.error}</div> : null}
+              </div>
+            )}
+            <div className="flex border-t border-[rgba(0,0,0,0.06)] bg-[#f5f5f7]/50">
+              <button
+                onClick={() => setResetPassword((prev) => ({ ...prev, teacher: null }))}
+                className="flex-1 border-r border-[rgba(0,0,0,0.06)] py-3 text-[14px] font-medium text-[#1d1d1f] transition-colors hover:bg-[#e5e5ea]"
+                type="button"
+              >
+                {resetPassword.success ? "Close" : "Cancel"}
+              </button>
+              {resetPassword.success ? null : (
+                <button
+                  onClick={submitResetPassword}
+                  disabled={resetPassword.saving}
+                  className="flex-1 py-3 text-[14px] font-semibold text-[#0071e3] transition-colors hover:bg-[#0071e3]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  type="button"
+                >
+                  {resetPassword.saving ? "Saving..." : "Reset Password"}
+                </button>
+              )}
             </div>
           </div>
         </div>,

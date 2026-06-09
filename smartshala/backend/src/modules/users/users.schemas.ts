@@ -20,6 +20,10 @@ export const createAccountantSchema = z.object({
   role: z.literal(UserRole.ACCOUNTANT).optional().default(UserRole.ACCOUNTANT)
 });
 
+export const resetTeacherPasswordSchema = z.object({
+  password: z.string().min(6)
+});
+
 export const updateUserSchema = z.object({
   fullName: z.string().min(2).optional(),
   email: z.string().email().nullable().optional(),
