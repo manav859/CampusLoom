@@ -5,7 +5,18 @@ import { AppError } from "../../core/errors.js";
 import { buildSystemPrompt } from "./chatbot.systemPrompt.js";
 import { checkLimits, recordUsage } from "./chatbot.tokenTracker.js";
 
-const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+// Lazily construct the client so a missing ANTHROPIC_API_KEY never crashes the
+// whole server at import time — the chatbot is one optional feature. If the key
+// is absent, requests fail cleanly with a 503 instead of taking down the ERP.
+let cachedClient: Anthropic | null = null;
+
+function getClient(): Anthropic {
+  if (!env.ANTHROPIC_API_KEY) {
+    throw new AppError(503, "AI assistant is not configured", "CHAT_NOT_CONFIGURED");
+  }
+  if (!cachedClient) cachedClient = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  return cachedClient;
+}
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -29,6 +40,10 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
   if (!limit.allowed) {
     throw new AppError(429, limit.reason ?? "Chat usage limit reached", "CHAT_LIMIT_REACHED");
   }
+
+  // Resolve the client before flushing headers so a missing key surfaces as a
+  // normal 503 (we can still set an HTTP status at this point).
+  const client = getClient();
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");

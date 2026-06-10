@@ -35,7 +35,7 @@ const envSchema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
   REDIS_URL: z.string().url().optional(),
-  ANTHROPIC_API_KEY: z.string().min(1),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
   CLAUDE_MODEL: z.string().default("claude-haiku-4-5-20251001"),
   CHAT_DAILY_TOKEN_LIMIT: z.coerce.number().default(5000),
   CHAT_MONTHLY_SCHOOL_LIMIT: z.coerce.number().default(600000),
