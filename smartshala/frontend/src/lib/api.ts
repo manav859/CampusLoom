@@ -64,6 +64,45 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 2)
 }
 
 
+/**
+ * Streaming sibling of apiFetch: returns the raw Response so the caller can read
+ * response.body (e.g. a Server-Sent Events stream). Adds the Bearer token and
+ * tenant prefix exactly like apiFetch, and performs a single silent token
+ * refresh on 401. Unlike apiFetch it does NOT parse the body or throw on non-2xx
+ * — the caller inspects response.status / response.body itself.
+ */
+export async function apiStream(path: string, options: ApiOptions = {}): Promise<Response> {
+  const url = `${tenantApiBase(env.apiBaseUrl, path)}${path}`;
+
+  const send = (token: string | null) => {
+    const headers = new Headers(options.headers);
+    headers.set("Content-Type", "application/json");
+    if (options.auth !== false && token) headers.set("Authorization", `Bearer ${token}`);
+    return fetch(url, {
+      ...options,
+      headers,
+      credentials: "include",
+      cache: "no-store"
+    });
+  };
+
+  let response = await send(tokenStore.get());
+
+  if (response.status === 401 && typeof window !== "undefined" && !path.includes("/auth/")) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      tokenStore.set(newToken);
+      response = await send(newToken);
+    } else {
+      tokenStore.clear();
+      window.location.href = "/login";
+      throw new Error("Session expired");
+    }
+  }
+
+  return response;
+}
+
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const url = `${tenantApiBase(env.apiBaseUrl, path)}${path}`;
 
