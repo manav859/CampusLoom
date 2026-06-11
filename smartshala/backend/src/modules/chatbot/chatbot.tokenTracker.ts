@@ -64,11 +64,53 @@ function secondsUntilEndOfMonth(): number {
   return Math.max(1, Math.ceil((startOfNextMonth.getTime() - now.getTime()) / 1000));
 }
 
+// Per-minute message limits by role. Slows usage to stay within the AI
+// provider's free-tier rate limits and prevents one user spamming the bot.
+const PER_MINUTE_LIMIT: Record<string, number> = { PRINCIPAL: 6, ADMIN: 6, TEACHER: 3 };
+
+function perMinuteLimit(role: string): number {
+  return PER_MINUTE_LIMIT[role] ?? 3;
+}
+
+/**
+ * Returns true if the user is still under their per-minute message limit, and
+ * counts this attempt. Fails open if the counter store is unavailable.
+ */
+async function withinRateLimit(userId: string, role: string): Promise<boolean> {
+  const limit = perMinuteLimit(role);
+  const key = `chat:rate:${userId}:${Math.floor(Date.now() / 60_000)}`;
+
+  try {
+    const r = getRedis();
+    let count: number;
+    if (r) {
+      count = await r.incr(key);
+      if (count === 1) await r.expire(key, 60);
+    } else {
+      memIncr(key, 1, Date.now() + 60_000);
+      count = memGet(key);
+    }
+    return count <= limit;
+  } catch (err) {
+    console.error("[chatbot.tokenTracker] withinRateLimit error — failing open:", err);
+    return true;
+  }
+}
+
 export async function checkLimits(
   userId: string,
   schoolId: string,
   role: string
 ): Promise<{ allowed: boolean; reason?: string }> {
+  // Per-minute message rate limit applies to every role.
+  if (!(await withinRateLimit(userId, role))) {
+    return {
+      allowed: false,
+      reason: "You're sending messages too quickly. Please wait a minute and try again."
+    };
+  }
+
+  // Principals are exempt from the daily/monthly token caps below.
   if (role === "PRINCIPAL") return { allowed: true };
 
   try {

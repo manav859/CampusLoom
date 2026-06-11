@@ -114,14 +114,25 @@ async function buildErpContext(
   }
 }
 
+type ChatTurn = { role: "user" | "assistant"; content: string };
+
 /**
- * Records ONE activity log per chat conversation. The first message of a new
- * conversation creates the log; later messages in the same conversation update
- * the running message count on that same log, so a whole chat shows up as a
- * single entry. A new chat (new conversationId) produces a new log.
- * Best-effort: never let logging break the chat.
+ * Appends messages to the ONE activity log for a chat conversation. The first
+ * message of a new conversation creates the log; every later message in the
+ * same conversation is appended to the same log's transcript, so the whole
+ * chat (all questions and answers) shows up as a single entry. A new chat (new
+ * conversationId) produces a new log. Best-effort: never break the chat.
  */
-async function recordChatActivity(conversationId: string, user: Express.UserContext) {
+async function appendConversationMessages(
+  conversationId: string,
+  user: Express.UserContext,
+  newMessages: ChatTurn[]
+) {
+  if (newMessages.length === 0) return;
+
+  // Cap each message so a long reply can't bloat the audit row.
+  const trimmed = newMessages.map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }));
+
   try {
     const existing = await prisma.auditLog.findFirst({
       where: { schoolId: user.schoolId, entityType: "CHATBOT", entityId: conversationId },
@@ -133,10 +144,11 @@ async function recordChatActivity(conversationId: string, user: Express.UserCont
         existing.afterJson && typeof existing.afterJson === "object" && !Array.isArray(existing.afterJson)
           ? (existing.afterJson as Record<string, unknown>)
           : {};
-      const messageCount = (Number(prev.messageCount) || 1) + 1;
+      const prevMessages = Array.isArray(prev.messages) ? (prev.messages as ChatTurn[]) : [];
+      const messages = [...prevMessages, ...trimmed].slice(-100);
       await prisma.auditLog.update({
         where: { id: existing.id },
-        data: { afterJson: { ...prev, messageCount } }
+        data: { afterJson: { messages, messageCount: messages.length } }
       });
       return;
     }
@@ -149,11 +161,11 @@ async function recordChatActivity(conversationId: string, user: Express.UserCont
         entityId: conversationId,
         action: "CHAT",
         summary: `${user.fullName} used the AI assistant`,
-        afterJson: { messageCount: 1 }
+        afterJson: { messages: trimmed, messageCount: trimmed.length }
       }
     });
   } catch (err) {
-    console.error("[chatbot.controller] recordChatActivity error (ignored):", err);
+    console.error("[chatbot.controller] appendConversationMessages error (ignored):", err);
   }
 }
 
@@ -161,11 +173,12 @@ export const ask = asyncHandler(async (req: Request, res: Response) => {
   const { conversationId, message, history } = askSchema.parse(req.body);
   const { id: userId, schoolId, role, schoolName } = req.user!;
 
-  if (conversationId) await recordChatActivity(conversationId, req.user!);
+  // Log the user's question first so it is recorded even if the AI call fails.
+  if (conversationId) await appendConversationMessages(conversationId, req.user!, [{ role: "user", content: message }]);
 
   const erpContext = await buildErpContext(message, schoolId, role, req);
 
-  await streamChat({
+  const assistantText = await streamChat({
     message,
     history,
     userId,
@@ -175,4 +188,9 @@ export const ask = asyncHandler(async (req: Request, res: Response) => {
     erpContext,
     res
   });
+
+  // Append the assistant's reply to the same conversation log.
+  if (conversationId && assistantText) {
+    await appendConversationMessages(conversationId, req.user!, [{ role: "assistant", content: assistantText }]);
+  }
 });

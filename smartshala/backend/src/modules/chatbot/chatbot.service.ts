@@ -15,7 +15,7 @@ type StreamChatParams = {
   res: Response;
 };
 
-export async function streamChat(params: StreamChatParams): Promise<void> {
+export async function streamChat(params: StreamChatParams): Promise<string> {
   const { message, history, userId, schoolId, role, schoolName, erpContext, res } = params;
 
   // Enforce usage limits before we start streaming. Throwing here propagates to
@@ -34,6 +34,7 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
+  let assistantText = "";
   try {
     const trimmedHistory = history.slice(-6);
     const messages: ChatMessage[] = [
@@ -51,6 +52,7 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
     });
 
     for await (const text of stream.text) {
+      assistantText += text;
       res.write(`data: ${JSON.stringify({ text })}\n\n`);
     }
 
@@ -59,9 +61,11 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
 
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
+    return assistantText;
   } catch (err) {
     console.error("[chatbot.service] streamChat error:", err);
     res.write(`data: ${JSON.stringify({ error: "AI service error. Please try again." })}\n\n`);
     res.end();
+    return assistantText;
   }
 }

@@ -214,7 +214,25 @@ function flattenDetails(value: unknown, prefix = ""): [string, unknown][] {
   });
 }
 
+function chatbotMessages(log: ActivityLog): string[] | null {
+  if (log.entityType !== "CHATBOT") return null;
+  const after = (log.afterJson ?? {}) as Record<string, unknown>;
+  const messages = Array.isArray(after.messages) ? after.messages : [];
+  const lines = messages.flatMap((item, index) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const content = typeof record.content === "string" ? record.content.trim() : "";
+    if (!content) return [];
+    const who = record.role === "assistant" ? "AI" : "You";
+    return [`${index + 1}. ${who}: ${content}`];
+  });
+  return lines.length > 0 ? lines : ["No messages recorded."];
+}
+
 function diffLines(log: ActivityLog) {
+  const chat = chatbotMessages(log);
+  if (chat) return chat;
+
   const attendance = attendanceDetails(log);
   if (attendance) {
     if (attendance.isUpdate && attendance.hasNames) {

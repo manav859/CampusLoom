@@ -141,17 +141,37 @@ function openrouterProvider(): ChatProvider {
     model: env.OPENROUTER_MODEL,
     stream({ system, messages, maxTokens }) {
       let usage: Usage = { inputTokens: 0, outputTokens: 0 };
+      const params = {
+        model: env.OPENROUTER_MODEL,
+        max_tokens: maxTokens,
+        stream: true as const,
+        stream_options: { include_usage: true },
+        messages: [
+          { role: "system" as const, content: system },
+          ...messages.map((m) => ({ role: m.role, content: m.content }))
+        ]
+      };
+
+      // Free-tier models occasionally return a transient 429/5xx. Retry once
+      // after a short delay before surfacing the error to the user.
+      async function createWithRetry() {
+        for (let attempt = 0; ; attempt++) {
+          try {
+            return await client.chat.completions.create(params);
+          } catch (err) {
+            const status = (err as { status?: number })?.status;
+            const transient = status === 429 || status === 500 || status === 502 || status === 503;
+            if (attempt === 0 && transient) {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              continue;
+            }
+            throw err;
+          }
+        }
+      }
+
       async function* text(): AsyncIterable<string> {
-        const completion = await client.chat.completions.create({
-          model: env.OPENROUTER_MODEL,
-          max_tokens: maxTokens,
-          stream: true,
-          stream_options: { include_usage: true },
-          messages: [
-            { role: "system", content: system },
-            ...messages.map((m) => ({ role: m.role, content: m.content }))
-          ]
-        });
+        const completion = await createWithRetry();
         for await (const chunk of completion) {
           const delta = chunk.choices[0]?.delta?.content;
           if (delta) yield delta;

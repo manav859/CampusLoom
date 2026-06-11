@@ -5,6 +5,12 @@ import type { useChatStream } from "./useChatStream";
 
 const MAX_TEXTAREA_HEIGHT = 112; // px — matches max-h-28
 
+// Safety net: the model is told to avoid Markdown, but strip stray bold
+// markers (** / ***) so they never show up literally in the bubble.
+function cleanAssistantText(text: string) {
+  return text.replace(/\*{2,}/g, "");
+}
+
 const SUGGESTED_PROMPTS = [
   "What is today's attendance summary?",
   "Give me a fee defaulters summary",
@@ -122,7 +128,7 @@ export function ChatWindow({ chat, onClose }: ChatWindowProps) {
                         : "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl rounded-tl-sm border border-gray-200 bg-white px-3.5 py-2 text-sm text-gray-800"
                     }
                   >
-                    {showCursor ? <span className="animate-pulse">▌</span> : message.content}
+                    {showCursor ? <span className="animate-pulse">▌</span> : isUser ? message.content : cleanAssistantText(message.content)}
                   </div>
                 </div>
               );
