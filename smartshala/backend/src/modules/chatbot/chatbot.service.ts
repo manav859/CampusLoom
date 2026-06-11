@@ -1,24 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { Response } from "express";
-import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
 import { buildSystemPrompt } from "./chatbot.systemPrompt.js";
+import { getChatProvider, type ChatMessage } from "./chatbot.providers.js";
 import { checkLimits, recordUsage } from "./chatbot.tokenTracker.js";
-
-// Lazily construct the client so a missing ANTHROPIC_API_KEY never crashes the
-// whole server at import time — the chatbot is one optional feature. If the key
-// is absent, requests fail cleanly with a 503 instead of taking down the ERP.
-let cachedClient: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!env.ANTHROPIC_API_KEY) {
-    throw new AppError(503, "AI assistant is not configured", "CHAT_NOT_CONFIGURED");
-  }
-  if (!cachedClient) cachedClient = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  return cachedClient;
-}
-
-type ChatMessage = { role: "user" | "assistant"; content: string };
 
 type StreamChatParams = {
   message: string;
@@ -41,9 +25,9 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
     throw new AppError(429, limit.reason ?? "Chat usage limit reached", "CHAT_LIMIT_REACHED");
   }
 
-  // Resolve the client before flushing headers so a missing key surfaces as a
-  // normal 503 (we can still set an HTTP status at this point).
-  const client = getClient();
+  // Resolve the provider (and its API key) before flushing headers so a missing
+  // key surfaces as a normal 503 (we can still set an HTTP status at this point).
+  const provider = getChatProvider();
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -52,34 +36,26 @@ export async function streamChat(params: StreamChatParams): Promise<void> {
 
   try {
     const trimmedHistory = history.slice(-6);
-    const messages = [
+    const messages: ChatMessage[] = [
       ...trimmedHistory,
       {
-        role: "user" as const,
+        role: "user",
         content: erpContext ? `${message}\n\n[ERP DATA]:\n${erpContext}` : message
       }
     ];
 
-    const stream = client.messages.stream({
-      model: env.CLAUDE_MODEL,
-      max_tokens: 1024,
+    const stream = provider.stream({
       system: buildSystemPrompt(schoolName, role),
-      messages
+      messages,
+      maxTokens: 1024
     });
 
-    for await (const chunk of stream) {
-      if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
-        res.write(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`);
-      }
+    for await (const text of stream.text) {
+      res.write(`data: ${JSON.stringify({ text })}\n\n`);
     }
 
-    const finalMessage = await stream.finalMessage();
-    await recordUsage(
-      userId,
-      schoolId,
-      finalMessage.usage.input_tokens,
-      finalMessage.usage.output_tokens
-    );
+    const usage = stream.getUsage();
+    await recordUsage(userId, schoolId, usage.inputTokens, usage.outputTokens);
 
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
