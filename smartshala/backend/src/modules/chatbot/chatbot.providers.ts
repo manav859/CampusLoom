@@ -1,12 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
 
-// Provider abstraction so the chatbot can run on Anthropic (Claude) or Google
-// (Gemini) without the service caring which. Pick via AI_PROVIDER. Each adapter
-// streams plain text deltas and reports token usage in a common shape, so the
-// rate limiter and SSE writer stay provider-neutral.
+// Provider abstraction so the chatbot can run on Anthropic (Claude), Google
+// (Gemini), or OpenRouter without the service caring which. Pick via
+// AI_PROVIDER. Each adapter streams plain text deltas and reports token usage
+// in a common shape, so the rate limiter and SSE writer stay provider-neutral.
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 export type Usage = { inputTokens: number; outputTokens: number };
@@ -118,6 +119,62 @@ function geminiProvider(): ChatProvider {
   };
 }
 
+// OpenRouter speaks the OpenAI API, so we use the openai SDK pointed at their
+// endpoint. This routes Gemini (and other) models through OpenRouter's servers,
+// which sidesteps the "user location is not supported" geo-block that Google's
+// direct API applies to some cloud hosts.
+let openrouterClient: OpenAI | null = null;
+
+function openrouterProvider(): ChatProvider {
+  if (!env.OPENROUTER_API_KEY) {
+    throw new AppError(503, "AI assistant is not configured", "CHAT_NOT_CONFIGURED");
+  }
+  if (!openrouterClient) {
+    openrouterClient = new OpenAI({
+      apiKey: env.OPENROUTER_API_KEY,
+      baseURL: "https://openrouter.ai/api/v1"
+    });
+  }
+  const client = openrouterClient;
+
+  return {
+    model: env.OPENROUTER_MODEL,
+    stream({ system, messages, maxTokens }) {
+      let usage: Usage = { inputTokens: 0, outputTokens: 0 };
+      async function* text(): AsyncIterable<string> {
+        const completion = await client.chat.completions.create({
+          model: env.OPENROUTER_MODEL,
+          max_tokens: maxTokens,
+          stream: true,
+          stream_options: { include_usage: true },
+          messages: [
+            { role: "system", content: system },
+            ...messages.map((m) => ({ role: m.role, content: m.content }))
+          ]
+        });
+        for await (const chunk of completion) {
+          const delta = chunk.choices[0]?.delta?.content;
+          if (delta) yield delta;
+          if (chunk.usage) {
+            usage = {
+              inputTokens: chunk.usage.prompt_tokens ?? 0,
+              outputTokens: chunk.usage.completion_tokens ?? 0
+            };
+          }
+        }
+      }
+      return { text: text(), getUsage: () => usage };
+    }
+  };
+}
+
 export function getChatProvider(): ChatProvider {
-  return env.AI_PROVIDER === "gemini" ? geminiProvider() : anthropicProvider();
+  switch (env.AI_PROVIDER) {
+    case "gemini":
+      return geminiProvider();
+    case "openrouter":
+      return openrouterProvider();
+    default:
+      return anthropicProvider();
+  }
 }
