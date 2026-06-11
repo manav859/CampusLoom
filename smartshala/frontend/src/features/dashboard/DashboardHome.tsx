@@ -258,7 +258,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   useEffect(() => {
     let active = true;
 
-    cachedFetch(`dashboard:activity:${activityDate}`, () => activityApi.logs({ dateFrom: activityDate, dateTo: activityDate, limit: 12, page: 1 }))
+    cachedFetch(`dashboard:activity:${activityDate}`, () => activityApi.logs({ dateFrom: activityDate, dateTo: activityDate, excludeEntityType: "CHATBOT", limit: 12, page: 1 }))
       .then((result) => {
         if (active) setActivityLogs(result.items);
       })

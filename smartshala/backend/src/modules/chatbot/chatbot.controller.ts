@@ -114,9 +114,54 @@ async function buildErpContext(
   }
 }
 
+/**
+ * Records ONE activity log per chat conversation. The first message of a new
+ * conversation creates the log; later messages in the same conversation update
+ * the running message count on that same log, so a whole chat shows up as a
+ * single entry. A new chat (new conversationId) produces a new log.
+ * Best-effort: never let logging break the chat.
+ */
+async function recordChatActivity(conversationId: string, user: Express.UserContext) {
+  try {
+    const existing = await prisma.auditLog.findFirst({
+      where: { schoolId: user.schoolId, entityType: "CHATBOT", entityId: conversationId },
+      select: { id: true, afterJson: true }
+    });
+
+    if (existing) {
+      const prev =
+        existing.afterJson && typeof existing.afterJson === "object" && !Array.isArray(existing.afterJson)
+          ? (existing.afterJson as Record<string, unknown>)
+          : {};
+      const messageCount = (Number(prev.messageCount) || 1) + 1;
+      await prisma.auditLog.update({
+        where: { id: existing.id },
+        data: { afterJson: { ...prev, messageCount } }
+      });
+      return;
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        schoolId: user.schoolId,
+        actorId: user.id,
+        entityType: "CHATBOT",
+        entityId: conversationId,
+        action: "CHAT",
+        summary: `${user.fullName} used the AI assistant`,
+        afterJson: { messageCount: 1 }
+      }
+    });
+  } catch (err) {
+    console.error("[chatbot.controller] recordChatActivity error (ignored):", err);
+  }
+}
+
 export const ask = asyncHandler(async (req: Request, res: Response) => {
-  const { message, history } = askSchema.parse(req.body);
+  const { conversationId, message, history } = askSchema.parse(req.body);
   const { id: userId, schoolId, role, schoolName } = req.user!;
+
+  if (conversationId) await recordChatActivity(conversationId, req.user!);
 
   const erpContext = await buildErpContext(message, schoolId, role, req);
 

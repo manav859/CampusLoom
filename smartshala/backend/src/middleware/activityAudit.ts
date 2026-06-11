@@ -69,6 +69,9 @@ export function auditMutatingRequest(req: Request, res: Response, next: NextFunc
     if (res.statusCode >= 400) return;
     if (req.originalUrl.includes("/activity-logs")) return;
     if (req.originalUrl.includes("/auth/logout")) return;
+    // Chatbot logs one consolidated entry per conversation itself (see
+    // chatbot.controller), so skip the generic per-request logging here.
+    if (/\/api(?:\/v1)?\/chatbot(?:\/|$)/.test(req.originalUrl)) return;
     if (/\/api(?:\/v1)?\/students(?:\/|$)/.test(req.originalUrl)) return;
     if (/\/api(?:\/v1)?\/attendance\/mark(?:\/|$|\?)/.test(req.originalUrl)) return;
     if (/\/api(?:\/v1)?\/fees\/(payment|payments|adjustments|fee-adjustments)(?:\/|$)/.test(req.originalUrl)) return;

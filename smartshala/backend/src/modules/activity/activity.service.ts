@@ -8,6 +8,7 @@ type ActivityQuery = {
   dateFrom?: string;
   dateTo?: string;
   entityType?: string;
+  excludeEntityType?: string;
   limit?: string;
   page?: string;
   search?: string;
@@ -207,6 +208,7 @@ export async function listActivityLogs(user: Express.UserContext, query: Activit
   if (dateTo) dateTo.setHours(23, 59, 59, 999);
   const baseWhere = {
     schoolId: user.schoolId,
+    ...(query.excludeEntityType ? { entityType: { not: query.excludeEntityType } } : {}),
     ...hiddenAuditExclusions()
   } satisfies Prisma.AuditLogWhereInput;
   const whereWithoutSearch = {

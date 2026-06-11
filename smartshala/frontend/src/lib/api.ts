@@ -1200,13 +1200,14 @@ export const settingsApi = {
 };
 
 export const activityApi = {
-  logs: (params?: { action?: string; actorId?: string; dateFrom?: string; dateTo?: string; entityType?: string; limit?: number; page?: number; search?: string }) => {
+  logs: (params?: { action?: string; actorId?: string; dateFrom?: string; dateTo?: string; entityType?: string; excludeEntityType?: string; limit?: number; page?: number; search?: string }) => {
     const query = new URLSearchParams();
     if (params?.action) query.set("action", params.action);
     if (params?.actorId) query.set("actorId", params.actorId);
     if (params?.dateFrom) query.set("dateFrom", params.dateFrom);
     if (params?.dateTo) query.set("dateTo", params.dateTo);
     if (params?.entityType) query.set("entityType", params.entityType);
+    if (params?.excludeEntityType) query.set("excludeEntityType", params.excludeEntityType);
     if (params?.limit) query.set("limit", String(params.limit));
     if (params?.page) query.set("page", String(params.page));
     if (params?.search) query.set("search", params.search);

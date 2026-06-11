@@ -12,6 +12,9 @@ export function useChatStream() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One id per chat session — all messages share it so the backend logs the
+  // whole conversation as a single activity entry. Reset on "New chat".
+  const [conversationId, setConversationId] = useState(() => crypto.randomUUID());
 
   const sendMessage = useCallback(
     async (userText: string) => {
@@ -52,7 +55,7 @@ export function useChatStream() {
       try {
         const response = await apiStream("/chatbot/ask", {
           method: "POST",
-          body: JSON.stringify({ message: text, history })
+          body: JSON.stringify({ conversationId, message: text, history })
         });
 
         // Limit hit (or any pre-stream failure): the body is JSON, not a stream.
@@ -108,12 +111,13 @@ export function useChatStream() {
         setIsLoading(false);
       }
     },
-    [isLoading, messages]
+    [conversationId, isLoading, messages]
   );
 
   const clearChat = useCallback(() => {
     setMessages([]);
     setError(null);
+    setConversationId(crypto.randomUUID());
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
