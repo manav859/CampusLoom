@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useChatStream } from "./useChatStream";
+import type { useChatStream } from "./useChatStream";
 
 const MAX_TEXTAREA_HEIGHT = 112; // px — matches max-h-28
 
-export function ChatWindow({ onClose }: { onClose: () => void }) {
-  const { messages, isLoading, error, sendMessage, clearChat, clearError } = useChatStream();
+type ChatWindowProps = {
+  chat: ReturnType<typeof useChatStream>;
+  onClose: () => void;
+};
+
+export function ChatWindow({ chat, onClose }: ChatWindowProps) {
+  const { messages, isLoading, error, sendMessage, clearChat, clearError } = chat;
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -52,14 +57,25 @@ export function ChatWindow({ onClose }: { onClose: () => void }) {
           <p className="text-sm font-semibold leading-tight">School Assistant</p>
           <p className="text-[11px] leading-tight text-white/60">Powered by AI</p>
         </div>
-        <button
-          type="button"
-          aria-label="Close chat"
-          onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <span className="text-xl leading-none">×</span>
-        </button>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 ? (
+            <button
+              type="button"
+              onClick={clearChat}
+              className="rounded-md px-2 py-1 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              New chat
+            </button>
+          ) : null}
+          <button
+            type="button"
+            aria-label="Close chat"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <span className="text-xl leading-none">×</span>
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
@@ -134,15 +150,6 @@ export function ChatWindow({ onClose }: { onClose: () => void }) {
             Send
           </button>
         </div>
-        {messages.length > 0 ? (
-          <button
-            type="button"
-            onClick={clearChat}
-            className="mt-2 text-[11px] font-medium text-gray-400 transition-colors hover:text-gray-600"
-          >
-            Clear conversation
-          </button>
-        ) : null}
       </div>
     </div>
   );
