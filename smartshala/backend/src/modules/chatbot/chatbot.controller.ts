@@ -15,6 +15,9 @@ function formatDate(date: Date): string {
  * or null when the question needs no school data. Every query is best-effort:
  * any failure returns null so the chat still works without context.
  *
+ * Data is provided as aggregate summaries (counts/totals), never per-student
+ * lists — keeps token usage low and avoids leaking long name lists into chat.
+ *
  * The `prisma` proxy is already bound to the request's tenant DB via the
  * tenant AsyncLocalStorage context, so filtering by schoolId is sufficient.
  */
@@ -28,53 +31,80 @@ async function buildErpContext(
 
   try {
     if (text.includes("attendance")) {
-      // If role is TEACHER we would also scope to the teacher's own classes,
-      // but classId is not present on req.user yet, so we skip that filter.
-      const records = await prisma.attendanceRecord.findMany({
+      // Summarize the most recent marked day (covers "today" once attendance
+      // is marked; otherwise the date label tells the model which day it is).
+      const latest = await prisma.attendanceSession.findFirst({
         where: { schoolId },
-        take: 20,
-        orderBy: { createdAt: "desc" },
-        include: {
-          student: { select: { fullName: true } },
-          session: { select: { date: true } }
-        }
+        orderBy: { date: "desc" },
+        select: { date: true }
       });
+      if (!latest) return null;
 
-      if (records.length === 0) return null;
-      return records
-        .map((r) => `- ${r.student.fullName}: ${r.status} on ${formatDate(r.session.date)}`)
-        .join("\n");
+      const dayStart = new Date(latest.date);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+
+      const grouped = await prisma.attendanceRecord.groupBy({
+        by: ["status"],
+        where: { schoolId, session: { date: { gte: dayStart, lt: dayEnd } } },
+        _count: { _all: true }
+      });
+      if (grouped.length === 0) return null;
+
+      const total = grouped.reduce((sum, g) => sum + g._count._all, 0);
+      return [
+        `Attendance summary for ${formatDate(latest.date)} (latest marked day):`,
+        `- Total students marked: ${total}`,
+        ...grouped.map((g) => `- ${g.status}: ${g._count._all}`)
+      ].join("\n");
     }
 
     if (text.includes("fee") || text.includes("defaulter")) {
-      const assignments = await prisma.studentFeeAssignment.findMany({
+      const grouped = await prisma.studentFeeAssignment.groupBy({
+        by: ["status"],
         where: { schoolId, status: { not: InstallmentStatus.PAID } },
-        take: 20,
-        orderBy: { pendingAmount: "desc" },
-        include: { student: { select: { fullName: true } } }
+        _count: { _all: true },
+        _sum: { pendingAmount: true }
       });
+      if (grouped.length === 0) return null;
 
-      if (assignments.length === 0) return null;
-      return assignments
-        .map((a) => `- ${a.student.fullName}: ${a.status}, pending ${a.pendingAmount.toString()}`)
-        .join("\n");
+      const totalCount = grouped.reduce((sum, g) => sum + g._count._all, 0);
+      const totalPending = grouped.reduce(
+        (sum, g) => sum + Number(g._sum.pendingAmount ?? 0),
+        0
+      );
+      return [
+        "Fee defaulters summary (unpaid fee assignments):",
+        `- Total students with pending fees: ${totalCount}`,
+        `- Total pending amount: ${totalPending}`,
+        ...grouped.map(
+          (g) => `- ${g.status}: ${g._count._all} students, pending ${Number(g._sum.pendingAmount ?? 0)}`
+        )
+      ].join("\n");
     }
 
     if (text.includes("student")) {
-      const students = await prisma.student.findMany({
+      const grouped = await prisma.student.groupBy({
+        by: ["classId"],
         where: { schoolId, isActive: true },
-        take: 20,
-        orderBy: [{ classId: "asc" }, { rollNumber: "asc" }],
-        include: { class: { select: { name: true, section: true } } }
+        _count: { _all: true }
       });
+      if (grouped.length === 0) return null;
 
-      if (students.length === 0) return null;
-      return students
-        .map(
-          (s) =>
-            `- ${s.fullName} (Class ${s.class.name}-${s.class.section}, Roll ${s.rollNumber ?? "N/A"})`
-        )
-        .join("\n");
+      const classes = await prisma.class.findMany({
+        where: { id: { in: grouped.map((g) => g.classId) } },
+        select: { id: true, name: true, section: true },
+        orderBy: [{ name: "asc" }, { section: "asc" }]
+      });
+      const countByClass = new Map(grouped.map((g) => [g.classId, g._count._all]));
+      const total = grouped.reduce((sum, g) => sum + g._count._all, 0);
+
+      return [
+        "Student enrollment summary (active students):",
+        `- Total: ${total}`,
+        ...classes.map((c) => `- Class ${c.name}-${c.section}: ${countByClass.get(c.id) ?? 0}`)
+      ].join("\n");
     }
 
     return null;

@@ -5,6 +5,13 @@ import type { useChatStream } from "./useChatStream";
 
 const MAX_TEXTAREA_HEIGHT = 112; // px — matches max-h-28
 
+const SUGGESTED_PROMPTS = [
+  "What is today's attendance summary?",
+  "Give me a fee defaulters summary",
+  "How many students are enrolled?",
+  "How do I generate a report?"
+];
+
 type ChatWindowProps = {
   chat: ReturnType<typeof useChatStream>;
   onClose: () => void;
@@ -86,6 +93,19 @@ export function ChatWindow({ chat, onClose }: ChatWindowProps) {
             <p className="mt-3 max-w-[15rem] text-sm">
               Ask me about attendance, fees, students, or how to use the ERP.
             </p>
+            <div className="mt-4 flex flex-col gap-2">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => void sendMessage(prompt)}
+                  disabled={isLoading}
+                  className="rounded-full border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:border-indigo-300 hover:bg-indigo-100"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
