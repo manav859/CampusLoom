@@ -173,6 +173,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       }
       if (cancelled) return;
       if (!token) {
+        // Refresh failed (no session, or the school was deactivated/deleted).
+        // Drop any stale user so tenant API calls stop resolving to a dead
+        // school, then send the user to login.
+        clearCache();
+        tokenStore.clear();
+        window.localStorage.removeItem("smartshala.user");
         router.replace(withSchoolPath("/login", pathname));
         return;
       }
