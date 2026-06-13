@@ -51,6 +51,7 @@ type SortDirection = "asc" | "desc";
 // parentName/parentPhone are derived from the guardians like the modal does, so they are not columns.
 const studentImportTemplateHeaders = [
   "fullName",
+  "admissionNumber",
   "rollNumber",
   "gender",
   "dateOfBirth",
@@ -78,6 +79,7 @@ const studentImportTemplateHeaders = [
 type ImportStudentRow = {
   rowNumber: number;
   fullName: string;
+  admissionNumber?: string;
   className: string;
   classSection: string;
   parentName: string;
@@ -236,6 +238,7 @@ function parseStudentsCsv(text: string): ImportStudentRow[] {
     rows.push({
       rowNumber: index + 1,
       fullName,
+      admissionNumber: csvValue(raw, ["admissionNumber", "admissionNo"]) || undefined,
       className: csvValue(raw, ["className", "class"]),
       classSection: csvValue(raw, ["classSection", "section"]),
       parentName,
@@ -919,6 +922,7 @@ export default function StudentsPage() {
       payload.push({
         classId,
         fullName: row.fullName,
+        admissionNumber: row.admissionNumber,
         parentName: row.parentName,
         parentPhone: row.parentPhone,
         alternatePhone: row.alternatePhone,
@@ -1477,6 +1481,7 @@ export default function StudentsPage() {
                         <tr className="border-b border-[#DCE1E8] text-[11px] uppercase tracking-[0.06em] text-[#5A6573]">
                           <th className="px-4 py-2">Row</th>
                           <th className="px-4 py-2">Student</th>
+                          <th className="px-4 py-2">Admission #</th>
                           <th className="px-4 py-2">Class</th>
                           <th className="px-4 py-2">Parent</th>
                           <th className="px-4 py-2">Phone</th>
@@ -1487,6 +1492,7 @@ export default function StudentsPage() {
                           <tr className="border-b border-[#F0F2F5] last:border-0" key={`${row.rowNumber}-${row.fullName}`}>
                             <td className="px-4 py-2 text-[#5A6573]">{row.rowNumber}</td>
                             <td className="px-4 py-2 font-semibold text-[#0F1419]">{row.fullName}</td>
+                            <td className="px-4 py-2 text-[#5A6573]">{row.admissionNumber || <span className="italic text-[#86868b]">Auto</span>}</td>
                             <td className="px-4 py-2">{row.className && row.classSection ? `${row.className}-${row.classSection}` : "Default"}</td>
                             <td className="px-4 py-2">{row.parentName}</td>
                             <td className="px-4 py-2">{row.parentPhone}</td>

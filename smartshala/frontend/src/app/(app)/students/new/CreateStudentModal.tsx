@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { apiFetch } from "@/lib/api";
 import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
@@ -34,6 +35,35 @@ function dateDisplayToIso(value: string) {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// Reformat free typing into dd/mm/yyyy, auto-inserting "/" as digits are entered.
+function formatDobInput(raw: string, previous: string) {
+  const digits = raw.replace(/\D/g, "").slice(0, 8);
+  let formatted = digits;
+  if (digits.length >= 5) formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+  else if (digits.length >= 3) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  // Append the separator right after the day/month when typing forward.
+  if ((digits.length === 2 || digits.length === 4) && raw.length >= previous.length) formatted += "/";
+  return formatted;
+}
+
+// yyyy-mm-dd (calendar value) -> dd/mm/yyyy (display), and a non-throwing display -> iso for the picker.
+function isoToDateDisplay(iso: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
+function dateDisplayToIsoSafe(value: string) {
+  try {
+    return dateDisplayToIso(value);
+  } catch {
+    return "";
+  }
+}
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalProps) {
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<ClassData[]>([]);
@@ -43,6 +73,7 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
   
   const [formData, setFormData] = useState({
     fullName: "",
+    admissionNumber: "",
     rollNumber: "",
     dateOfBirth: "",
     gender: "",
@@ -120,6 +151,8 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
 
       payload.parentName = primaryGuardian.name;
       payload.parentPhone = primaryGuardian.phone;
+      if (!payload.admissionNumber || !payload.admissionNumber.trim()) delete payload.admissionNumber;
+      else payload.admissionNumber = payload.admissionNumber.trim();
       if (!payload.rollNumber) delete payload.rollNumber;
       else payload.rollNumber = parseInt(payload.rollNumber);
       
@@ -196,9 +229,12 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
             <div className="grid gap-5 sm:grid-cols-3">
               <div className="space-y-1.5">
                 <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Admission Number</label>
-                <div className="flex w-full items-center rounded-[6px] border border-[#C9D3DE] bg-[#F7F8FB] px-3 py-2.5 text-[14px] italic text-[#86868b]">
-                  Auto-generated on save
-                </div>
+                <input
+                  className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
+                  placeholder="Auto-generated if left blank"
+                  value={formData.admissionNumber}
+                  onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Roll Number</label>
@@ -228,21 +264,25 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
 
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Date of Birth</label>
-              <input
-                inputMode="numeric"
-                pattern="\d{2}/\d{2}/\d{4}"
-                className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 text-[14px] outline-none focus:border-[#2456E6]"
-                placeholder="dd/mm/yyyy"
-                value={formData.dateOfBirth}
-                onChange={(e) => {
-                  let val = e.target.value;
-                  if ((val.length === 2 || val.length === 5) && val.length > formData.dateOfBirth.length) {
-                    val += "/";
-                  }
-                  setFormData({ ...formData, dateOfBirth: val });
-                }}
-              />
-              <p className="ml-1 text-[12px] font-medium text-[#5A6573]">Format: dd/mm/yyyy</p>
+              <div className="relative">
+                <input
+                  inputMode="numeric"
+                  pattern="\d{2}/\d{2}/\d{4}"
+                  className="w-full rounded-[6px] border border-[#C9D3DE] px-3 py-2.5 pr-11 text-[14px] outline-none focus:border-[#2456E6]"
+                  placeholder="dd/mm/yyyy"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: formatDobInput(e.target.value, formData.dateOfBirth) })}
+                />
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+                  <DatePicker
+                    iconOnly
+                    max={todayIso()}
+                    value={dateDisplayToIsoSafe(formData.dateOfBirth)}
+                    onChange={(iso) => setFormData({ ...formData, dateOfBirth: isoToDateDisplay(iso) })}
+                  />
+                </div>
+              </div>
+              <p className="ml-1 text-[12px] font-medium text-[#5A6573]">Format: dd/mm/yyyy — or pick from the calendar.</p>
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">

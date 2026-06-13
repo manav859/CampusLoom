@@ -7,6 +7,7 @@ type DatePickerProps = {
   buttonClassName?: string;
   blockedDateReason?: (value: string) => string | undefined;
   disabled?: boolean;
+  iconOnly?: boolean;
   label?: string;
   max?: string;
   min?: string;
@@ -62,6 +63,7 @@ export function DatePicker({
   blockedDateReason,
   buttonClassName,
   disabled,
+  iconOnly,
   label,
   max,
   min,
@@ -127,7 +129,10 @@ export function DatePicker({
       {required ? <input aria-hidden="true" className="sr-only" onChange={() => undefined} required tabIndex={-1} value={value} /> : null}
       <button
         aria-expanded={open}
-        className={buttonClassName ?? "glass-input flex min-h-10 w-full items-center justify-between gap-2 text-left text-[13px] font-semibold"}
+        aria-label={iconOnly ? "Open calendar" : undefined}
+        className={buttonClassName ?? (iconOnly
+          ? "flex h-9 w-9 items-center justify-center rounded-[6px] text-[#5A6573] hover:bg-[#F7F8FB]"
+          : "glass-input flex min-h-10 w-full items-center justify-between gap-2 text-left text-[13px] font-semibold")}
         disabled={disabled}
         onClick={() => {
           updatePopoverPosition();
@@ -136,10 +141,12 @@ export function DatePicker({
         ref={buttonRef}
         type="button"
       >
-        <span className="min-w-0">
-          {label ? <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">{label}</span> : null}
-          <span className={`block truncate ${value ? "text-[#1d1d1f]" : "text-[#86868b]"}`}>{displayValue}</span>
-        </span>
+        {iconOnly ? null : (
+          <span className="min-w-0">
+            {label ? <span className="block text-[10px] font-bold uppercase tracking-[0.08em] text-[#86868b]">{label}</span> : null}
+            <span className={`block truncate ${value ? "text-[#1d1d1f]" : "text-[#86868b]"}`}>{displayValue}</span>
+          </span>
+        )}
         <svg className="h-4 w-4 shrink-0 text-[#5A6573]" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
         </svg>

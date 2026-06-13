@@ -1400,24 +1400,38 @@ export async function createStudent(user: Express.UserContext, data: Record<stri
   const { feeStructureId, ...studentData } = data as { feeStructureId?: string } & Record<string, unknown>;
   const schoolId = user.schoolId;
   
+  const providedAdmissionNumber = Boolean(studentData.admissionNumber);
   if (!studentData.admissionNumber) {
     studentData.admissionNumber = await generateAdmissionNumber(schoolId);
   }
 
-  const student = await prisma.student.create({
-    data: {
-      ...studentData,
-      schoolId,
-      transportRequired: Boolean(studentData.transportRequired),
-      transportFeeAmount: studentData.transportRequired ? Number(studentData.transportFeeAmount ?? 0) : 0,
-      joiningDate: studentData.joiningDate ? new Date(studentData.joiningDate as string) : new Date(),
-      dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth as string) : null,
-      consentGiven: data.consentGiven ?? false,
-      consentGivenAt: data.consentGiven ? new Date() : null,
-      consentGivenBy: data.consentGivenBy ?? null,
-      consentMethod: data.consentMethod ?? null,
-    } as never
-  });
+  let student;
+  try {
+    student = await prisma.student.create({
+      data: {
+        ...studentData,
+        schoolId,
+        transportRequired: Boolean(studentData.transportRequired),
+        transportFeeAmount: studentData.transportRequired ? Number(studentData.transportFeeAmount ?? 0) : 0,
+        joiningDate: studentData.joiningDate ? new Date(studentData.joiningDate as string) : new Date(),
+        dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth as string) : null,
+        consentGiven: data.consentGiven ?? false,
+        consentGivenAt: data.consentGiven ? new Date() : null,
+        consentGivenBy: data.consentGivenBy ?? null,
+        consentMethod: data.consentMethod ?? null,
+      } as never
+    });
+  } catch (error) {
+    if (
+      providedAdmissionNumber &&
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002" &&
+      (error.meta?.target as string[] | undefined)?.includes("admissionNumber")
+    ) {
+      throw new AppError(409, `Admission number "${studentData.admissionNumber}" already exists.`, "DUPLICATE_ADMISSION_NUMBER");
+    }
+    throw error;
+  }
 
   if (!data.consentGiven) {
     logger.warn({
