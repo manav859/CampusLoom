@@ -517,7 +517,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   ) : null;
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="min-w-0 space-y-4 overflow-x-hidden sm:space-y-5">
       {paymentModal}
       {!loading && data ? <p className="text-[14px] font-medium leading-6 text-[#5A6573]">{pulseText}</p> : null}
 
@@ -581,7 +581,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
       </section>
 
       {/* ═══ Row 3 — Bottom ═══ */}
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid min-w-0 gap-4 overflow-hidden xl:grid-cols-2">
         {loading ? (
           <>
             <AlertSkeleton rows={4} />

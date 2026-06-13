@@ -37,7 +37,7 @@ export function ActivityFeed({
   }
 
   return (
-    <div className="dashboard-panel-card relative flex h-[360px] flex-col p-4 sm:p-5">
+    <div className="dashboard-panel-card relative flex min-h-[280px] max-h-[420px] flex-col overflow-hidden p-4 sm:h-[360px] sm:p-5">
       <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Activity</p>

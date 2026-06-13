@@ -49,7 +49,7 @@ const toneStyles = {
 
 export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?: boolean }) {
   return (
-    <section className="dashboard-panel-card flex h-[360px] flex-col p-4 sm:p-6">
+    <section className="dashboard-panel-card flex min-h-[280px] max-h-[420px] flex-col overflow-hidden p-4 sm:h-[360px] sm:p-6">
       <div className="flex shrink-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Today&apos;s Actions</h2>
@@ -70,7 +70,7 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
             const isClickable = !!alert.href;
 
             const content = (
-              <div className={`flex items-center gap-3.5 rounded-[12px] border bg-white px-3.5 py-3 transition-all duration-200 ${currentTone.card}`}>
+              <div className={`flex items-start gap-3 rounded-[12px] border bg-white px-3 py-3 transition-all duration-200 sm:items-center sm:gap-3.5 sm:px-3.5 ${currentTone.card}`}>
                 <span className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${currentTone.iconBg} ${currentTone.iconColor}`}>
                   <svg className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d={currentTone.icon} />
@@ -83,24 +83,24 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
                   ) : null}
                 </span>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <p className="min-w-0 truncate text-[13.5px] font-semibold leading-tight text-[#1d1d1f] tracking-tight">{alert.label}</p>
-                    {alert.severity ? (
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityStyles[alert.severity]}`}>
-                        {severityLabels[alert.severity]}
-                      </span>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                      <p className="min-w-0 text-[13px] font-semibold leading-tight text-[#1d1d1f] tracking-tight sm:text-[13.5px] line-clamp-2 sm:truncate sm:line-clamp-none">{alert.label}</p>
+                      {alert.severity ? (
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${severityStyles[alert.severity]}`}>
+                          {severityLabels[alert.severity]}
+                        </span>
+                      ) : null}
+                    </div>
+                    {alert.detail ? (
+                      <p className="mt-0.5 text-[11px] font-medium text-[#5a6573] line-clamp-1 sm:text-[12px]">{alert.detail}</p>
                     ) : null}
                   </div>
-                  {alert.detail ? (
-                    <p className="mt-0.5 text-[12px] font-medium text-[#5a6573] line-clamp-1">{alert.detail}</p>
-                  ) : null}
-                </div>
 
                 <div className="flex shrink-0 items-center justify-end gap-2">
                   {alert.actionLabel && alert.onAction ? (
                     <button
-                      className="rounded-lg bg-[#2456E6]/[0.08] hover:bg-[#2456E6] text-[#2456E6] hover:text-white px-3.5 py-1.5 text-[11.5px] font-semibold transition-all duration-200 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                      className="whitespace-nowrap rounded-lg bg-[#2456E6]/[0.08] hover:bg-[#2456E6] text-[#2456E6] hover:text-white px-2.5 py-1 text-[11px] font-semibold transition-all duration-200 shadow-sm disabled:cursor-not-allowed disabled:opacity-50 sm:px-3.5 sm:py-1.5 sm:text-[11.5px]"
                       disabled={alert.disabled}
                       onClick={(event) => {
                         event.preventDefault();
@@ -113,7 +113,7 @@ export function AlertPanel({ alerts, loading }: { alerts: AlertItem[]; loading?:
                     </button>
                   ) : alert.href ? (
                     <svg
-                      className="h-4.5 w-4.5 text-neutral-400 transition-transform duration-200 group-hover:translate-x-1"
+                      className="h-4 w-4 text-neutral-400 transition-transform duration-200 group-hover:translate-x-1 sm:h-4.5 sm:w-4.5"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
