@@ -12,7 +12,17 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, TableSkeleton } from "@/components/ui/Skeleton";
 import { feesApi, type PaymentResult, type StudentFeeLedger } from "@/lib/api";
 import { formatDateShort, formatINR, humanizeConstant } from "@/lib/formatters";
-import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
+import { cachedFetch, invalidateCache, invalidateCachePrefix } from "@/lib/prefetchCache";
+
+// A payment or adjustment changes this student's paid/pending amounts. Drop every
+// cache that reflects those numbers so other views (profile, dashboard, lists) refetch.
+function invalidateStudentFeeCaches(studentId: string) {
+  invalidateCache(`fees:ledger:${studentId}`);
+  invalidateCache(`student:${studentId}`);
+  invalidateCache("fees:dashboard");
+  invalidateCache("fees:defaulters");
+  invalidateCachePrefix("students:list:");
+}
 
 function statusTone(status: StudentFeeLedger["status"]) {
   if (status === "PAID") return "good";
@@ -81,6 +91,7 @@ export default function StudentFeeLedgerPage() {
       (result.ledger.balance > 0 ? ` - Balance: ${formatINR(result.ledger.balance, { compact: false })}` : "") +
       (result.receiptNotificationQueued ? " - WhatsApp receipt queued" : "")
     );
+    invalidateStudentFeeCaches(studentId);
     loadLedger(true);
   }
 
@@ -146,6 +157,7 @@ export default function StudentFeeLedgerPage() {
       });
       setNotice(`${humanizeConstant(adjustmentOpen)} of ${formatINR(result.adjustment.amount, { compact: false })} applied.`);
       setAdjustmentOpen(null);
+      invalidateStudentFeeCaches(ledger.student.id);
       await loadLedger();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to apply fee adjustment");
