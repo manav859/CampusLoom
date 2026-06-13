@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { formatDateShort } from "@/lib/formatters";
 
 type DatePickerProps = {
@@ -77,6 +78,7 @@ export function DatePicker({
   const [blockedMessage, setBlockedMessage] = useState("");
   const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({});
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const cells = useMemo(() => calendarCells(month), [month]);
   const [year = 0, monthNumber = 1] = month.split("-").map(Number);
@@ -111,7 +113,9 @@ export function DatePicker({
   useEffect(() => {
     if (!open) return;
     const handlePointerDown = (event: PointerEvent) => {
-      if (wrapperRef.current?.contains(event.target as Node)) return;
+      const target = event.target as Node;
+      // The popover is portaled to <body>, so it's outside wrapperRef — check it too.
+      if (wrapperRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
       setOpen(false);
     };
     document.addEventListener("pointerdown", handlePointerDown);
@@ -152,8 +156,8 @@ export function DatePicker({
         </svg>
       </button>
 
-      {open ? (
-        <div className="fixed z-[220] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]" style={popoverStyle}>
+      {open && typeof document !== "undefined" ? createPortal(
+        <div ref={popoverRef} className="fixed z-[320] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-[#DCE1E8] bg-white p-3 shadow-[var(--shadow-menu)]" style={popoverStyle}>
           <div className="mb-3 flex items-center justify-between">
             <button className="rounded-full p-2 text-[#5A6573] hover:bg-[#F7F8FB]" onClick={() => setMonth(monthInputFromParts(year, monthNumber - 2))} type="button" aria-label="Previous month">&lt;</button>
             <span className="text-[13px] font-bold text-[#1d1d1f]">{monthLabel(month)}</span>
@@ -197,7 +201,8 @@ export function DatePicker({
               {blockedMessage}
             </p>
           ) : null}
-        </div>
+        </div>,
+        document.body
       ) : null}
     </div>
   );
