@@ -445,6 +445,7 @@ export type FeeStructure = {
   academicYear: string;
   frequency: "ANNUAL" | "QUARTERLY" | "MONTHLY" | "CUSTOM" | "BIANNUAL";
   totalAmount: string | number;
+  dueDate?: string | null;
   isActive: boolean;
   class?: { id: string; name: string; section: string; academicYear?: string } | null;
   installments?: { id: string; name: string; dueDate: string; amount: string | number; sortOrder: number }[];
@@ -489,7 +490,7 @@ export type StudentFeeLedger = {
     currentlyDue: number;
     currentOutstanding: number;
     status: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
-    feeStructure: { name: string };
+    feeStructure: { name: string; dueDate?: string | null };
   }[];
   payments: {
     id: string;
@@ -1277,7 +1278,7 @@ export const feesApi = {
   dashboard: () => apiFetch<FeesDashboard>("/fees/dashboard"),
   defaulters: () => apiFetch<FeeDefaulter[]>("/fees/defaulters"),
   structures: () => apiFetch<FeeStructure[]>("/fees/structures"),
-  updateStructure: (id: string, payload: Partial<Pick<FeeStructure, "name" | "academicYear" | "frequency" | "isActive">> & { totalAmount?: number; classId?: string | null }) =>
+  updateStructure: (id: string, payload: Partial<Pick<FeeStructure, "name" | "academicYear" | "frequency" | "isActive">> & { totalAmount?: number; classId?: string | null; dueDate?: string }) =>
     apiFetch<FeeStructure>(`/fees/structures/${id}`, {
       method: "PUT",
       body: JSON.stringify(payload)

@@ -6,6 +6,7 @@ import { FeeCard } from "@/components/fees/FeeCard";
 import { FeesTable } from "@/components/fees/FeesTable";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/ui/DataTable";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { DropdownItem, DropdownMenu } from "@/components/ui/DropdownMenu";
 import { Modal, ModalCloseButton } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -13,7 +14,7 @@ import { StatusPill } from "@/components/ui/StatusPill";
 import { KpiCardSkeleton, TableSkeleton, ChartSkeleton } from "@/components/ui/Skeleton";
 import { createPortal } from "react-dom";
 import { apiFetch, feesApi, type FeeDefaulter, type FeeStructure, type FeesDashboard } from "@/lib/api";
-import { formatINR, humanizeConstant } from "@/lib/formatters";
+import { formatDateShort, formatINR, humanizeConstant } from "@/lib/formatters";
 import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 
 type PaymentStudentItem = {
@@ -31,10 +32,11 @@ type StructureForm = {
   isActive: boolean;
   name: string;
   totalAmount: string;
+  dueDate: string;
 };
 
 function emptyForm(): StructureForm {
-  return { academicYear: "", frequency: "ANNUAL", isActive: true, name: "", totalAmount: "" };
+  return { academicYear: "", frequency: "ANNUAL", isActive: true, name: "", totalAmount: "", dueDate: "" };
 }
 
 function agingBuckets(rows: FeeDefaulter[]) {
@@ -150,7 +152,8 @@ export default function FeesDashboardPage() {
       frequency: structure.frequency,
       isActive: structure.isActive,
       name: structure.name,
-      totalAmount: String(structure.totalAmount)
+      totalAmount: String(structure.totalAmount),
+      dueDate: structure.dueDate ? structure.dueDate.slice(0, 10) : ""
     });
   }
 
@@ -172,7 +175,8 @@ export default function FeesDashboardPage() {
         frequency: form.frequency,
         isActive: form.isActive,
         name: form.name,
-        totalAmount: Number(form.totalAmount)
+        totalAmount: Number(form.totalAmount),
+        dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : undefined
       });
       setEditing(null);
       await refreshStructures("Fee structure updated.");
@@ -389,6 +393,10 @@ export default function FeesDashboardPage() {
                     <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">Class</p>
                     <p className="mt-1 font-semibold text-[#0F1419]">{row.class ? `${row.class.name}-${row.class.section}` : "All classes"}</p>
                   </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#86868b]">Due Date</p>
+                    <p className="mt-1 font-semibold text-[#0F1419]">{row.dueDate ? formatDateShort(row.dueDate) : "-"}</p>
+                  </div>
                 </div>
                 {isAdmin ? (
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -413,6 +421,7 @@ export default function FeesDashboardPage() {
                 { key: "year", header: "Academic Year", render: (row) => row.academicYear },
                 { key: "amount", header: "Total", render: (row) => formatINR(Number(row.totalAmount)) },
                 { key: "frequency", header: "Frequency", render: (row) => humanizeConstant(row.frequency) },
+                { key: "dueDate", header: "Due Date", render: (row) => row.dueDate ? formatDateShort(row.dueDate) : "-" },
                 { key: "class", header: "Class", render: (row) => row.class ? `${row.class.name}-${row.class.section}` : "All classes" },
                 { key: "status", header: "Status", render: (row) => <StatusPill label={row.isActive ? "Active" : "Archived"} tone={row.isActive ? "good" : "neutral"} /> },
                 {
@@ -466,6 +475,12 @@ export default function FeesDashboardPage() {
                 <option key={frequency} value={frequency}>{humanizeConstant(frequency)}</option>
               ))}
             </select>
+          </label>
+          <label>
+            <span className="text-[13px] font-semibold text-[#1d1d1f]">Due Date</span>
+            <div className="mt-2">
+              <DatePicker value={form.dueDate} onChange={(value) => setForm({ ...form, dueDate: value })} />
+            </div>
           </label>
           <label className="flex items-center gap-3 pt-7">
             <input checked={form.isActive} onChange={(event) => setForm({ ...form, isActive: event.target.checked })} type="checkbox" />

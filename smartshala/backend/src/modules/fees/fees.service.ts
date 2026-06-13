@@ -89,6 +89,10 @@ function isUniqueConstraintError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
+function earliestDueDate(installments: { dueDate: Date }[]) {
+  return installments.reduce((min, installment) => (installment.dueDate < min ? installment.dueDate : min), installments[0].dueDate);
+}
+
 function normalizeFeeStructureInput(data: FeeStructureInput) {
   const name = data.name ?? data.term;
   if (!name) {
@@ -113,18 +117,21 @@ function normalizeFeeStructureInput(data: FeeStructureInput) {
     throw new AppError(400, "Installment total must equal total fee amount", "INVALID_INSTALLMENT_TOTAL");
   }
 
+  const normalizedInstallments = installments.map((installment) => ({
+    name: installment.name,
+    dueDate: installment.dueDate!,
+    amount: installment.amount,
+    sortOrder: installment.sortOrder
+  }));
+
   return {
     classId: data.classId,
     name,
     academicYear: data.academicYear ?? currentAcademicYear(),
     frequency: data.frequency ?? "ANNUAL",
     totalAmount: data.totalAmount,
-    installments: installments.map((installment) => ({
-      name: installment.name,
-      dueDate: installment.dueDate!,
-      amount: installment.amount,
-      sortOrder: installment.sortOrder
-    }))
+    dueDate: data.dueDate ?? earliestDueDate(normalizedInstallments),
+    installments: normalizedInstallments
   };
 }
 
@@ -346,6 +353,7 @@ export async function createFeeStructure(schoolId: string, data: FeeStructureInp
         academicYearId,
         frequency: normalized.frequency,
         totalAmount: normalized.totalAmount,
+        dueDate: normalized.dueDate,
         installments: {
           create: normalized.installments.map((installment) => ({
             name: installment.name,
@@ -408,6 +416,7 @@ export async function updateFeeStructure(schoolId: string, id: string, data: Par
     }
 
     const nextAcademicYearId = data.academicYear ? await ensureAcademicYear(schoolId, data.academicYear) : undefined;
+    const nextDueDate = data.dueDate ?? (data.installments ? earliestDueDate(data.installments) : undefined);
 
     return prisma.$transaction(async (tx) => {
       if (data.installments) {
@@ -423,6 +432,7 @@ export async function updateFeeStructure(schoolId: string, id: string, data: Par
           academicYearId: nextAcademicYearId,
           frequency: data.frequency,
           totalAmount: data.totalAmount,
+          dueDate: nextDueDate,
           isActive: data.isActive,
           installments: data.installments
             ? {
@@ -458,6 +468,7 @@ export async function duplicateFeeStructure(schoolId: string, id: string) {
         academicYearId: existing.academicYearId,
         frequency: existing.frequency,
         totalAmount: existing.totalAmount,
+        dueDate: existing.dueDate,
         isActive: false,
         installments: {
           create: existing.installments.map((installment) => ({

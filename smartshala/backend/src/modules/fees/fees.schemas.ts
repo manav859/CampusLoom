@@ -38,6 +38,7 @@ export const feeStructureUpdateSchema = z.object({
   academicYear: z.string().trim().min(4).optional(),
   frequency: z.nativeEnum(FeeFrequency).optional(),
   totalAmount: z.coerce.number().positive().finite().max(10_000_000).multipleOf(0.01).optional(),
+  dueDate: z.coerce.date().optional(),
   installments: z.array(
     z.object({
       name: z.string().trim().min(2),

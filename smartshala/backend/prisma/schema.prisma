@@ -504,6 +504,7 @@ model FeeStructure {
   academicYearId String?              @db.Uuid
   frequency    FeeFrequency
   totalAmount  Decimal                @db.Decimal(12, 2)
+  dueDate      DateTime?
   isActive     Boolean                @default(true)
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
