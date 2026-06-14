@@ -231,6 +231,37 @@ export default function StudentFeeLedgerPage() {
             </div>
           </div>
 
+          {ledger.total > 0 ? (
+            <div className="rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white p-5 shadow-apple">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Current Due</h2>
+                  <p className="mt-1 text-[13px] text-[#86868b]">Amount due so far based on the installment schedule, as of today.</p>
+                </div>
+                <StatusPill
+                  label={ledger.currentOutstanding > 0 ? "Payment due" : "Up to date"}
+                  tone={ledger.currentOutstanding > 0 ? "danger" : "good"}
+                />
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className={`rounded-xl border p-4 ${ledger.currentOutstanding > 0 ? "border-[#ff3b30]/20 bg-[#ff3b30]/5" : "border-[#34c759]/20 bg-[#34c759]/5"}`}>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">Due now</p>
+                  <p className={`mt-2 text-[26px] font-semibold tracking-tight ${ledger.currentOutstanding > 0 ? "text-[#d70015]" : "text-[#248a3d]"}`}>{formatINR(ledger.currentOutstanding)}</p>
+                </div>
+                {[
+                  ["Due to date", formatINR(ledger.dueToDate), "text-[#1d1d1f]"],
+                  ["Collected of due", formatINR(ledger.currentCollected), "text-[#248a3d]"],
+                  ["Upcoming (not yet due)", formatINR(ledger.upcomingDue), "text-[#6e6e73]"]
+                ].map(([label, value, tone]) => (
+                  <div className="border-t border-[#DCE1E8] pt-4 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0" key={label}>
+                    <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#86868b]">{label}</p>
+                    <p className={`mt-2 text-[26px] font-semibold tracking-tight ${tone}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <section className="overflow-hidden rounded-2xl border border-[rgba(0,0,0,0.04)] bg-white shadow-apple">
             <div className="border-b border-[rgba(0,0,0,0.06)] px-5 py-4">
               <h2 className="text-[17px] font-semibold text-[#1d1d1f]">Assignments</h2>
