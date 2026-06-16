@@ -160,7 +160,7 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
 
   return (
     <>
-      <form onSubmit={submit} className="mt-8 space-y-5">
+      <form onSubmit={submit} className="mt-6 space-y-4">
         <div className="flex justify-end">
           <div className="inline-flex rounded-lg border border-[#DCE1E8] bg-white p-1 text-[12px] font-semibold">
             {(["en", "hi"] as const).map((option) => (
@@ -226,7 +226,7 @@ export function LoginForm({ language, onLanguageChange }: LoginFormProps) {
           </div>
         </Field>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] font-semibold">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12px] font-semibold">
           <button className="text-[#2456E6] hover:text-[#1B45BD]" onClick={openResetDialog} type="button">
             {copy.forgot}
           </button>

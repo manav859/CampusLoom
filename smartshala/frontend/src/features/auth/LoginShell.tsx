@@ -25,7 +25,7 @@ export function LoginShell() {
 
   return (
     <main
-      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#eef2fb] px-4 py-10"
+      className="relative flex h-[100svh] items-center justify-center overflow-hidden bg-[#eef2fb] px-4 py-4 sm:py-6"
       lang={language}
     >
       {/* Looping video backdrop */}
@@ -47,25 +47,25 @@ export function LoginShell() {
       <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#2456E6]/15 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-[#34c759]/15 blur-3xl" />
 
-      <div className="relative w-full max-w-[420px]">
-        <div className="rounded-3xl border border-white/70 bg-white/90 p-8 shadow-[0_24px_70px_-30px_rgba(20,40,90,0.45)] backdrop-blur-xl sm:p-10">
+      <div className="relative max-h-full w-full max-w-[420px] overflow-y-auto">
+        <div className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_24px_70px_-30px_rgba(20,40,90,0.45)] backdrop-blur-xl sm:p-8">
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#34c759] shadow-lg shadow-[#2456E6]/25">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#34c759] shadow-lg shadow-[#2456E6]/25">
               <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
                 <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                 <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <span className="mt-3 text-[15px] font-semibold tracking-tight text-[#1d1d1f]">SmartShala</span>
-            <h1 className="mt-4 text-[28px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
+            <span className="mt-2.5 text-[14px] font-semibold tracking-tight text-[#1d1d1f]">SmartShala</span>
+            <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
               {copy.welcome}
             </h1>
-            <p className="mt-2 text-[14px] leading-relaxed text-[#6e6e73]">{copy.intro}</p>
+            <p className="mt-1.5 text-[13px] leading-snug text-[#6e6e73]">{copy.intro}</p>
           </div>
 
           <LoginForm language={language} onLanguageChange={setLanguage} />
 
-          <div className="mt-7 border-t border-[#e9edf5] pt-5 text-center text-[13px] text-[#6e6e73]">
+          <div className="mt-5 border-t border-[#e9edf5] pt-4 text-center text-[13px] text-[#6e6e73]">
             {copy.onboardPrompt}{" "}
             <Link className="font-semibold text-[#2456E6] hover:text-[#1B45BD]" href="/onboard">
               {copy.onboard}
@@ -73,7 +73,7 @@ export function LoginShell() {
           </div>
         </div>
 
-        <p className="mt-5 text-center text-[12px] font-medium text-[#8a93a6]">{copy.tagline}</p>
+        <p className="mt-3 text-center text-[12px] font-medium text-[#8a93a6]">{copy.tagline}</p>
       </div>
     </main>
   );
