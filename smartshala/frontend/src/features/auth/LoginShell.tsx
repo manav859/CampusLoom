@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { LoginForm, type LoginLanguage } from "@/features/auth/LoginForm";
 
@@ -29,18 +28,20 @@ export function LoginShell() {
       className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#eef2fb] px-4 py-10"
       lang={language}
     >
-      {/* Subtle campus backdrop */}
-      <Image
-        src="/modern-classroom.png"
-        alt=""
+      {/* Looping video backdrop */}
+      <video
+        className="absolute inset-0 h-full w-full object-cover"
+        src="/login-animation.mp4"
+        autoPlay
+        loop
+        muted
+        playsInline
         aria-hidden
-        fill
-        priority
-        className="object-cover opacity-[0.18]"
       />
+      {/* Dimmed overlay for form readability */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-br from-[#eef2fb]/95 via-[#eef2fb]/85 to-[#dfe8fb]/90"
+        className="absolute inset-0 bg-gradient-to-br from-[#0b1733]/50 via-[#0b1733]/40 to-[#0b1733]/55"
       />
       {/* Soft brand glows */}
       <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#2456E6]/15 blur-3xl" />
