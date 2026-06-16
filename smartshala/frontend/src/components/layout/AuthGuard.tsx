@@ -11,7 +11,6 @@ import { PlatformTranslator } from "./PlatformLanguage";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { TutorialModal } from "@/components/tutorial/TutorialModal";
-import { Skeleton, KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
 
 function tutorialSeenKey(userId: string) {
   return `smartshala.tutorialSeen.${userId}`;
@@ -57,77 +56,25 @@ function isPathAllowedForRole(pathname: string, role: Role) {
   return false;
 }
 
-// Loading state for the authenticated shell. Mirrors the real Topbar + collapsed
-// sidebar rail + dashboard layout so the screen reads as "loading" (shimmer) and
-// the content slots in without a layout jump once the session hydrates.
-function WorkspaceSkeleton() {
+// Full-screen branded loader shown only during initial session hydration
+// (first arrival / hard refresh). AuthGuard lives in the persistent app layout,
+// so this never re-appears when navigating between pages.
+function WorkspaceLoader() {
   return (
-    <div className="relative min-h-screen bg-[var(--apple-bg)]">
-      {/* Top bar — matches Topbar: sticky h-16, white, soft shadow */}
-      <header className="sticky top-0 z-[100] flex h-16 items-center bg-white shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
-        <div className="flex w-full items-center justify-between gap-2 px-3 sm:gap-4 sm:px-5">
-          {/* Left: real brand mark (instant) + skeleton school identity */}
-          <div className="flex min-w-0 flex-1 items-center">
-            <div className="flex w-auto items-center gap-3 md:w-[220px]">
-              <Skeleton className="h-9 w-9 rounded-full" />
-              <div className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#0071e3] shadow-lg shadow-blue-500/30 md:flex">
-                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                  <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <span className="hidden text-[15px] font-bold tracking-tight text-[#1d1d1f] md:inline">SmartShala</span>
-            </div>
-            <div className="ml-1 flex min-w-0 flex-1 items-center gap-2 md:ml-4 md:gap-2.5">
-              <Skeleton className="h-7 w-7 shrink-0 rounded-[6px]" />
-              <Skeleton className="h-4 w-36 rounded-md sm:w-48" />
-            </div>
-          </div>
-
-          {/* Center: search bar */}
-          <Skeleton className="hidden h-10 min-w-[280px] max-w-[540px] flex-1 rounded-[10px] md:block" />
-
-          {/* Right: controls + avatar */}
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
-            <Skeleton className="h-9 w-9 rounded-full" />
-            <Skeleton className="hidden h-8 w-16 rounded-full sm:block" />
-            <div className="hidden h-7 w-px bg-[#d2d2d7]/60 lg:block" />
-            <Skeleton className="hidden h-8 w-28 rounded-md lg:block" />
-            <div className="hidden h-7 w-px bg-[#d2d2d7]/60 lg:block" />
-            <Skeleton className="h-9 w-9 rounded-full" />
-          </div>
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[var(--apple-bg)]">
+      <div className="relative flex h-28 w-28 items-center justify-center">
+        {/* Spinning gradient ring */}
+        <div className="brand-loader-ring absolute inset-0 rounded-full" />
+        {/* Brand logo tile */}
+        <div className="brand-loader-logo flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0071e3] to-[#34c759]">
+          <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24">
+            <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+            <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
-      </header>
-
-      <div className="relative flex min-h-[calc(100vh-4rem)]">
-        {/* Collapsed sidebar rail — matches Sidebar md:w-[70px] */}
-        <div className="hidden w-[70px] shrink-0 border-r border-[var(--apple-card-border)] bg-white md:block">
-          <div className="space-y-2 px-2.5 pt-3">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-11 w-11 rounded-xl" />
-            ))}
-          </div>
-        </div>
-
-        {/* Main content — KPI cards + chart + alerts, matches dashboard padding */}
-        <main className="min-w-0 flex-1 px-4 pb-8 pt-3 sm:px-5 lg:px-6">
-          <div className="mt-1 space-y-2">
-            <Skeleton className="h-7 w-56 rounded-md" />
-            <Skeleton className="h-4 w-72 rounded-md" />
-          </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <KpiCardSkeleton key={i} />
-            ))}
-          </div>
-          <div className="mt-4 grid gap-4 lg:grid-cols-3">
-            <div className="lg:col-span-2">
-              <ChartSkeleton height={320} />
-            </div>
-            <AlertSkeleton rows={5} />
-          </div>
-        </main>
       </div>
+      <span className="mt-7 text-[17px] font-bold tracking-tight text-[#1d1d1f]">SmartShala</span>
+      <p className="mt-1.5 text-[13px] text-[#86868b]">Preparing your campus…</p>
     </div>
   );
 }
@@ -246,7 +193,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [ready, user]);
 
   if (!ready || !user) {
-    return <WorkspaceSkeleton />;
+    return <WorkspaceLoader />;
   }
 
   if (!isPathAllowedForRole(withoutSchoolPath(pathname), user.role)) {
