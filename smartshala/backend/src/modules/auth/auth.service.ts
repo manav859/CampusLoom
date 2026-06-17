@@ -489,7 +489,7 @@ export async function getCurrentUser(userId: string) {
 export async function refresh(refreshToken: string) {
   let decoded: jwt.JwtPayload;
   try {
-    decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET) as jwt.JwtPayload;
+    decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET, { algorithms: ["HS256"] }) as jwt.JwtPayload;
   } catch {
     throw new AppError(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN");
   }

@@ -5,7 +5,7 @@ export const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   phone: z.string().min(10),
-  password: z.string().min(8),
+  password: z.string().min(8).max(72),
   role: z.nativeEnum(UserRole).optional(),
   schoolName: z.string().min(2).optional(),
   schoolCode: z.string().min(2).optional(),
@@ -15,7 +15,7 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
   identifier: z.string().min(3),
-  password: z.string().min(6)
+  password: z.string().min(6).max(72)
 });
 
 export const refreshSchema = z.object({
@@ -34,6 +34,6 @@ export const updateProfileSchema = z.object({
 });
 
 export const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, "Current password is required"),
-  newPassword: z.string().min(8, "New password must be at least 8 characters")
+  currentPassword: z.string().min(1, "Current password is required").max(72),
+  newPassword: z.string().min(8, "New password must be at least 8 characters").max(72)
 });

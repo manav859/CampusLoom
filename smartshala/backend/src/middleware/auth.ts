@@ -24,7 +24,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   }
 
   try {
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload;
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, { algorithms: ["HS256"] }) as AccessTokenPayload;
     if (!payload.sub) throw new Error("Missing subject");
     if (req.tenant) {
       if (!payload.tenantSchoolId) {

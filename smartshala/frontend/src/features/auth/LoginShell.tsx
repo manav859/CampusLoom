@@ -47,7 +47,7 @@ export function LoginShell() {
       <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#2456E6]/15 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-[#34c759]/15 blur-3xl" />
 
-      <div className="relative max-h-full w-full max-w-[420px] overflow-y-auto">
+      <div className="relative w-full max-w-[420px]">
         <div className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_24px_70px_-30px_rgba(20,40,90,0.45)] backdrop-blur-xl sm:p-8">
           <div className="flex flex-col items-center text-center">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#34c759] shadow-lg shadow-[#2456E6]/25">

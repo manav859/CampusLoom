@@ -5,7 +5,7 @@ export const createTeacherSchema = z.object({
   fullName: z.string().trim().min(2),
   email: z.string().email().trim().optional().or(z.literal("")),
   phone: z.string().trim().min(10),
-  password: z.string().min(6),
+  password: z.string().min(6).max(72),
   academicBackground: z.string().trim().optional(),
   role: z.literal(UserRole.TEACHER).optional().default(UserRole.TEACHER)
 }).transform((data) => ({
@@ -16,12 +16,12 @@ export const createTeacherSchema = z.object({
 export const createAccountantSchema = z.object({
   fullName: z.string().trim().min(2),
   email: z.string().email().trim(),
-  password: z.string().min(6),
+  password: z.string().min(6).max(72),
   role: z.literal(UserRole.ACCOUNTANT).optional().default(UserRole.ACCOUNTANT)
 });
 
 export const resetTeacherPasswordSchema = z.object({
-  password: z.string().min(6)
+  password: z.string().min(6).max(72)
 });
 
 export const updateUserSchema = z.object({

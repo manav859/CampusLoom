@@ -74,7 +74,7 @@ function WorkspaceLoader() {
         </div>
       </div>
       <span className="mt-7 text-[17px] font-bold tracking-tight text-[#1d1d1f]">SmartShala</span>
-      <p className="mt-1.5 text-[13px] text-[#86868b]">Preparing your campus…</p>
+      <p className="mt-1.5 text-[13px] text-[#86868b]">Preparing your Workspace…</p>
     </div>
   );
 }
