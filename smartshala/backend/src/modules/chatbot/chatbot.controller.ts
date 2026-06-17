@@ -31,16 +31,10 @@ async function buildErpContext(
 
   try {
     if (text.includes("attendance")) {
-      // Summarize the most recent marked day (covers "today" once attendance
-      // is marked; otherwise the date label tells the model which day it is).
-      const latest = await prisma.attendanceSession.findFirst({
-        where: { schoolId },
-        orderBy: { date: "desc" },
-        select: { date: true }
-      });
-      if (!latest) return null;
-
-      const dayStart = new Date(latest.date);
+      // Always report TODAY's attendance. If it has not been marked yet, say so
+      // explicitly rather than falling back to an older (or future-dated) marked
+      // day — that would misrepresent stale data as today's attendance.
+      const dayStart = new Date();
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart);
       dayEnd.setDate(dayEnd.getDate() + 1);
@@ -50,11 +44,13 @@ async function buildErpContext(
         where: { schoolId, session: { date: { gte: dayStart, lt: dayEnd } } },
         _count: { _all: true }
       });
-      if (grouped.length === 0) return null;
+      if (grouped.length === 0) {
+        return `Today's attendance (${formatDate(dayStart)}) has not been taken yet.`;
+      }
 
       const total = grouped.reduce((sum, g) => sum + g._count._all, 0);
       return [
-        `Attendance summary for ${formatDate(latest.date)} (latest marked day):`,
+        `Attendance summary for today (${formatDate(dayStart)}):`,
         `- Total students marked: ${total}`,
         ...grouped.map((g) => `- ${g.status}: ${g._count._all}`)
       ].join("\n");
