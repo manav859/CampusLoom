@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { env } from "@/lib/env";
 
@@ -21,8 +22,8 @@ export default function OnboardPage() {
     adminPassword: "",
     confirmPassword: "",
     address: "",
-    numberOfStudents: "300",
-    numberOfStaff: "35",
+    numberOfStudents: "",
+    numberOfStaff: "",
     termsAccepted: false
   });
 
@@ -190,183 +191,290 @@ export default function OnboardPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[linear-gradient(145deg,#f5f5f7_0%,#ffffff_46%,#eef6ff_100%)] px-5 py-8 text-[#1d1d1f]">
-      <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+    <main className="relative min-h-screen overflow-hidden bg-[#0b1733] text-[#1d1d1f]">
+      {/* Brand atmosphere */}
+      <div aria-hidden className="pointer-events-none absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-[#2456E6]/30 blur-[120px]" />
+      <div aria-hidden className="pointer-events-none absolute -bottom-40 right-[-10rem] h-[30rem] w-[30rem] rounded-full bg-[#34c759]/20 blur-[130px]" />
+      <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-72 w-72 -translate-x-1/2 rounded-full bg-[#2456E6]/10 blur-[120px]" />
+
+      <div className="relative mx-auto grid min-h-screen w-full max-w-[1240px] items-stretch gap-0 px-5 py-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12 lg:px-8">
+        {/* ── Brand / value column ───────────────────────────── */}
         <motion.section
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-7"
+          className="flex flex-col justify-between py-6 text-white lg:py-10"
           initial={{ opacity: 0, y: 18 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/70 bg-white/60 px-4 py-2 text-sm font-semibold shadow-sm backdrop-blur-xl">
-            <span className="h-2 w-2 rounded-full bg-[#34c759]" />
-            SmartShala SaaS onboarding
-          </div>
           <div>
-            <h1 className="max-w-xl text-5xl font-semibold tracking-normal text-[#1d1d1f] md:text-6xl">
-              Launch a school workspace in minutes.
+            <Link href="/login" className="inline-flex items-center gap-2.5">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#34c759] shadow-lg shadow-[#2456E6]/30">
+                <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                  <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span className="text-[15px] font-semibold tracking-tight text-white">SmartShala</span>
+            </Link>
+
+            <div className="mt-10 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-[13px] font-medium text-white/90 backdrop-blur-xl">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#34c759]" />
+              Enterprise school onboarding
+            </div>
+
+            <h1 className="mt-6 max-w-xl text-[40px] font-semibold leading-[1.05] tracking-tight text-white md:text-[52px]">
+              Run your entire campus on one platform.
             </h1>
-            <p className="mt-5 max-w-lg text-lg leading-8 text-[#6e6e73]">
-              Isolated database, clean tenant routing, and a ready principal account for every school.
+            <p className="mt-5 max-w-md text-[16px] leading-7 text-white/70">
+              Provision a fully isolated workspace for your school — dedicated database,
+              secure tenant routing, and a ready-to-use principal account. Live in minutes,
+              no infrastructure to manage.
             </p>
+
+            <ul className="mt-9 space-y-4">
+              {[
+                {
+                  title: "Dedicated, isolated database",
+                  body: "Your students, staff, and records never share storage with another school."
+                },
+                {
+                  title: "Principal account, provisioned instantly",
+                  body: "Secure admin credentials are created the moment your workspace goes live."
+                },
+                {
+                  title: "Attendance, fees & analytics built in",
+                  body: "Parents stay updated on WhatsApp while your team works from one dashboard."
+                }
+              ].map((item) => (
+                <li className="flex gap-3.5" key={item.title}>
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#34c759]/20 text-[#34c759]">
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="text-[15px] font-semibold text-white">{item.title}</p>
+                    <p className="mt-0.5 text-[13.5px] leading-6 text-white/60">{item.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="grid max-w-lg grid-cols-3 gap-3">
-            {["Private DB", "30 day trial", "No subdomains"].map((item) => (
-              <div className="rounded-2xl border border-white/70 bg-white/55 p-4 text-sm font-semibold shadow-sm backdrop-blur-xl" key={item}>
-                {item}
-              </div>
-            ))}
+
+          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-[13px] text-white/55">
+            <span className="inline-flex items-center gap-2">
+              <svg className="h-4 w-4 text-white/70" fill="none" viewBox="0 0 24 24">
+                <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                <path d="M9.5 12l1.8 1.8L15 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Bank-grade security
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#34c759]" />
+              30-day free trial
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#34c759]" />
+              No credit card required
+            </span>
           </div>
         </motion.section>
 
+        {/* ── Form column ────────────────────────────────────── */}
         <motion.section
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-[28px] border border-white/70 bg-white/70 p-5 shadow-[0_32px_100px_rgba(15,23,42,0.14)] backdrop-blur-2xl sm:p-7"
+          className="flex items-center py-6 lg:py-10"
           initial={{ opacity: 0, y: 24 }}
           transition={{ delay: 0.08, duration: 0.55 }}
         >
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-black/5 pb-5">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#86868b]">New school</p>
-              <h2 className="mt-1 text-2xl font-semibold tracking-normal">Create workspace</h2>
-            </div>
-            <div className="rounded-2xl bg-[#1d1d1f] px-4 py-3 text-right text-white">
-              <p className="text-xs text-white/60">Today</p>
-              <p className="text-lg font-semibold">30 days free</p>
-            </div>
-          </div>
-
-          <form className="mt-6 grid gap-4" onSubmit={submit} noValidate>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="School Name"
-                onChange={(value) => updateField("schoolName", value)}
-                value={form.schoolName}
-                error={errors.schoolName}
-              />
-              <Input
-                label="Principal/Owner Name"
-                onChange={(value) => updateField("ownerName", value)}
-                value={form.ownerName}
-                error={errors.ownerName}
-              />
-              <Input
-                label="Email"
-                onChange={(value) => updateField("email", value)}
-                type="email"
-                value={form.email}
-                error={errors.email}
-              />
-              <Input
-                label="Phone"
-                onChange={(value) => updateField("phone", value)}
-                value={form.phone}
-                error={errors.phone}
-              />
-              <Input
-                label="Initial Password"
-                onChange={(value) => updateField("adminPassword", value)}
-                type="password"
-                value={form.adminPassword}
-                error={errors.adminPassword}
-              />
-              <Input
-                label="Confirm Password"
-                onChange={(value) => updateField("confirmPassword", value)}
-                type="password"
-                value={form.confirmPassword}
-                error={errors.confirmPassword}
-              />
-              <Input
-                label="Number of Students"
-                onChange={(value) => updateField("numberOfStudents", value)}
-                type="number"
-                value={form.numberOfStudents}
-                error={errors.numberOfStudents}
-              />
-              <Input
-                label="Number of Staff"
-                onChange={(value) => updateField("numberOfStaff", value)}
-                type="number"
-                value={form.numberOfStaff}
-                error={errors.numberOfStaff}
-              />
+          <div className="w-full rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_40px_120px_-40px_rgba(8,18,48,0.7)] backdrop-blur-2xl sm:p-8">
+            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-black/[0.06] pb-5">
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#2456E6]">
+                  Create your workspace
+                </p>
+                <h2 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
+                  Tell us about your school
+                </h2>
+                <p className="mt-1 text-[13.5px] text-[#6e6e73]">
+                  Takes about 2 minutes. You can refine details later.
+                </p>
+              </div>
+              <div className="rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#1B45BD] px-4 py-2.5 text-right text-white shadow-lg shadow-[#2456E6]/25">
+                <p className="text-[11px] font-medium text-white/70">Your plan</p>
+                <p className="text-[15px] font-semibold">30 days free</p>
+              </div>
             </div>
 
-            <div className="grid gap-2">
-              <label className="text-sm font-semibold text-[#424245]">
-                Address
-              </label>
-              <textarea
-                className={`min-h-24 rounded-2xl border bg-white/80 px-4 py-3 text-[15px] font-medium outline-none transition focus:ring-4 ${
-                  errors.address
-                    ? "border-[#c8242c] focus:border-[#c8242c] focus:ring-[#c8242c]/10"
-                    : "border-black/10 focus:border-[#0071e3] focus:ring-[#0071e3]/10"
-                }`}
-                onChange={(event) => updateField("address", event.target.value)}
-                value={form.address}
-              />
-              {errors.address && (
-                <motion.p
-                  animate={{ opacity: 1, y: 0 }}
-                  className="px-1 text-xs font-semibold text-[#c8242c]"
-                  initial={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  {errors.address}
-                </motion.p>
-              )}
-            </div>
+            <form className="mt-6 grid gap-5" onSubmit={submit} noValidate>
+              <Fieldset label="School details">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="School name"
+                    placeholder="Noble Public School"
+                    onChange={(value) => updateField("schoolName", value)}
+                    value={form.schoolName}
+                    error={errors.schoolName}
+                  />
+                  <Input
+                    label="Principal / Owner name"
+                    placeholder="Full name"
+                    onChange={(value) => updateField("ownerName", value)}
+                    value={form.ownerName}
+                    error={errors.ownerName}
+                  />
+                  <Input
+                    label="Number of students"
+                    placeholder="e.g. 300"
+                    onChange={(value) => updateField("numberOfStudents", value)}
+                    type="number"
+                    value={form.numberOfStudents}
+                    error={errors.numberOfStudents}
+                  />
+                  <Input
+                    label="Number of staff"
+                    placeholder="e.g. 35"
+                    onChange={(value) => updateField("numberOfStaff", value)}
+                    type="number"
+                    value={form.numberOfStaff}
+                    error={errors.numberOfStaff}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <label className="text-[13px] font-semibold text-[#424245]">School address</label>
+                  <textarea
+                    className={`min-h-[88px] rounded-2xl border bg-white px-4 py-3 text-[15px] font-medium text-[#1d1d1f] outline-none transition placeholder:text-[#aeb2bb] focus:ring-4 ${
+                      errors.address
+                        ? "border-[#c8242c] focus:border-[#c8242c] focus:ring-[#c8242c]/10"
+                        : "border-black/10 focus:border-[#2456E6] focus:ring-[#2456E6]/10"
+                    }`}
+                    placeholder="Street, city, state and PIN code"
+                    onChange={(event) => updateField("address", event.target.value)}
+                    value={form.address}
+                  />
+                  {errors.address && <FieldError>{errors.address}</FieldError>}
+                </div>
+              </Fieldset>
 
-            <div className="rounded-2xl border border-[#0071e3] bg-[#e7f1ff] px-4 py-3 text-sm font-bold text-[#0057b8]">
-              Start 1 Month Free Trial
-            </div>
+              <Fieldset label="Administrator account">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="Work email"
+                    placeholder="principal@school.edu"
+                    onChange={(value) => updateField("email", value)}
+                    type="email"
+                    value={form.email}
+                    error={errors.email}
+                  />
+                  <Input
+                    label="Phone number"
+                    placeholder="+91 98765 43210"
+                    onChange={(value) => updateField("phone", value)}
+                    value={form.phone}
+                    error={errors.phone}
+                  />
+                  <Input
+                    label="Create password"
+                    placeholder="At least 8 characters"
+                    onChange={(value) => updateField("adminPassword", value)}
+                    type="password"
+                    value={form.adminPassword}
+                    error={errors.adminPassword}
+                  />
+                  <Input
+                    label="Confirm password"
+                    placeholder="Re-enter password"
+                    onChange={(value) => updateField("confirmPassword", value)}
+                    type="password"
+                    value={form.confirmPassword}
+                    error={errors.confirmPassword}
+                  />
+                </div>
+              </Fieldset>
 
-            <div className="grid gap-2">
-              <label className="flex items-start gap-3 text-sm font-semibold text-[#424245] cursor-pointer">
-                <input
-                  checked={form.termsAccepted}
-                  className="mt-1 h-4 w-4 accent-[#0071e3]"
-                  onChange={(event) => updateField("termsAccepted", event.target.checked)}
-                  type="checkbox"
-                />
-                I agree to activate this school workspace and receive login credentials.
-              </label>
-              {errors.termsAccepted && (
-                <motion.p
-                  animate={{ opacity: 1, y: 0 }}
-                  className="px-1 text-xs font-semibold text-[#c8242c]"
-                  initial={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                >
-                  {errors.termsAccepted}
-                </motion.p>
-              )}
-            </div>
-
-            {error ? <div className="whitespace-pre-line rounded-2xl bg-[#fce3e5] px-4 py-3 text-sm font-semibold text-[#c8242c]">{error}</div> : null}
-
-            <button
-              className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#0071e3] px-6 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#b8c7d9]"
-              disabled={loading}
-              type="submit"
-            >
-              {loading ? (
-                <>
-                  <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <div className="flex items-center gap-3 rounded-2xl border border-[#2456E6]/20 bg-[#2456E6]/[0.06] px-4 py-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#2456E6] shadow-sm">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <path d="M12 3v18M3 12h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
-                  Creating workspace...
-                </>
-              ) : (
-                "Start 1 Month Free Trial"
-              )}
-            </button>
-          </form>
+                </span>
+                <div>
+                  <p className="text-[14px] font-semibold text-[#1B45BD]">30-day free trial included</p>
+                  <p className="text-[12.5px] text-[#5566a0]">Full access from day one. No card needed to start.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <label className="flex cursor-pointer items-start gap-3 text-[13.5px] leading-6 font-medium text-[#424245]">
+                  <input
+                    checked={form.termsAccepted}
+                    className="mt-0.5 h-4 w-4 accent-[#2456E6]"
+                    onChange={(event) => updateField("termsAccepted", event.target.checked)}
+                    type="checkbox"
+                  />
+                  I agree to activate this school workspace and receive secure login credentials by email.
+                </label>
+                {errors.termsAccepted && <FieldError>{errors.termsAccepted}</FieldError>}
+              </div>
+
+              {error ? (
+                <div className="whitespace-pre-line rounded-2xl border border-[#c8242c]/20 bg-[#fce3e5] px-4 py-3 text-[13.5px] font-semibold text-[#c8242c]">
+                  {error}
+                </div>
+              ) : null}
+
+              <button
+                className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-[#2456E6] px-6 text-[15px] font-semibold text-white shadow-lg shadow-[#2456E6]/25 transition hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:bg-[#b8c1d9] disabled:shadow-none"
+                disabled={loading}
+                type="submit"
+              >
+                {loading ? (
+                  <>
+                    <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Creating your workspace…
+                  </>
+                ) : (
+                  "Create workspace & start free trial"
+                )}
+              </button>
+
+              <p className="text-center text-[12.5px] text-[#86868b]">
+                Already have a workspace?{" "}
+                <Link className="font-semibold text-[#2456E6] hover:text-[#1B45BD]" href="/login">
+                  Sign in
+                </Link>
+              </p>
+            </form>
+          </div>
         </motion.section>
       </div>
     </main>
+  );
+}
+
+function Fieldset({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="grid gap-4">
+      <legend className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#86868b]">
+        {label}
+      </legend>
+      {children}
+    </fieldset>
+  );
+}
+
+function FieldError({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.p
+      animate={{ opacity: 1, y: 0 }}
+      className="px-1 text-[12px] font-semibold text-[#c8242c]"
+      initial={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.15 }}
+    >
+      {children}
+    </motion.p>
   );
 }
 
@@ -375,39 +483,31 @@ function Input({
   value,
   onChange,
   type = "text",
-  error
+  error,
+  placeholder
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   error?: string;
+  placeholder?: string;
 }) {
   return (
     <div className="grid gap-2">
-      <label className="text-sm font-semibold text-[#424245]">
-        {label}
-      </label>
+      <label className="text-[13px] font-semibold text-[#424245]">{label}</label>
       <input
-        className={`min-h-12 rounded-2xl border bg-white/80 px-4 text-[15px] font-medium outline-none transition focus:ring-4 ${
+        className={`min-h-[50px] rounded-2xl border bg-white px-4 text-[15px] font-medium text-[#1d1d1f] outline-none transition placeholder:text-[#aeb2bb] focus:ring-4 ${
           error
             ? "border-[#c8242c] focus:border-[#c8242c] focus:ring-[#c8242c]/10"
-            : "border-black/10 focus:border-[#0071e3] focus:ring-[#0071e3]/10"
+            : "border-black/10 focus:border-[#2456E6] focus:ring-[#2456E6]/10"
         }`}
         onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
         type={type}
         value={value}
       />
-      {error && (
-        <motion.p
-          animate={{ opacity: 1, y: 0 }}
-          className="px-1 text-xs font-semibold text-[#c8242c]"
-          initial={{ opacity: 0, y: -4 }}
-          transition={{ duration: 0.15 }}
-        >
-          {error}
-        </motion.p>
-      )}
+      {error && <FieldError>{error}</FieldError>}
     </div>
   );
 }
