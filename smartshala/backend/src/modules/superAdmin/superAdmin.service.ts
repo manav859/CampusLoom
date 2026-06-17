@@ -11,6 +11,43 @@ import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
 import { expireTrials, trialEndsFrom } from "../../services/trial.service.js";
 
+function signSuperAdminToken() {
+  return jwt.sign(
+    {
+      kind: "SUPER_ADMIN",
+      email: env.SUPER_ADMIN_EMAIL
+    },
+    env.JWT_ACCESS_SECRET,
+    { expiresIn: "8h", subject: "super-admin" }
+  );
+}
+
+/**
+ * Re-issue an access token from the httpOnly super-admin session cookie.
+ * Used to restore the in-memory token after a full page refresh.
+ */
+export function refreshSuperAdminSession(token: string | undefined) {
+  assertSuperAdminConfigured();
+  if (!token) {
+    throw new AppError(401, "No super admin session", "SUPER_ADMIN_SESSION_MISSING");
+  }
+  try {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as { kind?: string; email?: string };
+    if (payload.kind !== "SUPER_ADMIN" || payload.email !== env.SUPER_ADMIN_EMAIL) {
+      throw new Error("Invalid super admin session token");
+    }
+  } catch {
+    throw new AppError(401, "Invalid or expired super admin session", "INVALID_SUPER_ADMIN_SESSION");
+  }
+  return {
+    accessToken: signSuperAdminToken(),
+    user: {
+      email: env.SUPER_ADMIN_EMAIL,
+      role: "SUPER_ADMIN"
+    }
+  };
+}
+
 function assertSuperAdminConfigured() {
   if (!env.SUPER_ADMIN_EMAIL || (!env.SUPER_ADMIN_PASSWORD && !env.SUPER_ADMIN_PASSWORD_HASH)) {
     throw new AppError(
@@ -61,14 +98,7 @@ export async function loginSuperAdmin(email: string, password: string, requestIp
     throw new AppError(401, "Invalid credentials", "INVALID_SUPER_ADMIN_CREDENTIALS");
   }
 
-  const token = jwt.sign(
-    {
-      kind: "SUPER_ADMIN",
-      email: env.SUPER_ADMIN_EMAIL
-    },
-    env.JWT_ACCESS_SECRET,
-    { expiresIn: "8h", subject: "super-admin" }
-  );
+  const token = signSuperAdminToken();
 
   logger.info({
     evt: "auth.super_admin.login",

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { validate } from "../../middleware/validate.js";
 import { asyncHandler } from "../../core/asyncHandler.js";
 import { rateLimit } from "../../middleware/rateLimit.js";
+import { clearSuperAdminCookie, getSuperAdminCookie, setSuperAdminCookie } from "../../lib/superAdminCookie.js";
 import { requireSuperAdmin } from "./superAdmin.middleware.js";
 import {
   completePasswordResetRequest,
@@ -13,6 +14,7 @@ import {
   listPasswordResetRequests,
   listSchoolsForSuperAdmin,
   listSchoolUsers,
+  refreshSuperAdminSession,
   resetTenantUserPassword,
   updateSchoolActiveStatus,
   updateTenantUserRole,
@@ -38,7 +40,29 @@ superAdminRouter.post(
   rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "super-admin-login" }),
   validate({ body: superAdminLoginSchema }),
   asyncHandler(async (req, res) => {
-    res.json(await loginSuperAdmin(req.body.email, req.body.password, req.ip ?? "unknown"));
+    const result = await loginSuperAdmin(req.body.email, req.body.password, req.ip ?? "unknown");
+    // Persist the session in an httpOnly cookie so a page refresh can recover the
+    // in-memory access token via /session (mirrors the tenant /auth/refresh flow).
+    setSuperAdminCookie(res, result.accessToken);
+    res.json(result);
+  })
+);
+
+// Restore the access token after a full page refresh from the httpOnly session
+// cookie. Reads the cookie directly (not the bearer middleware), so it stays the
+// only cookie-authenticated endpoint — all mutating routes remain bearer-only.
+superAdminRouter.get(
+  "/session",
+  asyncHandler(async (req, res) => {
+    res.json(refreshSuperAdminSession(getSuperAdminCookie(req)));
+  })
+);
+
+superAdminRouter.post(
+  "/logout",
+  asyncHandler(async (_req, res) => {
+    clearSuperAdminCookie(res);
+    res.status(204).send();
   })
 );
 

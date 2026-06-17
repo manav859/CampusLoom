@@ -124,6 +124,7 @@ export default function SuperAdminPage() {
   const [resetPasswords, setResetPasswords] = useState<Record<string, string>>({});
   const [requestPasswords, setRequestPasswords] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -131,10 +132,38 @@ export default function SuperAdminPage() {
   const [newUser, setNewUser] = useState({ fullName: "", email: "", phone: "", password: "", role: "TEACHER" as TenantUser["role"] });
 
   useEffect(() => {
-    // Token is held in memory only (no httpOnly refresh cookie exists for the
-    // super-admin endpoint yet), so it is lost on a full page refresh.
+    // The access token is held in memory only, so it is lost on a full page
+    // refresh. Recover it from the httpOnly session cookie via /session.
     const storedToken = tokenStore.get();
-    if (storedToken) setToken(storedToken);
+    if (storedToken) {
+      setToken(storedToken);
+      setBootstrapping(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch(`${env.apiBaseUrl}/super-admin/session`, {
+          credentials: "include",
+          cache: "no-store"
+        });
+        if (!response.ok) return;
+        const data = (await response.json().catch(() => null)) as { accessToken?: string } | null;
+        if (!cancelled && data?.accessToken) {
+          tokenStore.set(data.accessToken);
+          setToken(data.accessToken);
+        }
+      } catch {
+        // No valid session — fall through to the login form.
+      } finally {
+        if (!cancelled) setBootstrapping(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -397,10 +426,20 @@ export default function SuperAdminPage() {
   }
 
   function logout() {
+    // Clear the httpOnly session cookie server-side; ignore failures.
+    void fetch(`${env.apiBaseUrl}/super-admin/logout`, { method: "POST", credentials: "include" }).catch(() => {});
     tokenStore.clear();
     setToken(null);
     setSchools([]);
     setUsersPayload(null);
+  }
+
+  if (bootstrapping) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f5f7fb] text-[#5a6573]">
+        <p className="text-sm font-semibold">Restoring session…</p>
+      </main>
+    );
   }
 
   if (!token) {
