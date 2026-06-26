@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -93,6 +94,7 @@ function timeMatches(value: string | null, filter: TimeFilter) {
 }
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [stats, setStats] = useState<NotificationStats | null>(null);
   const [type, setType] = useState<TypeFilter>("all");
@@ -266,7 +268,7 @@ export default function NotificationsPage() {
             <button className="rounded-lg border border-[#D6DCE5] bg-white px-4 py-2 text-[13px] font-semibold text-[#D92D20] hover:bg-[#FFF1F0] disabled:opacity-50" disabled={logs.length === 0 || clearing} onClick={clearLogs} type="button">
               {clearing ? "Clearing..." : "Clear Notifications"}
             </button>
-            <button className="btn-primary">Send Message</button>
+            <button className="btn-primary" onClick={() => router.push("/teacher/communication")} type="button">Send Message</button>
           </div>
         )}
       />
