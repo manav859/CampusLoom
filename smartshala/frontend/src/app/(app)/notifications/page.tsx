@@ -106,6 +106,7 @@ export default function NotificationsPage() {
   const [retryingId, setRetryingId] = useState("");
   const [deletingId, setDeletingId] = useState("");
   const [clearing, setClearing] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -243,6 +244,7 @@ export default function NotificationsPage() {
 
   async function clearLogs() {
     setClearing(true);
+    setConfirmClear(false);
     setError("");
     setNotice("");
     try {
@@ -265,7 +267,7 @@ export default function NotificationsPage() {
         title="Parent Notification Logs"
         action={(
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <button className="rounded-lg border border-[#D6DCE5] bg-white px-4 py-2 text-[13px] font-semibold text-[#D92D20] hover:bg-[#FFF1F0] disabled:opacity-50" disabled={logs.length === 0 || clearing} onClick={clearLogs} type="button">
+            <button className="rounded-lg border border-[#D6DCE5] bg-white px-4 py-2 text-[13px] font-semibold text-[#D92D20] hover:bg-[#FFF1F0] disabled:opacity-50" disabled={logs.length === 0 || clearing} onClick={() => setConfirmClear(true)} type="button">
               {clearing ? "Clearing..." : "Clear Notifications"}
             </button>
             <button className="btn-primary" onClick={() => router.push("/teacher/communication")} type="button">Send Message</button>
@@ -458,6 +460,24 @@ export default function NotificationsPage() {
           </table>
       </div>
 
+      {confirmClear && typeof document !== "undefined" ? createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-[1px]">
+          <button aria-label="Cancel" className="absolute inset-0" onClick={() => setConfirmClear(false)} type="button" />
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 className="text-[18px] font-semibold text-[#1d1d1f]">Clear all notifications?</h2>
+            <p className="mt-2 text-[14px] leading-6 text-[#5A6573]">
+              This will permanently remove all {logs.length} notification log{logs.length === 1 ? "" : "s"}. This action cannot be undone.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button className="rounded-lg border border-[#D6DCE5] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => setConfirmClear(false)} type="button">Cancel</button>
+              <button className="rounded-lg bg-[#D92D20] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#B42318] disabled:opacity-50" disabled={clearing} onClick={clearLogs} type="button">
+                {clearing ? "Clearing..." : "Clear All"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      ) : null}
       {selectedLog && typeof document !== "undefined" ? createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-[1px]">
           <button aria-label="Close message" className="absolute inset-0" onClick={() => setSelectedLog(null)} type="button" />
