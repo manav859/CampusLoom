@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { LoginForm, type LoginLanguage } from "@/features/auth/LoginForm";
 
 export function LoginShell() {
@@ -10,15 +9,11 @@ export function LoginShell() {
     en: {
       welcome: "Welcome back",
       intro: "Sign in to your SmartShala campus. Principal and teacher teams only — parents receive WhatsApp updates.",
-      onboardPrompt: "New to SmartShala?",
-      onboard: "Onboard your school",
       tagline: "Attendance · Fees · Analytics"
     },
     hi: {
       welcome: "वापसी पर स्वागत है",
       intro: "अपने SmartShala कैंपस में साइन इन करें। केवल प्रिंसिपल और शिक्षक टीमें — अभिभावकों को अपडेट WhatsApp पर मिलते हैं।",
-      onboardPrompt: "SmartShala पर नए हैं?",
-      onboard: "अपना स्कूल जोड़ें",
       tagline: "उपस्थिति · फीस · एनालिटिक्स"
     }
   }[language];
@@ -47,26 +42,19 @@ export function LoginShell() {
       <div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#2456E6]/15 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-[#34c759]/15 blur-3xl" />
 
-      <div className="relative w-full max-w-[420px]">
-        <div className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_24px_70px_-30px_rgba(20,40,90,0.45)] backdrop-blur-xl sm:p-8">
+      <div className="relative w-full max-w-[440px]">
+        <div className="rounded-3xl border border-white/70 bg-white/90 p-7 shadow-[0_24px_70px_-30px_rgba(20,40,90,0.45)] backdrop-blur-xl sm:p-9">
           <div className="flex flex-col items-center text-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden shadow-lg shadow-[#2456E6]/25">
               <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
             </div>
-            <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
+            <h1 className="mt-3 text-[24px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
               {copy.welcome}
             </h1>
             <p className="mt-1.5 text-[13px] leading-snug text-[#6e6e73]">{copy.intro}</p>
           </div>
 
           <LoginForm language={language} onLanguageChange={setLanguage} />
-
-          <div className="mt-5 border-t border-[#e9edf5] pt-4 text-center text-[13px] text-[#6e6e73]">
-            {copy.onboardPrompt}{" "}
-            <Link className="font-semibold text-[#2456E6] hover:text-[#1B45BD]" href="/onboard">
-              {copy.onboard}
-            </Link>
-          </div>
         </div>
 
         <p className="mt-3 text-center text-[12px] font-medium text-[#8a93a6]">{copy.tagline}</p>

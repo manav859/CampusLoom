@@ -212,10 +212,6 @@ export default function OnboardPage() {
               </span>
             </Link>
 
-            <div className="mt-10 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-[13px] font-medium text-white/90 backdrop-blur-xl">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#34c759]" />
-              Enterprise school onboarding
-            </div>
 
             <h1 className="mt-6 max-w-xl text-[40px] font-semibold leading-[1.05] tracking-tight text-white md:text-[52px]">
               Run your entire campus on one platform.
