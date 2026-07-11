@@ -50,11 +50,8 @@ export function LoginShell() {
       <div className="relative w-full max-w-[420px]">
         <div className="rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_24px_70px_-30px_rgba(20,40,90,0.45)] backdrop-blur-xl sm:p-8">
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#34c759] shadow-lg shadow-[#2456E6]/25">
-              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
-                <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl overflow-hidden shadow-lg shadow-[#2456E6]/25">
+              <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
             </div>
             <span className="mt-2.5 text-[14px] font-semibold tracking-tight text-[#1d1d1f]">SmartShala</span>
             <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">

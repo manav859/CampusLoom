@@ -66,11 +66,8 @@ function WorkspaceLoader() {
         {/* Spinning gradient ring */}
         <div className="brand-loader-ring absolute inset-0 rounded-full" />
         {/* Brand logo tile */}
-        <div className="brand-loader-logo flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0071e3] to-[#34c759]">
-          <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24">
-            <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-            <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+        <div className="brand-loader-logo flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden">
+          <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
         </div>
       </div>
       <span className="mt-7 text-[17px] font-bold tracking-tight text-[#1d1d1f]">SmartShala</span>

@@ -502,11 +502,8 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
               </button>
               
               {/* PC View Brand Logo */}
-              <div className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#0071e3] shadow-lg shadow-blue-500/30">
-                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                  <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                  <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <div className="hidden md:flex h-8 w-8 shrink-0 items-center justify-center rounded-xl overflow-hidden">
+                <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
               </div>
 
               {/* Brand Name */}

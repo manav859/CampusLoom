@@ -207,11 +207,8 @@ export default function OnboardPage() {
         >
           <div>
             <Link href="/login" className="inline-flex items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#34c759] shadow-lg shadow-[#2456E6]/30">
-                <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                  <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl overflow-hidden shadow-lg shadow-[#2456E6]/30">
+                <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
               </span>
               <span className="text-[15px] font-semibold tracking-tight text-white">SmartShala</span>
             </Link>

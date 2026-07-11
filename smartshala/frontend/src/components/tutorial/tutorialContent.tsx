@@ -58,11 +58,8 @@ export function WelcomeIllustration() {
   return (
     <div className="w-[230px] rounded-2xl bg-white p-4 shadow-[0_16px_44px_-16px_rgba(15,20,25,0.35)]">
       <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#0071e3]">
-          <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-            <path d="M4 7.5L12 4l8 3.5L12 11 4 7.5z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-            <path d="M6 9.5v7L12 20l6-3.5v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl overflow-hidden">
+          <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
         </div>
         <div className="space-y-1.5">
           <div className="h-2 w-24 rounded-full bg-[#1d1d1f]/75" />
