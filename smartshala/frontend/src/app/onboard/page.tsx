@@ -207,10 +207,9 @@ export default function OnboardPage() {
         >
           <div>
             <Link href="/login" className="inline-flex items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl overflow-hidden shadow-lg shadow-[#2456E6]/30">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl overflow-hidden shadow-lg shadow-[#2456E6]/30">
                 <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
               </span>
-              <span className="text-[15px] font-semibold tracking-tight text-white">SmartShala</span>
             </Link>
 
             <div className="mt-10 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-[13px] font-medium text-white/90 backdrop-blur-xl">
