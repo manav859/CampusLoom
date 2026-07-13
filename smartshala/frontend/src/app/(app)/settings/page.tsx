@@ -158,22 +158,51 @@ export default function SettingsPage() {
 
     const reader = new FileReader();
     reader.onload = async () => {
-      const logoUrl = String(reader.result ?? "");
-      const nextProfile = { ...profile, logoUrl };
-      setLogoSaving(true);
-      setError("");
-      setNotice("");
-      setProfile(nextProfile);
       try {
-        await persistProfile(nextProfile, "School logo saved.");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unable to save logo");
-      } finally {
-        setLogoSaving(false);
+        // Resize & compress the image so the data-URL stays under the backend limit
+        const logoUrl = await resizeImage(String(reader.result ?? ""), 256, 0.8);
+        const nextProfile = { ...profile, logoUrl };
+        setLogoSaving(true);
+        setError("");
+        setNotice("");
+        setProfile(nextProfile);
+        try {
+          await persistProfile(nextProfile, "School logo saved.");
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Unable to save logo");
+        } finally {
+          setLogoSaving(false);
+        }
+      } catch {
+        setError("Unable to process logo image.");
       }
     };
     reader.onerror = () => setError("Unable to read logo file.");
     reader.readAsDataURL(file);
+  }
+
+  /** Resize an image data-URL to fit within maxPx (longest side) and compress as JPEG. */
+  function resizeImage(dataUrl: string, maxPx: number, quality: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxPx || height > maxPx) {
+          const scale = maxPx / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas not supported"));
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = dataUrl;
+    });
   }
 
   async function removeLogo() {
