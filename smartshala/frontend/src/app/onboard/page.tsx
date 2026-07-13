@@ -208,7 +208,7 @@ export default function OnboardPage() {
           <div>
             <Link href="/login" className="inline-flex items-center gap-2.5">
               <span className="flex h-14 w-14 items-center justify-center rounded-2xl overflow-hidden shadow-lg shadow-[#2456E6]/30">
-                <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
+                <img alt="SmartShala" className="h-full w-full object-contain" src="/ss.png" />
               </span>
             </Link>
 

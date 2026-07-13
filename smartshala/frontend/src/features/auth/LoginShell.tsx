@@ -46,7 +46,7 @@ export function LoginShell() {
         <div className="rounded-3xl border border-white/70 bg-white/90 p-7 shadow-[0_24px_70px_-30px_rgba(20,40,90,0.45)] backdrop-blur-xl sm:p-9">
           <div className="flex flex-col items-center text-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl overflow-hidden shadow-lg shadow-[#2456E6]/25">
-              <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
+              <img alt="SmartShala" className="h-full w-full object-contain" src="/ss.png" />
             </div>
             <h1 className="mt-3 text-[24px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
               {copy.welcome}

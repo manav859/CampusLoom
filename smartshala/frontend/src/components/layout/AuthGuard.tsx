@@ -67,7 +67,7 @@ function WorkspaceLoader() {
         <div className="brand-loader-ring absolute inset-0 rounded-full" />
         {/* Brand logo tile */}
         <div className="brand-loader-logo flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden">
-          <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
+          <img alt="SmartShala" className="h-full w-full object-contain" src="/ss.png" />
         </div>
       </div>
       <span className="mt-7 text-[17px] font-bold tracking-tight text-[#1d1d1f]">SmartShala</span>

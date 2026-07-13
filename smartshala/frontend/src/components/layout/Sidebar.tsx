@@ -387,7 +387,7 @@ export function Sidebar({
               onClick={() => setIsPinned(!isPinned)}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-blue-500/30 cursor-pointer"
             >
-              <img alt="SmartShala" className="h-full w-full object-contain" src="/logo.png" />
+              <img alt="SmartShala" className="h-full w-full object-contain" src="/ss.png" />
             </div>
             <p className={`text-[15px] font-bold text-[#1d1d1f] tracking-tight ${brandLabelClass}`}>SmartShala</p>
           </div>
