@@ -502,8 +502,8 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
               </button>
               
               {/* PC View Brand Logo */}
-              <div className="hidden md:flex h-12 w-12 shrink-0 items-center justify-center rounded-xl overflow-hidden">
-                <img alt="SmartShala" className="h-full w-full object-contain mix-blend-multiply" src="/ss.png" />
+              <div className="hidden md:flex h-16 w-16 shrink-0 items-center justify-center rounded-xl overflow-hidden">
+                <img alt="SmartShala" className="h-full w-full object-contain mix-blend-multiply" src="/logo-latest.png" />
               </div>
             </div>
 

@@ -558,8 +558,8 @@ samp,
 }
 
 @keyframes brand-loader-pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 10px 30px -8px rgba(0, 113, 227, 0.45); }
-  50% { transform: scale(1.06); box-shadow: 0 16px 40px -8px rgba(0, 113, 227, 0.6); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
 }
 
 .brand-loader-ring {
