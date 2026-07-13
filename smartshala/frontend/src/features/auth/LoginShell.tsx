@@ -8,12 +8,12 @@ export function LoginShell() {
   const copy = {
     en: {
       welcome: "Welcome back",
-      intro: "Sign in to your SmartShala campus. Principal and teacher teams only — parents receive WhatsApp updates.",
+      intro: "Sign in to SmartShala—your all-in-one AI-powered School ERP for admissions, attendance, fees, examinations, communication, and school management.",
       tagline: "Attendance · Fees · Analytics"
     },
     hi: {
       welcome: "वापसी पर स्वागत है",
-      intro: "अपने SmartShala कैंपस में साइन इन करें। केवल प्रिंसिपल और शिक्षक टीमें — अभिभावकों को अपडेट WhatsApp पर मिलते हैं।",
+      intro: "SmartShala में साइन इन करें—प्रवेश, उपस्थिति, फीस, परीक्षा, संचार और स्कूल प्रबंधन के लिए आपका ऑल-इन-वन AI-संचालित स्कूल ERP।",
       tagline: "उपस्थिति · फीस · एनालिटिक्स"
     }
   }[language];
@@ -45,8 +45,8 @@ export function LoginShell() {
       <div className="relative w-full max-w-[440px]">
         <div className="rounded-3xl border border-white/70 bg-white/90 p-7 shadow-[0_24px_70px_-30px_rgba(20,40,90,0.45)] backdrop-blur-xl sm:p-9">
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-24 w-24 items-center justify-center">
-              <img alt="SmartShala" className="h-full w-full object-contain mix-blend-multiply" src="/logo-latest.png" />
+            <div className="flex h-16 w-16 items-center justify-center">
+              <img alt="SmartShala" className="h-full w-full object-contain mix-blend-multiply rounded-xl" src="/logo-latest.png" />
             </div>
             <h1 className="mt-3 text-[24px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
               {copy.welcome}

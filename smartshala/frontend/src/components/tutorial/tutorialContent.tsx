@@ -58,8 +58,8 @@ export function WelcomeIllustration() {
   return (
     <div className="w-[230px] rounded-2xl bg-white p-4 shadow-[0_16px_44px_-16px_rgba(15,20,25,0.35)]">
       <div className="flex items-center gap-2.5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden">
-          <img alt="SmartShala" className="h-full w-full object-contain mix-blend-multiply" src="/logo-latest.png" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden">
+          <img alt="SmartShala" className="h-full w-full object-contain mix-blend-multiply rounded-lg" src="/logo-latest.png" />
         </div>
         <div className="space-y-1.5">
           <div className="h-2 w-24 rounded-full bg-[#1d1d1f]/75" />
