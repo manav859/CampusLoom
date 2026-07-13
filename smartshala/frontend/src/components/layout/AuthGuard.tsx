@@ -62,11 +62,11 @@ function isPathAllowedForRole(pathname: string, role: Role) {
 function WorkspaceLoader() {
   return (
     <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-[var(--apple-bg)]">
-      <div className="relative flex h-28 w-28 items-center justify-center">
+      <div className="relative flex h-32 w-32 items-center justify-center">
         {/* Spinning gradient ring */}
         <div className="brand-loader-ring absolute inset-0 rounded-full" />
         {/* Brand logo tile */}
-        <div className="brand-loader-logo flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden">
+        <div className="brand-loader-logo flex h-20 w-20 items-center justify-center">
           <img alt="SmartShala" className="h-full w-full object-contain mix-blend-multiply" src="/ss.png" />
         </div>
       </div>

@@ -502,7 +502,7 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
               </button>
               
               {/* PC View Brand Logo */}
-              <div className="hidden md:flex h-10 w-10 shrink-0 items-center justify-center rounded-xl overflow-hidden">
+              <div className="hidden md:flex h-12 w-12 shrink-0 items-center justify-center rounded-xl overflow-hidden">
                 <img alt="SmartShala" className="h-full w-full object-contain mix-blend-multiply" src="/ss.png" />
               </div>
             </div>
