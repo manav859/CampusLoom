@@ -5,11 +5,12 @@ name: Keep Render backend alive
 # service never goes idle long enough to be frozen.
 
 on:
-  schedule:
-    # Every 10 minutes. Note: GitHub may delay scheduled runs under load,
-    # so we ping more often than the 15-min Render timeout for safety margin.
-    - cron: "*/10 * * * *"
-  # Allow manual runs from the Actions tab for testing.
+  # Automatic pinging is disabled. Uncomment the schedule below to re-enable.
+  # schedule:
+  #   # Every 10 minutes. Note: GitHub may delay scheduled runs under load,
+  #   # so we ping more often than the 15-min Render timeout for safety margin.
+  #   - cron: "*/10 * * * *"
+  # Allow manual runs from the Actions tab.
   workflow_dispatch:
 
 jobs:
