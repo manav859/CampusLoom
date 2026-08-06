@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { env } from "../config/env.js";
 import { prisma } from "../core/prisma.js";
 import { logger } from "../config/logger.js";
 
@@ -24,6 +25,10 @@ async function runWarmup(reason: string) {
 }
 
 export function triggerDbWarmup(reason = "manual") {
+  if (!env.DB_WARMUP_ENABLED) {
+    return Promise.resolve();
+  }
+
   if (!warmupPromise) {
     warmupPromise = runWarmup(reason).finally(() => {
       warmupPromise = null;
@@ -34,6 +39,7 @@ export function triggerDbWarmup(reason = "manual") {
 }
 
 export function startDbWarmupScheduler() {
+  if (!env.DB_WARMUP_ENABLED) return;
   if (warmupTimer) return;
 
   void triggerDbWarmup("startup");
@@ -56,6 +62,10 @@ export function stopDbWarmupScheduler() {
  */
 export function dbWarmup() {
   return (_req: Request, _res: Response, next: NextFunction) => {
+    if (!env.DB_WARMUP_ENABLED) {
+      return next();
+    }
+
     const now = Date.now();
 
     if (now - lastCheck < INTERVAL_MS) {

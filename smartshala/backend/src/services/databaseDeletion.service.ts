@@ -206,7 +206,7 @@ export async function processDueTenantDeletions() {
 }
 
 export function startDatabaseDeletionWorker() {
-  if (env.NODE_ENV === "test") return;
+  if (env.NODE_ENV === "test" || !env.BACKGROUND_WORKERS_ENABLED) return;
 
   void processDueTenantDeletions();
   const timer = setInterval(() => {

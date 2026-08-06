@@ -1,6 +1,16 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const booleanFromEnv = z.preprocess(
+  (value) => {
+    if (value === undefined) return undefined;
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+    return value;
+  },
+  z.boolean()
+);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
@@ -28,6 +38,9 @@ const envSchema = z.object({
   COOKIE_DOMAIN: z.string().optional(),
   LOG_LEVEL: z.string().default("info"),
   PRISMA_LOG_LEVEL: z.string().default("error,warn"),
+  CONNECT_DATABASE_ON_BOOT: booleanFromEnv.default(false),
+  DB_WARMUP_ENABLED: booleanFromEnv.default(false),
+  BACKGROUND_WORKERS_ENABLED: booleanFromEnv.default(false),
   DEMO_RESET_ENABLED: z
     .preprocess((value) => value === "true" || value === true, z.boolean())
     .default(false),

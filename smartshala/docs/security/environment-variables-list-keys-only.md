@@ -26,6 +26,9 @@
 | `CORS_ORIGIN` | No (default: http://localhost:3000) | Allowed CORS origins (comma-separated) |
 | `LOG_LEVEL` | No (default: info) | Pino log level |
 | `PRISMA_LOG_LEVEL` | No (default: error,warn) | Prisma query logging |
+| `CONNECT_DATABASE_ON_BOOT` | No (default: false) | Connect to Postgres during API boot instead of first DB request |
+| `DB_WARMUP_ENABLED` | No (default: false) | Enable periodic/request DB pings; increases Neon compute usage |
+| `BACKGROUND_WORKERS_ENABLED` | No (default: false) | Enable hourly trial/deletion workers; increases master DB wakeups |
 | `DEMO_RESET_ENABLED` | No (default: false) | Enable demo data reset endpoint |
 | `WHATSAPP_ACCESS_TOKEN` | No | WhatsApp Cloud API token |
 | `WHATSAPP_PHONE_NUMBER_ID` | No | WhatsApp business phone ID |

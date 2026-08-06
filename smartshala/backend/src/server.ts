@@ -11,15 +11,19 @@ async function bootstrap() {
     logger.info(`SmartShala API listening on http://localhost:${env.PORT}/api and /api/v1`);
   });
 
-  void connectDatabase()
-    .then(() => {
-      logger.info("Database connection ready");
-      startDbWarmupScheduler();
-    })
-    .catch((error) => {
-      logger.warn({ err: error }, "Initial database connection failed; scheduled warmup will keep retrying");
-      startDbWarmupScheduler();
-    });
+  if (env.CONNECT_DATABASE_ON_BOOT || env.DB_WARMUP_ENABLED) {
+    void connectDatabase()
+      .then(() => {
+        logger.info("Database connection ready");
+        startDbWarmupScheduler();
+      })
+      .catch((error) => {
+        logger.warn({ err: error }, "Initial database connection failed");
+        startDbWarmupScheduler();
+      });
+  } else {
+    logger.info("Database boot connection skipped; Prisma will connect on first DB request");
+  }
 
   const shutdown = async () => {
     logger.info("Shutting down SmartShala API");

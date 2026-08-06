@@ -19,6 +19,9 @@ Rules:
 - `DATABASE_URL` uses the Neon pooled host containing `-pooler`.
 - `DIRECT_URL` uses the same host without `-pooler`.
 - Keep `sslmode=require`.
+- Keep `CONNECT_DATABASE_ON_BOOT`, `DB_WARMUP_ENABLED`, and
+  `BACKGROUND_WORKERS_ENABLED` unset or `false` when you want Neon to autosuspend
+  during idle periods.
 - Keep secrets only in `.env`, Render, or Neon. Do not hardcode them in source.
 
 ## Migration Commands
@@ -83,18 +86,25 @@ Success response:
 
 Failure returns HTTP `503` with a safe error name.
 
+Plain API health checks such as `/api/health` do not touch Postgres. Avoid using
+`/health/db`, `/api/health/db`, or `/api/v1/health/db` as a platform uptime
+check if the goal is to keep Neon compute idle.
+
 ## Render Deployment Checklist
 
 1. Open the Render backend service.
 2. Replace the old Render PostgreSQL `DATABASE_URL` with the Neon pooled URL.
 3. Add `DIRECT_URL` with the Neon direct URL.
 4. Remove old Render PostgreSQL references from environment variables.
-5. Keep existing JWT, CORS, WhatsApp, and Redis settings unchanged.
-6. Confirm build/start commands still match `backend/package.json`.
-7. Trigger GitHub auto deploy.
-8. After deploy, check logs for `Running Prisma migrations` and
+5. Remove or set `false` for `CONNECT_DATABASE_ON_BOOT`, `DB_WARMUP_ENABLED`,
+   and `BACKGROUND_WORKERS_ENABLED` unless you intentionally want background DB
+   activity.
+6. Keep existing JWT, CORS, WhatsApp, and Redis settings unchanged.
+7. Confirm build/start commands still match `backend/package.json`.
+8. Trigger GitHub auto deploy.
+9. After deploy, check logs for `Running Prisma migrations` and
    `SmartShala API listening`.
-9. Call `/health/db`.
+10. Call `/api/health`; call `/health/db` only for a one-time DB check.
 
 ## Validation Checklist
 
@@ -107,7 +117,8 @@ Failure returns HTTP `503` with a safe error name.
 - Student/class/attendance/fees CRUD flows
 - Dashboard and analytics Prisma queries
 - Production deploy logs
-- `/health/db` returns `status: ok`
+- `/api/health` returns `status: ok`
+- `/health/db` returns `status: ok` when a one-time DB check is needed
 
 ## Troubleshooting
 

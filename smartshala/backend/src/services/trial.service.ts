@@ -30,7 +30,7 @@ export async function expireTrials() {
 }
 
 export function startTrialExpiryWorker() {
-  if (env.NODE_ENV === "test" || !env.MASTER_DATABASE_URL) return;
+  if (env.NODE_ENV === "test" || !env.MASTER_DATABASE_URL || !env.BACKGROUND_WORKERS_ENABLED) return;
 
   void expireTrials()
     .then((count) => {
