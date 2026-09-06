@@ -91,7 +91,16 @@ export async function ensureSubscription(schoolId: string): Promise<Subscription
   if (existing) return existing;
 
   const school = await masterPrisma.school.findUnique({ where: { schoolId } });
-  if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
+  if (!school) {
+    // Legacy single-tenant workspaces predate the master registry, so they have
+    // no school row to hang a subscription off. Say so plainly instead of
+    // showing the principal a bare "School not found".
+    throw new AppError(
+      404,
+      "This workspace is not registered for online billing yet. Please contact SmartShala support.",
+      "SCHOOL_NOT_REGISTERED"
+    );
+  }
 
   const plan = await trialPlan();
   if (!plan) throw new AppError(503, "No subscription plans are configured yet", "NO_PLANS_CONFIGURED");

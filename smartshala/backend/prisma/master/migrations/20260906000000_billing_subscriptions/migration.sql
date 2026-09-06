@@ -169,15 +169,25 @@ INSERT INTO "subscriptions" ("schoolId", "planId", "status", "currentPeriodStart
 SELECT
   s."schoolId",
   (SELECT p."id" FROM "plans" p WHERE p."code" = CASE WHEN s."isTrial" THEN 'TRIAL' ELSE 'STANDARD' END),
+  -- Suspension wins first. A school that is already switched off must land on
+  -- EXPIRED, not ACTIVE: the maintenance worker would otherwise see a lapsed
+  -- ACTIVE term, open a grace period, and hand the school 7 days of access it
+  -- was deliberately denied. EXPIRED is terminal until someone grants access.
   CASE
-    WHEN s."isTrial" AND COALESCE(s."trialEndsAt", CURRENT_TIMESTAMP + INTERVAL '30 days') > CURRENT_TIMESTAMP THEN 'TRIALING'::"SubscriptionStatus"
+    WHEN NOT s."isActive" THEN 'EXPIRED'::"SubscriptionStatus"
+    WHEN s."isTrial" AND COALESCE(s."trialEndsAt", LOCALTIMESTAMP + INTERVAL '30 days') > LOCALTIMESTAMP THEN 'TRIALING'::"SubscriptionStatus"
     WHEN s."paymentStatus" = 'PAID' THEN 'ACTIVE'::"SubscriptionStatus"
-    WHEN s."isActive" THEN 'ACTIVE'::"SubscriptionStatus"
     ELSE 'PAST_DUE'::"SubscriptionStatus"
   END,
   s."createdAt",
+  -- A school that is live today must not come out of this migration already in
+  -- arrears: the maintenance worker would drop it into grace and suspend it a
+  -- week later. Active paid schools therefore get at least 30 days of runway so
+  -- their real renewal date can be set from the panel first. Trials keep their
+  -- own clock, and already-suspended schools keep the honest (past) date.
   CASE
     WHEN s."isTrial" THEN COALESCE(s."trialEndsAt", s."createdAt" + INTERVAL '30 days')
+    WHEN s."isActive" THEN GREATEST(s."createdAt" + INTERVAL '1 year', LOCALTIMESTAMP + INTERVAL '30 days')
     ELSE s."createdAt" + INTERVAL '1 year'
   END,
   s."couponCode"
