@@ -1,7 +1,9 @@
 import { Prisma } from "../../node_modules/@smartshala/master-client/index.js";
 import { masterPrisma } from "../master-db/masterPrisma.js";
+import { discountMinorFor, loadCoupon, rupeesFromMinor } from "../modules/billing/billing.pricing.js";
 
-const BASE_PRICE = 20_000;
+/** Used only if the plan catalogue has not been seeded yet. */
+const FALLBACK_BASE_PRICE = 20_000;
 
 export type CouponPreview = {
   baseAmount: number;
@@ -12,55 +14,33 @@ export type CouponPreview = {
   message: string;
 };
 
+/**
+ * The onboarding form quotes the default paid plan. The price now lives in the
+ * plan catalogue the super admin edits, not in a constant.
+ */
+export async function defaultPaidPlan() {
+  return (
+    (await masterPrisma.plan.findUnique({ where: { code: "STANDARD" } })) ??
+    (await masterPrisma.plan.findFirst({
+      where: { isActive: true, isPublic: true, priceMinor: { gt: 0 } },
+      orderBy: [{ sortOrder: "asc" }, { priceMinor: "asc" }]
+    }))
+  );
+}
+
 export async function previewCoupon(code?: string | null): Promise<CouponPreview> {
-  const normalized = code?.trim().toUpperCase();
-  if (!normalized) {
-    return {
-      baseAmount: BASE_PRICE,
-      discountAmount: 0,
-      finalAmount: BASE_PRICE,
-      couponCode: null,
-      valid: true,
-      message: "No coupon applied"
-    };
-  }
-
-  const coupon = await masterPrisma.coupon.findUnique({ where: { code: normalized } });
-  if (!coupon || !coupon.isActive) {
-    return {
-      baseAmount: BASE_PRICE,
-      discountAmount: 0,
-      finalAmount: BASE_PRICE,
-      couponCode: normalized,
-      valid: false,
-      message: "Coupon is invalid"
-    };
-  }
-
-  if (coupon.expiresAt && coupon.expiresAt <= new Date()) {
-    return {
-      baseAmount: BASE_PRICE,
-      discountAmount: 0,
-      finalAmount: BASE_PRICE,
-      couponCode: normalized,
-      valid: false,
-      message: "Coupon has expired"
-    };
-  }
-
-  const discountValue = Number(coupon.discountValue);
-  const discountAmount =
-    coupon.discountType === "PERCENTAGE"
-      ? Math.min(BASE_PRICE, Math.round((BASE_PRICE * discountValue) / 100))
-      : Math.min(BASE_PRICE, discountValue);
+  const plan = await defaultPaidPlan().catch(() => null);
+  const baseMinor = plan?.priceMinor ?? FALLBACK_BASE_PRICE * 100;
+  const { coupon, valid, message } = await loadCoupon(code);
+  const discountMinor = discountMinorFor(coupon, baseMinor);
 
   return {
-    baseAmount: BASE_PRICE,
-    discountAmount,
-    finalAmount: Math.max(0, BASE_PRICE - discountAmount),
-    couponCode: normalized,
-    valid: true,
-    message: `Coupon ${normalized} applied`
+    baseAmount: rupeesFromMinor(baseMinor),
+    discountAmount: rupeesFromMinor(discountMinor),
+    finalAmount: rupeesFromMinor(baseMinor - discountMinor),
+    couponCode: coupon?.code ?? (code?.trim().toUpperCase() || null),
+    valid,
+    message
   };
 }
 

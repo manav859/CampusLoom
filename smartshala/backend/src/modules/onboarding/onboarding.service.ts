@@ -5,7 +5,7 @@ import { logger } from "../../config/logger.js";
 import { masterPrisma } from "../../master-db/masterPrisma.js";
 import { createSchoolDatabase } from "../../services/createSchoolDatabase.js";
 import { decimalAmount, previewCoupon } from "../../services/coupon.service.js";
-import { simulatePayment } from "../../services/payment.service.js";
+import { bootstrapSubscription } from "../billing/billingAdmin.service.js";
 import { generateUniqueSchoolId } from "../../utils/generateSchoolId.js";
 
 type OnboardingInput = {
@@ -48,7 +48,6 @@ export async function onboardSchool(input: OnboardingInput) {
   });
   const dbName = `school_${schoolId}`;
   const isTrial = input.planType === "TRIAL";
-  const payment = await simulatePayment(coupon.finalAmount, isTrial ? "trial" : "purchase");
 
   await masterPrisma.onboardingLog.create({
     data: {
@@ -82,7 +81,7 @@ export async function onboardSchool(input: OnboardingInput) {
         numberOfStaff: input.numberOfStaff,
         planType: isTrial ? PlanType.TRIAL : PlanType.STANDARD,
         paymentStatus: PaymentStatus.PENDING,
-        amountPaid: decimalAmount(payment.amountPaid),
+        amountPaid: decimalAmount(0),
         couponCode: coupon.couponCode,
         isTrial,
         trialEndsAt: null,
@@ -92,6 +91,14 @@ export async function onboardSchool(input: OnboardingInput) {
         directDbUrl: db.directDbUrl
       }
     });
+
+    // Give the school a plan straight away so the subscription page works the
+    // moment the super admin approves it; a paid signup also gets its invoice.
+    await bootstrapSubscription({
+      schoolId,
+      planCode: isTrial ? "TRIAL" : "STANDARD",
+      couponCode: coupon.couponCode
+    }).catch((err) => logger.error({ err, schoolId }, "Failed to bootstrap subscription during onboarding"));
 
     await masterPrisma.onboardingLog.create({
       data: {

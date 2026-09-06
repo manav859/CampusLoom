@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { env } from "@/lib/env";
 import { tokenStore } from "@/lib/tokenStore";
+import { BillingPanel } from "./BillingPanel";
+import { superAdminFetch } from "./superAdminFetch";
 
 type SchoolRow = {
   schoolId: string;
@@ -19,6 +21,12 @@ type SchoolRow = {
   deletionStatus: string;
   deletionScheduledAt: string | null;
   createdAt: string;
+  subscription: {
+    status: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELLED" | "EXPIRED";
+    currentPeriodEnd: string;
+    cancelAtPeriodEnd: boolean;
+    plan: { code: string; name: string; priceMinor: number; currency: string; interval: "MONTH" | "YEAR" };
+  } | null;
 };
 
 type TenantUser = {
@@ -87,31 +95,6 @@ function trialText(school: SchoolRow) {
   return `Trial ends ${deletionTime(school.trialEndsAt)}`;
 }
 
-async function superAdminFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
-
-  const token = tokenStore.get();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
-  const response = await fetch(`${env.apiBaseUrl}/super-admin${path}`, {
-    ...options,
-    headers,
-    credentials: "include",
-    cache: "no-store"
-  });
-
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    throw new Error(payload?.error?.message ?? "Request failed");
-  }
-
-  if (response.status === 204) return undefined as T;
-  const text = await response.text();
-  if (!text) return undefined as T;
-  return JSON.parse(text) as T;
-}
-
 export default function SuperAdminPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -128,6 +111,7 @@ export default function SuperAdminPage() {
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [view, setView] = useState<"schools" | "billing">("schools");
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ fullName: "", email: "", phone: "", password: "", role: "TEACHER" as TenantUser["role"] });
 
@@ -485,9 +469,30 @@ export default function SuperAdminPage() {
           </div>
         </header>
 
+        <nav className="flex flex-wrap gap-2">
+          <button
+            className={`min-h-10 rounded-lg px-4 text-sm font-bold transition ${view === "schools" ? "bg-[#111827] text-white" : "border border-[#cbd5e1] bg-white text-[#334155]"}`}
+            onClick={() => setView("schools")}
+            type="button"
+          >
+            Schools & users
+          </button>
+          <button
+            className={`min-h-10 rounded-lg px-4 text-sm font-bold transition ${view === "billing" ? "bg-[#111827] text-white" : "border border-[#cbd5e1] bg-white text-[#334155]"}`}
+            onClick={() => setView("billing")}
+            type="button"
+          >
+            Billing & plans
+          </button>
+        </nav>
+
         {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
         {notice ? <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{notice}</p> : null}
 
+        {view === "billing" ? <BillingPanel onError={setError} onNotice={setNotice} /> : null}
+
+        {view === "schools" ? (
+          <>
         <section className="rounded-2xl border border-[#dce3ef] bg-white shadow-sm">
           <div className="flex flex-col gap-2 border-b border-[#eef2f7] p-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -744,6 +749,8 @@ export default function SuperAdminPage() {
             </div>
           </section>
         </div>
+          </>
+        ) : null}
       </div>
     </main>
   );

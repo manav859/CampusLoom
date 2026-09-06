@@ -3,6 +3,7 @@ import { validate } from "../../middleware/validate.js";
 import { asyncHandler } from "../../core/asyncHandler.js";
 import { rateLimit } from "../../middleware/rateLimit.js";
 import { clearSuperAdminCookie, getSuperAdminCookie, setSuperAdminCookie } from "../../lib/superAdminCookie.js";
+import { billingAdminRouter } from "../billing/billingAdmin.routes.js";
 import { requireSuperAdmin } from "./superAdmin.middleware.js";
 import {
   completePasswordResetRequest,
@@ -67,6 +68,8 @@ superAdminRouter.post(
 );
 
 superAdminRouter.use(requireSuperAdmin);
+
+superAdminRouter.use("/billing", billingAdminRouter);
 
 superAdminRouter.get(
   "/schools",

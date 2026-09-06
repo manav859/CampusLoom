@@ -62,7 +62,18 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
   S3_ENDPOINT: z.string().url().optional(), // for S3-compatible (Cloudflare R2, MinIO)
-  S3_KEY_PREFIX: z.string().default("student-documents")
+  S3_KEY_PREFIX: z.string().default("student-documents"),
+  // Billing / Razorpay. "mock" runs the bundled fake gateway end to end; "live"
+  // talks to api.razorpay.com and requires real keys.
+  RAZORPAY_MODE: z.enum(["mock", "live"]).default("mock"),
+  RAZORPAY_KEY_ID: z.string().default("rzp_test_mock0000000000"),
+  RAZORPAY_KEY_SECRET: z.string().default("mock_key_secret_change_me"),
+  RAZORPAY_WEBHOOK_SECRET: z.string().default("mock_webhook_secret_change_me"),
+  BILLING_CURRENCY: z.string().default("INR"),
+  BILLING_TAX_PERCENT: z.coerce.number().min(0).max(100).default(18),
+  BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(90).default(7),
+  BILLING_INVOICE_DUE_DAYS: z.coerce.number().int().min(0).max(90).default(7),
+  BILLING_RENEWAL_LEAD_DAYS: z.coerce.number().int().min(0).max(90).default(7)
 });
 
 const parsed = envSchema.safeParse(process.env);

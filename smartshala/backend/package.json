@@ -24,7 +24,8 @@
     "test:marks-term": "tsx tests/marksExamTerm.test.ts",
     "test:fee-adjustment": "tsx tests/feeAdjustmentSchema.test.ts",
     "test:rollover": "tsx tests/academicYearRollover.test.ts",
-    "backup:master": "node scripts/backup-master-db.mjs"
+    "backup:master": "node scripts/backup-master-db.mjs",
+    "test:billing": "tsx tests/billing.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

@@ -5,7 +5,12 @@ import { masterPrisma } from "../master-db/masterPrisma.js";
 import { legacyTenantSchoolId } from "./legacyTenant.js";
 import { isValidSchoolId } from "../utils/generateSchoolId.js";
 
-export async function resolveTenant(schoolId: string) {
+/**
+ * Options.allowSuspended lets a lapsed tenant through so its principal can still
+ * sign in and settle the bill. Callers get `suspended: true` and must gate every
+ * route except auth and billing on it — see tenant.middleware.ts.
+ */
+export async function resolveTenant(schoolId: string, options: { allowSuspended?: boolean } = {}) {
   if (!isValidSchoolId(schoolId)) {
     throw new AppError(400, "Invalid school ID", "INVALID_SCHOOL_ID");
   }
@@ -16,11 +21,15 @@ export async function resolveTenant(schoolId: string) {
   if (!school) return resolveLegacyTenant(schoolId);
 
   const trialExpired = Boolean(school.isTrial && school.trialEndsAt && school.trialEndsAt <= new Date());
-  if (!school.isActive || trialExpired) {
+  const suspended = !school.isActive || trialExpired;
+  if (suspended && !options.allowSuspended) {
     throw new AppError(402, "School subscription is inactive or expired", "SCHOOL_INACTIVE");
   }
+  if (suspended && school.deletionStatus === "DELETED") {
+    throw new AppError(410, "This school has been deleted", "SCHOOL_DELETED");
+  }
 
-  return school;
+  return { ...school, suspended };
 }
 
 async function resolveLegacyTenant(schoolId: string) {
@@ -44,6 +53,7 @@ async function resolveLegacyTenant(schoolId: string) {
     dbUrl: env.DATABASE_URL,
     isActive: true,
     isTrial: false,
-    trialEndsAt: null
+    trialEndsAt: null,
+    suspended: false
   };
 }

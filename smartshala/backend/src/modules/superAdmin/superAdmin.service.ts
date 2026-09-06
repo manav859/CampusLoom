@@ -2,14 +2,15 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserStatus } from "@prisma/client";
 import type { UserRole } from "@prisma/client";
-import { PasswordResetStatus, PaymentStatus, TenantDeletionStatus } from "../../../node_modules/@smartshala/master-client/index.js";
+import { PasswordResetStatus, TenantDeletionStatus } from "../../../node_modules/@smartshala/master-client/index.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
 import { logger } from "../../config/logger.js";
 import { maskIdentifier } from "../../utils/maskSensitive.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
-import { expireTrials, trialEndsFrom } from "../../services/trial.service.js";
+import { extendSubscription, grantAccess, revokeAccess } from "../billing/billingAdmin.service.js";
+import { runSubscriptionMaintenance } from "../billing/billing.service.js";
 
 function signSuperAdminToken() {
   return jwt.sign(
@@ -118,7 +119,10 @@ export async function loginSuperAdmin(email: string, password: string, requestIp
 
 export async function listSchoolsForSuperAdmin() {
   assertMasterConfigured();
-  await expireTrials();
+  // Keep the list honest: roll lapsed terms forward before rendering them.
+  await runSubscriptionMaintenance().catch((err) =>
+    logger.error({ err }, "Subscription maintenance failed while listing schools")
+  );
   const schools = await masterPrisma.school.findMany({
     where: { deletionStatus: { not: TenantDeletionStatus.DELETED } },
     orderBy: { createdAt: "desc" },
@@ -136,7 +140,17 @@ export async function listSchoolsForSuperAdmin() {
       dbName: true,
       deletionStatus: true,
       deletionScheduledAt: true,
-      createdAt: true
+      createdAt: true,
+      subscription: {
+        select: {
+          status: true,
+          currentPeriodStart: true,
+          currentPeriodEnd: true,
+          gracePeriodEndsAt: true,
+          cancelAtPeriodEnd: true,
+          plan: { select: { code: true, name: true, priceMinor: true, currency: true, interval: true } }
+        }
+      }
     }
   });
 
@@ -381,19 +395,13 @@ export async function createTenantUser(
 
 export async function updateSchoolActiveStatus(schoolId: string, isActive: boolean) {
   assertMasterConfigured();
-  const school = await masterPrisma.school.findUnique({ where: { schoolId } });
-  if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
+  await tenantSchoolOrThrow(schoolId);
 
-  const now = new Date();
-  const startsTrial = isActive && school.isTrial && (!school.trialEndsAt || school.trialEndsAt <= now);
-
-  return masterPrisma.school.update({
+  // The subscription is the source of truth for access; School.isActive is a
+  // mirror of it kept for the tenant resolver and the legacy screens.
+  const subscription = isActive ? await grantAccess(schoolId) : await revokeAccess(schoolId);
+  const school = await masterPrisma.school.findUniqueOrThrow({
     where: { schoolId },
-    data: {
-      isActive,
-      ...(startsTrial ? { trialEndsAt: trialEndsFrom(now), paymentStatus: PaymentStatus.TRIAL } : {}),
-      ...(!isActive ? { deletionStatus: school.deletionStatus } : {})
-    },
     select: {
       schoolId: true,
       schoolName: true,
@@ -404,25 +412,16 @@ export async function updateSchoolActiveStatus(schoolId: string, isActive: boole
       trialEndsAt: true
     }
   });
+
+  return { ...school, subscription };
 }
 
 export async function extendSchoolAccess(schoolId: string, days: number) {
   assertMasterConfigured();
-  const school = await masterPrisma.school.findUnique({ where: { schoolId } });
-  if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
-
-  const now = new Date();
-  const base = school.trialEndsAt && school.trialEndsAt > now ? school.trialEndsAt : now;
-  const trialEndsAt = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
-
-  return masterPrisma.school.update({
+  await tenantSchoolOrThrow(schoolId);
+  const subscription = await extendSubscription(schoolId, days, "Extended from the super admin panel");
+  const school = await masterPrisma.school.findUniqueOrThrow({
     where: { schoolId },
-    data: {
-      isActive: true,
-      isTrial: true,
-      paymentStatus: PaymentStatus.TRIAL,
-      trialEndsAt
-    },
     select: {
       schoolId: true,
       schoolName: true,
@@ -433,6 +432,8 @@ export async function extendSchoolAccess(schoolId: string, days: number) {
       trialEndsAt: true
     }
   });
+
+  return { ...school, subscription };
 }
 
 export async function deleteSchool(schoolId: string) {

@@ -1,5 +1,5 @@
 import { env } from "./env";
-import { tenantApiBase } from "./tenant";
+import { tenantApiBase, withSchoolPath } from "./tenant";
 import { tokenStore } from "./tokenStore";
 import type { Role, SessionUser } from "@/types";
 
@@ -29,6 +29,26 @@ export async function refreshAccessToken(): Promise<string | null> {
 }
 
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+
+/**
+ * A tenant whose subscription lapsed gets 402 on everything except auth and
+ * billing. Send the principal to the page where they can actually fix it, and
+ * everyone else to the lockout notice.
+ */
+function handleSuspendedTenant() {
+  if (typeof window === "undefined") return;
+  let role: string | undefined;
+  try {
+    const stored = window.localStorage.getItem("smartshala.user");
+    if (stored) role = JSON.parse(stored)?.role;
+  } catch {
+    // Fall through to the generic lockout page.
+  }
+
+  const target = role === "PRINCIPAL" ? withSchoolPath("/subscription") : "/school-inactive";
+  if (window.location.pathname === target) return;
+  window.location.href = target;
+}
 
 function retryDelay(attempt: number, response?: Response) {
   const retryAfter = response?.headers.get("retry-after");
@@ -143,6 +163,9 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
+    if (response.status === 402 && payload?.error?.code === "SCHOOL_INACTIVE") {
+      handleSuspendedTenant();
+    }
     if (payload?.error?.code === "VALIDATION_ERROR" && payload.error.details) {
       const details = payload.error.details.fieldErrors;
       const firstError = Object.entries(details).map(([field, msgs]) => `${field}: ${(msgs as any)[0]}`).join(", ");
@@ -1478,3 +1501,170 @@ export const teachersApi = {
   search: (term: string) =>
     apiFetch<{ items: TeacherSearchItem[] }>(`/users/teachers?search=${encodeURIComponent(term)}&limit=5`)
 };
+
+// --- Billing -----------------------------------------------------------------
+
+export type BillingInterval = "MONTH" | "YEAR";
+export type SubscriptionStatus = "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELLED" | "EXPIRED";
+export type InvoiceStatus = "DRAFT" | "DUE" | "PAID" | "VOID" | "REFUNDED";
+export type PaymentState = "CREATED" | "AUTHORIZED" | "CAPTURED" | "FAILED" | "REFUNDED";
+
+export type Plan = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  priceMinor: number;
+  currency: string;
+  interval: BillingInterval;
+  intervalCount: number;
+  trialDays: number;
+  maxStudents: number | null;
+  maxStaff: number | null;
+  features: Record<string, boolean>;
+  isActive: boolean;
+  isPublic: boolean;
+  sortOrder: number;
+};
+
+export type PaymentRow = {
+  id: string;
+  provider: string;
+  gatewayMode: "MOCK" | "LIVE";
+  providerOrderId: string | null;
+  providerPaymentId: string | null;
+  status: PaymentState;
+  amountMinor: number;
+  currency: string;
+  method: string | null;
+  failureReason: string | null;
+  refundedMinor: number;
+  capturedAt: string | null;
+  createdAt: string;
+};
+
+export type Invoice = {
+  id: string;
+  number: string;
+  schoolId: string;
+  planCode: string;
+  planName: string;
+  status: InvoiceStatus;
+  currency: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  totalMinor: number;
+  amountPaidMinor: number;
+  couponCode: string | null;
+  periodStart: string;
+  periodEnd: string;
+  issuedAt: string;
+  dueAt: string;
+  paidAt: string | null;
+  notes: string | null;
+  payments: PaymentRow[];
+};
+
+export type BillingOverview = {
+  school: { schoolId: string; schoolName: string; email: string; phone: string };
+  subscription: {
+    id: string;
+    status: SubscriptionStatus;
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    gracePeriodEndsAt: string | null;
+    cancelAtPeriodEnd: boolean;
+    daysRemaining: number;
+    isExpired: boolean;
+    couponCode: string | null;
+  };
+  plan: Plan;
+  usage: {
+    students: number;
+    staff: number;
+    maxStudents: number | null;
+    maxStaff: number | null;
+    studentsOverLimit: boolean;
+    staffOverLimit: boolean;
+  };
+  openInvoice: Invoice | null;
+  invoices: Invoice[];
+  totals: { paidMinor: number; currency: string };
+  gateway: { mode: "MOCK" | "LIVE"; keyId: string };
+};
+
+export type PriceQuote = {
+  planCode: string;
+  planName: string;
+  currency: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  totalMinor: number;
+  taxPercent: number;
+  couponCode: string | null;
+  couponValid: boolean;
+  couponMessage: string;
+};
+
+export type CheckoutSession = {
+  mode: "MOCK" | "LIVE";
+  keyId: string;
+  orderId: string;
+  paymentId: string;
+  amountMinor: number;
+  currency: string;
+  invoice: {
+    id: string;
+    number: string;
+    planCode: string;
+    planName: string;
+    subtotalMinor: number;
+    discountMinor: number;
+    taxMinor: number;
+    totalMinor: number;
+    periodStart: string;
+    periodEnd: string;
+  };
+  school: { schoolId: string; schoolName: string; email: string; phone: string };
+};
+
+export type MockPayResult = {
+  status: "success";
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+export const billingApi = {
+  overview: () => apiFetch<BillingOverview>("/billing/overview"),
+  plans: () => apiFetch<Plan[]>("/billing/plans"),
+  quote: (planCode: string, couponCode?: string) =>
+    apiFetch<PriceQuote>(
+      `/billing/quote?planCode=${encodeURIComponent(planCode)}${couponCode ? `&couponCode=${encodeURIComponent(couponCode)}` : ""}`
+    ),
+  invoice: (invoiceId: string) => apiFetch<Invoice>(`/billing/invoices/${invoiceId}`),
+  checkout: (planCode: string, couponCode?: string | null) =>
+    apiFetch<CheckoutSession>("/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({ planCode, couponCode: couponCode || null })
+    }),
+  confirm: (payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
+    apiFetch<{ status: "PAID"; alreadyCaptured: boolean; invoice: Invoice }>("/billing/checkout/confirm", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  setAutoRenew: (autoRenew: boolean) =>
+    apiFetch<unknown>("/billing/auto-renew", { method: "PATCH", body: JSON.stringify({ autoRenew }) }),
+  /** Mock-gateway only: stands in for the Razorpay checkout popup. */
+  mockPay: (orderId: string, outcome: "success" | "failure", method: string) =>
+    apiFetch<MockPayResult>("/billing/mock-gateway/pay", {
+      method: "POST",
+      body: JSON.stringify({ orderId, outcome, method })
+    })
+};
+
+export function formatMinor(minor: number, currency = "INR") {
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 2 }).format(minor / 100);
+}

@@ -13,9 +13,10 @@ import { dbWarmup } from "./middleware/dbWarmup.js";
 import { tenantMiddleware } from "./middleware/tenant.middleware.js";
 import { requireTenantInMultiTenantMode } from "./middleware/requireTenant.js";
 import { apiRouter } from "./routes/index.js";
+import { webhooksRouter } from "./routes/webhooks.js";
 import { dbHealthHandler } from "./routes/health.js";
 import { startDatabaseDeletionWorker } from "./services/databaseDeletion.service.js";
-import { startTrialExpiryWorker } from "./services/trial.service.js";
+import { startSubscriptionWorker } from "./modules/billing/billing.service.js";
 
 function buildAllowedOrigins() {
   const configuredOrigins = env.CORS_ORIGIN.split(",")
@@ -55,6 +56,9 @@ export function createApp() {
     })
   );
   app.use(cookieParser());
+  // Payment webhooks must see the unparsed bytes to verify their HMAC, so they
+  // are mounted ahead of the JSON body parser.
+  app.use("/webhooks", webhooksRouter);
   app.use(express.json({ limit: "1mb" }));
   app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
   app.use(pinoHttp({ logger }));
@@ -68,7 +72,7 @@ export function createApp() {
   app.use(notFoundHandler);
   app.use(errorHandler);
   startDatabaseDeletionWorker();
-  startTrialExpiryWorker();
+  startSubscriptionWorker();
 
   return app;
 }

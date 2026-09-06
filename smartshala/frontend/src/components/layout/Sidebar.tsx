@@ -21,7 +21,8 @@ type NavIconName =
   | "logs"
   | "activity"
   | "settings"
-  | "exams";
+  | "exams"
+  | "billing";
 
 type NavLink = {
   label: string;
@@ -74,6 +75,13 @@ const adminLinks: NavItem[] = [
   { label: "Setting", href: "/settings", icon: "settings" }
 ];
 
+// Subscription is the principal's commercial relationship with SmartShala, so
+// it is deliberately not shown to school ADMINs.
+const principalLinks: NavItem[] = [
+  ...adminLinks,
+  { label: "Subscription", href: "/subscription", icon: "billing" }
+];
+
 const teacherLinks: NavItem[] = [
   { label: "Dashboard", href: "/teacher", icon: "dashboard" },
   { label: "Classes", href: "/teacher/classes", icon: "classes" },
@@ -98,6 +106,7 @@ function isAdminRole(role: Role) {
 }
 
 function linksForRole(role: Role) {
+  if (role === "PRINCIPAL") return principalLinks;
   if (isAdminRole(role)) return adminLinks;
   if (role === "ACCOUNTANT") return accountantLinks;
   if (role === "PARENT") return parentLinks;
@@ -242,6 +251,16 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
     return (
       <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 20V10M12 20V4M18 20v-8" />
+      </svg>
+    );
+  }
+
+  if (icon === "billing") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect height="14" rx="2" width="20" x="2" y="5" />
+        <path d="M2 10h20" />
+        <path d="M6 15h4" />
       </svg>
     );
   }

@@ -19,6 +19,8 @@ declare global {
         schoolId: string;
         schoolName: string;
         dbName: string;
+        /** Subscription lapsed: only the auth and billing routes are reachable. */
+        suspended?: boolean;
       };
     }
   }
