@@ -2,7 +2,6 @@ import { Router } from "express";
 import { asyncHandler } from "../../core/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { schoolIdParamSchema } from "../superAdmin/superAdmin.schemas.js";
-import { listPlans } from "./billing.service.js";
 import {
   archivePlan,
   changeSchoolPlan,
@@ -19,6 +18,7 @@ import {
   listSubscriptions,
   markInvoicePaidOffline,
   refundPayment,
+  setCustomPrice,
   setSubscriptionStatus,
   updateCoupon,
   updatePlan,
@@ -29,6 +29,7 @@ import {
   couponIdParamSchema,
   createCouponSchema,
   createPlanSchema,
+  customPriceSchema,
   extendSubscriptionSchema,
   invoiceListQuerySchema,
   invoiceParamSchema,
@@ -155,6 +156,14 @@ billingAdminRouter.patch(
 );
 
 billingAdminRouter.patch(
+  "/schools/:schoolId/price",
+  validate({ params: schoolIdParamSchema, body: customPriceSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await setCustomPrice({ schoolId: req.params.schoolId, ...req.body }));
+  })
+);
+
+billingAdminRouter.patch(
   "/schools/:schoolId/extend",
   validate({ params: schoolIdParamSchema, body: extendSubscriptionSchema }),
   asyncHandler(async (req, res) => {
@@ -215,13 +224,5 @@ billingAdminRouter.post(
   validate({ params: paymentIdParamSchema, body: refundSchema }),
   asyncHandler(async (req, res) => {
     res.json(await refundPayment({ paymentId: req.params.paymentId, ...req.body }));
-  })
-);
-
-// Convenience for the onboarding screens: the raw public catalogue.
-billingAdminRouter.get(
-  "/public-plans",
-  asyncHandler(async (_req, res) => {
-    res.json(await listPlans({ publicOnly: true }));
   })
 );

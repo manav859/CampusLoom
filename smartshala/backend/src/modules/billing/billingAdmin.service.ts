@@ -7,10 +7,14 @@ import {
   TenantDeletionStatus
 } from "../../../node_modules/@smartshala/master-client/index.js";
 import type { BillingInterval, DiscountType } from "../../../node_modules/@smartshala/master-client/index.js";
+import { UserRole } from "@prisma/client";
+import { env } from "../../config/env.js";
+import { logger } from "../../config/logger.js";
 import { AppError } from "../../core/errors.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { razorpay } from "../../services/razorpay/index.js";
-import { addDays, periodEndFrom, rupeesFromMinor } from "./billing.pricing.js";
+import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
+import { addDays, effectivePriceMinor, periodEndFrom, rupeesFromMinor } from "./billing.pricing.js";
 import {
   createInvoice,
   ensureSubscription,
@@ -249,14 +253,15 @@ export async function getSchoolBilling(schoolId: string) {
   if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
 
   const subscription = await ensureSubscription(schoolId);
-  const [invoices, events] = await Promise.all([
+  const [invoices, events, usage] = await Promise.all([
     masterPrisma.invoice.findMany({
       where: { schoolId },
       orderBy: { issuedAt: "desc" },
       take: 100,
       include: { payments: { orderBy: { createdAt: "desc" } } }
     }),
-    masterPrisma.billingEvent.findMany({ where: { schoolId }, orderBy: { createdAt: "desc" }, take: 50 })
+    masterPrisma.billingEvent.findMany({ where: { schoolId }, orderBy: { createdAt: "desc" }, take: 50 }),
+    getSchoolUsage(schoolId)
   ]);
 
   return {
@@ -271,6 +276,17 @@ export async function getSchoolBilling(schoolId: string) {
       numberOfStaff: school.numberOfStaff
     },
     subscription,
+    pricing: {
+      listPriceMinor: subscription.plan.priceMinor,
+      effectivePriceMinor: effectivePriceMinor(subscription.plan, subscription),
+      isCustomPrice: subscription.customPriceMinor !== null,
+      customPriceNote: subscription.customPriceNote
+    },
+    usage: {
+      ...usage,
+      maxStudents: subscription.plan.maxStudents,
+      maxStaff: subscription.plan.maxStaff
+    },
     invoices,
     events,
     gateway: { mode: razorpay.mode }
@@ -284,32 +300,76 @@ export async function changeSchoolPlan(input: {
   restartPeriod: boolean;
   status?: SubscriptionStatus;
   reason?: string;
+  /**
+   * Negotiated rate to carry onto the new plan. Undefined clears any existing
+   * override, so a plan change defaults back to list price rather than silently
+   * keeping a rate that was agreed for a different plan.
+   */
+  customPriceRupees?: number | null;
+  /** Skip the plan-size check when the downgrade is deliberate. */
+  force?: boolean;
 }) {
   assertMaster();
   const plan = await getPlanByCodeOrThrow(input.planCode);
   const current = await ensureSubscription(input.schoolId);
+
+  // Refuse a downgrade the school does not fit into, unless it is forced. Left
+  // unchecked this silently puts a school over its own plan on day one.
+  if (!input.force && (plan.maxStudents !== null || plan.maxStaff !== null)) {
+    const usage = await getSchoolUsage(input.schoolId);
+    const over: string[] = [];
+    if (plan.maxStudents !== null && usage.students !== null && usage.students > plan.maxStudents) {
+      over.push(`${usage.students} students against a limit of ${plan.maxStudents}`);
+    }
+    if (plan.maxStaff !== null && usage.staff !== null && usage.staff > plan.maxStaff) {
+      over.push(`${usage.staff} staff against a limit of ${plan.maxStaff}`);
+    }
+    if (over.length) {
+      throw new AppError(
+        409,
+        `${plan.name} is too small for this school: ${over.join(" and ")}. Re-send with force to override.`,
+        "PLAN_TOO_SMALL",
+        { over, planCode: plan.code }
+      );
+    }
+  }
+
   const now = new Date();
   const periodStart = input.restartPeriod ? now : current.currentPeriodStart;
   const periodEnd = input.restartPeriod ? periodEndFrom(plan, now) : current.currentPeriodEnd;
+  const customPriceMinor =
+    input.customPriceRupees === undefined || input.customPriceRupees === null
+      ? null
+      : Math.round(input.customPriceRupees * 100);
+  const priceMinor = customPriceMinor ?? plan.priceMinor;
 
   const updated = await masterPrisma.subscription.update({
     where: { schoolId: input.schoolId },
     data: {
       planId: plan.id,
-      status: input.status ?? (plan.priceMinor === 0 ? SubscriptionStatus.TRIALING : SubscriptionStatus.ACTIVE),
+      status: input.status ?? (priceMinor === 0 ? SubscriptionStatus.TRIALING : SubscriptionStatus.ACTIVE),
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
-      gracePeriodEndsAt: null
+      gracePeriodEndsAt: null,
+      customPriceMinor,
+      customPriceNote: customPriceMinor === null ? null : (input.reason ?? current.customPriceNote)
     },
     include: { plan: true }
   });
   await syncSchoolFromSubscription(updated);
 
+  const priceNote =
+    customPriceMinor === null
+      ? current.customPriceMinor === null
+        ? ""
+        : " (custom price cleared, back to list price)"
+      : ` at a negotiated INR ${rupeesFromMinor(customPriceMinor)}`;
+
   await recordBillingEvent({
     schoolId: input.schoolId,
     actor: SUPER_ADMIN_ACTOR,
     action: "subscription.plan_changed",
-    message: `Plan changed ${current.plan.code} → ${plan.code}${input.reason ? ` (${input.reason})` : ""}`
+    message: `Plan changed ${current.plan.code} → ${plan.code}${priceNote}${input.reason ? ` (${input.reason})` : ""}`
   });
   return updated;
 }
@@ -389,7 +449,8 @@ export async function createManualInvoice(input: {
     periodStart,
     periodEnd: periodEndFrom(plan, periodStart),
     couponCode: input.couponCode,
-    notes: input.notes ?? "Raised by super admin"
+    notes: input.notes ?? "Raised by super admin",
+    subscription
   });
 
   await recordBillingEvent({
@@ -473,9 +534,18 @@ export async function voidInvoice(invoiceId: string, reason: string) {
     throw new AppError(409, "A paid invoice cannot be voided — issue a refund instead", "INVOICE_ALREADY_PAID");
   }
 
-  const updated = await masterPrisma.invoice.update({
-    where: { id: invoiceId },
-    data: { status: InvoiceStatus.VOID, voidedAt: new Date(), notes: reason }
+  const updated = await masterPrisma.$transaction(async (tx) => {
+    // A voided invoice never consumed its coupon either.
+    if (invoice.couponCode) {
+      await tx.coupon.updateMany({
+        where: { code: invoice.couponCode, redeemedCount: { gt: 0 } },
+        data: { redeemedCount: { decrement: 1 } }
+      });
+    }
+    return tx.invoice.update({
+      where: { id: invoiceId },
+      data: { status: InvoiceStatus.VOID, voidedAt: new Date(), notes: reason }
+    });
   });
   await recordBillingEvent({
     schoolId: invoice.schoolId,
@@ -516,14 +586,40 @@ export async function refundPayment(input: { paymentId: string; amountRupees?: n
     });
 
     const invoicePaid = payment.invoice.amountPaidMinor - amountMinor;
+    const fullyRefunded = invoicePaid <= 0;
+
     await tx.invoice.update({
       where: { id: payment.invoiceId },
       data: {
         amountPaidMinor: Math.max(0, invoicePaid),
-        status: invoicePaid <= 0 ? InvoiceStatus.REFUNDED : payment.invoice.status
+        status: fullyRefunded ? InvoiceStatus.REFUNDED : payment.invoice.status
       }
     });
+
+    if (fullyRefunded) {
+      // Refunding the money has to take back what the money bought, otherwise
+      // the school keeps the term it no longer paid for. Drop to PAST_DUE with
+      // the standard grace window rather than cutting access off mid-lesson.
+      await tx.subscription.updateMany({
+        where: { schoolId: payment.schoolId, status: SubscriptionStatus.ACTIVE },
+        data: {
+          status: SubscriptionStatus.PAST_DUE,
+          gracePeriodEndsAt: addDays(new Date(), env.BILLING_GRACE_DAYS)
+        }
+      });
+
+      // A refunded order never really consumed its coupon.
+      if (payment.invoice.couponCode) {
+        await tx.coupon.updateMany({
+          where: { code: payment.invoice.couponCode, redeemedCount: { gt: 0 } },
+          data: { redeemedCount: { decrement: 1 } }
+        });
+      }
+    }
   });
+
+  const subscription = await findSubscription(payment.schoolId);
+  if (subscription) await syncSchoolFromSubscription(subscription);
 
   await recordBillingEvent({
     schoolId: payment.schoolId,
@@ -565,7 +661,7 @@ export async function getRevenueSummary() {
   // Normalise every active plan to a monthly figure so MRR is comparable.
   const mrrMinor = subscriptions.reduce((sum, row) => {
     const months = row.plan.interval === "YEAR" ? 12 * row.plan.intervalCount : row.plan.intervalCount;
-    return sum + Math.round(row.plan.priceMinor / Math.max(1, months));
+    return sum + Math.round(effectivePriceMinor(row.plan, row) / Math.max(1, months));
   }, 0);
 
   const expiringSoon = await masterPrisma.subscription.count({
@@ -708,4 +804,84 @@ export async function bootstrapSubscription(input: {
   });
 
   return subscription;
+}
+
+// --- Negotiated pricing ------------------------------------------------------
+
+/**
+ * Set or clear this school's negotiated rate. Every school bills at its plan's
+ * list price by default; this is the escape hatch for a deal that was agreed
+ * separately. Passing null returns the school to list price.
+ *
+ * The change applies to invoices raised from now on. Invoices already issued
+ * keep the amount they were issued at — repricing history would make the ledger
+ * disagree with what the school was actually asked to pay.
+ */
+export async function setCustomPrice(input: {
+  schoolId: string;
+  priceRupees: number | null;
+  note?: string | null;
+}) {
+  assertMaster();
+  const subscription = await ensureSubscription(input.schoolId);
+  const customPriceMinor = input.priceRupees === null ? null : Math.round(input.priceRupees * 100);
+
+  const updated = await masterPrisma.subscription.update({
+    where: { schoolId: input.schoolId },
+    data: {
+      customPriceMinor,
+      customPriceNote: customPriceMinor === null ? null : (input.note ?? null)
+    },
+    include: { plan: true }
+  });
+
+  const openInvoices = await masterPrisma.invoice.count({
+    where: { schoolId: input.schoolId, status: InvoiceStatus.DUE }
+  });
+
+  await recordBillingEvent({
+    schoolId: input.schoolId,
+    actor: SUPER_ADMIN_ACTOR,
+    action: customPriceMinor === null ? "subscription.custom_price_cleared" : "subscription.custom_price_set",
+    message:
+      customPriceMinor === null
+        ? `Custom price cleared; back to ${updated.plan.name} list price of INR ${rupeesFromMinor(updated.plan.priceMinor)}`
+        : `Custom price set to INR ${rupeesFromMinor(customPriceMinor)} per ${updated.plan.interval.toLowerCase()} (list is INR ${rupeesFromMinor(updated.plan.priceMinor)})${input.note ? ` — ${input.note}` : ""}`,
+    metadata: { previousMinor: subscription.customPriceMinor, newMinor: customPriceMinor }
+  });
+
+  return {
+    subscription: updated,
+    effectivePriceMinor: effectivePriceMinor(updated.plan, updated),
+    listPriceMinor: updated.plan.priceMinor,
+    // An invoice already raised keeps its old amount, so say so plainly rather
+    // than letting the super admin assume the new rate applied retroactively.
+    openInvoicesUnchanged: openInvoices
+  };
+}
+
+/**
+ * How many students and staff a school actually has, read from its own
+ * database. The super admin decides upgrades, so it needs the same numbers the
+ * principal sees on the subscription page.
+ */
+export async function getSchoolUsage(schoolId: string) {
+  const school = await masterPrisma.school.findUnique({ where: { schoolId } });
+  if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
+
+  try {
+    const tenantPrisma = getTenantPrismaClient(school.dbUrl);
+    const [students, staff] = await Promise.all([
+      tenantPrisma.student.count({ where: { isActive: true } }),
+      tenantPrisma.user.count({
+        where: { isActive: true, role: { in: [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.TEACHER, UserRole.ACCOUNTANT] } }
+      })
+    ]);
+    return { students, staff, reachable: true as const };
+  } catch (error) {
+    // A sleeping or unreachable tenant database must not break the billing
+    // screen — report it instead of failing the whole request.
+    logger.warn({ err: error, schoolId }, "Could not read tenant usage for billing");
+    return { students: null, staff: null, reachable: false as const };
+  }
 }

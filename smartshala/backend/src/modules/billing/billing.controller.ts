@@ -7,6 +7,7 @@ import { assertMockGateway, razorpay } from "../../services/razorpay/index.js";
 import { quotePlan } from "./billing.pricing.js";
 import {
   confirmCheckout,
+  ensureSubscription,
   createCheckoutSession,
   getBillingOverview,
   getInvoice,
@@ -51,7 +52,9 @@ export const getPlans = asyncHandler(async (_req: Request, res: Response) => {
 
 export const getQuote = asyncHandler(async (req: Request, res: Response) => {
   const plan = await getPlanByCodeOrThrow(String(req.query.planCode));
-  res.json(await quotePlan(plan, req.query.couponCode as string | undefined));
+  // Quote at whatever this school actually pays, not the list price.
+  const subscription = await ensureSubscription(tenantSchoolId(req));
+  res.json(await quotePlan(plan, req.query.couponCode as string | undefined, subscription));
 });
 
 export const getInvoices = asyncHandler(async (req: Request, res: Response) => {

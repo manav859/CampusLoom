@@ -167,6 +167,11 @@ model Subscription {
   cancelAtPeriodEnd  Boolean            @default(false)
   cancelledAt        DateTime?
   couponCode         String?
+  // Negotiated rate for this one school. Null means "charge the plan's list
+  // price", which is the default for everybody. Set it and every invoice and
+  // renewal for this school bills at this amount instead.
+  customPriceMinor   Int?
+  customPriceNote    String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @default(now()) @updatedAt
 

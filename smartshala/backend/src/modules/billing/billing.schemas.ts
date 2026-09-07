@@ -84,7 +84,17 @@ export const changePlanSchema = z.object({
   planCode,
   restartPeriod: z.boolean().default(true),
   status: z.enum(["TRIALING", "ACTIVE", "PAST_DUE", "CANCELLED", "EXPIRED"]).optional(),
-  reason: z.string().trim().max(300).optional()
+  reason: z.string().trim().max(300).optional(),
+  // Omit to bill at the plan list price; send a number to carry a negotiated
+  // rate onto the new plan.
+  customPriceRupees: z.coerce.number().min(0).max(100_000_000).nullable().optional(),
+  force: z.boolean().default(false)
+});
+
+export const customPriceSchema = z.object({
+  // null clears the override and returns the school to the plan list price.
+  priceRupees: z.coerce.number().min(0).max(100_000_000).nullable(),
+  note: z.string().trim().max(300).optional().nullable()
 });
 
 export const extendSubscriptionSchema = z.object({

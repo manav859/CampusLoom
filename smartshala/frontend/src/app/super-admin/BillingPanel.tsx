@@ -20,6 +20,8 @@ type SubscriptionRow = {
   id: string;
   schoolId: string;
   status: SubscriptionStatus;
+  customPriceMinor: number | null;
+  customPriceNote: string | null;
   currentPeriodStart: string;
   currentPeriodEnd: string;
   gracePeriodEndsAt: string | null;
@@ -44,13 +46,28 @@ type Summary = {
 type SchoolBilling = {
   school: { schoolId: string; schoolName: string; ownerName: string; email: string; isActive: boolean };
   subscription: SubscriptionRow & { plan: Plan };
+  pricing: {
+    listPriceMinor: number;
+    effectivePriceMinor: number;
+    isCustomPrice: boolean;
+    customPriceNote: string | null;
+  };
+  usage: {
+    students: number | null;
+    staff: number | null;
+    reachable: boolean;
+    maxStudents: number | null;
+    maxStaff: number | null;
+  };
   invoices: Invoice[];
   events: { id: string; actor: string; action: string; message: string; createdAt: string }[];
 };
 
+type LedgerInvoice = Invoice & { school: { schoolName: string } };
+
 type PlanRow = Plan & { subscriberCount: number };
 
-const TABS = ["Overview", "Plans", "Coupons", "Subscriptions"] as const;
+const TABS = ["Overview", "Plans", "Coupons", "Subscriptions", "Invoices"] as const;
 type Tab = (typeof TABS)[number];
 
 const card = "rounded-2xl border border-[#dce3ef] bg-white p-4 shadow-sm";
@@ -102,6 +119,10 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [detail, setDetail] = useState<SchoolBilling | null>(null);
+  const [ledger, setLedger] = useState<LedgerInvoice[]>([]);
+  const [ledgerStatus, setLedgerStatus] = useState<"" | Invoice["status"]>("DUE");
+  const [priceDraft, setPriceDraft] = useState("");
+  const [priceNote, setPriceNote] = useState("");
   const [busy, setBusy] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | SubscriptionStatus>("");
@@ -135,14 +156,21 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
     setSubscriptions(await superAdminFetch<SubscriptionRow[]>(`/billing/subscriptions?${params.toString()}`));
   }, [query, statusFilter]);
 
+  const loadLedger = useCallback(async () => {
+    const params = new URLSearchParams();
+    if (ledgerStatus) params.set("status", ledgerStatus);
+    setLedger(await superAdminFetch<LedgerInvoice[]>(`/billing/invoices?${params.toString()}`));
+  }, [ledgerStatus]);
+
   useEffect(() => {
     void run("load", async () => {
       if (tab === "Overview") await loadSummary();
       if (tab === "Plans") await loadPlans();
       if (tab === "Coupons") await loadCoupons();
       if (tab === "Subscriptions") await loadSubscriptions();
+      if (tab === "Invoices") await loadLedger();
     });
-  }, [tab, loadSummary, loadPlans, loadCoupons, loadSubscriptions, run]);
+  }, [tab, loadSummary, loadPlans, loadCoupons, loadSubscriptions, loadLedger, run]);
 
   const outstandingLabel = useMemo(
     () => (summary ? `${summary.outstandingInvoiceCount} invoice${summary.outstandingInvoiceCount === 1 ? "" : "s"}` : ""),
@@ -264,8 +292,49 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
 
   function openSchool(schoolId: string) {
     void run(`school-${schoolId}`, async () => {
-      setDetail(await superAdminFetch<SchoolBilling>(`/billing/schools/${schoolId}`));
+      // The plan list drives the change-plan selector, so make sure it is loaded
+      // even when the super admin came straight to the Subscriptions tab.
+      const [billing] = await Promise.all([
+        superAdminFetch<SchoolBilling>(`/billing/schools/${schoolId}`),
+        plans.length ? Promise.resolve() : loadPlans()
+      ]);
+      setDetail(billing);
+      setPriceDraft(billing.subscription.customPriceMinor === null ? "" : String(billing.subscription.customPriceMinor / 100));
+      setPriceNote(billing.subscription.customPriceNote ?? "");
     });
+  }
+
+  function saveCustomPrice(schoolId: string) {
+    const trimmed = priceDraft.trim();
+    void run(
+      `price-${schoolId}`,
+      async () => {
+        await superAdminFetch(`/billing/schools/${schoolId}/price`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            priceRupees: trimmed === "" ? null : Number(trimmed),
+            note: priceNote.trim() || null
+          })
+        });
+        await refreshDetail();
+      },
+      trimmed === "" ? "Back to plan list price." : `Custom price set to ₹${Number(trimmed).toLocaleString("en-IN")}.`
+    );
+  }
+
+  function setStatus(schoolId: string, status: SubscriptionStatus) {
+    const reason = window.prompt(`Why are you moving this subscription to ${status}?`) ?? "";
+    void run(
+      `status-${schoolId}`,
+      async () => {
+        await superAdminFetch(`/billing/schools/${schoolId}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status, reason: reason || undefined })
+        });
+        await refreshDetail();
+      },
+      `Subscription set to ${status}.`
+    );
   }
 
   async function refreshDetail() {
@@ -300,10 +369,14 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
   }
 
   function raiseInvoice(schoolId: string, planCode: string) {
+    const couponCode = window.prompt("Coupon code to apply (leave blank for none)") ?? "";
     void run(
       `invoice-${schoolId}`,
       async () => {
-        await superAdminFetch(`/billing/schools/${schoolId}/invoices`, { method: "POST", body: JSON.stringify({ planCode }) });
+        await superAdminFetch(`/billing/schools/${schoolId}/invoices`, {
+          method: "POST",
+          body: JSON.stringify({ planCode, couponCode: couponCode.trim() || null })
+        });
         await refreshDetail();
       },
       "Invoice raised."
@@ -340,13 +413,28 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
     );
   }
 
-  function refund(paymentId: string, invoiceNumber: string) {
+  function refund(paymentId: string, invoiceNumber: string, refundableMinor: number) {
     const reason = window.prompt(`Reason for refunding the payment on ${invoiceNumber}?`);
     if (!reason) return;
+    const maxRupees = refundableMinor / 100;
+    const entered = window.prompt(
+      `Amount to refund in INR (blank refunds the full ₹${maxRupees.toLocaleString("en-IN")})`,
+      String(maxRupees)
+    );
+    if (entered === null) return;
+    const amountRupees = entered.trim() === "" ? undefined : Number(entered);
+    if (amountRupees !== undefined && (!Number.isFinite(amountRupees) || amountRupees <= 0 || amountRupees > maxRupees)) {
+      onError(`Refund must be between ₹1 and ₹${maxRupees.toLocaleString("en-IN")}`);
+      return;
+    }
+
     void run(
       `refund-${paymentId}`,
       async () => {
-        await superAdminFetch(`/billing/payments/${paymentId}/refund`, { method: "POST", body: JSON.stringify({ reason }) });
+        await superAdminFetch(`/billing/payments/${paymentId}/refund`, {
+          method: "POST",
+          body: JSON.stringify({ reason, ...(amountRupees === undefined ? {} : { amountRupees }) })
+        });
         await refreshDetail();
       },
       "Refund processed."
@@ -854,6 +942,105 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                 >
                   Raise invoice
                 </button>
+                <label className="block text-xs font-bold text-[#334155]">
+                  Set status
+                  <select
+                    className={`${input} mt-1 max-w-[180px] bg-white`}
+                    disabled={busy.startsWith("status")}
+                    onChange={(e) => {
+                      if (e.target.value) setStatus(detail.school.schoolId, e.target.value as SubscriptionStatus);
+                      e.target.value = "";
+                    }}
+                    value=""
+                  >
+                    <option disabled value="">
+                      Choose
+                    </option>
+                    {(Object.keys(STATUS_CLASS) as SubscriptionStatus[])
+                      .filter((status) => status !== detail.subscription.status)
+                      .map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
+
+              {/* Pricing: list price by default, negotiated rate when set. */}
+              <div className="mt-5 grid gap-4 rounded-xl border border-[#dce3ef] bg-[#f8fafc] p-4 lg:grid-cols-[1fr_auto]">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#64748b]">Pricing</p>
+                  <p className="mt-2 text-lg font-semibold text-[#111827]">
+                    {formatMinor(detail.pricing.effectivePriceMinor, detail.subscription.plan.currency)}
+                    <span className="ml-1 text-xs font-semibold text-[#64748b]">
+                      per {detail.subscription.plan.interval.toLowerCase()}
+                    </span>
+                    {detail.pricing.isCustomPrice ? (
+                      <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800">Custom</span>
+                    ) : (
+                      <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">List price</span>
+                    )}
+                  </p>
+                  {detail.pricing.isCustomPrice ? (
+                    <p className="mt-1 text-xs text-[#64748b]">
+                      Plan list price is {formatMinor(detail.pricing.listPriceMinor, detail.subscription.plan.currency)}
+                      {detail.pricing.customPriceNote ? ` · ${detail.pricing.customPriceNote}` : ""}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-xs text-[#64748b]">This school is billed at the plan&apos;s list price.</p>
+                  )}
+                  <p className="mt-2 text-xs text-[#64748b]">
+                    Applies to invoices raised from now on. Invoices already issued keep the amount they were issued at.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="block text-xs font-bold text-[#334155]">
+                    Custom price (INR, ex-GST)
+                    <input
+                      className={`${input} mt-1 max-w-[180px]`}
+                      onChange={(e) => setPriceDraft(e.target.value)}
+                      placeholder="Blank = list price"
+                      type="number"
+                      value={priceDraft}
+                    />
+                  </label>
+                  <label className="block text-xs font-bold text-[#334155]">
+                    Note
+                    <input
+                      className={`${input} mt-1 max-w-[220px]`}
+                      onChange={(e) => setPriceNote(e.target.value)}
+                      placeholder="e.g. 3-year deal"
+                      value={priceNote}
+                    />
+                  </label>
+                  <button
+                    className={primaryBtn}
+                    disabled={busy === `price-${detail.school.schoolId}`}
+                    onClick={() => saveCustomPrice(detail.school.schoolId)}
+                    type="button"
+                  >
+                    {priceDraft.trim() === "" ? "Use list price" : "Save price"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Usage, so upgrade decisions are made against real numbers. */}
+              <div className="mt-4 flex flex-wrap gap-4 text-sm">
+                {detail.usage.reachable ? (
+                  <>
+                    <span className="text-[#334155]">
+                      <span className="font-semibold">{detail.usage.students?.toLocaleString("en-IN")}</span> students
+                      <span className="text-[#64748b]"> / {detail.usage.maxStudents?.toLocaleString("en-IN") ?? "unlimited"}</span>
+                    </span>
+                    <span className="text-[#334155]">
+                      <span className="font-semibold">{detail.usage.staff?.toLocaleString("en-IN")}</span> staff
+                      <span className="text-[#64748b]"> / {detail.usage.maxStaff?.toLocaleString("en-IN") ?? "unlimited"}</span>
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-[#64748b]">Usage unavailable — the school database could not be reached.</span>
+                )}
               </div>
 
               <div className="mt-5 overflow-x-auto">
@@ -899,7 +1086,7 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                                 <button
                                   className="min-h-9 rounded-lg border border-red-300 bg-red-50 px-3 text-xs font-bold text-red-700 disabled:opacity-60"
                                   disabled={busy === `refund-${captured.id}`}
-                                  onClick={() => refund(captured.id, invoice.number)}
+                                  onClick={() => refund(captured.id, invoice.number, captured.amountMinor - captured.refundedMinor)}
                                   type="button"
                                 >
                                   Refund
@@ -934,6 +1121,86 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
               </div>
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* Invoice ledger -------------------------------------------------------- */}
+      {tab === "Invoices" ? (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className={`${input} max-w-[200px] bg-white`}
+              onChange={(e) => setLedgerStatus(e.target.value as "" | Invoice["status"])}
+              value={ledgerStatus}
+            >
+              <option value="">All statuses</option>
+              {(["DUE", "PAID", "VOID", "REFUNDED", "DRAFT"] as Invoice["status"][]).map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+            <button className={primaryBtn} disabled={busy === "load"} onClick={() => void run("load", loadLedger)} type="button">
+              Refresh
+            </button>
+            <span className="text-sm font-semibold text-[#64748b]">
+              {ledger.length} invoice{ledger.length === 1 ? "" : "s"} ·{" "}
+              {formatMinor(ledger.reduce((sum, invoice) => sum + invoice.totalMinor, 0))} total
+            </span>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-[#dce3ef] bg-white shadow-sm">
+            <table className="w-full min-w-[900px] border-collapse text-sm">
+              <thead className="table-head text-left text-xs uppercase tracking-wide">
+                <tr>
+                  <th className="px-4 py-3">Invoice</th>
+                  <th className="px-4 py-3">School</th>
+                  <th className="px-4 py-3">Issued</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Paid</th>
+                  <th className="px-4 py-3 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ledger.map((invoice) => (
+                  <tr className="border-t border-[#eef2f7]" key={invoice.id}>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold">{invoice.number}</p>
+                      <p className="text-xs text-[#64748b]">{invoice.planName}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        className="text-left font-semibold text-[#2456e6] hover:underline"
+                        onClick={() => {
+                          setTab("Subscriptions");
+                          openSchool(invoice.schoolId);
+                        }}
+                        type="button"
+                      >
+                        {invoice.school?.schoolName ?? invoice.schoolId}
+                      </button>
+                      <p className="text-xs text-[#64748b]">{invoice.schoolId}</p>
+                    </td>
+                    <td className="px-4 py-3 text-[#64748b]">{fmtDate(invoice.issuedAt)}</td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-[#f1f5f9] px-2 py-1 text-xs font-bold">{invoice.status}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-[#64748b]">
+                      {formatMinor(invoice.amountPaidMinor, invoice.currency)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold">{formatMinor(invoice.totalMinor, invoice.currency)}</td>
+                  </tr>
+                ))}
+                {ledger.length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-4 text-sm text-[#64748b]" colSpan={6}>
+                      No invoices match that filter.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : null}
     </section>

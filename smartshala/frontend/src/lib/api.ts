@@ -1580,6 +1580,11 @@ export type BillingOverview = {
     couponCode: string | null;
   };
   plan: Plan;
+  pricing: {
+    listPriceMinor: number;
+    effectivePriceMinor: number;
+    isCustomPrice: boolean;
+  };
   usage: {
     students: number;
     staff: number;
@@ -1599,6 +1604,8 @@ export type PriceQuote = {
   planName: string;
   currency: string;
   subtotalMinor: number;
+  listPriceMinor: number;
+  isCustomPrice: boolean;
   discountMinor: number;
   taxMinor: number;
   totalMinor: number;
