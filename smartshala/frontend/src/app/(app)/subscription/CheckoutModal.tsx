@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui";
 import { billingApi, formatMinor, type CheckoutSession } from "@/lib/api";
+import { RazorpayCheckout } from "./RazorpayCheckout";
 
 const METHODS = [
   { id: "upi", label: "UPI" },
@@ -13,22 +14,30 @@ const METHODS = [
 
 const rowClass = "flex items-center justify-between text-[13px]";
 
-/**
- * Stands in for the Razorpay checkout popup while RAZORPAY_MODE=mock. It only
- * asks the backend's mock gateway to produce a signed result, then hands that
- * to the same /checkout/confirm endpoint the real gateway callback would hit —
- * so swapping in the live SDK later means replacing this component and nothing
- * behind it.
- */
-export function CheckoutModal({
-  session,
-  onClose,
-  onPaid
-}: {
+type CheckoutProps = {
   session: CheckoutSession | null;
   onClose: () => void;
   onPaid: (invoiceNumber: string) => void;
-}) {
+};
+
+/**
+ * Which checkout the principal gets is the server's call, not the browser's:
+ * the session carries the gateway mode the order was actually created against.
+ */
+export function CheckoutModal(props: CheckoutProps) {
+  if (props.session?.mode === "LIVE") {
+    return <RazorpayCheckout onClose={props.onClose} onPaid={props.onPaid} session={props.session} />;
+  }
+  return <MockCheckout {...props} />;
+}
+
+/**
+ * Stands in for the Razorpay checkout popup while RAZORPAY_MODE=mock. It only
+ * asks the backend's mock gateway to produce a signed result, then hands that
+ * to the same /checkout/confirm endpoint the real gateway callback hits — so
+ * both gateways settle an invoice through exactly one code path.
+ */
+function MockCheckout({ session, onClose, onPaid }: CheckoutProps) {
   const [method, setMethod] = useState<string>("upi");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
