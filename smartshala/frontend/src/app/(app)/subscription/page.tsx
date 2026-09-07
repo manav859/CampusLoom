@@ -108,6 +108,18 @@ export default function SubscriptionPage() {
     }
   }
 
+  async function downloadInvoice(invoice: Invoice) {
+    setBusy(`pdf-${invoice.id}`);
+    setError("");
+    try {
+      await billingApi.downloadInvoicePdf(invoice.id, invoice.number);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to download that invoice");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function startCheckout(planCode: string) {
     setBusy(planCode);
     setError("");
@@ -501,6 +513,15 @@ export default function SubscriptionPage() {
                 <p className="mt-1 text-[12px] text-[#5A6573]">No payment attempts recorded yet.</p>
               )}
             </div>
+
+            <button
+              className="min-h-11 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-5 text-[14px] font-semibold text-[#031526] hover:bg-[#F7F8FB] disabled:opacity-50"
+              disabled={busy === `pdf-${openInvoice.id}`}
+              onClick={() => void downloadInvoice(openInvoice)}
+              type="button"
+            >
+              {busy === `pdf-${openInvoice.id}` ? "Preparing…" : "Download invoice (PDF)"}
+            </button>
 
             {openInvoice.status === "DUE" ? (
               <button

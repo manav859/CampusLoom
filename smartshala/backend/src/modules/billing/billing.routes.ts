@@ -26,6 +26,7 @@ billingRouter.get("/plans", controller.getPlans);
 billingRouter.get("/quote", validate({ query: quoteQuerySchema }), controller.getQuote);
 billingRouter.get("/invoices", controller.getInvoices);
 billingRouter.get("/invoices/:invoiceId", validate({ params: invoiceParamSchema }), controller.getInvoiceDetail);
+billingRouter.get("/invoices/:invoiceId/pdf", validate({ params: invoiceParamSchema }), controller.getInvoicePdf);
 
 billingRouter.post(
   "/checkout",

@@ -24,6 +24,7 @@ import {
   syncSchoolFromSubscription
 } from "./billing.service.js";
 import type { BillingActor } from "./billing.service.js";
+import { listSchoolNotifications, notifyInvoiceRaised, notifyPaymentReceived } from "./billing.notifications.js";
 
 export const SUPER_ADMIN_ACTOR: BillingActor = { kind: "SUPER_ADMIN", label: "super-admin" };
 
@@ -253,7 +254,7 @@ export async function getSchoolBilling(schoolId: string) {
   if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
 
   const subscription = await ensureSubscription(schoolId);
-  const [invoices, events, usage] = await Promise.all([
+  const [invoices, events, usage, notifications] = await Promise.all([
     masterPrisma.invoice.findMany({
       where: { schoolId },
       orderBy: { issuedAt: "desc" },
@@ -261,7 +262,8 @@ export async function getSchoolBilling(schoolId: string) {
       include: { payments: { orderBy: { createdAt: "desc" } } }
     }),
     masterPrisma.billingEvent.findMany({ where: { schoolId }, orderBy: { createdAt: "desc" }, take: 50 }),
-    getSchoolUsage(schoolId)
+    getSchoolUsage(schoolId),
+    listSchoolNotifications(schoolId)
   ]);
 
   return {
@@ -289,6 +291,7 @@ export async function getSchoolBilling(schoolId: string) {
     },
     invoices,
     events,
+    notifications,
     gateway: { mode: razorpay.mode }
   };
 }
@@ -459,6 +462,7 @@ export async function createManualInvoice(input: {
     action: "invoice.created",
     message: `Invoice ${invoice.number} raised for ${plan.name} — INR ${rupeesFromMinor(invoice.totalMinor)}`
   });
+  await notifyInvoiceRaised(invoice, { renewal: false });
   return invoice;
 }
 
@@ -522,6 +526,8 @@ export async function markInvoicePaidOffline(input: { invoiceId: string; method:
     message: `Invoice ${invoice.number} settled offline via ${input.method} — INR ${rupeesFromMinor(outstanding)}`,
     metadata: { reference: input.reference ?? null }
   });
+
+  await notifyPaymentReceived(invoice, outstanding);
 
   return masterPrisma.invoice.findUniqueOrThrow({ where: { id: invoice.id }, include: { payments: true } });
 }

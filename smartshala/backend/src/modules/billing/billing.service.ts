@@ -17,6 +17,15 @@ import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma
 import { razorpay, signCheckout, markMockOrderPaid, isMockGateway } from "../../services/razorpay/index.js";
 import type { CheckoutSignature } from "../../services/razorpay/index.js";
 import { addDays, effectivePriceMinor, periodEndFrom, quotePlan, rupeesFromMinor } from "./billing.pricing.js";
+import { generateInvoicePdf } from "./invoice-pdf.js";
+import {
+  notifyGraceEnding,
+  notifyInvoiceRaised,
+  notifyPastDue,
+  notifyPaymentFailed,
+  notifyPaymentReceived,
+  notifySuspended
+} from "./billing.notifications.js";
 
 export type BillingActor = { kind: "PRINCIPAL" | "SUPER_ADMIN" | "SYSTEM" | "WEBHOOK"; label: string };
 
@@ -24,6 +33,9 @@ export const SYSTEM_ACTOR: BillingActor = { kind: "SYSTEM", label: "system" };
 
 /** How long an unpaid gateway order stays reusable before it is abandoned. */
 const CHECKOUT_ORDER_TTL_MS = 30 * 60 * 1000;
+
+/** How close the grace window has to be to closing before the last warning. */
+const GRACE_WARNING_DAYS = 2;
 
 function assertMaster() {
   if (!isMasterDbConfigured()) {
@@ -221,6 +233,65 @@ export async function getInvoice(schoolId: string, invoiceId: string) {
   });
   if (!invoice) throw new AppError(404, "Invoice not found", "INVOICE_NOT_FOUND");
   return invoice;
+}
+
+/**
+ * The invoice as a document the school can file, print or forward to their
+ * accountant. `schoolId` scopes it to one school for the principal; the super
+ * admin passes nothing and can render any invoice.
+ */
+export async function renderInvoicePdf(invoiceId: string, schoolId?: string) {
+  assertMaster();
+  const invoice = await masterPrisma.invoice.findFirst({
+    where: schoolId ? { id: invoiceId, schoolId } : { id: invoiceId },
+    include: { payments: { orderBy: { createdAt: "asc" } }, school: true }
+  });
+  if (!invoice) throw new AppError(404, "Invoice not found", "INVOICE_NOT_FOUND");
+
+  const buffer = await generateInvoicePdf({
+    seller: {
+      name: env.BILLING_SELLER_NAME,
+      address: env.BILLING_SELLER_ADDRESS ?? null,
+      email: env.BILLING_SUPPORT_EMAIL ?? null
+    },
+    school: {
+      schoolId: invoice.school.schoolId,
+      schoolName: invoice.school.schoolName,
+      ownerName: invoice.school.ownerName,
+      email: invoice.school.email,
+      phone: invoice.school.phone,
+      address: invoice.school.address
+    },
+    invoice: {
+      number: invoice.number,
+      status: invoice.status,
+      currency: invoice.currency,
+      planName: invoice.planName,
+      planCode: invoice.planCode,
+      subtotalMinor: invoice.subtotalMinor,
+      discountMinor: invoice.discountMinor,
+      taxMinor: invoice.taxMinor,
+      totalMinor: invoice.totalMinor,
+      amountPaidMinor: invoice.amountPaidMinor,
+      couponCode: invoice.couponCode,
+      periodStart: invoice.periodStart,
+      periodEnd: invoice.periodEnd,
+      issuedAt: invoice.issuedAt,
+      dueAt: invoice.dueAt,
+      paidAt: invoice.paidAt,
+      notes: invoice.notes
+    },
+    payments: invoice.payments.map((payment) => ({
+      status: payment.status,
+      method: payment.method,
+      reference: payment.providerPaymentId ?? payment.providerOrderId ?? null,
+      amountMinor: payment.amountMinor,
+      refundedMinor: payment.refundedMinor,
+      at: payment.capturedAt ?? payment.createdAt
+    }))
+  });
+
+  return { buffer, number: invoice.number };
 }
 
 // --- Checkout ----------------------------------------------------------------
@@ -459,6 +530,11 @@ async function applySuccessfulPayment(input: {
     where: { id: payment.id },
     include: { invoice: true }
   });
+  // Only once the invoice is actually settled — a part payment has not bought
+  // the term the receipt message promises.
+  if (fresh.invoice.status === InvoiceStatus.PAID) {
+    await notifyPaymentReceived(fresh.invoice, payment.amountMinor);
+  }
   return { payment: fresh, invoice: fresh.invoice, alreadyCaptured: false as const };
 }
 
@@ -507,7 +583,10 @@ export async function confirmCheckout(input: {
 }
 
 export async function markPaymentFailed(input: { providerOrderId: string; reason: string; actor: BillingActor }) {
-  const payment = await masterPrisma.payment.findUnique({ where: { providerOrderId: input.providerOrderId } });
+  const payment = await masterPrisma.payment.findUnique({
+    where: { providerOrderId: input.providerOrderId },
+    include: { invoice: true }
+  });
   if (!payment || payment.status === PaymentState.CAPTURED) return payment;
 
   const updated = await masterPrisma.payment.update({
@@ -520,6 +599,13 @@ export async function markPaymentFailed(input: { providerOrderId: string; reason
     actor: input.actor,
     action: "payment.failed",
     message: `Payment failed for order ${input.providerOrderId}: ${input.reason}`
+  });
+
+  await notifyPaymentFailed({
+    schoolId: payment.schoolId,
+    invoiceNumber: payment.invoice.number,
+    providerOrderId: input.providerOrderId,
+    reason: input.reason
   });
 
   return updated;
@@ -793,6 +879,7 @@ export async function runSubscriptionMaintenance() {
         action: "invoice.renewal_issued",
         message: `Renewal invoice ${invoice.number} issued for ${subscription.plan.name}`
       });
+      await notifyInvoiceRaised(invoice, { renewal: true });
     }).catch((err) => logger.error({ err, schoolId: subscription.schoolId }, "Renewal invoice failed"));
   }
 
@@ -881,7 +968,19 @@ export async function runSubscriptionMaintenance() {
         ? "Subscription cancelled at the end of the term"
         : `Subscription is past due; access ends ${updated.gracePeriodEndsAt?.toISOString()}`
     });
+    // A cancellation was the school's own decision; only a lapse needs telling.
+    if (!cancelled) await notifyPastDue(updated);
   }
+
+  // 3b. Grace window about to close — the last warning before suspension.
+  const graceEnding = await masterPrisma.subscription.findMany({
+    where: {
+      status: SubscriptionStatus.PAST_DUE,
+      gracePeriodEndsAt: { gt: now, lte: addDays(now, GRACE_WARNING_DAYS) }
+    },
+    include: { plan: true }
+  });
+  for (const subscription of graceEnding) await notifyGraceEnding(subscription);
 
   // 4. Grace window elapsed → suspend the tenant.
   const graceOver = await masterPrisma.subscription.findMany({
@@ -902,6 +1001,7 @@ export async function runSubscriptionMaintenance() {
       action: "subscription.expired",
       message: "Grace period ended; school access suspended"
     });
+    await notifySuspended(updated);
   }
 
   return {

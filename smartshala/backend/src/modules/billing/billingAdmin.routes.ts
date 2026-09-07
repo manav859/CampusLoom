@@ -24,6 +24,7 @@ import {
   updatePlan,
   voidInvoice
 } from "./billingAdmin.service.js";
+import { renderInvoicePdf } from "./billing.service.js";
 import {
   changePlanSchema,
   couponIdParamSchema,
@@ -200,6 +201,20 @@ billingAdminRouter.post(
   validate({ params: schoolIdParamSchema, body: manualInvoiceSchema }),
   asyncHandler(async (req, res) => {
     res.status(201).json(await createManualInvoice({ schoolId: req.params.schoolId, ...req.body }));
+  })
+);
+
+billingAdminRouter.get(
+  "/invoices/:invoiceId/pdf",
+  validate({ params: invoiceParamSchema }),
+  asyncHandler(async (req, res) => {
+    const { buffer, number } = await renderInvoicePdf(req.params.invoiceId);
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="invoice-${number}.pdf"`,
+      "Content-Length": buffer.length.toString()
+    });
+    res.send(buffer);
   })
 );
 

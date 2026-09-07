@@ -9,6 +9,7 @@ import {
   getBillingOverview,
   handleRazorpayWebhook,
   mockGatewayPay,
+  renderInvoicePdf,
   runSubscriptionMaintenance,
   setCancelAtPeriodEnd
 } from "../src/modules/billing/billing.service.js";
@@ -209,6 +210,14 @@ async function main() {
     assert.equal(school.isTrial, false);
     assert.equal(school.paymentStatus, "PAID");
 
+    // --- the invoice as a document -------------------------------------------
+    const pdf = await renderInvoicePdf(paid.invoice.id, schoolId);
+    assert.equal(pdf.buffer.subarray(0, 5).toString("utf8"), "%PDF-", "an invoice renders as a real PDF");
+    assert.ok(pdf.buffer.length > 2000, "the document has content, not just a header");
+    assert.equal(pdf.number, paid.invoice.number);
+    // One school must never be able to pull another school's invoice.
+    await expectAppError(renderInvoicePdf(paid.invoice.id, "OTHERSCH"), "INVOICE_NOT_FOUND");
+
     // --- webhook hardening ---------------------------------------------------
     await expectAppError(handleRazorpayWebhook(JSON.stringify({ event: "ping" }), "bad"), "INVALID_WEBHOOK_SIGNATURE");
 
@@ -272,6 +281,27 @@ async function main() {
     assert.equal(subscription.status, "PAST_DUE", "a lapsed term goes past due");
     school = await masterPrisma.school.findUniqueOrThrow({ where: { schoolId } });
     assert.equal(school.isActive, true, "the grace period keeps the school reachable so it can pay");
+
+    // The school has to hear about it, and hear about it exactly once however
+    // often the hourly sweep runs.
+    await runSubscriptionMaintenance();
+    assert.equal(
+      await masterPrisma.billingNotification.count({ where: { schoolId, type: "PAST_DUE" } }),
+      1,
+      "the past-due warning is sent once, not every hour"
+    );
+
+    // Grace about to close: the last warning before suspension.
+    await masterPrisma.subscription.update({
+      where: { schoolId },
+      data: { gracePeriodEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+    });
+    await runSubscriptionMaintenance();
+    assert.equal(
+      await masterPrisma.billingNotification.count({ where: { schoolId, type: "GRACE_ENDING" } }),
+      1,
+      "the school is warned before access is cut off"
+    );
 
     await masterPrisma.subscription.update({ where: { schoolId }, data: { gracePeriodEndsAt: past } });
     await runSubscriptionMaintenance();
@@ -383,6 +413,18 @@ async function main() {
     assert.equal(sweep2.abandonedPayments, 1, "a genuinely abandoned checkout is retired");
     const deadPayment = await masterPrisma.payment.findUniqueOrThrow({ where: { providerOrderId: dead.orderId } });
     assert.equal(deadPayment.status, "FAILED");
+
+    // --- notifications --------------------------------------------------------
+    // Every money event the school could be blindsided by has to have been sent.
+    const notifications = await masterPrisma.billingNotification.findMany({ where: { schoolId } });
+    const sentTypes = new Set(notifications.map((notification) => notification.type));
+    for (const expected of ["PAYMENT_RECEIVED", "PAYMENT_FAILED", "INVOICE_RAISED", "PAST_DUE", "GRACE_ENDING", "SUSPENDED"]) {
+      assert.ok(sentTypes.has(expected as never), `${expected} notification was never sent`);
+    }
+    assert.ok(
+      notifications.every((notification) => notification.status === "SENT"),
+      "no billing notification should be left failed or skipped for a school with a phone number"
+    );
 
     // --- summary -------------------------------------------------------------
     const summary = await getRevenueSummary();

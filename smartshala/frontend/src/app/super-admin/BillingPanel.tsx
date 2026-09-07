@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatMinor, type Invoice, type Plan, type SubscriptionStatus } from "@/lib/api";
-import { superAdminFetch } from "./superAdminFetch";
+import { superAdminDownload, superAdminFetch } from "./superAdminFetch";
 
 type Coupon = {
   id: string;
@@ -61,6 +61,18 @@ type SchoolBilling = {
   };
   invoices: Invoice[];
   events: { id: string; actor: string; action: string; message: string; createdAt: string }[];
+  notifications: BillingNotification[];
+};
+
+type BillingNotification = {
+  id: string;
+  type: string;
+  recipient: string;
+  message: string;
+  status: "SENT" | "FAILED" | "SKIPPED";
+  error: string | null;
+  sentAt: string | null;
+  createdAt: string;
 };
 
 type LedgerInvoice = Invoice & { school: { schoolName: string } };
@@ -380,6 +392,12 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
         await refreshDetail();
       },
       "Invoice raised."
+    );
+  }
+
+  function downloadInvoice(invoice: Invoice) {
+    void run(`pdf-${invoice.id}`, () =>
+      superAdminDownload(`/billing/invoices/${invoice.id}/pdf`, `invoice-${invoice.number}.pdf`)
     );
   }
 
@@ -1072,6 +1090,9 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                           <td className="px-4 py-3 text-right font-semibold">{formatMinor(invoice.totalMinor, invoice.currency)}</td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-2">
+                              <button className={ghostBtn} disabled={busy === `pdf-${invoice.id}`} onClick={() => downloadInvoice(invoice)} type="button">
+                                PDF
+                              </button>
                               {invoice.status === "DUE" ? (
                                 <>
                                   <button className={ghostBtn} disabled={busy === `paid-${invoice.id}`} onClick={() => markPaid(invoice)} type="button">
@@ -1106,6 +1127,37 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                     ) : null}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="mt-5 border-t border-[#eef2f7] pt-4">
+                <h4 className="text-xs font-bold uppercase tracking-[0.14em] text-[#64748b]">Messages sent to this school</h4>
+                {detail.notifications.length ? (
+                  <ul className="mt-2 space-y-1">
+                    {detail.notifications.slice(0, 12).map((notification) => (
+                      <li className="text-xs text-[#64748b]" key={notification.id}>
+                        <span className="font-semibold text-[#334155]">
+                          {new Date(notification.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                        </span>{" "}
+                        ·{" "}
+                        <span
+                          className={
+                            notification.status === "SENT"
+                              ? "font-bold text-green-700"
+                              : notification.status === "FAILED"
+                                ? "font-bold text-red-700"
+                                : "font-bold text-amber-700"
+                          }
+                        >
+                          {notification.status}
+                        </span>{" "}
+                        · {notification.type.replace(/_/g, " ").toLowerCase()} · {notification.recipient || "no number on file"}
+                        {notification.error ? ` · ${notification.error}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-[#64748b]">Nothing has been sent to this school yet.</p>
+                )}
               </div>
 
               <div className="mt-5 border-t border-[#eef2f7] pt-4">
@@ -1159,6 +1211,7 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Paid</th>
                   <th className="px-4 py-3 text-right">Total</th>
+                  <th className="px-4 py-3 text-right">Invoice PDF</th>
                 </tr>
               </thead>
               <tbody>
@@ -1189,11 +1242,16 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                       {formatMinor(invoice.amountPaidMinor, invoice.currency)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold">{formatMinor(invoice.totalMinor, invoice.currency)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button className={ghostBtn} disabled={busy === `pdf-${invoice.id}`} onClick={() => downloadInvoice(invoice)} type="button">
+                        Download
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {ledger.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-4 text-sm text-[#64748b]" colSpan={6}>
+                    <td className="px-4 py-4 text-sm text-[#64748b]" colSpan={7}>
                       No invoices match that filter.
                     </td>
                   </tr>

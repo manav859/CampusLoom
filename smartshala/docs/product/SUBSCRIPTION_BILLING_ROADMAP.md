@@ -1,14 +1,16 @@
 # Subscription & Billing — What's Left
 
 **Date:** 2026-09-07 · **Updated:** 2026-09-07
-**Status of the shipped work:** live on `main` as of `8c9b2c4`; Phase 1 + SA6 built on top.
+**Status of the shipped work:** live on `main` as of `8c9b2c4`; Phases 1 and 2 plus SA6
+built on top.
 **Purpose:** the working list we pick items off one at a time.
 
 > **Shipped since this list was written:** all of Phase 1 — `B1`–`B4`, `SA1`–`SA5`, `P1`,
 > `E3` — plus `SA6` (per-school negotiated pricing), `SA9` (usage visible to the super
-> admin) and `M1` (payment reconciliation, which `B3` forced forward: writing off a stale
-> order without asking the gateway would have buried real payments). Completed items are
-> marked ✅ below.
+> admin), `M1` (payment reconciliation, which `B3` forced forward: writing off a stale
+> order without asking the gateway would have buried real payments), and `M2` + `M3`
+> (invoice PDF and billing notifications), which closed `P2` along the way. Completed
+> items are marked ✅ below.
 
 Every item has an ID (`B1`, `SA3`, …) so we can say "do SA4 next" without ambiguity.
 Sizes are S (under an hour), M (half a day), L (a day or more).
@@ -84,8 +86,8 @@ The backend endpoint exists and works; the panel simply never calls it.
 | ID | Gap | Detail | Size |
 |---|---|---|---|
 | **M1** ✅ | **No payment reconciliation** | If the webhook fails *and* the browser closes before `/checkout/confirm`, the invoice stays `DUE` forever while the money has actually left the school's account. `razorpay.fetchOrder()` was built for exactly this and **is never called anywhere**. Needs a sweep that reconciles every `CREATED` payment older than ~15 minutes against the gateway. This is the single largest hole in the money path. | **M** |
-| **M2** | **No invoice document** | Nothing to download, print or send to a school's accountant. `pdfkit` is already a dependency and the fee-receipt module already renders PDFs — reusable. | M |
-| **M3** | **No notifications, at all** | Nothing is sent on invoice raised, payment received, payment failed, renewal approaching, past due, grace ending, or suspension. A school's access can lapse with no warning it ever received. The `whatsapp` and `notifications` modules already exist to build on. | **L** |
+| **M2** ✅ | **No invoice document** | Built as `invoice-pdf.ts`, alongside the fee receipt it borrows its look from. Downloadable by the principal (own invoices only) and by the super admin from both the ledger and the school drawer. Long payment histories flow onto a second page. Seller identity comes from `BILLING_SELLER_NAME` / `BILLING_SELLER_ADDRESS` / `BILLING_SUPPORT_EMAIL` — still not a GST tax invoice until `G1`–`G4` land. | M |
+| **M3** ✅ | **No notifications, at all** | `billing.notifications.ts` sends on invoice raised, renewal due, payment received, payment failed, past due, grace ending and suspension, over WhatsApp via the existing provider. Every message is recorded in `billing_notifications` (visible in the super admin school drawer) and deduped per school + type + subject, so the hourly sweep cannot repeat itself. A messaging failure can never fail a billing action. No email — there is no mailer in the codebase yet. | **L** |
 | **M4** | **No dunning ladder** | Invoices go `DUE` and then quietly past due. Collections need a schedule — day 0 / 3 / 7 / 14 reminders, then suspension — and a record of what was sent. Depends on M3. | M |
 | **M5** | **No proration** | Upgrading mid-term charges a full new term and restarts the clock. A school upgrading in month 2 of 12 forfeits 10 months it already paid for. Needs credit for unused time. | M |
 | **M6** | **No credit notes** | A refund mutates the original invoice's `amountPaidMinor` in place. Accounting (and GST) require the original invoice to stay immutable and a separate credit note to be issued against it. | M |
@@ -112,7 +114,7 @@ Everything here is stored, priced and displayed — and enforced nowhere.
 | ID | Gap | Size |
 |---|---|---|
 | **P1** ✅ | **No invoice detail view.** `GET /billing/invoices/:invoiceId` and `billingApi.invoice()` both exist and are called from nowhere. The history table is a dead end — no drill-down, no receipt. | S |
-| **P2** | **No invoice download.** Depends on M2. | S |
+| **P2** ✅ | **No invoice download.** Came with M2: the invoice detail modal has a Download button. | S |
 | **P3** | **Billing is `PRINCIPAL`-only.** The accountant — the person who actually handles money in an Indian school — cannot see an invoice. Worth a read-only role. | S |
 | **P4** | **No billing contact.** Invoices and reminders would go to the principal's personal number. Schools want them going to the accounts desk. | S |
 | **P5** | **Nothing explains what happens at expiry** — is data kept, for how long, what is lost. This is the question every school asks before paying. | S |
@@ -160,10 +162,10 @@ All small, all low-risk. Ends with the super admin having complete control over
 subscription state, invoices and refunds, and the principal able to open an invoice.
 **Best place to start** — it is mostly connecting endpoints that already work.
 
-### Phase 2 — Make the money path trustworthy *(M1 done; M2 + P2 remain)*
+### Phase 2 — Make the money path trustworthy — DONE
 `M1` (reconciliation — the important one) · `M2` (invoice PDF) · `P2`
 
-After this, no payment can be silently lost and every school can produce a document.
+No payment can be silently lost, and every school can produce a document.
 
 ### Phase 3 — Super admin depth *(SA6 + SA9 done)*
 `SA6` (custom pricing) · `SA7` `SA8` `SA9` `SA10` `SA11` `SA13`
@@ -176,11 +178,12 @@ control". SA6 is the big one and worth designing before building.
 
 Turns the plan from a price tag into an actual product boundary.
 
-### Phase 5 — Communications and collections *(2–3 days)*
+### Phase 5 — Communications and collections *(M3 done; M4 + S5 remain)*
 `M3` (notifications) · `M4` (dunning) · `S5`
 
-Depends on nothing else and has the largest revenue impact. Could be pulled earlier if
-collection is the pressing problem.
+M3 gave every money event a message and a delivery record. `M4` now has somewhere to
+hang the day 0 / 3 / 7 / 14 ladder: add the reminder types and a scheduled sweep on top
+of `billing_notifications`.
 
 ### Phase 6 — Compliance *(1–2 days)*
 `G1` `G2` `G3` `G4` · `M6` (credit notes)
@@ -196,8 +199,9 @@ collection is the pressing problem.
 ## The one dependency that outranks everything here
 
 Going live with real payments needs, in this order: **G1–G4** (legal invoices),
-**M1** ✅ (no lost payments), **M2** (a document to send), **M3** (the school knows what it
-owes). Until those four exist, `RAZORPAY_MODE=live` should stay off.
+**M1** ✅ (no lost payments), **M2** ✅ (a document to send), **M3** ✅ (the school knows
+what it owes). **G1–G4 are now the only thing left on that list**, so they are what
+stands between today and `RAZORPAY_MODE=live`.
 
 Related: [SUPER_ADMIN_AUDIT.md](./SUPER_ADMIN_AUDIT.md) — the panel-wide audit. Its two P0s
 (no super-admin audit trail, unguarded school deletion) sit outside billing but affect the
