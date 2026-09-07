@@ -6,6 +6,7 @@ import type {
   CreateOrderInput,
   RazorpayGateway,
   RazorpayOrder,
+  RazorpayPayment,
   RazorpayRefund
 } from "./razorpay.types.js";
 
@@ -50,6 +51,7 @@ const sharedVerification = {
 // record, so a restart mid-checkout loses nothing that matters.
 
 const mockOrders = new Map<string, RazorpayOrder>();
+const mockOrderPayments = new Map<string, RazorpayPayment[]>();
 
 const mockGateway: RazorpayGateway = {
   ...sharedVerification,
@@ -73,6 +75,9 @@ const mockGateway: RazorpayGateway = {
   async fetchOrder(orderId: string) {
     return mockOrders.get(orderId) ?? null;
   },
+  async fetchOrderPayments(orderId: string) {
+    return mockOrderPayments.get(orderId) ?? [];
+  },
   async refund(paymentId: string, amountMinor: number): Promise<RazorpayRefund> {
     return {
       id: randomId("rfnd"),
@@ -87,12 +92,15 @@ const mockGateway: RazorpayGateway = {
 };
 
 /** Called by the mock checkout endpoints to flip an in-memory order to paid. */
-export function markMockOrderPaid(orderId: string) {
+export function markMockOrderPaid(orderId: string, paymentId?: string, method?: string) {
   const order = mockOrders.get(orderId);
   if (!order) return;
   order.status = "paid";
   order.amount_paid = order.amount;
   order.amount_due = 0;
+  if (paymentId) {
+    mockOrderPayments.set(orderId, [{ id: paymentId, status: "captured", amount: order.amount, method }]);
+  }
 }
 
 // --- Live gateway ------------------------------------------------------------
@@ -133,6 +141,12 @@ const liveGateway: RazorpayGateway = {
   },
   async fetchOrder(orderId: string) {
     return razorpayRequest<RazorpayOrder>(`/orders/${orderId}`, { method: "GET" }).catch(() => null);
+  },
+  async fetchOrderPayments(orderId: string) {
+    const body = await razorpayRequest<{ items?: RazorpayPayment[] }>(`/orders/${orderId}/payments`, {
+      method: "GET"
+    }).catch(() => null);
+    return body?.items ?? [];
   },
   refund(paymentId: string, amountMinor: number) {
     return razorpayRequest<RazorpayRefund>(`/payments/${paymentId}/refund`, {

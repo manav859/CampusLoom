@@ -7,6 +7,7 @@ import { assertMockGateway, razorpay } from "../../services/razorpay/index.js";
 import { quotePlan } from "./billing.pricing.js";
 import {
   confirmCheckout,
+  ensureSubscription,
   createCheckoutSession,
   getBillingOverview,
   getInvoice,
@@ -14,6 +15,7 @@ import {
   listInvoices,
   listPlans,
   mockGatewayPay,
+  renderInvoicePdf,
   setCancelAtPeriodEnd
 } from "./billing.service.js";
 import type { BillingActor } from "./billing.service.js";
@@ -51,7 +53,9 @@ export const getPlans = asyncHandler(async (_req: Request, res: Response) => {
 
 export const getQuote = asyncHandler(async (req: Request, res: Response) => {
   const plan = await getPlanByCodeOrThrow(String(req.query.planCode));
-  res.json(await quotePlan(plan, req.query.couponCode as string | undefined));
+  // Quote at whatever this school actually pays, not the list price.
+  const subscription = await ensureSubscription(tenantSchoolId(req));
+  res.json(await quotePlan(plan, req.query.couponCode as string | undefined, subscription));
 });
 
 export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
@@ -60,6 +64,16 @@ export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
 
 export const getInvoiceDetail = asyncHandler(async (req: Request, res: Response) => {
   res.json(await getInvoice(tenantSchoolId(req), req.params.invoiceId));
+});
+
+export const getInvoicePdf = asyncHandler(async (req: Request, res: Response) => {
+  const { buffer, number } = await renderInvoicePdf(req.params.invoiceId, tenantSchoolId(req));
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="invoice-${number}.pdf"`,
+    "Content-Length": buffer.length.toString()
+  });
+  res.send(buffer);
 });
 
 export const startCheckout = asyncHandler(async (req: Request, res: Response) => {

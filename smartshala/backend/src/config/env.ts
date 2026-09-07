@@ -73,7 +73,12 @@ const envSchema = z.object({
   BILLING_TAX_PERCENT: z.coerce.number().min(0).max(100).default(18),
   BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(90).default(7),
   BILLING_INVOICE_DUE_DAYS: z.coerce.number().int().min(0).max(90).default(7),
-  BILLING_RENEWAL_LEAD_DAYS: z.coerce.number().int().min(0).max(90).default(7)
+  BILLING_RENEWAL_LEAD_DAYS: z.coerce.number().int().min(0).max(90).default(7),
+  // Who the invoice document is issued by. Left blank rather than guessed, so a
+  // wrong address never goes out on a document a school files.
+  BILLING_SELLER_NAME: z.string().default("SmartShala"),
+  BILLING_SELLER_ADDRESS: z.string().optional(),
+  BILLING_SUPPORT_EMAIL: z.string().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);

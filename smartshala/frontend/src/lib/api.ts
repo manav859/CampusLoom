@@ -1580,6 +1580,11 @@ export type BillingOverview = {
     couponCode: string | null;
   };
   plan: Plan;
+  pricing: {
+    listPriceMinor: number;
+    effectivePriceMinor: number;
+    isCustomPrice: boolean;
+  };
   usage: {
     students: number;
     staff: number;
@@ -1599,6 +1604,8 @@ export type PriceQuote = {
   planName: string;
   currency: string;
   subtotalMinor: number;
+  listPriceMinor: number;
+  isCustomPrice: boolean;
   discountMinor: number;
   taxMinor: number;
   totalMinor: number;
@@ -1645,6 +1652,23 @@ export const billingApi = {
       `/billing/quote?planCode=${encodeURIComponent(planCode)}${couponCode ? `&couponCode=${encodeURIComponent(couponCode)}` : ""}`
     ),
   invoice: (invoiceId: string) => apiFetch<Invoice>(`/billing/invoices/${invoiceId}`),
+  downloadInvoicePdf: async (invoiceId: string, invoiceNumber: string) => {
+    const token = tokenStore.get();
+    const path = `/billing/invoices/${invoiceId}/pdf`;
+    const response = await fetch(`${tenantApiBase(env.apiBaseUrl, path)}${path}`, {
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    });
+    if (!response.ok) throw new Error("Failed to download invoice");
+    const url = URL.createObjectURL(await response.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoice-${invoiceNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
   checkout: (planCode: string, couponCode?: string | null) =>
     apiFetch<CheckoutSession>("/billing/checkout", {
       method: "POST",

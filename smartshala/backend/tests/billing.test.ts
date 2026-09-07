@@ -2,25 +2,31 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { AppError } from "../src/core/errors.js";
 import { masterPrisma } from "../src/master-db/masterPrisma.js";
-import { signWebhook } from "../src/services/razorpay/index.js";
+import { markMockOrderPaid, signWebhook } from "../src/services/razorpay/index.js";
 import {
   confirmCheckout,
   createCheckoutSession,
   getBillingOverview,
   handleRazorpayWebhook,
   mockGatewayPay,
+  renderInvoicePdf,
   runSubscriptionMaintenance,
   setCancelAtPeriodEnd
 } from "../src/modules/billing/billing.service.js";
 import {
   bootstrapSubscription,
+  changeSchoolPlan,
+  getSchoolUsage,
+  setCustomPrice,
+  createCoupon,
   createManualInvoice,
   createPlan,
   getRevenueSummary,
   grantAccess,
   markInvoicePaidOffline,
   refundPayment,
-  revokeAccess
+  revokeAccess,
+  voidInvoice
 } from "../src/modules/billing/billingAdmin.service.js";
 
 /**
@@ -33,6 +39,12 @@ import {
  */
 
 const ACTOR = { kind: "PRINCIPAL" as const, label: "test" };
+/**
+ * The plan-size guard reads real student and staff counts out of the tenant
+ * database, so those assertions only run when one is supplied:
+ *   TENANT_DATABASE_URL=postgresql://... npm run test:billing
+ */
+const TENANT_DB_URL = process.env.TENANT_DATABASE_URL;
 const usage = { students: 10, staff: 3 };
 
 async function expectAppError(promise: Promise<unknown>, code: string) {
@@ -43,6 +55,50 @@ async function expectAppError(promise: Promise<unknown>, code: string) {
     assert.ok(error instanceof AppError, `Expected AppError, got ${String(error)}`);
     assert.equal(error.code, code);
   }
+}
+
+/** Two active students and one teacher, so the guard has real numbers to read. */
+async function seedTenantUsage() {
+  const { getTenantPrismaClient } = await import("../src/tenant/prismaManager.js");
+  const tenant = getTenantPrismaClient(TENANT_DB_URL!);
+  // The tenant database outlives a single run, so start from empty or the
+  // counts drift upward every time the test is executed.
+  await tenant.school.deleteMany({});
+  const school = await tenant.school.create({
+    data: { name: "Billing Test Tenant", code: `BT-${randomUUID().slice(0, 8)}` }
+  });
+  const klass = await tenant.class.create({
+    data: { schoolId: school.id, name: "1", section: "A", academicYear: "2026-27" }
+  });
+  await tenant.student.createMany({
+    data: [
+      {
+        schoolId: school.id,
+        classId: klass.id,
+        fullName: "Student One",
+        admissionNumber: `A-${randomUUID().slice(0, 8)}`,
+        parentName: "Parent One",
+        parentPhone: "9000000001"
+      },
+      {
+        schoolId: school.id,
+        classId: klass.id,
+        fullName: "Student Two",
+        admissionNumber: `A-${randomUUID().slice(0, 8)}`,
+        parentName: "Parent Two",
+        parentPhone: "9000000002"
+      }
+    ]
+  });
+  await tenant.user.create({
+    data: {
+      schoolId: school.id,
+      fullName: "Test Teacher",
+      phone: `9${Date.now().toString().slice(-9)}`,
+      passwordHash: "x",
+      role: "TEACHER"
+    }
+  });
 }
 
 async function main() {
@@ -62,7 +118,7 @@ async function main() {
       isTrial: true,
       isActive: false,
       dbName: `school_${schoolId}`,
-      dbUrl: "postgresql://unused/unused"
+      dbUrl: TENANT_DB_URL ?? "postgresql://unused/unused"
     }
   });
 
@@ -154,6 +210,14 @@ async function main() {
     assert.equal(school.isTrial, false);
     assert.equal(school.paymentStatus, "PAID");
 
+    // --- the invoice as a document -------------------------------------------
+    const pdf = await renderInvoicePdf(paid.invoice.id, schoolId);
+    assert.equal(pdf.buffer.subarray(0, 5).toString("utf8"), "%PDF-", "an invoice renders as a real PDF");
+    assert.ok(pdf.buffer.length > 2000, "the document has content, not just a header");
+    assert.equal(pdf.number, paid.invoice.number);
+    // One school must never be able to pull another school's invoice.
+    await expectAppError(renderInvoicePdf(paid.invoice.id, "OTHERSCH"), "INVOICE_NOT_FOUND");
+
     // --- webhook hardening ---------------------------------------------------
     await expectAppError(handleRazorpayWebhook(JSON.stringify({ event: "ping" }), "bad"), "INVALID_WEBHOOK_SIGNATURE");
 
@@ -186,6 +250,26 @@ async function main() {
     assert.equal(refunded.refundedMinor, capture.amountMinor);
     await expectAppError(refundPayment({ paymentId: capture.id, reason: "again" }), "PAYMENT_NOT_CAPTURED");
 
+    // Refunding the money must take back the term it bought, or the school
+    // keeps a year it no longer paid for.
+    const afterRefund = await masterPrisma.subscription.findUniqueOrThrow({ where: { schoolId } });
+    assert.equal(afterRefund.status, "PAST_DUE", "a full refund reverses the paid term");
+    assert.ok(afterRefund.gracePeriodEndsAt, "the school gets a grace window rather than an instant cut-off");
+
+    // Put the school back on a paid footing for the rest of the test.
+    await changeSchoolPlan({ schoolId, planCode, restartPeriod: true, force: true });
+
+    // --- coupon redemptions are released again -------------------------------
+    const couponCode = `TESTCPN${Date.now().toString().slice(-6)}`;
+    await createCoupon({ code: couponCode, discountType: "PERCENTAGE", discountValue: 10, maxRedemptions: 1 });
+
+    const couponInvoice = await createManualInvoice({ schoolId, planCode, couponCode });
+    assert.equal(couponInvoice.discountMinor, 100_000, "10% off INR 10,000");
+
+    await voidInvoice(couponInvoice.id, "Testing coupon release");
+    const releasedCoupon = await masterPrisma.coupon.findUniqueOrThrow({ where: { code: couponCode } });
+    assert.equal(releasedCoupon.redeemedCount, 0, "voiding an invoice must not burn a capped coupon");
+
     // --- lifecycle: lapse into grace, then suspend ---------------------------
     const past = new Date(Date.now() - 60_000);
     await masterPrisma.subscription.update({
@@ -197,6 +281,27 @@ async function main() {
     assert.equal(subscription.status, "PAST_DUE", "a lapsed term goes past due");
     school = await masterPrisma.school.findUniqueOrThrow({ where: { schoolId } });
     assert.equal(school.isActive, true, "the grace period keeps the school reachable so it can pay");
+
+    // The school has to hear about it, and hear about it exactly once however
+    // often the hourly sweep runs.
+    await runSubscriptionMaintenance();
+    assert.equal(
+      await masterPrisma.billingNotification.count({ where: { schoolId, type: "PAST_DUE" } }),
+      1,
+      "the past-due warning is sent once, not every hour"
+    );
+
+    // Grace about to close: the last warning before suspension.
+    await masterPrisma.subscription.update({
+      where: { schoolId },
+      data: { gracePeriodEndsAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+    });
+    await runSubscriptionMaintenance();
+    assert.equal(
+      await masterPrisma.billingNotification.count({ where: { schoolId, type: "GRACE_ENDING" } }),
+      1,
+      "the school is warned before access is cut off"
+    );
 
     await masterPrisma.subscription.update({ where: { schoolId }, data: { gracePeriodEndsAt: past } });
     await runSubscriptionMaintenance();
@@ -212,6 +317,114 @@ async function main() {
     await revokeAccess(schoolId);
     school = await masterPrisma.school.findUniqueOrThrow({ where: { schoolId } });
     assert.equal(school.isActive, false);
+
+    // --- negotiated per-school pricing ---------------------------------------
+    // Default: every school pays the plan list price.
+    let quoted = await createCheckoutSession({ schoolId, planCode, actor: ACTOR });
+    assert.equal(quoted.invoice.subtotalMinor, 1_000_000, "list price by default");
+
+    const custom = await setCustomPrice({ schoolId, priceRupees: 7_500, note: "Multi-year deal" });
+    assert.equal(custom.effectivePriceMinor, 750_000);
+    assert.equal(custom.listPriceMinor, 1_000_000, "the plan list price is untouched");
+
+    // A new invoice bills at the negotiated rate, tax recalculated on it.
+    quoted = await createCheckoutSession({ schoolId, planCode, actor: ACTOR });
+    assert.equal(quoted.invoice.subtotalMinor, 750_000, "custom rate is used for new invoices");
+    assert.equal(quoted.amountMinor, 885_000, "INR 7,500 + 18% GST");
+
+    // Only this school moves; the plan and everyone else are unaffected.
+    const planRow = await masterPrisma.plan.findUniqueOrThrow({ where: { code: planCode } });
+    assert.equal(planRow.priceMinor, 1_000_000, "custom pricing must not edit the plan");
+
+    // The principal sees their real price, not the list price.
+    overview = await getBillingOverview(schoolId, usage);
+    assert.equal(overview.pricing.effectivePriceMinor, 750_000);
+    assert.equal(overview.pricing.isCustomPrice, true);
+
+    // Clearing returns the school to list price.
+    const cleared = await setCustomPrice({ schoolId, priceRupees: null });
+    assert.equal(cleared.effectivePriceMinor, 1_000_000);
+    overview = await getBillingOverview(schoolId, usage);
+    assert.equal(overview.pricing.isCustomPrice, false);
+
+    // A plan change clears a stale override unless one is passed explicitly.
+    await setCustomPrice({ schoolId, priceRupees: 7_500 });
+    await changeSchoolPlan({ schoolId, planCode, restartPeriod: true, force: true });
+    let sub = await masterPrisma.subscription.findUniqueOrThrow({ where: { schoolId } });
+    assert.equal(sub.customPriceMinor, null, "plan change resets to list price by default");
+
+    await changeSchoolPlan({ schoolId, planCode, restartPeriod: true, customPriceRupees: 6_000, force: true });
+    sub = await masterPrisma.subscription.findUniqueOrThrow({ where: { schoolId } });
+    assert.equal(sub.customPriceMinor, 600_000, "a rate passed with the plan change is kept");
+    await setCustomPrice({ schoolId, priceRupees: null });
+
+    // --- downgrade guard -----------------------------------------------------
+    const smallCode = `TINY${Date.now().toString().slice(-6)}`;
+    await createPlan({ code: smallCode, name: "Tiny", priceRupees: 1_000, interval: "YEAR", maxStudents: 1, sortOrder: 901 });
+
+    if (TENANT_DB_URL) {
+      await seedTenantUsage();
+      const seen = await getSchoolUsage(schoolId);
+      assert.equal(seen.reachable, true, "tenant database should be readable");
+      assert.equal(seen.students, 2, "usage is read from the tenant database");
+
+      await expectAppError(
+        changeSchoolPlan({ schoolId, planCode: smallCode, restartPeriod: true }),
+        "PLAN_TOO_SMALL"
+      );
+      // Forcing it through is allowed, because sometimes the deal is the deal.
+      await changeSchoolPlan({ schoolId, planCode: smallCode, restartPeriod: true, force: true });
+      await changeSchoolPlan({ schoolId, planCode, restartPeriod: true, force: true });
+    } else {
+      console.warn("TENANT_DATABASE_URL not set - skipping the plan-size guard assertions");
+    }
+
+    // --- reconciliation of a lost payment ------------------------------------
+    // The dangerous case: money left the school's account, but the webhook
+    // never arrived and the browser closed before the callback. The order must
+    // be recovered from the gateway, never written off as abandoned.
+    const lost = await createCheckoutSession({ schoolId, planCode, actor: ACTOR });
+    const lostPaymentId = `pay_${randomUUID().replace(/-/g, "").slice(0, 14)}`;
+    markMockOrderPaid(lost.orderId, lostPaymentId, "upi");
+
+    // Age the order past the reconciliation window without touching the gateway.
+    await masterPrisma.payment.update({
+      where: { providerOrderId: lost.orderId },
+      data: { createdAt: new Date(Date.now() - 60 * 60 * 1000) }
+    });
+
+    const sweep = await runSubscriptionMaintenance();
+    assert.equal(sweep.recoveredPayments, 1, "a paid-but-unnotified order is recovered");
+    assert.equal(sweep.abandonedPayments, 0, "a real payment is never marked abandoned");
+
+    const recovered = await masterPrisma.payment.findUniqueOrThrow({ where: { providerOrderId: lost.orderId } });
+    assert.equal(recovered.status, "CAPTURED");
+    assert.equal(recovered.providerPaymentId, lostPaymentId);
+    const recoveredInvoice = await masterPrisma.invoice.findUniqueOrThrow({ where: { id: lost.invoice.id } });
+    assert.equal(recoveredInvoice.status, "PAID", "reconciliation settles the invoice");
+
+    // An order the gateway never saw paid is written off instead.
+    const dead = await createCheckoutSession({ schoolId, planCode, actor: ACTOR });
+    await masterPrisma.payment.update({
+      where: { providerOrderId: dead.orderId },
+      data: { createdAt: new Date(Date.now() - 60 * 60 * 1000) }
+    });
+    const sweep2 = await runSubscriptionMaintenance();
+    assert.equal(sweep2.abandonedPayments, 1, "a genuinely abandoned checkout is retired");
+    const deadPayment = await masterPrisma.payment.findUniqueOrThrow({ where: { providerOrderId: dead.orderId } });
+    assert.equal(deadPayment.status, "FAILED");
+
+    // --- notifications --------------------------------------------------------
+    // Every money event the school could be blindsided by has to have been sent.
+    const notifications = await masterPrisma.billingNotification.findMany({ where: { schoolId } });
+    const sentTypes = new Set(notifications.map((notification) => notification.type));
+    for (const expected of ["PAYMENT_RECEIVED", "PAYMENT_FAILED", "INVOICE_RAISED", "PAST_DUE", "GRACE_ENDING", "SUSPENDED"]) {
+      assert.ok(sentTypes.has(expected as never), `${expected} notification was never sent`);
+    }
+    assert.ok(
+      notifications.every((notification) => notification.status === "SENT"),
+      "no billing notification should be left failed or skipped for a school with a phone number"
+    );
 
     // --- summary -------------------------------------------------------------
     const summary = await getRevenueSummary();

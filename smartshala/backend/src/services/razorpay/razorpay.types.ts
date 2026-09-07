@@ -11,6 +11,13 @@ export type RazorpayOrder = {
   created_at: number;
 };
 
+export type RazorpayPayment = {
+  id: string;
+  status: "created" | "authorized" | "captured" | "refunded" | "failed";
+  amount: number;
+  method?: string;
+};
+
 export type RazorpayRefund = {
   id: string;
   entity: "refund";
@@ -44,6 +51,8 @@ export type RazorpayGateway = {
   keyId: string;
   createOrder(input: CreateOrderInput): Promise<RazorpayOrder>;
   fetchOrder(orderId: string): Promise<RazorpayOrder | null>;
+  /** Payments the gateway recorded against an order, newest first. */
+  fetchOrderPayments(orderId: string): Promise<RazorpayPayment[]>;
   refund(paymentId: string, amountMinor: number): Promise<RazorpayRefund>;
   /** HMAC-SHA256(orderId|paymentId, keySecret) — the checkout handshake. */
   verifyCheckoutSignature(payload: CheckoutSignature): boolean;

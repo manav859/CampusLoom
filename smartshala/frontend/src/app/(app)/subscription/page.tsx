@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { PageHeader } from "@/components/ui";
+import { Modal, PageHeader } from "@/components/ui";
 import {
   billingApi,
   formatMinor,
@@ -76,6 +76,7 @@ export default function SubscriptionPage() {
   const [quote, setQuote] = useState<PriceQuote | null>(null);
   const [quotePlanCode, setQuotePlanCode] = useState("");
   const [session, setSession] = useState<CheckoutSession | null>(null);
+  const [openInvoice, setOpenInvoice] = useState<Invoice | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -104,6 +105,18 @@ export default function SubscriptionPage() {
       setQuote(await billingApi.quote(planCode, coupon.trim()));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to check that coupon");
+    }
+  }
+
+  async function downloadInvoice(invoice: Invoice) {
+    setBusy(`pdf-${invoice.id}`);
+    setError("");
+    try {
+      await billingApi.downloadInvoicePdf(invoice.id, invoice.number);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to download that invoice");
+    } finally {
+      setBusy("");
     }
   }
 
@@ -184,11 +197,17 @@ export default function SubscriptionPage() {
                   <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#5A6573]">Current plan</p>
                   <h2 className="mt-1 text-[24px] font-semibold text-[#031526]">{overview.plan.name}</h2>
                   <p className="mt-1 text-[13px] font-medium text-[#5A6573]">
-                    {overview.plan.priceMinor === 0
+                    {overview.pricing.effectivePriceMinor === 0
                       ? "No charge"
-                      : `${formatMinor(overview.plan.priceMinor, overview.plan.currency)} ${intervalLabel(overview.plan)}`}
+                      : `${formatMinor(overview.pricing.effectivePriceMinor, overview.plan.currency)} ${intervalLabel(overview.plan)}`}
                     {overview.subscription.couponCode ? ` · Coupon ${overview.subscription.couponCode}` : ""}
                   </p>
+                  {overview.pricing.isCustomPrice ? (
+                    <p className="mt-1 text-[12px] font-semibold text-[#0F8A4A]">
+                      Agreed rate for your school — standard price is{" "}
+                      {formatMinor(overview.pricing.listPriceMinor, overview.plan.currency)}.
+                    </p>
+                  ) : null}
                 </div>
                 {status ? (
                   <span className={`rounded-full px-3 py-1 text-[12px] font-bold ${status.className}`}>{status.label}</span>
@@ -311,7 +330,7 @@ export default function SubscriptionPage() {
                       ) : null}
                     </div>
                     <p className="mt-2 text-[22px] font-bold text-[#031526]">
-                      {formatMinor(plan.priceMinor, plan.currency)}
+                      {formatMinor(current ? overview.pricing.effectivePriceMinor : plan.priceMinor, plan.currency)}
                       <span className="ml-1 text-[12px] font-semibold text-[#5A6573]">{intervalLabel(plan)}</span>
                     </p>
                     {plan.description ? (
@@ -387,7 +406,11 @@ export default function SubscriptionPage() {
                   </thead>
                   <tbody>
                     {overview.invoices.map((invoice) => (
-                      <tr className="border-t border-[#EDF0F4]" key={invoice.id}>
+                      <tr
+                        className="cursor-pointer border-t border-[#EDF0F4] hover:bg-[#F7F8FB]"
+                        key={invoice.id}
+                        onClick={() => setOpenInvoice(invoice)}
+                      >
                         <td className="px-4 py-3">
                           <p className="font-semibold text-[#031526]">{invoice.number}</p>
                           {invoice.payments.find((payment) => payment.status === "CAPTURED")?.providerPaymentId ? (
@@ -420,6 +443,103 @@ export default function SubscriptionPage() {
           </section>
         </>
       ) : null}
+
+      <Modal
+        description={openInvoice ? `${openInvoice.planName} · ${formatDate(openInvoice.periodStart)} — ${formatDate(openInvoice.periodEnd)}` : ""}
+        isOpen={Boolean(openInvoice)}
+        onClose={() => setOpenInvoice(null)}
+        title={openInvoice ? `Invoice ${openInvoice.number}` : ""}
+      >
+        {openInvoice ? (
+          <div className="space-y-5 p-5">
+            <div className="flex items-center justify-between">
+              <span className={`rounded-full px-2.5 py-1 text-[12px] font-bold ${INVOICE_STYLES[openInvoice.status]}`}>
+                {openInvoice.status}
+              </span>
+              <span className="text-[12px] font-medium text-[#5A6573]">
+                Issued {formatDate(openInvoice.issuedAt)} · Due {formatDate(openInvoice.dueAt)}
+              </span>
+            </div>
+
+            <div className="space-y-2 rounded-[6px] border border-[#C9D3DE] bg-[#F7F8FB] p-4 text-[13px]">
+              <div className="flex justify-between">
+                <span className="text-[#5A6573]">Subtotal</span>
+                <span className="font-semibold text-[#031526]">{formatMinor(openInvoice.subtotalMinor, openInvoice.currency)}</span>
+              </div>
+              {openInvoice.discountMinor > 0 ? (
+                <div className="flex justify-between">
+                  <span className="text-[#5A6573]">Discount{openInvoice.couponCode ? ` (${openInvoice.couponCode})` : ""}</span>
+                  <span className="font-semibold text-[#0F8A4A]">−{formatMinor(openInvoice.discountMinor, openInvoice.currency)}</span>
+                </div>
+              ) : null}
+              {openInvoice.taxMinor > 0 ? (
+                <div className="flex justify-between">
+                  <span className="text-[#5A6573]">GST</span>
+                  <span className="font-semibold text-[#031526]">{formatMinor(openInvoice.taxMinor, openInvoice.currency)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between border-t border-[#DCE1E8] pt-2 text-[15px]">
+                <span className="font-semibold text-[#031526]">Total</span>
+                <span className="font-bold text-[#031526]">{formatMinor(openInvoice.totalMinor, openInvoice.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#5A6573]">Paid</span>
+                <span className="font-semibold text-[#031526]">{formatMinor(openInvoice.amountPaidMinor, openInvoice.currency)}</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[13px] font-semibold text-[#031526]">Payments</p>
+              {openInvoice.payments.length ? (
+                <ul className="mt-2 space-y-2">
+                  {openInvoice.payments.map((payment) => (
+                    <li className="rounded-[6px] border border-[#DCE1E8] px-3 py-2 text-[12px]" key={payment.id}>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-semibold text-[#031526]">
+                          {formatMinor(payment.amountMinor, payment.currency)} · {payment.status}
+                        </span>
+                        <span className="text-[#5A6573]">{formatDate(payment.capturedAt ?? payment.createdAt)}</span>
+                      </div>
+                      <p className="mt-0.5 text-[#5A6573]">
+                        {payment.method ? `${payment.method} · ` : ""}
+                        {payment.providerPaymentId ?? payment.providerOrderId ?? "—"}
+                        {payment.refundedMinor > 0 ? ` · refunded ${formatMinor(payment.refundedMinor, payment.currency)}` : ""}
+                      </p>
+                      {payment.failureReason ? <p className="mt-0.5 text-[#C8242C]">{payment.failureReason}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-[12px] text-[#5A6573]">No payment attempts recorded yet.</p>
+              )}
+            </div>
+
+            <button
+              className="min-h-11 w-full rounded-[6px] border border-[#C9D3DE] bg-white px-5 text-[14px] font-semibold text-[#031526] hover:bg-[#F7F8FB] disabled:opacity-50"
+              disabled={busy === `pdf-${openInvoice.id}`}
+              onClick={() => void downloadInvoice(openInvoice)}
+              type="button"
+            >
+              {busy === `pdf-${openInvoice.id}` ? "Preparing…" : "Download invoice (PDF)"}
+            </button>
+
+            {openInvoice.status === "DUE" ? (
+              <button
+                className="min-h-11 w-full rounded-[6px] bg-[#2456E6] px-5 text-[14px] font-semibold text-white hover:bg-[#1B45BD] disabled:opacity-50"
+                disabled={busy === openInvoice.planCode}
+                onClick={() => {
+                  const planCode = openInvoice.planCode;
+                  setOpenInvoice(null);
+                  void startCheckout(planCode);
+                }}
+                type="button"
+              >
+                Pay this invoice
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </Modal>
 
       <CheckoutModal
         onClose={() => setSession(null)}

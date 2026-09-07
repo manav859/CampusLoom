@@ -39,6 +39,7 @@ model School {
   passwordResetRequests PasswordResetRequest[]
   subscription          Subscription?
   invoices              Invoice[]
+  billingNotifications  BillingNotification[]
 
   @@index([schoolId, isActive])
   @@index([deletionStatus, deletionScheduledAt])
@@ -167,6 +168,11 @@ model Subscription {
   cancelAtPeriodEnd  Boolean            @default(false)
   cancelledAt        DateTime?
   couponCode         String?
+  // Negotiated rate for this one school. Null means "charge the plan's list
+  // price", which is the default for everybody. Set it and every invoice and
+  // renewal for this school bills at this amount instead.
+  customPriceMinor   Int?
+  customPriceNote    String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @default(now()) @updatedAt
 
@@ -272,9 +278,48 @@ model BillingEvent {
   @@map("billing_events")
 }
 
+// Every billing message the school was sent, and every one that failed to go
+// out. When a principal says "nobody told us", this is the answer.
+model BillingNotification {
+  id        String                    @id @default(uuid()) @db.Uuid
+  schoolId  String                    @db.VarChar(8)
+  type      BillingNotificationType
+  recipient String
+  message   String
+  status    BillingNotificationStatus @default(SENT)
+  error     String?
+  // One row per school + type + subject (an invoice id, a period end), so the
+  // hourly maintenance sweep cannot send the same warning again every hour.
+  dedupeKey String
+  sentAt    DateTime?
+  createdAt DateTime                  @default(now())
+
+  school School @relation(fields: [schoolId], references: [schoolId], onDelete: Cascade)
+
+  @@unique([schoolId, type, dedupeKey])
+  @@index([schoolId, createdAt])
+  @@map("billing_notifications")
+}
+
 enum BillingInterval {
   MONTH
   YEAR
+}
+
+enum BillingNotificationType {
+  INVOICE_RAISED
+  RENEWAL_UPCOMING
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  PAST_DUE
+  GRACE_ENDING
+  SUSPENDED
+}
+
+enum BillingNotificationStatus {
+  SENT
+  FAILED
+  SKIPPED
 }
 
 enum SubscriptionStatus {

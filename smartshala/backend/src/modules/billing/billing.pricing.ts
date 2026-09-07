@@ -8,6 +8,9 @@ export type Quote = {
   planName: string;
   currency: string;
   subtotalMinor: number;
+  /** The plan's list price, so the UI can show what a custom rate replaced. */
+  listPriceMinor: number;
+  isCustomPrice: boolean;
   discountMinor: number;
   taxMinor: number;
   totalMinor: number;
@@ -57,12 +60,28 @@ export function discountMinorFor(coupon: Coupon | null, subtotalMinor: number) {
  * Price a plan for one billing period. Tax is applied after the discount, which
  * is how GST works on a discounted invoice value.
  */
-export async function quotePlan(plan: Plan, couponCode?: string | null): Promise<Quote> {
+/**
+ * What a school actually pays for a plan: its negotiated rate if one is set,
+ * otherwise the plan's list price. Every price decision goes through here so a
+ * custom rate cannot be honoured in one code path and missed in another.
+ */
+export function effectivePriceMinor(
+  plan: Pick<Plan, "priceMinor">,
+  subscription?: { customPriceMinor: number | null } | null
+) {
+  return subscription?.customPriceMinor ?? plan.priceMinor;
+}
+
+export async function quotePlan(
+  plan: Plan,
+  couponCode?: string | null,
+  subscription?: { customPriceMinor: number | null } | null
+): Promise<Quote> {
   const { coupon, valid, message } = await loadCoupon(couponCode);
-  const subtotalMinor = plan.priceMinor;
+  const subtotalMinor = effectivePriceMinor(plan, subscription);
   const discountMinor = discountMinorFor(coupon, subtotalMinor);
   const taxable = subtotalMinor - discountMinor;
-  const taxPercent = plan.priceMinor === 0 ? 0 : env.BILLING_TAX_PERCENT;
+  const taxPercent = subtotalMinor === 0 ? 0 : env.BILLING_TAX_PERCENT;
   const taxMinor = Math.round((taxable * taxPercent) / 100);
 
   return {
@@ -70,6 +89,8 @@ export async function quotePlan(plan: Plan, couponCode?: string | null): Promise
     planName: plan.name,
     currency: plan.currency,
     subtotalMinor,
+    listPriceMinor: plan.priceMinor,
+    isCustomPrice: subtotalMinor !== plan.priceMinor,
     discountMinor,
     taxMinor,
     totalMinor: taxable + taxMinor,
