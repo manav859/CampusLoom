@@ -16,16 +16,21 @@ const nextConfig: NextConfig = {
       cspSourceFromUrl(process.env.NEXT_PUBLIC_API_URL),
       cspSourceFromUrl(process.env.NEXT_PUBLIC_API_BASE_URL)
     ].filter((source): source is string => Boolean(source));
+    // Razorpay Checkout loads its script from checkout.razorpay.com, renders the
+    // payment window in an api.razorpay.com iframe, and calls its own hosts for
+    // bank logos and telemetry. Miss any one of these and the popup never opens.
+    const razorpay = "https://*.razorpay.com";
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      `script-src 'self' 'unsafe-inline' ${razorpay}`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "img-src 'self' data: blob:",
-      `connect-src ${["'self'", ...apiSources].join(" ")}`,
+      `img-src 'self' data: blob: ${razorpay}`,
+      `connect-src ${["'self'", ...apiSources, razorpay].join(" ")}`,
+      `frame-src 'self' ${razorpay}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
-      "form-action 'self'"
+      `form-action 'self' ${razorpay}`
     ].join("; ");
 
     return [
