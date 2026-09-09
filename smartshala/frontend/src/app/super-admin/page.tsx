@@ -1,9 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { env } from "@/lib/env";
-import { tokenStore } from "@/lib/tokenStore";
-import { BillingPanel } from "./BillingPanel";
+import { useEffect, useMemo, useState } from "react";
 import { superAdminFetch } from "./superAdminFetch";
 
 type SchoolRow = {
@@ -49,24 +46,6 @@ type UsersPayload = {
   users: TenantUser[];
 };
 
-type PasswordResetRequest = {
-  id: string;
-  schoolId: string;
-  userId: string;
-  userName: string;
-  email: string | null;
-  phone: string;
-  role: string;
-  identifier: string;
-  status: "PENDING" | "COMPLETED" | "DISMISSED";
-  requestedAt: string;
-  school: {
-    schoolName: string;
-    dbName: string;
-    isActive: boolean;
-  };
-};
-
 const roles: TenantUser["role"][] = ["PRINCIPAL", "ADMIN", "TEACHER", "ACCOUNTANT", "PARENT"];
 
 function schoolStatusLabel(school: SchoolRow) {
@@ -95,65 +74,22 @@ function trialText(school: SchoolRow) {
   return `Trial ends ${deletionTime(school.trialEndsAt)}`;
 }
 
-export default function SuperAdminPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [token, setToken] = useState<string | null>(null);
+export default function SuperAdminSchoolsPage() {
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [selectedSchoolId, setSelectedSchoolId] = useState("");
   const [usersPayload, setUsersPayload] = useState<UsersPayload | null>(null);
-  const [resetRequests, setResetRequests] = useState<PasswordResetRequest[]>([]);
   const [query, setQuery] = useState("");
   const [resetPasswords, setResetPasswords] = useState<Record<string, string>>({});
-  const [requestPasswords, setRequestPasswords] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [bootstrapping, setBootstrapping] = useState(true);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [view, setView] = useState<"schools" | "billing">("schools");
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ fullName: "", email: "", phone: "", password: "", role: "TEACHER" as TenantUser["role"] });
 
   useEffect(() => {
-    // The access token is held in memory only, so it is lost on a full page
-    // refresh. Recover it from the httpOnly session cookie via /session.
-    const storedToken = tokenStore.get();
-    if (storedToken) {
-      setToken(storedToken);
-      setBootstrapping(false);
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const response = await fetch(`${env.apiBaseUrl}/super-admin/session`, {
-          credentials: "include",
-          cache: "no-store"
-        });
-        if (!response.ok) return;
-        const data = (await response.json().catch(() => null)) as { accessToken?: string } | null;
-        if (!cancelled && data?.accessToken) {
-          tokenStore.set(data.accessToken);
-          setToken(data.accessToken);
-        }
-      } catch {
-        // No valid session — fall through to the login form.
-      } finally {
-        if (!cancelled) setBootstrapping(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!token) return;
     void loadSchools();
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     if (!selectedSchoolId) {
@@ -173,36 +109,12 @@ export default function SuperAdminPage() {
     );
   }, [query, schools]);
 
-  async function login(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setError("");
-    setNotice("");
-    try {
-      const result = await superAdminFetch<{ accessToken: string }>("/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password })
-      });
-      tokenStore.set(result.accessToken);
-      setToken(result.accessToken);
-      setPassword("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to login");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function loadSchools() {
     setLoading(true);
     setError("");
     try {
-      const [rows, requests] = await Promise.all([
-        superAdminFetch<SchoolRow[]>("/schools"),
-        superAdminFetch<PasswordResetRequest[]>("/password-reset-requests")
-      ]);
+      const rows = await superAdminFetch<SchoolRow[]>("/schools");
       setSchools(rows);
-      setResetRequests(requests);
       setSelectedSchoolId((current) => current || rows[0]?.schoolId || "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load schools");
@@ -337,47 +249,6 @@ export default function SuperAdminPage() {
     }
   }
 
-  async function completeResetRequest(request: PasswordResetRequest) {
-    const nextPassword = requestPasswords[request.id]?.trim();
-    if (!nextPassword || nextPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
-      return;
-    }
-
-    setBusyId(request.id);
-    setError("");
-    setNotice("");
-    try {
-      await superAdminFetch(`/password-reset-requests/${request.id}/complete`, {
-        method: "PATCH",
-        body: JSON.stringify({ password: nextPassword })
-      });
-      setRequestPasswords((current) => ({ ...current, [request.id]: "" }));
-      await loadSchools();
-      if (selectedSchoolId === request.schoolId) await loadUsers(selectedSchoolId);
-      setNotice(`${request.userName} password changed and request completed.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to complete password reset");
-    } finally {
-      setBusyId("");
-    }
-  }
-
-  async function dismissResetRequest(request: PasswordResetRequest) {
-    setBusyId(request.id);
-    setError("");
-    setNotice("");
-    try {
-      await superAdminFetch(`/password-reset-requests/${request.id}/dismiss`, { method: "PATCH" });
-      await loadSchools();
-      setNotice(`Password reset request for ${request.userName} dismissed.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to dismiss password reset request");
-    } finally {
-      setBusyId("");
-    }
-  }
-
   async function createUser() {
     if (!selectedSchoolId) return;
     if (!newUser.fullName.trim() || !newUser.phone.trim() || newUser.password.length < 8) {
@@ -409,350 +280,228 @@ export default function SuperAdminPage() {
     }
   }
 
-  function logout() {
-    // Clear the httpOnly session cookie server-side; ignore failures.
-    void fetch(`${env.apiBaseUrl}/super-admin/logout`, { method: "POST", credentials: "include" }).catch(() => {});
-    tokenStore.clear();
-    setToken(null);
-    setSchools([]);
-    setUsersPayload(null);
-  }
-
-  if (bootstrapping) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f5f7fb] text-[#5a6573]">
-        <p className="text-sm font-semibold">Restoring session…</p>
-      </main>
-    );
-  }
-
-  if (!token) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f5f7fb] px-5">
-        <form className="w-full max-w-sm rounded-2xl border border-[#dce3ef] bg-white p-6 shadow-sm" onSubmit={login}>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#5a6573]">Platform</p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-normal text-[#111827]">Super admin</h1>
-          <div className="mt-6 space-y-4">
-            <label className="grid gap-2 text-sm font-semibold text-[#1f2937]">
-              Email
-              <input className="min-h-11 rounded-lg border border-[#dce3ef] px-3 outline-none focus:border-[#2456e6]" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} />
-            </label>
-            <label className="grid gap-2 text-sm font-semibold text-[#1f2937]">
-              Password
-              <input className="min-h-11 rounded-lg border border-[#dce3ef] px-3 outline-none focus:border-[#2456e6]" onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
-            </label>
-            {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{error}</p> : null}
-            <button className="min-h-11 w-full rounded-lg bg-[#2456e6] px-4 text-sm font-bold text-white disabled:opacity-60" disabled={loading} type="submit">
-              {loading ? "Signing in..." : "Sign in"}
-            </button>
-          </div>
-        </form>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-[#f5f7fb] px-5 py-6 text-[#111827]">
-      <div className="mx-auto max-w-7xl space-y-5">
-        <header className="flex flex-col gap-4 border-b border-[#dce3ef] pb-5 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#5a6573]">Platform control</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-normal">Super admin</h1>
+    <div className="space-y-5">
+      <header className="flex flex-col gap-3 border-b border-[#dce3ef] pb-5 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-normal">Schools &amp; users</h1>
+          <p className="mt-1 text-sm text-[#64748b]">Tenant access, trials, and the staff accounts inside each school.</p>
+        </div>
+        <button
+          className="min-h-10 rounded-lg border border-[#cbd5e1] bg-white px-4 text-sm font-semibold disabled:opacity-60"
+          disabled={loading}
+          onClick={loadSchools}
+          type="button"
+        >
+          {loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </header>
+
+      {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
+      {notice ? <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{notice}</p> : null}
+
+      <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
+        <aside className="rounded-2xl border border-[#dce3ef] bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">Schools</h2>
+            <span className="rounded-full bg-[#eef2ff] px-2.5 py-1 text-xs font-bold text-[#2456e6]">{schools.length}</span>
           </div>
-          <div className="flex gap-2">
-            <button className="min-h-10 rounded-lg border border-[#cbd5e1] bg-white px-4 text-sm font-semibold" onClick={loadSchools} type="button">
-              Refresh
-            </button>
-            <button className="min-h-10 rounded-lg bg-[#111827] px-4 text-sm font-semibold text-white" onClick={logout} type="button">
-              Logout
-            </button>
-          </div>
-        </header>
-
-        <nav className="flex flex-wrap gap-2">
-          <button
-            className={`min-h-10 rounded-lg px-4 text-sm font-bold transition ${view === "schools" ? "bg-[#111827] text-white" : "border border-[#cbd5e1] bg-white text-[#334155]"}`}
-            onClick={() => setView("schools")}
-            type="button"
-          >
-            Schools & users
-          </button>
-          <button
-            className={`min-h-10 rounded-lg px-4 text-sm font-bold transition ${view === "billing" ? "bg-[#111827] text-white" : "border border-[#cbd5e1] bg-white text-[#334155]"}`}
-            onClick={() => setView("billing")}
-            type="button"
-          >
-            Billing & plans
-          </button>
-        </nav>
-
-        {error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p> : null}
-        {notice ? <p className="rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">{notice}</p> : null}
-
-        {view === "billing" ? <BillingPanel onError={setError} onNotice={setNotice} /> : null}
-
-        {view === "schools" ? (
-          <>
-        <section className="rounded-2xl border border-[#dce3ef] bg-white shadow-sm">
-          <div className="flex flex-col gap-2 border-b border-[#eef2f7] p-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Forgot password requests</h2>
-              <p className="text-sm text-[#64748b]">Set a new password for verified users, or dismiss old requests.</p>
-            </div>
-            <span className="rounded-full bg-[#fff7ed] px-3 py-1 text-xs font-bold text-[#c2410c]">{resetRequests.length} pending</span>
-          </div>
-          {resetRequests.length ? (
-            <div className="divide-y divide-[#eef2f7]">
-              {resetRequests.map((request) => (
-                <div className="grid gap-3 p-4 lg:grid-cols-[1fr_260px_auto] lg:items-center" key={request.id}>
+          <input
+            className="mt-4 min-h-10 w-full rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search school, owner, email"
+            value={query}
+          />
+          <div className="mt-4 max-h-[calc(100vh-240px)] space-y-2 overflow-auto pr-1">
+            {filteredSchools.map((school) => (
+              <button
+                className={`w-full rounded-xl border p-3 text-left transition ${
+                  selectedSchoolId === school.schoolId ? "border-[#2456e6] bg-[#eef2ff]" : "border-[#eef2f7] bg-white hover:bg-[#f8fafc]"
+                }`}
+                key={school.schoolId}
+                onClick={() => setSelectedSchoolId(school.schoolId)}
+                type="button"
+              >
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold">{request.userName}</p>
-                    <p className="mt-1 text-sm text-[#64748b]">
-                      {request.school.schoolName} · {request.schoolId} · {request.role}
-                    </p>
-                    <p className="mt-1 text-xs text-[#64748b]">
-                      Requested for {request.identifier} on {new Date(request.requestedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                    </p>
+                    <p className="text-sm font-bold">{school.schoolName}</p>
+                    <p className="mt-1 text-xs font-semibold text-[#64748b]">{school.schoolId} · {school.dbName}</p>
                   </div>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${schoolStatusClass(school)}`}>
+                    {schoolStatusLabel(school)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-[#64748b]">{school.email}</p>
+                {school.deletionStatus === "PENDING" ? (
+                  <p className="mt-1 text-xs font-semibold text-amber-800">
+                    Deletes {deletionTime(school.deletionScheduledAt) ?? "after cancellation window"}
+                  </p>
+                ) : null}
+                {trialText(school) ? <p className="mt-1 text-xs font-semibold text-[#64748b]">{trialText(school)}</p> : null}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <section className="space-y-5">
+          {selectedSchoolId ? (
+            <SchoolSummary
+              busy={busyId === selectedSchoolId}
+              onDelete={handleDeleteSchool}
+              onExtend={extendAccess}
+              onToggle={updateSchoolStatus}
+              school={schools.find((row) => row.schoolId === selectedSchoolId) ?? null}
+            />
+          ) : null}
+
+          <div className="rounded-2xl border border-[#dce3ef] bg-white shadow-sm">
+            <div className="flex flex-col gap-2 border-b border-[#eef2f7] p-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Users</h2>
+                <p className="text-sm text-[#64748b]">{usersPayload?.school.schoolName ?? "Select a school"}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-semibold text-[#64748b]">{usersPayload?.users.length ?? 0} users</span>
+                {selectedSchoolId ? (
+                  <button
+                    className="min-h-9 rounded-lg bg-[#2456e6] px-4 text-xs font-bold text-white disabled:opacity-60"
+                    disabled={!selectedSchoolId}
+                    onClick={() => setShowAddUser((v) => !v)}
+                    type="button"
+                  >
+                    {showAddUser ? "Cancel" : "+ Add user"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            {showAddUser && selectedSchoolId ? (
+              <div className="border-b border-[#eef2f7] bg-[#f8fafc] p-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <input
                     className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
-                    disabled={busyId === request.id}
-                    onChange={(event) => setRequestPasswords((current) => ({ ...current, [request.id]: event.target.value }))}
-                    placeholder="New password"
-                    type="password"
-                    value={requestPasswords[request.id] ?? ""}
+                    disabled={busyId === "new-user"}
+                    onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
+                    placeholder="Full name *"
+                    value={newUser.fullName}
                   />
-                  <div className="flex gap-2 lg:justify-end">
-                    <button
-                      className="min-h-10 rounded-lg bg-[#2456e6] px-4 text-xs font-bold text-white disabled:opacity-60"
-                      disabled={busyId === request.id}
-                      onClick={() => completeResetRequest(request)}
-                      type="button"
-                    >
-                      Set new password
-                    </button>
-                    <button
-                      className="min-h-10 rounded-lg border border-[#cbd5e1] px-4 text-xs font-bold disabled:opacity-60"
-                      disabled={busyId === request.id}
-                      onClick={() => dismissResetRequest(request)}
-                      type="button"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="p-4 text-sm font-semibold text-[#64748b]">No pending password reset requests.</p>
-          )}
-        </section>
-
-        <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-          <aside className="rounded-2xl border border-[#dce3ef] bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">Schools</h2>
-              <span className="rounded-full bg-[#eef2ff] px-2.5 py-1 text-xs font-bold text-[#2456e6]">{schools.length}</span>
-            </div>
-            <input
-              className="mt-4 min-h-10 w-full rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search school, owner, email"
-              value={query}
-            />
-            <div className="mt-4 max-h-[calc(100vh-240px)] space-y-2 overflow-auto pr-1">
-              {filteredSchools.map((school) => (
-                <button
-                  className={`w-full rounded-xl border p-3 text-left transition ${
-                    selectedSchoolId === school.schoolId ? "border-[#2456e6] bg-[#eef2ff]" : "border-[#eef2f7] bg-white hover:bg-[#f8fafc]"
-                  }`}
-                  key={school.schoolId}
-                  onClick={() => setSelectedSchoolId(school.schoolId)}
-                  type="button"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-bold">{school.schoolName}</p>
-                      <p className="mt-1 text-xs font-semibold text-[#64748b]">{school.schoolId} · {school.dbName}</p>
-                    </div>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${schoolStatusClass(school)}`}>
-                      {schoolStatusLabel(school)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-[#64748b]">{school.email}</p>
-                  {school.deletionStatus === "PENDING" ? (
-                    <p className="mt-1 text-xs font-semibold text-amber-800">
-                      Deletes {deletionTime(school.deletionScheduledAt) ?? "after cancellation window"}
-                    </p>
-                  ) : null}
-                  {trialText(school) ? <p className="mt-1 text-xs font-semibold text-[#64748b]">{trialText(school)}</p> : null}
-                </button>
-              ))}
-            </div>
-          </aside>
-
-          <section className="space-y-5">
-            {selectedSchoolId ? (
-              <SchoolSummary
-                busy={busyId === selectedSchoolId}
-                onDelete={handleDeleteSchool}
-                onExtend={extendAccess}
-                onToggle={updateSchoolStatus}
-                school={schools.find((row) => row.schoolId === selectedSchoolId) ?? null}
-              />
-            ) : null}
-
-            <div className="rounded-2xl border border-[#dce3ef] bg-white shadow-sm">
-              <div className="flex flex-col gap-2 border-b border-[#eef2f7] p-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">Users</h2>
-                  <p className="text-sm text-[#64748b]">{usersPayload?.school.schoolName ?? "Select a school"}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-[#64748b]">{usersPayload?.users.length ?? 0} users</span>
-                  {selectedSchoolId ? (
-                    <button
-                      className="min-h-9 rounded-lg bg-[#2456e6] px-4 text-xs font-bold text-white disabled:opacity-60"
-                      disabled={!selectedSchoolId}
-                      onClick={() => setShowAddUser((v) => !v)}
-                      type="button"
-                    >
-                      {showAddUser ? "Cancel" : "+ Add user"}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              {showAddUser && selectedSchoolId ? (
-                <div className="border-b border-[#eef2f7] bg-[#f8fafc] p-4">
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <input
-                      className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
-                      disabled={busyId === "new-user"}
-                      onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
-                      placeholder="Full name *"
-                      value={newUser.fullName}
-                    />
-                    <input
-                      className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
-                      disabled={busyId === "new-user"}
-                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                      placeholder="Email (optional)"
-                      type="email"
-                      value={newUser.email}
-                    />
-                    <input
-                      className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
-                      disabled={busyId === "new-user"}
-                      onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
-                      placeholder="Phone *"
-                      value={newUser.phone}
-                    />
-                    <input
-                      className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
-                      disabled={busyId === "new-user"}
-                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                      placeholder="Password (min 8 chars) *"
-                      type="password"
-                      value={newUser.password}
-                    />
-                    <select
-                      className="min-h-10 rounded-lg border border-[#dce3ef] bg-white px-3 text-sm font-semibold"
-                      disabled={busyId === "new-user"}
-                      onChange={(e) => setNewUser({ ...newUser, role: e.target.value as TenantUser["role"] })}
-                      value={newUser.role}
-                    >
-                      {roles.map((role) => (
-                        <option key={role} value={role}>{role}</option>
-                      ))}
-                    </select>
-                    <button
-                      className="min-h-10 rounded-lg bg-[#2456e6] px-4 text-sm font-bold text-white disabled:opacity-60"
-                      disabled={busyId === "new-user"}
-                      onClick={createUser}
-                      type="button"
-                    >
-                      {busyId === "new-user" ? "Creating..." : "Create user"}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] border-collapse text-sm">
-                  <thead className="table-head text-left text-xs uppercase tracking-wide">
-                    <tr>
-                      <th className="px-4 py-3">User</th>
-                      <th className="px-4 py-3">Role</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">New password</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {usersPayload?.users.map((user) => (
-                      <tr className="border-t border-[#eef2f7]" key={user.id}>
-                        <td className="px-4 py-3">
-                          <p className="font-semibold">{user.fullName}</p>
-                          <p className="text-xs text-[#64748b]">{user.email ?? user.phone}</p>
-                        </td>
-                        <td className="px-4 py-3">
-                          <select
-                            className="min-h-9 rounded-lg border border-[#dce3ef] bg-white px-2 text-xs font-semibold"
-                            disabled={busyId === user.id}
-                            onChange={(event) => updateUserRole(user, event.target.value as TenantUser["role"])}
-                            value={user.role}
-                          >
-                            {roles.map((role) => (
-                              <option key={role} value={role}>{role}</option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded-full px-2 py-1 text-xs font-bold ${user.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                            {user.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            className="min-h-9 w-48 rounded-lg border border-[#dce3ef] px-2 text-sm outline-none focus:border-[#2456e6]"
-                            disabled={busyId === user.id}
-                            onChange={(event) => setResetPasswords((current) => ({ ...current, [user.id]: event.target.value }))}
-                            placeholder="At least 8 characters"
-                            type="password"
-                            value={resetPasswords[user.id] ?? ""}
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              className="min-h-9 rounded-lg border border-[#cbd5e1] px-3 text-xs font-bold disabled:opacity-60"
-                              disabled={busyId === user.id}
-                              onClick={() => resetUserPassword(user)}
-                              type="button"
-                            >
-                              Save password
-                            </button>
-                            <button
-                              className={`min-h-9 rounded-lg px-3 text-xs font-bold text-white disabled:opacity-60 ${user.isActive ? "bg-red-600" : "bg-green-600"}`}
-                              disabled={busyId === user.id}
-                              onClick={() => updateUserStatus(user)}
-                              type="button"
-                            >
-                              {user.isActive ? "Deactivate" : "Activate"}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+                  <input
+                    className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+                    disabled={busyId === "new-user"}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    placeholder="Email (optional)"
+                    type="email"
+                    value={newUser.email}
+                  />
+                  <input
+                    className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+                    disabled={busyId === "new-user"}
+                    onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                    placeholder="Phone *"
+                    value={newUser.phone}
+                  />
+                  <input
+                    className="min-h-10 rounded-lg border border-[#dce3ef] px-3 text-sm outline-none focus:border-[#2456e6]"
+                    disabled={busyId === "new-user"}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    placeholder="Password (min 8 chars) *"
+                    type="password"
+                    value={newUser.password}
+                  />
+                  <select
+                    className="min-h-10 rounded-lg border border-[#dce3ef] bg-white px-3 text-sm font-semibold"
+                    disabled={busyId === "new-user"}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as TenantUser["role"] })}
+                    value={newUser.role}
+                  >
+                    {roles.map((role) => (
+                      <option key={role} value={role}>{role}</option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                  <button
+                    className="min-h-10 rounded-lg bg-[#2456e6] px-4 text-sm font-bold text-white disabled:opacity-60"
+                    disabled={busyId === "new-user"}
+                    onClick={createUser}
+                    type="button"
+                  >
+                    {busyId === "new-user" ? "Creating..." : "Create user"}
+                  </button>
+                </div>
               </div>
+            ) : null}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] border-collapse text-sm">
+                <thead className="table-head text-left text-xs uppercase tracking-wide">
+                  <tr>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Role</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">New password</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usersPayload?.users.map((user) => (
+                    <tr className="border-t border-[#eef2f7]" key={user.id}>
+                      <td className="px-4 py-3">
+                        <p className="font-semibold">{user.fullName}</p>
+                        <p className="text-xs text-[#64748b]">{user.email ?? user.phone}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          className="min-h-9 rounded-lg border border-[#dce3ef] bg-white px-2 text-xs font-semibold"
+                          disabled={busyId === user.id}
+                          onChange={(event) => updateUserRole(user, event.target.value as TenantUser["role"])}
+                          value={user.role}
+                        >
+                          {roles.map((role) => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`rounded-full px-2 py-1 text-xs font-bold ${user.isActive ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                          {user.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          className="min-h-9 w-48 rounded-lg border border-[#dce3ef] px-2 text-sm outline-none focus:border-[#2456e6]"
+                          disabled={busyId === user.id}
+                          onChange={(event) => setResetPasswords((current) => ({ ...current, [user.id]: event.target.value }))}
+                          placeholder="At least 8 characters"
+                          type="password"
+                          value={resetPasswords[user.id] ?? ""}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            className="min-h-9 rounded-lg border border-[#cbd5e1] px-3 text-xs font-bold disabled:opacity-60"
+                            disabled={busyId === user.id}
+                            onClick={() => resetUserPassword(user)}
+                            type="button"
+                          >
+                            Save password
+                          </button>
+                          <button
+                            className={`min-h-9 rounded-lg px-3 text-xs font-bold text-white disabled:opacity-60 ${user.isActive ? "bg-red-600" : "bg-green-600"}`}
+                            disabled={busyId === user.id}
+                            onClick={() => updateUserStatus(user)}
+                            type="button"
+                          >
+                            {user.isActive ? "Deactivate" : "Activate"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </section>
-        </div>
-          </>
-        ) : null}
+          </div>
+        </section>
       </div>
-    </main>
+    </div>
   );
 }
 

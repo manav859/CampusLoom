@@ -78,7 +78,18 @@ const envSchema = z.object({
   // wrong address never goes out on a document a school files.
   BILLING_SELLER_NAME: z.string().default("SmartShala"),
   BILLING_SELLER_ADDRESS: z.string().optional(),
-  BILLING_SUPPORT_EMAIL: z.string().optional()
+  BILLING_SUPPORT_EMAIL: z.string().optional(),
+  // GST identity of the seller. The state code is what decides whether an
+  // invoice carries CGST+SGST or IGST, so it has no sensible default.
+  BILLING_SELLER_GSTIN: z.string().optional(),
+  BILLING_SELLER_PAN: z.string().optional(),
+  BILLING_SELLER_STATE: z.string().optional(),
+  BILLING_SELLER_STATE_CODE: z.string().regex(/^\d{2}$/).optional(),
+  BILLING_SELLER_PHONE: z.string().optional(),
+  // SAC 998434 — "on-line software services". Override if your CA says otherwise.
+  BILLING_SAC_CODE: z.string().default("998434"),
+  // How long a shareable payment link stays usable.
+  BILLING_PAYMENT_LINK_DAYS: z.coerce.number().int().min(1).max(90).default(14)
 });
 
 const parsed = envSchema.safeParse(process.env);

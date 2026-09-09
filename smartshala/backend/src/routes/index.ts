@@ -11,13 +11,17 @@ import { communicationRouter } from "../modules/communication/communication.rout
 import { dashboardRouter } from "../modules/dashboard/dashboard.routes.js";
 import { demoRouter } from "../modules/demo/demo.routes.js";
 import { feesRouter } from "../modules/fees/fees.routes.js";
+import { announcementsRouter } from "../modules/announcements/announcements.routes.js";
 import { homeworkRouter } from "../modules/homework/homework.routes.js";
+import { leaveRouter } from "../modules/leave/leave.routes.js";
 import { marksRouter } from "../modules/marks/marks.routes.js";
 import { analyticsRouter } from "../modules/analytics/analytics.routes.js";
 import { notificationsRouter } from "../modules/notifications/notifications.routes.js";
 import { onboardingRouter } from "../modules/onboarding/onboarding.routes.js";
+import { paymentLinkRouter } from "../modules/billing/paymentLinks.routes.js";
 import { reportsRouter } from "../modules/reports/reports.routes.js";
 import { settingsRouter } from "../modules/settings/settings.routes.js";
+import { staffAttendanceRouter } from "../modules/staffAttendance/staffAttendance.routes.js";
 import { studentsRouter } from "../modules/students/students.routes.js";
 import { superAdminRouter } from "../modules/superAdmin/superAdmin.routes.js";
 import { tenantSetupRouter } from "../modules/tenantSetup/tenantSetup.routes.js";
@@ -32,6 +36,8 @@ apiRouter.get("/health/db", dbHealthHandler);
 apiRouter.use("/onboarding", onboardingRouter);
 apiRouter.use("/super-admin", superAdminRouter);
 apiRouter.use("/tenant-setup", tenantSetupRouter);
+// Token-authenticated, so it sits with the other unauthenticated routers.
+apiRouter.use("/pay", paymentLinkRouter);
 apiRouter.use(auditMutatingRequest);
 
 apiRouter.use("/auth", authRouter);
@@ -44,6 +50,9 @@ apiRouter.use("/communication", communicationRouter);
 apiRouter.use("/students", studentsRouter);
 apiRouter.use("/attendance", attendanceRouter);
 apiRouter.use("/billing", billingRouter);
+apiRouter.use("/staff-attendance", staffAttendanceRouter);
+apiRouter.use("/leave", leaveRouter);
+apiRouter.use("/announcements", announcementsRouter);
 apiRouter.use("/homework", homeworkRouter);
 apiRouter.use("/marks", marksRouter);
 apiRouter.use("/fees", feesRouter);

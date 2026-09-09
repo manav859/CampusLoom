@@ -275,7 +275,11 @@ export async function getSchoolBilling(schoolId: string) {
       phone: school.phone,
       isActive: school.isActive,
       numberOfStudents: school.numberOfStudents,
-      numberOfStaff: school.numberOfStaff
+      numberOfStaff: school.numberOfStaff,
+      address: school.address,
+      gstin: school.gstin,
+      stateName: school.stateName,
+      stateCode: school.stateCode
     },
     subscription,
     pricing: {
@@ -864,6 +868,37 @@ export async function setCustomPrice(input: {
     // than letting the super admin assume the new rate applied retroactively.
     openInvoicesUnchanged: openInvoices
   };
+}
+
+/**
+ * The school's GST identity. It only ever appears on the tax invoice, so it is
+ * kept off the school's own settings — the super admin owns what a filed
+ * document says.
+ */
+export async function setSchoolTaxDetails(input: {
+  schoolId: string;
+  gstin: string | null;
+  stateName: string | null;
+  stateCode: string | null;
+}) {
+  assertMaster();
+  const school = await masterPrisma.school.findUnique({ where: { schoolId: input.schoolId } });
+  if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
+
+  const updated = await masterPrisma.school.update({
+    where: { schoolId: input.schoolId },
+    data: { gstin: input.gstin, stateName: input.stateName, stateCode: input.stateCode }
+  });
+
+  await recordBillingEvent({
+    schoolId: input.schoolId,
+    actor: SUPER_ADMIN_ACTOR,
+    action: "school.tax_details_updated",
+    message: `Tax details set — GSTIN ${input.gstin ?? "unregistered"}, state ${input.stateName ?? "-"} (${input.stateCode ?? "-"})`,
+    metadata: { previousGstin: school.gstin, previousStateCode: school.stateCode }
+  });
+
+  return { gstin: updated.gstin, stateName: updated.stateName, stateCode: updated.stateCode };
 }
 
 /**

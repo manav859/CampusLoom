@@ -45,7 +45,7 @@ function handleSuspendedTenant() {
     // Fall through to the generic lockout page.
   }
 
-  const target = role === "PRINCIPAL" ? withSchoolPath("/subscription") : "/school-inactive";
+  const target = role === "PRINCIPAL" ? withSchoolPath("/billing") : "/school-inactive";
   if (window.location.pathname === target) return;
   window.location.href = target;
 }

@@ -127,6 +127,43 @@ export const refundSchema = z.object({
   reason: z.string().trim().min(3).max(300)
 });
 
+export const paymentLinkIdParamSchema = z.object({ linkId: z.string().uuid() });
+
+export const createPaymentLinkSchema = z.object({
+  note: z.string().trim().max(300).optional().nullable(),
+  expiresInDays: z.coerce.number().int().min(1).max(90).optional()
+});
+
+export const paymentLinkListQuerySchema = z.object({
+  schoolId: z.string().trim().regex(/^[A-Z0-9]{8}$/).optional(),
+  invoiceId: z.string().uuid().optional(),
+  take: z.coerce.number().int().min(1).max(500).optional()
+});
+
+/**
+ * GST identity of the school being billed. Every field is sent on every save,
+ * with null for "not on file" — so clearing a GSTIN is an explicit null, never
+ * an omitted key that would silently keep the old value.
+ */
+export const schoolTaxSchema = z.object({
+  gstin: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, "That is not a valid GSTIN")
+    .nullable(),
+  stateName: z.string().trim().min(2).max(60).nullable(),
+  stateCode: z.string().trim().regex(/^\d{2}$/, "State code is two digits").nullable()
+});
+
+// --- Public payment links ----------------------------------------------------
+
+export const paymentLinkTokenParamSchema = z.object({
+  token: z.string().trim().regex(/^[a-f0-9]{64}$/)
+});
+
+export const paymentLinkMockPaySchema = mockPaySchema;
+
 export const invoiceListQuerySchema = z.object({
   status: z.enum(["DRAFT", "DUE", "PAID", "VOID", "REFUNDED"]).optional(),
   schoolId: z.string().trim().regex(/^[A-Z0-9]{8}$/).optional(),

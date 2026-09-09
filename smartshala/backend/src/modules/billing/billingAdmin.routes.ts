@@ -19,14 +19,21 @@ import {
   markInvoicePaidOffline,
   refundPayment,
   setCustomPrice,
+  setSchoolTaxDetails,
   setSubscriptionStatus,
   updateCoupon,
   updatePlan,
   voidInvoice
 } from "./billingAdmin.service.js";
 import { renderInvoicePdf } from "./billing.service.js";
+import { createPaymentLink, listPaymentLinks, revokePaymentLink } from "./paymentLinks.service.js";
+import { SUPER_ADMIN_ACTOR } from "./billingAdmin.service.js";
 import {
   changePlanSchema,
+  createPaymentLinkSchema,
+  paymentLinkIdParamSchema,
+  paymentLinkListQuerySchema,
+  schoolTaxSchema,
   couponIdParamSchema,
   createCouponSchema,
   createPlanSchema,
@@ -165,6 +172,14 @@ billingAdminRouter.patch(
 );
 
 billingAdminRouter.patch(
+  "/schools/:schoolId/tax",
+  validate({ params: schoolIdParamSchema, body: schoolTaxSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await setSchoolTaxDetails({ schoolId: req.params.schoolId, ...req.body }));
+  })
+);
+
+billingAdminRouter.patch(
   "/schools/:schoolId/extend",
   validate({ params: schoolIdParamSchema, body: extendSubscriptionSchema }),
   asyncHandler(async (req, res) => {
@@ -231,6 +246,40 @@ billingAdminRouter.post(
   validate({ params: invoiceParamSchema, body: voidInvoiceSchema }),
   asyncHandler(async (req, res) => {
     res.json(await voidInvoice(req.params.invoiceId, req.body.reason));
+  })
+);
+
+// --- Payment links -----------------------------------------------------------
+
+billingAdminRouter.get(
+  "/payment-links",
+  validate({ query: paymentLinkListQuerySchema }),
+  asyncHandler(async (req, res) => {
+    res.json(
+      await listPaymentLinks({
+        schoolId: req.query.schoolId as string | undefined,
+        invoiceId: req.query.invoiceId as string | undefined,
+        take: req.query.take ? Number(req.query.take) : undefined
+      })
+    );
+  })
+);
+
+billingAdminRouter.post(
+  "/invoices/:invoiceId/payment-links",
+  validate({ params: invoiceParamSchema, body: createPaymentLinkSchema }),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(
+      await createPaymentLink({ invoiceId: req.params.invoiceId, ...req.body, actor: SUPER_ADMIN_ACTOR })
+    );
+  })
+);
+
+billingAdminRouter.post(
+  "/payment-links/:linkId/revoke",
+  validate({ params: paymentLinkIdParamSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await revokePaymentLink(req.params.linkId, SUPER_ADMIN_ACTOR));
   })
 );
 
