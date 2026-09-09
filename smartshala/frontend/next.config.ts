@@ -46,6 +46,14 @@ const nextConfig: NextConfig = {
       }
     ];
   },
+  async redirects() {
+    // "Subscription" became "Billing"; keep old bookmarks and the tenant-prefixed
+    // form working. These run before the tenant middleware rewrite.
+    return [
+      { source: "/subscription", destination: "/billing", permanent: false },
+      { source: "/:schoolId([A-Z0-9]{8})/subscription", destination: "/:schoolId/billing", permanent: false }
+    ];
+  },
   images: {
     remotePatterns: [
       {

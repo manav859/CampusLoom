@@ -75,11 +75,11 @@ const adminLinks: NavItem[] = [
   { label: "Setting", href: "/settings", icon: "settings" }
 ];
 
-// Subscription is the principal's commercial relationship with SmartShala, so
+// Billing is the principal's commercial relationship with SmartShala, so
 // it is deliberately not shown to school ADMINs.
 const principalLinks: NavItem[] = [
   ...adminLinks,
-  { label: "Subscription", href: "/subscription", icon: "billing" }
+  { label: "Billing", href: "/billing", icon: "billing" }
 ];
 
 const teacherLinks: NavItem[] = [

@@ -252,7 +252,12 @@ export async function renderInvoicePdf(invoiceId: string, schoolId?: string) {
     seller: {
       name: env.BILLING_SELLER_NAME,
       address: env.BILLING_SELLER_ADDRESS ?? null,
-      email: env.BILLING_SUPPORT_EMAIL ?? null
+      email: env.BILLING_SUPPORT_EMAIL ?? null,
+      phone: env.BILLING_SELLER_PHONE ?? null,
+      gstin: env.BILLING_SELLER_GSTIN ?? null,
+      pan: env.BILLING_SELLER_PAN ?? null,
+      stateName: env.BILLING_SELLER_STATE ?? null,
+      stateCode: env.BILLING_SELLER_STATE_CODE ?? null
     },
     school: {
       schoolId: invoice.school.schoolId,
@@ -260,7 +265,10 @@ export async function renderInvoicePdf(invoiceId: string, schoolId?: string) {
       ownerName: invoice.school.ownerName,
       email: invoice.school.email,
       phone: invoice.school.phone,
-      address: invoice.school.address
+      address: invoice.school.address,
+      gstin: invoice.school.gstin,
+      stateName: invoice.school.stateName,
+      stateCode: invoice.school.stateCode
     },
     invoice: {
       number: invoice.number,
@@ -268,6 +276,7 @@ export async function renderInvoicePdf(invoiceId: string, schoolId?: string) {
       currency: invoice.currency,
       planName: invoice.planName,
       planCode: invoice.planCode,
+      sacCode: env.BILLING_SAC_CODE,
       subtotalMinor: invoice.subtotalMinor,
       discountMinor: invoice.discountMinor,
       taxMinor: invoice.taxMinor,
@@ -359,49 +368,7 @@ export async function createCheckoutSession(input: {
       subscription
     }));
 
-  const amountDue = invoice.totalMinor - invoice.amountPaidMinor;
-  if (amountDue <= 0) throw new AppError(409, "This invoice is already settled", "INVOICE_ALREADY_PAID");
-
-  // Reopening the checkout page, or double-clicking Pay now, must not stack a
-  // new gateway order on the same invoice. Reuse the open one while the gateway
-  // still recognises it; only mint a fresh order once it has gone.
-  const openPayment = await masterPrisma.payment.findFirst({
-    where: {
-      invoiceId: invoice.id,
-      status: PaymentState.CREATED,
-      amountMinor: amountDue,
-      createdAt: { gt: new Date(Date.now() - CHECKOUT_ORDER_TTL_MS) }
-    },
-    orderBy: { createdAt: "desc" }
-  });
-
-  const reusable =
-    openPayment?.providerOrderId && (await razorpay.fetchOrder(openPayment.providerOrderId).catch(() => null));
-
-  const order = reusable
-    ? reusable
-    : await razorpay.createOrder({
-        amountMinor: amountDue,
-        currency: invoice.currency,
-        receipt: invoice.number,
-        notes: { schoolId: input.schoolId, invoiceId: invoice.id, planCode: plan.code }
-      });
-
-  const payment =
-    reusable && openPayment
-      ? openPayment
-      : await masterPrisma.payment.create({
-          data: {
-            invoiceId: invoice.id,
-            schoolId: input.schoolId,
-            gatewayMode: isMockGateway() ? GatewayMode.MOCK : GatewayMode.LIVE,
-            providerOrderId: order.id,
-            status: PaymentState.CREATED,
-            amountMinor: amountDue,
-            currency: invoice.currency,
-            notes: { planCode: plan.code, invoiceNumber: invoice.number }
-          }
-        });
+  const { order, payment, amountDue } = await ensureGatewayOrder(invoice);
 
   await recordBillingEvent({
     schoolId: input.schoolId,
@@ -432,6 +399,66 @@ export async function createCheckoutSession(input: {
     },
     school: { schoolId: school.schoolId, schoolName: school.schoolName, email: school.email, phone: school.phone }
   };
+}
+
+/**
+ * The gateway order an invoice should be paid against. Reopening the checkout
+ * page, double-clicking Pay now, or following a payment link the school was
+ * sent must not stack a second order on the same invoice: reuse the open one
+ * while the gateway still recognises it, and only mint a fresh order once it
+ * has gone.
+ */
+export async function ensureGatewayOrder(invoice: {
+  id: string;
+  schoolId: string;
+  number: string;
+  currency: string;
+  planCode: string;
+  totalMinor: number;
+  amountPaidMinor: number;
+}) {
+  const amountDue = invoice.totalMinor - invoice.amountPaidMinor;
+  if (amountDue <= 0) throw new AppError(409, "This invoice is already settled", "INVOICE_ALREADY_PAID");
+
+  const openPayment = await masterPrisma.payment.findFirst({
+    where: {
+      invoiceId: invoice.id,
+      status: PaymentState.CREATED,
+      amountMinor: amountDue,
+      createdAt: { gt: new Date(Date.now() - CHECKOUT_ORDER_TTL_MS) }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+
+  const reusable =
+    openPayment?.providerOrderId && (await razorpay.fetchOrder(openPayment.providerOrderId).catch(() => null));
+
+  const order = reusable
+    ? reusable
+    : await razorpay.createOrder({
+        amountMinor: amountDue,
+        currency: invoice.currency,
+        receipt: invoice.number,
+        notes: { schoolId: invoice.schoolId, invoiceId: invoice.id, planCode: invoice.planCode }
+      });
+
+  const payment =
+    reusable && openPayment
+      ? openPayment
+      : await masterPrisma.payment.create({
+          data: {
+            invoiceId: invoice.id,
+            schoolId: invoice.schoolId,
+            gatewayMode: isMockGateway() ? GatewayMode.MOCK : GatewayMode.LIVE,
+            providerOrderId: order.id,
+            status: PaymentState.CREATED,
+            amountMinor: amountDue,
+            currency: invoice.currency,
+            notes: { planCode: invoice.planCode, invoiceNumber: invoice.number }
+          }
+        });
+
+  return { order, payment, amountDue };
 }
 
 /**

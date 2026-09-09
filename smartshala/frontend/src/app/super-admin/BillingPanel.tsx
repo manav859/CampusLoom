@@ -44,7 +44,17 @@ type Summary = {
 };
 
 type SchoolBilling = {
-  school: { schoolId: string; schoolName: string; ownerName: string; email: string; isActive: boolean };
+  school: {
+    schoolId: string;
+    schoolName: string;
+    ownerName: string;
+    email: string;
+    isActive: boolean;
+    address: string;
+    gstin: string | null;
+    stateName: string | null;
+    stateCode: string | null;
+  };
   subscription: SubscriptionRow & { plan: Plan };
   pricing: {
     listPriceMinor: number;
@@ -79,7 +89,25 @@ type LedgerInvoice = Invoice & { school: { schoolName: string } };
 
 type PlanRow = Plan & { subscriberCount: number };
 
-const TABS = ["Overview", "Plans", "Coupons", "Subscriptions", "Invoices"] as const;
+type PaymentLinkRow = {
+  id: string;
+  token: string;
+  url: string;
+  status: "ACTIVE" | "PAID" | "REVOKED";
+  amountMinor: number;
+  currency: string;
+  note: string | null;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string;
+  firstViewedAt: string | null;
+  paidAt: string | null;
+  revokedAt: string | null;
+  invoice: { id: string; number: string; status: Invoice["status"]; totalMinor: number; amountPaidMinor: number; planName: string };
+  school: { schoolId: string; schoolName: string; email: string };
+};
+
+const TABS = ["Overview", "Plans", "Coupons", "Subscriptions", "Invoices", "Payment links"] as const;
 type Tab = (typeof TABS)[number];
 
 const card = "rounded-2xl border border-[#dce3ef] bg-white p-4 shadow-sm";
@@ -135,6 +163,10 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
   const [ledgerStatus, setLedgerStatus] = useState<"" | Invoice["status"]>("DUE");
   const [priceDraft, setPriceDraft] = useState("");
   const [priceNote, setPriceNote] = useState("");
+  const [taxDraft, setTaxDraft] = useState({ gstin: "", stateName: "", stateCode: "" });
+  const [links, setLinks] = useState<PaymentLinkRow[]>([]);
+  const [linkStatus, setLinkStatus] = useState<"" | PaymentLinkRow["status"]>("ACTIVE");
+  const [copiedLinkId, setCopiedLinkId] = useState("");
   const [busy, setBusy] = useState("");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | SubscriptionStatus>("");
@@ -174,6 +206,10 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
     setLedger(await superAdminFetch<LedgerInvoice[]>(`/billing/invoices?${params.toString()}`));
   }, [ledgerStatus]);
 
+  const loadLinks = useCallback(async () => {
+    setLinks(await superAdminFetch<PaymentLinkRow[]>("/billing/payment-links"));
+  }, []);
+
   useEffect(() => {
     void run("load", async () => {
       if (tab === "Overview") await loadSummary();
@@ -181,8 +217,9 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
       if (tab === "Coupons") await loadCoupons();
       if (tab === "Subscriptions") await loadSubscriptions();
       if (tab === "Invoices") await loadLedger();
+      if (tab === "Payment links") await loadLinks();
     });
-  }, [tab, loadSummary, loadPlans, loadCoupons, loadSubscriptions, loadLedger, run]);
+  }, [tab, loadSummary, loadPlans, loadCoupons, loadSubscriptions, loadLedger, loadLinks, run]);
 
   const outstandingLabel = useMemo(
     () => (summary ? `${summary.outstandingInvoiceCount} invoice${summary.outstandingInvoiceCount === 1 ? "" : "s"}` : ""),
@@ -313,7 +350,30 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
       setDetail(billing);
       setPriceDraft(billing.subscription.customPriceMinor === null ? "" : String(billing.subscription.customPriceMinor / 100));
       setPriceNote(billing.subscription.customPriceNote ?? "");
+      setTaxDraft({
+        gstin: billing.school.gstin ?? "",
+        stateName: billing.school.stateName ?? "",
+        stateCode: billing.school.stateCode ?? ""
+      });
     });
+  }
+
+  function saveTaxDetails(schoolId: string) {
+    void run(
+      `tax-${schoolId}`,
+      async () => {
+        await superAdminFetch(`/billing/schools/${schoolId}/tax`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            gstin: taxDraft.gstin.trim().toUpperCase() || null,
+            stateName: taxDraft.stateName.trim() || null,
+            stateCode: taxDraft.stateCode.trim() || null
+          })
+        });
+        await refreshDetail();
+      },
+      "Tax details saved. They appear on the next invoice PDF."
+    );
   }
 
   function saveCustomPrice(schoolId: string) {
@@ -398,6 +458,44 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
   function downloadInvoice(invoice: Invoice) {
     void run(`pdf-${invoice.id}`, () =>
       superAdminDownload(`/billing/invoices/${invoice.id}/pdf`, `invoice-${invoice.number}.pdf`)
+    );
+  }
+
+  // --- payment links ----------------------------------------------------------
+
+  async function copyToClipboard(link: PaymentLinkRow) {
+    try {
+      await navigator.clipboard.writeText(link.url);
+      setCopiedLinkId(link.id);
+      window.setTimeout(() => setCopiedLinkId((current) => (current === link.id ? "" : current)), 2500);
+    } catch {
+      // Clipboard is blocked outside a secure context; the URL is on screen anyway.
+      onError("Could not copy automatically — select the link and copy it manually.");
+    }
+  }
+
+  function createLink(invoice: Invoice) {
+    const note = window.prompt(`Note to show on the payment page for ${invoice.number} (optional)`) ?? "";
+    void run(`link-${invoice.id}`, async () => {
+      const link = await superAdminFetch<PaymentLinkRow>(`/billing/invoices/${invoice.id}/payment-links`, {
+        method: "POST",
+        body: JSON.stringify({ note: note.trim() || null })
+      });
+      await copyToClipboard(link);
+      if (tab === "Payment links") await loadLinks();
+      onNotice(`Payment link for ${invoice.number} created and copied: ${link.url}`);
+    });
+  }
+
+  function revokeLink(link: PaymentLinkRow) {
+    if (!window.confirm(`Revoke the payment link for ${link.invoice.number}? Anyone holding it will no longer be able to pay.`)) return;
+    void run(
+      `revoke-${link.id}`,
+      async () => {
+        await superAdminFetch(`/billing/payment-links/${link.id}/revoke`, { method: "POST" });
+        await loadLinks();
+      },
+      "Payment link revoked."
     );
   }
 
@@ -1043,6 +1141,53 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                 </div>
               </div>
 
+              {/* GST identity: what the tax invoice prints for this buyer. */}
+              <div className="mt-4 rounded-xl border border-[#dce3ef] bg-[#f8fafc] p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#64748b]">Tax details (GST invoice)</p>
+                <p className="mt-1 text-xs text-[#64748b]">
+                  Blank GSTIN prints as &quot;Unregistered&quot;. The state code sets the place of supply, which decides
+                  whether the invoice carries CGST + SGST or IGST.
+                </p>
+                <div className="mt-3 flex flex-wrap items-end gap-2">
+                  <label className="block text-xs font-bold text-[#334155]">
+                    GSTIN
+                    <input
+                      className={`${input} mt-1 max-w-[220px] uppercase`}
+                      onChange={(e) => setTaxDraft({ ...taxDraft, gstin: e.target.value })}
+                      placeholder="24AABCS1429B1ZP"
+                      value={taxDraft.gstin}
+                    />
+                  </label>
+                  <label className="block text-xs font-bold text-[#334155]">
+                    State
+                    <input
+                      className={`${input} mt-1 max-w-[200px]`}
+                      onChange={(e) => setTaxDraft({ ...taxDraft, stateName: e.target.value })}
+                      placeholder="Gujarat"
+                      value={taxDraft.stateName}
+                    />
+                  </label>
+                  <label className="block text-xs font-bold text-[#334155]">
+                    State code
+                    <input
+                      className={`${input} mt-1 max-w-[110px]`}
+                      maxLength={2}
+                      onChange={(e) => setTaxDraft({ ...taxDraft, stateCode: e.target.value })}
+                      placeholder="24"
+                      value={taxDraft.stateCode}
+                    />
+                  </label>
+                  <button
+                    className={primaryBtn}
+                    disabled={busy === `tax-${detail.school.schoolId}`}
+                    onClick={() => saveTaxDetails(detail.school.schoolId)}
+                    type="button"
+                  >
+                    Save tax details
+                  </button>
+                </div>
+              </div>
+
               {/* Usage, so upgrade decisions are made against real numbers. */}
               <div className="mt-4 flex flex-wrap gap-4 text-sm">
                 {detail.usage.reachable ? (
@@ -1095,6 +1240,14 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                               </button>
                               {invoice.status === "DUE" ? (
                                 <>
+                                  <button
+                                    className={ghostBtn}
+                                    disabled={busy === `link-${invoice.id}`}
+                                    onClick={() => createLink(invoice)}
+                                    type="button"
+                                  >
+                                    {busy === `link-${invoice.id}` ? "Creating…" : "Payment link"}
+                                  </button>
                                   <button className={ghostBtn} disabled={busy === `paid-${invoice.id}`} onClick={() => markPaid(invoice)} type="button">
                                     Mark paid
                                   </button>
@@ -1211,7 +1364,7 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Paid</th>
                   <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3 text-right">Invoice PDF</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1242,10 +1395,22 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                       {formatMinor(invoice.amountPaidMinor, invoice.currency)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold">{formatMinor(invoice.totalMinor, invoice.currency)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button className={ghostBtn} disabled={busy === `pdf-${invoice.id}`} onClick={() => downloadInvoice(invoice)} type="button">
-                        Download
-                      </button>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        {invoice.status === "DUE" ? (
+                          <button
+                            className={ghostBtn}
+                            disabled={busy === `link-${invoice.id}`}
+                            onClick={() => createLink(invoice)}
+                            type="button"
+                          >
+                            {busy === `link-${invoice.id}` ? "Creating…" : "Payment link"}
+                          </button>
+                        ) : null}
+                        <button className={ghostBtn} disabled={busy === `pdf-${invoice.id}`} onClick={() => downloadInvoice(invoice)} type="button">
+                          PDF
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1253,6 +1418,125 @@ export function BillingPanel({ onError, onNotice }: { onError: (message: string)
                   <tr>
                     <td className="px-4 py-4 text-sm text-[#64748b]" colSpan={7}>
                       No invoices match that filter.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Payment links --------------------------------------------------------- */}
+      {tab === "Payment links" ? (
+        <div className="space-y-4">
+          <div className={card}>
+            <p className="text-sm font-semibold text-[#111827]">How these work</p>
+            <p className="mt-1 text-sm text-[#64748b]">
+              A link is raised against one open invoice and is the only credential needed to pay it — send it by email
+              or WhatsApp and the school opens Razorpay straight from the page, with no login. Raising a new link for an
+              invoice revokes the previous one. Create links from the <strong>Invoices</strong> tab, or from a school in{" "}
+              <strong>Subscriptions</strong>.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className={`${input} max-w-[200px] bg-white`}
+              onChange={(e) => setLinkStatus(e.target.value as "" | PaymentLinkRow["status"])}
+              value={linkStatus}
+            >
+              <option value="">All statuses</option>
+              {(["ACTIVE", "PAID", "REVOKED"] as PaymentLinkRow["status"][]).map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+            <button className={primaryBtn} disabled={busy === "load"} onClick={() => void run("load", loadLinks)} type="button">
+              Refresh
+            </button>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-[#dce3ef] bg-white shadow-sm">
+            <table className="w-full min-w-[980px] border-collapse text-sm">
+              <thead className="table-head text-left text-xs uppercase tracking-wide">
+                <tr>
+                  <th className="px-4 py-3">Invoice</th>
+                  <th className="px-4 py-3">School</th>
+                  <th className="px-4 py-3">Link</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {links
+                  .filter((link) => !linkStatus || link.status === linkStatus)
+                  .map((link) => {
+                    const expired = link.status === "ACTIVE" && new Date(link.expiresAt).getTime() < Date.now();
+                    return (
+                      <tr className="border-t border-[#eef2f7]" key={link.id}>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold">{link.invoice.number}</p>
+                          <p className="text-xs text-[#64748b]">{link.invoice.planName}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            className="text-left font-semibold text-[#2456e6] hover:underline"
+                            onClick={() => {
+                              setTab("Subscriptions");
+                              openSchool(link.school.schoolId);
+                            }}
+                            type="button"
+                          >
+                            {link.school.schoolName}
+                          </button>
+                          <p className="text-xs text-[#64748b]">{link.school.schoolId}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="max-w-[280px] truncate text-xs text-[#334155]" title={link.url}>
+                            {link.url}
+                          </p>
+                          <p className="text-xs text-[#64748b]">
+                            {expired ? "Expired" : `Valid until ${fmtDate(link.expiresAt)}`}
+                            {link.firstViewedAt ? ` · opened ${fmtDate(link.firstViewedAt)}` : " · not opened yet"}
+                          </p>
+                          {link.note ? <p className="text-xs text-[#64748b]">Note: {link.note}</p> : null}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-bold ${
+                              link.status === "PAID"
+                                ? "bg-green-50 text-green-700"
+                                : link.status === "REVOKED" || expired
+                                  ? "bg-slate-100 text-slate-600"
+                                  : "bg-blue-50 text-blue-700"
+                            }`}
+                          >
+                            {expired && link.status === "ACTIVE" ? "EXPIRED" : link.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold">{formatMinor(link.amountMinor, link.currency)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-2">
+                            <button className={ghostBtn} onClick={() => void copyToClipboard(link)} type="button">
+                              {copiedLinkId === link.id ? "Copied" : "Copy"}
+                            </button>
+                            {link.status === "ACTIVE" ? (
+                              <button className={ghostBtn} disabled={busy === `revoke-${link.id}`} onClick={() => revokeLink(link)} type="button">
+                                Revoke
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                {links.filter((link) => !linkStatus || link.status === linkStatus).length === 0 ? (
+                  <tr>
+                    <td className="px-4 py-4 text-sm text-[#64748b]" colSpan={6}>
+                      No payment links match that filter.
                     </td>
                   </tr>
                 ) : null}

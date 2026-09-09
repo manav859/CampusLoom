@@ -8,6 +8,9 @@ const TENANT_AGNOSTIC_PREFIXES = [
   "/auth/",
   "/health",
   "/onboarding/",
+  // Payment links carry their own credential in the URL and are opened by
+  // people who are not signed in to any tenant.
+  "/pay/",
   "/super-admin/",
   "/tenant-setup/",
 ];

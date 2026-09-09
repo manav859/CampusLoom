@@ -3,60 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui";
 import { billingApi, formatMinor, type CheckoutSession } from "@/lib/api";
-
-const CHECKOUT_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
-
-type CheckoutResponse = {
-  razorpay_order_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
-};
-
-type RazorpayInstance = {
-  open: () => void;
-  close: () => void;
-  on: (event: "payment.failed", handler: (payload: { error?: { description?: string } }) => void) => void;
-};
-
-type RazorpayOptions = {
-  key: string;
-  order_id: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  prefill: { name?: string; email?: string; contact?: string };
-  notes: Record<string, string>;
-  theme: { color: string };
-  handler: (response: CheckoutResponse) => void;
-  modal: { ondismiss: () => void };
-};
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
-  }
-}
-
-function loadCheckoutScript() {
-  return new Promise<void>((resolve, reject) => {
-    if (window.Razorpay) return resolve();
-
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${CHECKOUT_SCRIPT}"]`);
-    if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Razorpay checkout could not be loaded")), { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = CHECKOUT_SCRIPT;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Razorpay checkout could not be loaded"));
-    document.body.appendChild(script);
-  });
-}
+import { loadRazorpayCheckout } from "@/lib/razorpayCheckout";
 
 /**
  * The real gateway: Razorpay's own popup takes the card details, and the
@@ -87,7 +34,7 @@ export function RazorpayCheckout({
 
     void (async () => {
       try {
-        await loadCheckoutScript();
+        await loadRazorpayCheckout();
         if (cancelled) return;
         if (!window.Razorpay) throw new Error("Razorpay checkout could not be loaded");
 

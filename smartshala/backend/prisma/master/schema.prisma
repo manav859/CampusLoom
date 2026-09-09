@@ -16,6 +16,11 @@ model School {
   email                 String
   phone                 String
   address               String
+  // Tax identity for the GST invoice. Blank gstin means an unregistered buyer;
+  // stateCode drives the CGST+SGST vs IGST split against the seller's state.
+  gstin                 String?                @db.VarChar(15)
+  stateName             String?
+  stateCode             String?                @db.VarChar(2)
   numberOfStudents      Int
   numberOfStaff         Int
   planType              PlanType
@@ -40,6 +45,7 @@ model School {
   subscription          Subscription?
   invoices              Invoice[]
   billingNotifications  BillingNotification[]
+  paymentLinks          PaymentLink[]
 
   @@index([schoolId, isActive])
   @@index([deletionStatus, deletionScheduledAt])
@@ -214,6 +220,7 @@ model Invoice {
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   plan         Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
   payments     Payment[]
+  paymentLinks PaymentLink[]
 
   @@index([schoolId, issuedAt])
   @@index([status, dueAt])
@@ -246,6 +253,34 @@ model Payment {
   @@index([schoolId, createdAt])
   @@index([status])
   @@map("payments")
+}
+
+// A shareable "pay this invoice" URL the super admin hands to a school. The
+// token is the only credential, so it is single-invoice, expires, and can be
+// revoked — everything a signed-in checkout would have given us.
+model PaymentLink {
+  id          String            @id @default(uuid()) @db.Uuid
+  token       String            @unique
+  invoiceId   String            @db.Uuid
+  schoolId    String            @db.VarChar(8)
+  amountMinor Int
+  currency    String            @default("INR")
+  status      PaymentLinkStatus @default(ACTIVE)
+  note        String?
+  createdBy   String
+  expiresAt   DateTime
+  firstViewedAt DateTime?
+  paidAt      DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @default(now()) @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  school  School  @relation(fields: [schoolId], references: [schoolId], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+  @@index([invoiceId, status])
+  @@map("payment_links")
 }
 
 model WebhookEvent {
@@ -349,4 +384,10 @@ enum PaymentState {
 enum GatewayMode {
   MOCK
   LIVE
+}
+
+enum PaymentLinkStatus {
+  ACTIVE
+  PAID
+  REVOKED
 }
