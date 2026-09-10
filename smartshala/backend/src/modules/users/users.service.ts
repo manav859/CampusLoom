@@ -313,6 +313,34 @@ export async function getTeacherAssignments(schoolId: string, teacherId: string)
   };
 }
 
+// Teacher portal: the signed-in teacher's own timetable for one weekday. Unlike
+// getTeacherAssignments this needs no admin role and never returns free periods,
+// so the app can render "today's schedule" directly.
+export async function getMySchedule(user: Express.UserContext, day?: string) {
+  const dayOfWeek = day ?? weekdayName(new Date());
+  const isWeekday = (timetableDays as readonly string[]).includes(dayOfWeek);
+
+  const periods = isWeekday
+    ? await prisma.teacherPeriodAssignment.findMany({
+        where: { schoolId: user.schoolId, teacherId: user.id, classId: { not: null } },
+        orderBy: { periodNumber: "asc" },
+        include: {
+          class: { select: { id: true, name: true, section: true, academicYear: true } },
+          subject: { select: { id: true, name: true } }
+        }
+      })
+    : [];
+
+  return {
+    dayOfWeek,
+    periods: periods.filter((period) => period.dayOfWeek === dayOfWeek).map(mapPeriod)
+  };
+}
+
+function weekdayName(date: Date) {
+  return ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][date.getDay()];
+}
+
 export async function updateTeacherAssignments(schoolId: string, teacherId: string, periods: TeacherPeriodInput[]) {
   const teacher = await prisma.user.findFirst({ where: { id: teacherId, schoolId, role: UserRole.TEACHER }, select: { id: true } });
   if (!teacher) throw notFound("Teacher");

@@ -3,12 +3,19 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./users.controller.js";
-import { createAccountantSchema, createTeacherSchema, resetTeacherPasswordSchema, teacherAssignmentParamsSchema, teacherPeriodAssignmentsSchema, updateUserSchema } from "./users.schemas.js";
+import { createAccountantSchema, createTeacherSchema, myScheduleQuerySchema, resetTeacherPasswordSchema, teacherAssignmentParamsSchema, teacherPeriodAssignmentsSchema, updateUserSchema } from "./users.schemas.js";
 
 export const usersRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 
 usersRouter.use(requireAuth);
+// Self-service: a teacher reads their own timetable, so this must sit above the
+// admin-only routes and before any "/:id" pattern.
+usersRouter.get(
+  "/me/schedule",
+  validate({ query: myScheduleQuerySchema }),
+  controller.getMySchedule
+);
 usersRouter.get("/teachers", requireRole(adminRoles), controller.listTeachers);
 usersRouter.post("/teachers", requireRole(adminRoles), validate({ body: createTeacherSchema }), controller.createTeacher);
 usersRouter.post("/accountants", requireRole(adminRoles), validate({ body: createAccountantSchema }), controller.createAccountant);

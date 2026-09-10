@@ -62,3 +62,7 @@ export const studentDocumentSchema = z.object({
   type: z.nativeEnum(StudentDocumentType),
   name: z.string().min(2).max(160).optional()
 });
+
+export const needingFocusQuerySchema = z.object({
+  classId: z.string().uuid().optional()
+});

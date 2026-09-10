@@ -19,6 +19,10 @@ export const createAccountant = asyncHandler(async (req: Request, res: Response)
   res.status(201).json(await usersService.createUser(req.user!.schoolId, { ...req.body, role: UserRole.ACCOUNTANT }));
 });
 
+export const getMySchedule = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await usersService.getMySchedule(req.user!, req.query.day as string | undefined));
+});
+
 export const getTeacherAssignments = asyncHandler(async (req: Request, res: Response) => {
   res.json(await usersService.getTeacherAssignments(req.user!.schoolId, req.params.id));
 });

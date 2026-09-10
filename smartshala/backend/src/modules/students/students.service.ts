@@ -872,6 +872,149 @@ function getFeeStatusFilter(feeStatus: string) {
   }
 }
 
+/**
+ * Teacher portal: "Students Needing Focus".
+ *
+ * Deliberately distinct from analytics.riskSummary, which is principal-only and
+ * weighs pending fees. Teachers must never see fee information, so this scores
+ * on attendance and academic signals alone. Thresholds are fixed and documented
+ * so the flags are reproducible:
+ *
+ *   attendance  - below 75% of marked days this month
+ *   marks       - average exam percentage below 40%
+ *   homework    - 3 or more missing/unsubmitted items in the last 30 days
+ *
+ * Severity is HIGH when two or more signals fire, or attendance is below 60%.
+ */
+export const FOCUS_THRESHOLDS = {
+  attendancePercent: 75,
+  criticalAttendancePercent: 60,
+  averageMarksPercent: 40,
+  missingHomeworkCount: 3,
+  lookbackDays: 30
+} as const;
+
+export async function studentsNeedingFocus(user: Express.UserContext, query: { classId?: string } = {}) {
+  return withRetry(async () => {
+    const accessFilter = await studentAccessFilter(user);
+    const since = new Date();
+    since.setDate(since.getDate() - FOCUS_THRESHOLDS.lookbackDays);
+    since.setHours(0, 0, 0, 0);
+
+    const students = await prisma.student.findMany({
+      where: {
+        schoolId: user.schoolId,
+        isActive: true,
+        ...(query.classId ? { classId: query.classId } : {}),
+        ...accessFilter
+      },
+      select: {
+        id: true,
+        fullName: true,
+        rollNumber: true,
+        profilePhotoUrl: true,
+        class: { select: { id: true, name: true, section: true } }
+      },
+      orderBy: [{ rollNumber: "asc" }, { fullName: "asc" }]
+    });
+
+    if (students.length === 0) return { thresholds: FOCUS_THRESHOLDS, students: [] };
+
+    const studentIds = students.map((student) => student.id);
+    const [attendanceGroups, examResults, missingHomework] = await Promise.all([
+      prisma.attendanceRecord.groupBy({
+        by: ["studentId", "status"],
+        where: { schoolId: user.schoolId, studentId: { in: studentIds }, session: { date: { gte: since } } },
+        _count: { _all: true }
+      }),
+      prisma.examResult.findMany({
+        where: { schoolId: user.schoolId, studentId: { in: studentIds }, isAbsent: false },
+        select: { studentId: true, marksObtained: true, maxMarks: true }
+      }),
+      prisma.homeworkSubmission.groupBy({
+        by: ["studentId"],
+        where: {
+          schoolId: user.schoolId,
+          studentId: { in: studentIds },
+          status: { in: [HomeworkSubmissionStatus.MISSING, HomeworkSubmissionStatus.NOT_SUBMITTED] },
+          assignment: { dueDate: { gte: since } }
+        },
+        _count: { _all: true }
+      })
+    ]);
+
+    const attendance = new Map<string, { present: number; total: number }>();
+    for (const group of attendanceGroups) {
+      const entry = attendance.get(group.studentId) ?? { present: 0, total: 0 };
+      const count = group._count._all;
+      entry.total += count;
+      if (group.status !== AttendanceStatus.ABSENT) entry.present += count;
+      attendance.set(group.studentId, entry);
+    }
+
+    const marks = new Map<string, { obtained: number; max: number }>();
+    for (const result of examResults) {
+      const entry = marks.get(result.studentId) ?? { obtained: 0, max: 0 };
+      entry.obtained += Number(result.marksObtained ?? 0);
+      entry.max += Number(result.maxMarks ?? 0);
+      marks.set(result.studentId, entry);
+    }
+
+    const homework = new Map(missingHomework.map((group) => [group.studentId, group._count._all]));
+
+    const flagged = students
+      .map((student) => {
+        const attendanceEntry = attendance.get(student.id);
+        const attendancePercent = attendanceEntry && attendanceEntry.total > 0
+          ? Math.round((attendanceEntry.present / attendanceEntry.total) * 100)
+          : null;
+
+        const marksEntry = marks.get(student.id);
+        const averageMarksPercent = marksEntry && marksEntry.max > 0
+          ? Math.round((marksEntry.obtained / marksEntry.max) * 100)
+          : null;
+
+        const missingHomeworkCount = homework.get(student.id) ?? 0;
+
+        const reasons: string[] = [];
+        if (attendancePercent !== null && attendancePercent < FOCUS_THRESHOLDS.attendancePercent) {
+          reasons.push("LOW_ATTENDANCE");
+        }
+        if (averageMarksPercent !== null && averageMarksPercent < FOCUS_THRESHOLDS.averageMarksPercent) {
+          reasons.push("LOW_MARKS");
+        }
+        if (missingHomeworkCount >= FOCUS_THRESHOLDS.missingHomeworkCount) {
+          reasons.push("MISSING_HOMEWORK");
+        }
+
+        const critical = attendancePercent !== null
+          && attendancePercent < FOCUS_THRESHOLDS.criticalAttendancePercent;
+
+        return {
+          studentId: student.id,
+          fullName: student.fullName,
+          rollNumber: student.rollNumber,
+          profilePhotoUrl: student.profilePhotoUrl,
+          classId: student.class?.id ?? null,
+          className: student.class ? `${student.class.name}-${student.class.section}` : null,
+          attendancePercent,
+          averageMarksPercent,
+          missingHomeworkCount,
+          reasons,
+          severity: reasons.length >= 2 || critical ? "HIGH" : "MEDIUM"
+        };
+      })
+      .filter((student) => student.reasons.length > 0);
+
+    flagged.sort((a, b) => {
+      if (a.severity !== b.severity) return a.severity === "HIGH" ? -1 : 1;
+      return (a.attendancePercent ?? 100) - (b.attendancePercent ?? 100);
+    });
+
+    return { thresholds: FOCUS_THRESHOLDS, students: flagged };
+  }, { label: "studentsNeedingFocus" });
+}
+
 export async function listStudents(user: Express.UserContext, query: unknown) {
   return withRetry(async () => {
     const pagination = getPagination(query);
@@ -1004,7 +1147,7 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
             performanceRate: null,
             performanceClassification: null
           };
-      const { attendanceRecords: _attendanceRecords, feeAssignments: _feeAssignments, examResults: _examResults, homeworkRecords: _homeworkRecords, consentGiven, consentGivenAt, consentGivenBy, consentMethod, ...payload } = student as any;
+      const { attendanceRecords: _attendanceRecords, feeAssignments: _feeAssignments, examResults: _examResults, homeworkRecords: _homeworkRecords, consentGiven, consentGivenAt, consentGivenBy, consentMethod, transportFeeAmount, ...payload } = student as any;
       // Consent records are admin-only data — exclude from non-Principal/Admin responses.
       const consentFields = isPrincipalRole(user.role)
         ? { consentGiven, consentGivenAt, consentGivenBy, consentMethod }
@@ -1014,7 +1157,11 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
         ...payload,
         ...consentFields,
         ...performance,
-        ...(canViewFees ? { feeAssignments, lastPayment: latestPayment, feeBalance, currentOutstanding } : {}),
+        // transportFeeAmount is a fee figure on the student row itself, so it
+        // rides along with the other fee fields rather than the base payload.
+        ...(canViewFees
+          ? { feeAssignments, lastPayment: latestPayment, feeBalance, currentOutstanding, transportFeeAmount }
+          : {}),
         ...(canViewAttendance
           ? { attendancePercentage }
           : {})
@@ -1134,8 +1281,13 @@ export async function getStudent(user: Express.UserContext, id: string) {
       consentGivenAt,
       consentGivenBy,
       consentMethod,
+      transportFeeAmount,
       ...studentPayload
     } = studentRecord as any;
+
+    // transportFeeAmount is a fee figure that lives on the student row itself,
+    // so it has to be stripped explicitly for roles without the fees tab.
+    const transportFeeFields = canViewFees ? { transportFeeAmount } : {};
 
     // Consent records are admin-only data — exclude from TEACHER/ACCOUNTANT/PARENT responses.
     const consentFields = isPrincipalRole(user.role)
@@ -1145,6 +1297,7 @@ export async function getStudent(user: Express.UserContext, id: string) {
     return {
       ...studentPayload,
       ...consentFields,
+      ...transportFeeFields,
       access: {
         role: user.role,
         allowedTabs

@@ -4,11 +4,12 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./students.controller.js";
-import { behaviourActionSchema, behaviourRecordSchema, importStudentsSchema, studentDocumentSchema, studentSchema } from "./students.schemas.js";
+import { behaviourActionSchema, behaviourRecordSchema, importStudentsSchema, needingFocusQuerySchema, studentDocumentSchema, studentSchema } from "./students.schemas.js";
 
 export const studentsRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 const behaviourRoles = [UserRole.TEACHER] as const;
+const focusRoles = [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.TEACHER] as const;
 const documentRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -18,6 +19,13 @@ const upload = multer({
 studentsRouter.use(requireAuth);
 studentsRouter.get("/", controller.listStudents);
 studentsRouter.post("/import", requireRole(adminRoles), validate({ body: importStudentsSchema }), controller.importStudents);
+// Must precede "/:id" or the literal path would be read as a student id.
+studentsRouter.get(
+  "/needing-focus",
+  requireRole(focusRoles),
+  validate({ query: needingFocusQuerySchema }),
+  controller.listStudentsNeedingFocus
+);
 studentsRouter.get("/:id", controller.getStudent);
 studentsRouter.get(
   "/:id/report-card/pdf",

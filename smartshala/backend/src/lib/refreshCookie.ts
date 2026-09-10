@@ -31,6 +31,15 @@ export function clearRefreshCookie(res: Response): void {
   });
 }
 
-export function getRefreshToken(req: { cookies: Record<string, string> }): string | undefined {
-  return req.cookies?.[COOKIE_NAME];
+// Browsers send the refresh token back in the httpOnly cookie. Native mobile
+// clients have no cookie jar, so they post the token in the body instead.
+export function getRefreshToken(req: {
+  cookies?: Record<string, string>;
+  body?: { refreshToken?: unknown };
+}): string | undefined {
+  const fromCookie = req.cookies?.[COOKIE_NAME];
+  if (fromCookie) return fromCookie;
+
+  const fromBody = req.body?.refreshToken;
+  return typeof fromBody === "string" && fromBody.length > 0 ? fromBody : undefined;
 }

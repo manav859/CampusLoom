@@ -8,6 +8,10 @@ export const listStudents = asyncHandler(async (req: Request, res: Response) => 
   res.json(await studentsService.listStudents(req.user!, req.query));
 });
 
+export const listStudentsNeedingFocus = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await studentsService.studentsNeedingFocus(req.user!, { classId: req.query.classId as string | undefined }));
+});
+
 export const getStudent = asyncHandler(async (req: Request, res: Response) => {
   res.json(await studentsService.getStudent(req.user!, req.params.id));
 });

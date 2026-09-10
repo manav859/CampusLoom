@@ -21,11 +21,14 @@
     "lint": "tsc --noEmit",
     "test:grading": "tsx tests/grading.test.ts",
     "test:attendance": "tsx tests/studentAttendance.test.ts",
+    "test:staff-attendance": "tsx tests/staffAttendance.test.ts",
+    "test:teacher-access": "tsx tests/teacherStudentAccess.test.ts",
     "test:marks-term": "tsx tests/marksExamTerm.test.ts",
     "test:fee-adjustment": "tsx tests/feeAdjustmentSchema.test.ts",
     "test:rollover": "tsx tests/academicYearRollover.test.ts",
     "backup:master": "node scripts/backup-master-db.mjs",
-    "test:billing": "tsx tests/billing.test.ts"
+    "test:billing": "tsx tests/billing.test.ts",
+    "test:leave": "tsx tests/leaveAndAnnouncements.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

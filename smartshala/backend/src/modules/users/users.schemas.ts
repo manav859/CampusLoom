@@ -48,3 +48,7 @@ export const teacherPeriodAssignmentsSchema = z.object({
   message: "Each weekday and period combination must be unique",
   path: ["periods"]
 });
+
+export const myScheduleQuerySchema = z.object({
+  day: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]).optional()
+});

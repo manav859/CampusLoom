@@ -13,7 +13,16 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
   // Refresh token goes into an httpOnly cookie; only the access token is returned in the body.
   setRefreshCookie(res, result.refreshToken);
-  res.json({ accessToken: result.accessToken, user: result.user });
+
+  // Native mobile clients cannot read that cookie, so they also get the refresh
+  // token in the body and keep it in the device's secure storage.
+  const isMobileClient = String(req.headers["x-client-type"] ?? "").toLowerCase() === "mobile";
+
+  res.json({
+    accessToken: result.accessToken,
+    user: result.user,
+    ...(isMobileClient ? { refreshToken: result.refreshToken } : {})
+  });
 });
 
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {

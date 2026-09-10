@@ -44,6 +44,9 @@ model School {
   users                    User[]
   holidays                 Holiday[]
   academicYears            AcademicYear[]
+  staffAttendance          StaffAttendance[]
+  leaveRequests            LeaveRequest[]
+  announcements            Announcement[]
 
   @@map("schools")
 }
@@ -92,6 +95,11 @@ model User {
   uploadedStudentDocuments StudentDocument[]         @relation("StudentDocumentUploadedBy")
   teachingSubjects         Subject[]                 @relation("SubjectTeacher")
   periodAssignments        TeacherPeriodAssignment[] @relation("TeacherPeriodAssignmentTeacher")
+  staffAttendance          StaffAttendance[]         @relation("StaffAttendanceUser")
+  leaveRequests            LeaveRequest[]            @relation("LeaveRequestUser")
+  leaveDecisions           LeaveRequest[]            @relation("LeaveRequestDecidedBy")
+  announcementsPosted      Announcement[]            @relation("AnnouncementPostedBy")
+  announcementReads        AnnouncementRead[]        @relation("AnnouncementReadUser")
   school                   School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, email])
@@ -819,6 +827,113 @@ enum StudentDocumentType {
   BONAFIDE
   REPORT_CARD
   PHOTO
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  EARNED
+  MATERNITY
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AnnouncementAudience {
+  ALL
+  STAFF
+  TEACHERS
+  PARENTS
+}
+
+enum AnnouncementPriority {
+  NORMAL
+  IMPORTANT
+  URGENT
+}
+
+model StaffAttendance {
+  id         String    @id @default(uuid()) @db.Uuid
+  schoolId   String    @db.Uuid
+  userId     String    @db.Uuid
+  date       DateTime
+  punchInAt  DateTime
+  punchOutAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  school     School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user       User      @relation("StaffAttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([schoolId, date])
+  @@index([schoolId, userId, date])
+  @@map("staff_attendance")
+}
+
+model LeaveRequest {
+  id                 String      @id @default(uuid()) @db.Uuid
+  schoolId           String      @db.Uuid
+  userId             String      @db.Uuid
+  type               LeaveType
+  status             LeaveStatus @default(PENDING)
+  fromDate           DateTime
+  toDate             DateTime
+  reason             String
+  attachmentName     String?
+  attachmentKey      String?
+  attachmentMime     String?
+  attachmentProvider String?
+  decidedById        String?     @db.Uuid
+  decidedAt          DateTime?
+  decisionNote       String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  school             School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user               User        @relation("LeaveRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy          User?       @relation("LeaveRequestDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status, createdAt])
+  @@index([schoolId, userId, createdAt])
+  @@map("leave_requests")
+}
+
+model Announcement {
+  id          String               @id @default(uuid()) @db.Uuid
+  schoolId    String               @db.Uuid
+  postedById  String?              @db.Uuid
+  title       String
+  body        String
+  audience    AnnouncementAudience @default(ALL)
+  priority    AnnouncementPriority @default(NORMAL)
+  publishedAt DateTime             @default(now())
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  postedBy    User?                @relation("AnnouncementPostedBy", fields: [postedById], references: [id], onDelete: SetNull)
+  reads       AnnouncementRead[]
+
+  @@index([schoolId, publishedAt])
+  @@index([schoolId, audience, publishedAt])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  id             String       @id @default(uuid()) @db.Uuid
+  announcementId String       @db.Uuid
+  userId         String       @db.Uuid
+  readAt         DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation("AnnouncementReadUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+  @@index([userId, readAt])
+  @@map("announcement_reads")
 }
 
 model Holiday {
