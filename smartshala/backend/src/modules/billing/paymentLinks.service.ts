@@ -24,7 +24,8 @@ function assertMaster() {
   }
 }
 
-function publicUrl(token: string) {
+/** The page a school opens to pay — the token in it is the whole credential. */
+export function paymentLinkUrl(token: string) {
   return `${env.FRONTEND_URL.replace(/\/$/, "")}/pay/${token}`;
 }
 
@@ -39,7 +40,7 @@ function toAdminLink(link: LinkWithRelations) {
   return {
     id: link.id,
     token: link.token,
-    url: publicUrl(link.token),
+    url: paymentLinkUrl(link.token),
     status: link.status,
     amountMinor: link.amountMinor,
     currency: link.currency,

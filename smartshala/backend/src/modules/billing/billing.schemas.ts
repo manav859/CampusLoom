@@ -134,6 +134,24 @@ export const createPaymentLinkSchema = z.object({
   expiresInDays: z.coerce.number().int().min(1).max(90).optional()
 });
 
+export const renewalsQuerySchema = z.object({
+  windowDays: z.coerce.number().int().min(1).max(365).optional()
+});
+
+export const renewSchema = z
+  .object({
+    planCode,
+    priceRupees: z.coerce.number().min(0).max(100_000_000),
+    collect: z.enum(["PAYMENT_LINK", "PAID_OFFLINE", "INVOICE_ONLY"]),
+    offlineMethod: z.enum(["cash", "cheque", "neft", "upi", "card", "other"]).optional(),
+    offlineReference: z.string().trim().max(120).optional().nullable(),
+    note: z.string().trim().max(300).optional().nullable()
+  })
+  .refine((body) => body.collect !== "PAID_OFFLINE" || Boolean(body.offlineMethod), {
+    message: "Say how the school paid",
+    path: ["offlineMethod"]
+  });
+
 export const paymentLinkListQuerySchema = z.object({
   schoolId: z.string().trim().regex(/^[A-Z0-9]{8}$/).optional(),
   invoiceId: z.string().uuid().optional(),

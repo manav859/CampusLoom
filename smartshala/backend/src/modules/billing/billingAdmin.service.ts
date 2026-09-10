@@ -1,6 +1,7 @@
 import {
   GatewayMode,
   InvoiceStatus,
+  PaymentLinkStatus,
   PaymentState,
   Prisma,
   SubscriptionStatus,
@@ -14,7 +15,7 @@ import { AppError } from "../../core/errors.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { razorpay } from "../../services/razorpay/index.js";
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
-import { addDays, effectivePriceMinor, periodEndFrom, rupeesFromMinor } from "./billing.pricing.js";
+import { addDays, effectivePriceMinor, periodEndFrom, quotePlan, rupeesFromMinor } from "./billing.pricing.js";
 import {
   createInvoice,
   ensureSubscription,
@@ -25,6 +26,7 @@ import {
 } from "./billing.service.js";
 import type { BillingActor } from "./billing.service.js";
 import { listSchoolNotifications, notifyInvoiceRaised, notifyPaymentReceived } from "./billing.notifications.js";
+import { createPaymentLink, paymentLinkUrl } from "./paymentLinks.service.js";
 
 export const SUPER_ADMIN_ACTOR: BillingActor = { kind: "SUPER_ADMIN", label: "super-admin" };
 
@@ -254,7 +256,10 @@ export async function getSchoolBilling(schoolId: string) {
   if (!school) throw new AppError(404, "School not found", "SCHOOL_NOT_FOUND");
 
   const subscription = await ensureSubscription(schoolId);
-  const [invoices, events, usage, notifications] = await Promise.all([
+  // Usage is deliberately not loaded here: it opens the school's own database,
+  // which can be asleep, and every action on this screen reloads the detail.
+  // The panel asks /usage for it separately, once.
+  const [invoices, events, notifications] = await Promise.all([
     masterPrisma.invoice.findMany({
       where: { schoolId },
       orderBy: { issuedAt: "desc" },
@@ -262,7 +267,6 @@ export async function getSchoolBilling(schoolId: string) {
       include: { payments: { orderBy: { createdAt: "desc" } } }
     }),
     masterPrisma.billingEvent.findMany({ where: { schoolId }, orderBy: { createdAt: "desc" }, take: 50 }),
-    getSchoolUsage(schoolId),
     listSchoolNotifications(schoolId)
   ]);
 
@@ -288,8 +292,7 @@ export async function getSchoolBilling(schoolId: string) {
       isCustomPrice: subscription.customPriceMinor !== null,
       customPriceNote: subscription.customPriceNote
     },
-    usage: {
-      ...usage,
+    limits: {
       maxStudents: subscription.plan.maxStudents,
       maxStaff: subscription.plan.maxStaff
     },
@@ -534,6 +537,178 @@ export async function markInvoicePaidOffline(input: { invoiceId: string; method:
   await notifyPaymentReceived(invoice, outstanding);
 
   return masterPrisma.invoice.findUniqueOrThrow({ where: { id: invoice.id }, include: { payments: true } });
+}
+
+// --- Renewals ----------------------------------------------------------------
+
+/** How close a term has to be to ending before it counts as due for renewal. */
+const RENEWAL_WINDOW_DAYS = 30;
+const DAY_MS = 86_400_000;
+
+/**
+ * Every school whose term needs attention, most urgent first: the lapsed ones,
+ * then whoever runs out soonest. Each row carries its open invoice and live
+ * payment link, so the renewals screen can say "link already sent" instead of
+ * inviting a second invoice for the same term.
+ */
+export async function listRenewals(windowDays = RENEWAL_WINDOW_DAYS) {
+  assertMaster();
+  const now = new Date();
+  const subscriptions = await masterPrisma.subscription.findMany({
+    where: {
+      school: { deletionStatus: { not: TenantDeletionStatus.DELETED } },
+      OR: [
+        { status: { in: [SubscriptionStatus.PAST_DUE, SubscriptionStatus.EXPIRED] } },
+        {
+          status: { in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+          currentPeriodEnd: { lte: addDays(now, windowDays) }
+        }
+      ]
+    },
+    include: {
+      plan: true,
+      school: { select: { schoolId: true, schoolName: true, ownerName: true, email: true, phone: true } }
+    },
+    orderBy: { currentPeriodEnd: "asc" }
+  });
+
+  const schoolIds = subscriptions.map((row) => row.schoolId);
+  const [openInvoices, liveLinks] = await Promise.all([
+    masterPrisma.invoice.findMany({
+      where: { schoolId: { in: schoolIds }, status: InvoiceStatus.DUE },
+      orderBy: { issuedAt: "desc" }
+    }),
+    masterPrisma.paymentLink.findMany({
+      where: { schoolId: { in: schoolIds }, status: PaymentLinkStatus.ACTIVE, expiresAt: { gt: now } },
+      orderBy: { createdAt: "desc" }
+    })
+  ]);
+
+  return subscriptions.map((row) => {
+    const openInvoice = openInvoices.find((invoice) => invoice.schoolId === row.schoolId) ?? null;
+    const link = openInvoice ? (liveLinks.find((candidate) => candidate.invoiceId === openInvoice.id) ?? null) : null;
+    return {
+      schoolId: row.schoolId,
+      school: row.school,
+      status: row.status,
+      plan: {
+        code: row.plan.code,
+        name: row.plan.name,
+        interval: row.plan.interval,
+        intervalCount: row.plan.intervalCount,
+        priceMinor: row.plan.priceMinor,
+        currency: row.plan.currency
+      },
+      currentPeriodEnd: row.currentPeriodEnd,
+      gracePeriodEndsAt: row.gracePeriodEndsAt,
+      cancelAtPeriodEnd: row.cancelAtPeriodEnd,
+      daysLeft: Math.ceil((row.currentPeriodEnd.getTime() - now.getTime()) / DAY_MS),
+      effectivePriceMinor: effectivePriceMinor(row.plan, row),
+      isCustomPrice: row.customPriceMinor !== null,
+      openInvoice: openInvoice
+        ? {
+            id: openInvoice.id,
+            number: openInvoice.number,
+            planCode: openInvoice.planCode,
+            planName: openInvoice.planName,
+            totalMinor: openInvoice.totalMinor,
+            amountPaidMinor: openInvoice.amountPaidMinor,
+            currency: openInvoice.currency,
+            dueAt: openInvoice.dueAt
+          }
+        : null,
+      paymentLink: link
+        ? { id: link.id, url: paymentLinkUrl(link.token), expiresAt: link.expiresAt, firstViewedAt: link.firstViewedAt }
+        : null
+    };
+  });
+}
+
+export type RenewalCollection = "PAYMENT_LINK" | "PAID_OFFLINE" | "INVOICE_ONLY";
+
+/**
+ * A renewal in one step: choose the plan and price, raise (or reuse) the
+ * invoice for the next term, then either send the school a payment link or
+ * record that they already paid offline. The next term starts where the
+ * current one ends — or today, for a school that has lapsed.
+ */
+export async function renewSubscription(input: {
+  schoolId: string;
+  planCode: string;
+  priceRupees: number;
+  collect: RenewalCollection;
+  offlineMethod?: string;
+  offlineReference?: string | null;
+  note?: string | null;
+}) {
+  assertMaster();
+  const plan = await getPlanByCodeOrThrow(input.planCode);
+  const subscription = await ensureSubscription(input.schoolId);
+
+  // The price agreed here becomes the school's rate from now on: the list price
+  // clears any override, anything else is kept as the negotiated rate.
+  const priceMinor = Math.round(input.priceRupees * 100);
+  const customPriceMinor = priceMinor === plan.priceMinor ? null : priceMinor;
+  if (customPriceMinor !== subscription.customPriceMinor) {
+    await masterPrisma.subscription.update({
+      where: { schoolId: input.schoolId },
+      data: {
+        customPriceMinor,
+        customPriceNote: customPriceMinor === null ? null : (input.note ?? "Agreed at renewal")
+      }
+    });
+  }
+
+  // A school that was already billed for this exact term gets that invoice
+  // back, not a second one stacked beside it.
+  const quote = await quotePlan(plan, null, { customPriceMinor });
+  const existing = await masterPrisma.invoice.findFirst({
+    where: { schoolId: input.schoolId, status: InvoiceStatus.DUE, planCode: plan.code, totalMinor: quote.totalMinor },
+    orderBy: { issuedAt: "desc" }
+  });
+  const invoice =
+    existing ?? (await createManualInvoice({ schoolId: input.schoolId, planCode: plan.code, notes: input.note ?? "Renewal" }));
+
+  // Any other open bill for this school is now stale — typically the one raised
+  // before the price or plan changed. Void it and revoke its link, or the school
+  // could pay the old link and this invoice for the same term.
+  const stale = await masterPrisma.invoice.findMany({
+    where: { schoolId: input.schoolId, status: InvoiceStatus.DUE, id: { not: invoice.id } },
+    select: { id: true, number: true }
+  });
+  for (const old of stale) {
+    await masterPrisma.paymentLink.updateMany({
+      where: { invoiceId: old.id, status: PaymentLinkStatus.ACTIVE },
+      data: { status: PaymentLinkStatus.REVOKED, revokedAt: new Date() }
+    });
+    await voidInvoice(old.id, `Superseded by renewal invoice ${invoice.number}`);
+  }
+
+  const paymentLink =
+    input.collect === "PAYMENT_LINK"
+      ? await createPaymentLink({ invoiceId: invoice.id, note: input.note ?? null, actor: SUPER_ADMIN_ACTOR })
+      : null;
+
+  if (input.collect === "PAID_OFFLINE") {
+    await markInvoicePaidOffline({
+      invoiceId: invoice.id,
+      method: input.offlineMethod ?? "other",
+      reference: input.offlineReference ?? null
+    });
+  }
+
+  const [freshInvoice, freshSubscription] = await Promise.all([
+    masterPrisma.invoice.findUniqueOrThrow({ where: { id: invoice.id } }),
+    findSubscription(input.schoolId)
+  ]);
+
+  return {
+    invoice: freshInvoice,
+    reusedInvoice: Boolean(existing),
+    supersededInvoices: stale.map((old) => old.number),
+    paymentLink,
+    subscription: freshSubscription
+  };
 }
 
 export async function voidInvoice(invoiceId: string, reason: string) {

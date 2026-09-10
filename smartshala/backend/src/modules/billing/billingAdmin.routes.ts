@@ -18,6 +18,9 @@ import {
   listSubscriptions,
   markInvoicePaidOffline,
   refundPayment,
+  getSchoolUsage,
+  listRenewals,
+  renewSubscription,
   setCustomPrice,
   setSchoolTaxDetails,
   setSubscriptionStatus,
@@ -33,6 +36,8 @@ import {
   createPaymentLinkSchema,
   paymentLinkIdParamSchema,
   paymentLinkListQuerySchema,
+  renewalsQuerySchema,
+  renewSchema,
   schoolTaxSchema,
   couponIdParamSchema,
   createCouponSchema,
@@ -168,6 +173,33 @@ billingAdminRouter.patch(
   validate({ params: schoolIdParamSchema, body: customPriceSchema }),
   asyncHandler(async (req, res) => {
     res.json(await setCustomPrice({ schoolId: req.params.schoolId, ...req.body }));
+  })
+);
+
+// --- Renewals ----------------------------------------------------------------
+
+billingAdminRouter.get(
+  "/renewals",
+  validate({ query: renewalsQuerySchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await listRenewals(req.query.windowDays ? Number(req.query.windowDays) : undefined));
+  })
+);
+
+billingAdminRouter.post(
+  "/schools/:schoolId/renew",
+  validate({ params: schoolIdParamSchema, body: renewSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await renewSubscription({ schoolId: req.params.schoolId, ...req.body }));
+  })
+);
+
+// Read from the school's own database, so it is kept off the detail load.
+billingAdminRouter.get(
+  "/schools/:schoolId/usage",
+  validate({ params: schoolIdParamSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await getSchoolUsage(req.params.schoolId));
   })
 );
 
