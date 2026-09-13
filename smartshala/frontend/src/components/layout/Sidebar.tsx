@@ -22,7 +22,8 @@ type NavIconName =
   | "activity"
   | "settings"
   | "exams"
-  | "billing";
+  | "billing"
+  | "payroll";
 
 type NavLink = {
   label: string;
@@ -62,6 +63,7 @@ const adminLinks: NavItem[] = [
     ]
   },
   { label: "Fees", href: "/fees", icon: "fees" },
+  { label: "Payroll", href: "/payroll", icon: "payroll" },
   { label: "Exams & Marks", href: "/exams", icon: "exams" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
   {
@@ -89,7 +91,8 @@ const teacherLinks: NavItem[] = [
   { label: "Marks", href: "/teacher/marks", icon: "analytics" },
   { label: "Comms Hub", href: "/teacher/communication", icon: "communication" },
   { label: "Mark Attendance", href: "/attendance", icon: "attendance" },
-  { label: "Students", href: "/students", icon: "students" }
+  { label: "Students", href: "/students", icon: "students" },
+  { label: "My Salary", href: "/teacher/salary", icon: "payroll" }
 ];
 
 const accountantLinks: NavItem[] = [
@@ -283,6 +286,16 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
       <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M15.5 2H8.62a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6.88a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" />
         <path d="M18.5 6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6.88a2 2 0 0 1-2-2" />
+      </svg>
+    );
+  }
+
+  if (icon === "payroll") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3" />
+        <path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" />
+        <path d="M17 12h4v4h-4a2 2 0 0 1 0-4Z" />
       </svg>
     );
   }

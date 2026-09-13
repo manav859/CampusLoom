@@ -986,6 +986,11 @@ export type SchoolProfile = {
 
 export type SchoolProfilePayload = Pick<SchoolProfile, "name" | "city" | "state" | "phone" | "udiseNumber" | "affiliationBoard" | "logoUrl" | "timetablePeriodCount">;
 
+/** One period of the school bell, as 24-hour "HH:mm" wall-clock times. */
+export type PeriodTime = { periodNumber: number; startTime: string; endTime: string };
+
+export type PeriodTimes = { periodCount: number; periods: PeriodTime[] };
+
 export type DatabaseDeletionStatus = {
   schoolId: string;
   dbName: string;
@@ -1204,6 +1209,12 @@ export const settingsApi = {
     apiFetch<SchoolProfile>("/settings/school-profile", {
       method: "PATCH",
       body: JSON.stringify(payload)
+    }),
+  periodTimes: () => apiFetch<PeriodTimes>("/settings/period-times"),
+  updatePeriodTimes: (periods: PeriodTime[]) =>
+    apiFetch<PeriodTimes>("/settings/period-times", {
+      method: "PUT",
+      body: JSON.stringify({ periods })
     }),
   databaseDeletionStatus: () => apiFetch<DatabaseDeletionStatus>("/settings/database-deletion"),
   verifyDatabaseDeletionPassword: (password: string) =>
@@ -1692,3 +1703,76 @@ export const billingApi = {
 export function formatMinor(minor: number, currency = "INR") {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 2 }).format(minor / 100);
 }
+
+export type SalarySlipStatus = "PENDING" | "PAID";
+
+/** A recorded monthly pay slip. Money is in rupees; netPay = basic + allowances - deductions. */
+export type SalarySlip = {
+  id: string;
+  userId: string;
+  month: string;
+  basicPay: number;
+  allowances: number;
+  deductions: number;
+  netPay: number;
+  status: SalarySlipStatus;
+  paidOn: string | null;
+  note: string | null;
+  updatedAt: string;
+};
+
+export type SalarySlipPayload = {
+  userId: string;
+  month: string;
+  basicPay: number;
+  allowances: number;
+  deductions: number;
+  status: SalarySlipStatus;
+  paidOn?: string | null;
+  note?: string | null;
+};
+
+export type PayrollMonth = {
+  month: string;
+  items: {
+    user: { id: string; fullName: string; role: Role; phone: string };
+    canEdit: boolean;
+    slip: SalarySlip | null;
+  }[];
+  summary: { staff: number; recorded: number; paid: number; pending: number; totalNetPay: number };
+};
+
+export type MySalarySlips = {
+  items: SalarySlip[];
+  summary: { latest: SalarySlip | null; paidThisYear: number; year: number };
+};
+
+export const payrollApi = {
+  mySlips: () => apiFetch<MySalarySlips>("/payroll/me/slips"),
+  month: (month: string) => apiFetch<PayrollMonth>(`/payroll/slips?month=${encodeURIComponent(month)}`),
+  save: (payload: SalarySlipPayload) =>
+    apiFetch<SalarySlip>("/payroll/slips", { method: "PUT", body: JSON.stringify(payload) }),
+  remove: (id: string) => apiFetch<void>(`/payroll/slips/${id}`, { method: "DELETE" })
+};
+
+/** The same punch the teacher app's Swipe To Punch records. */
+export type PunchStatus = {
+  date: string;
+  state: "NOT_PUNCHED_IN" | "PUNCHED_IN" | "PUNCHED_OUT";
+  punchInAt: string | null;
+  punchOutAt: string | null;
+  workedMinutes: number;
+};
+
+export type MySchedulePeriod = {
+  periodNumber: number;
+  className: string;
+  subjectName: string;
+  startTime: string | null;
+  endTime: string | null;
+};
+
+export const teacherDayApi = {
+  punchStatus: () => apiFetch<PunchStatus>("/staff-attendance/me/today"),
+  schedule: () => apiFetch<{ dayOfWeek: string; periods: MySchedulePeriod[] }>("/users/me/schedule")
+};

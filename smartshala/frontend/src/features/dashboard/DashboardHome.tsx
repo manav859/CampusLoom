@@ -12,6 +12,7 @@ import { activityApi, apiFetch, studentsApi, whatsappApi, type ActivityLog, type
 import { formatINR, humanizeConstant } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 import type { Kpi } from "@/types";
+import { TeacherDayPanel } from "./TeacherDayPanel";
 
 type DashboardResponse = {
   role: "PRINCIPAL" | "ADMIN" | "TEACHER" | "ACCOUNTANT" | "PARENT";
@@ -546,6 +547,8 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           adminKpis.map((kpi, index) => <DashboardKpiCard index={index} key={kpi.label} kpi={kpi} />)
         )}
       </div>
+
+      {mode === "TEACHER" ? <TeacherDayPanel /> : null}
 
       {/* ═══ Row 2 — Charts Row ═══ */}
       <section className="dashboard-charts-grid grid gap-4" style={{ minHeight: 280 }}>

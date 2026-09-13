@@ -1,0 +1,529 @@
+# SmartShala V2.0 — Mobile Apps Implementation Plan
+
+**Source of truth:** [SmartShala_App_V2_0_Product_UI_Blueprint.pdf](SmartShala_App_V2_0_Product_UI_Blueprint.pdf) (in this folder)
+**Created:** 2026-09-05
+**Status:** Phases 0–4 complete, plus the backend and teacher side of the Academic Calendar (Phase 6, items 25–26)
+bell timings with Now/Upcoming badges (Phase 7, item 29), and Payroll with teacher Salary Details (Phase 7, item 31).
+Every teacher screen in the blueprint is now built. Phase 5 (Principal management screens) is next.
+
+## Decisions taken (2026-09-05)
+
+| Question | Decision |
+|---|---|
+| Stack | **Flutter** (Android first). Flutter 3.44 / Dart 3.12. |
+| App split | **One codebase, two binaries** — `lib/main_principal.dart` + `lib/main_teacher.dart`, Gradle flavors `principal` / `teacher`, separate application IDs. Everything in `lib/core/` is shared. |
+| iOS | Not now; Flutter keeps the door open. |
+| Reports vs Fee Reports | §1/§3 win — **no Finance in Reports**. Fees stay under More → Finance, principal only. |
+| Offline | **Online-only for v1**, with explicit error and retry states. |
+| Punch rules | One punch-in + one punch-out per day. No geofencing, no location capture in v1. |
+| Payroll | Recorded slips only, no salary computation (Phase 7). |
+| Web dashboard | Stays the primary admin surface; the apps are companions. |
+| Announcements | School-wide for v1 (Phase 4). |
+| Period times (2026-09-11) | **One school-wide bell** — the same start/end per period for every class and weekday — set on the **web dashboard** Settings page. |
+| Android first (2026-09-13) | **Android only** until the Android apps are delivered in full. iOS work starts after that. |
+| Payroll entry (2026-09-13) | The principal records monthly slips on the **web dashboard** Payroll page. Teachers read their own in the app Salary tab and on the web My Salary page. |
+| Teacher dashboard (2026-09-13) | **Web and app are one dashboard:** same endpoints, KPIs, labels and order. The app Home gains class attendance, Today's Actions and alerts; the web gains today's punch and schedule. |
+| App look (2026-09-13) | **The apps use the web's design tokens** — colours, 6/8px radii, pastel KPI cards, Inter — and one responsive layer. |
+
+---
+
+## 0. What changes with V2.0
+
+Until now SmartShala is a **web dashboard for the principal** (Next.js frontend + Express/Prisma multi-tenant backend).
+V2.0 adds **two Android apps**:
+
+| App | Audience | Character |
+|---|---|---|
+| Principal App | Principal / Admin | Command-center: Home + More + detail pages |
+| Teacher App | Teacher | Daily teaching work only — much simpler |
+
+The existing web dashboard is **not replaced**. The backend is shared; both apps talk to the same API.
+
+### Core UX principle (from the blueprint)
+- Important actions stay visible; secondary actions live under **More**.
+- Creation actions go behind the **+** button.
+- Attendance punching is a **horizontal swipe gesture** ("Swipe To Punch") — never a circular tap button.
+- Clean mobile-first UI, larger readable icons, whitespace, blue SmartShala branding, minimal cards.
+
+---
+
+## 1. Decisions already locked in the blueprint
+
+| Area | Decision |
+|---|---|
+| Principal home | Key school overview + a limited set of quick actions. Not every module. |
+| More | Secondary school-management sections live here, not on Home. |
+| + button | Add Student, Add Teacher, Add Class/Section, Create Announcement, Create Event/Notice. |
+| Teacher portal | Attendance, homework, marks, student records, leave, calendar, salary, students needing focus. |
+| Teacher fees | **Never shown to teachers.** |
+| Messages | Teacher leave/status + school announcements. |
+| Attendance punch | Horizontal "Swipe To Punch" bar fixed above bottom navigation. |
+| Reports | Academic/operational insights only — **Finance section removed** from Reports. |
+
+### What NOT to overload (explicit anti-goals)
+- Do not put every module on Home.
+- Do not repeat the same action in multiple places unless it is high-frequency.
+- Do not include Finance inside Reports.
+- Do not add decorative/demographic clutter to management lists.
+- Keep detailed records inside their dedicated profile/detail pages.
+
+---
+
+## 2. Screen inventory
+
+### 2.1 Principal App
+
+**Bottom nav:** Home · Reports · **+** · Messages · More
+
+| Screen | Contents (per blueprint) |
+|---|---|
+| Home / Dashboard | Today's overview, alerts/notifications, limited quick actions, today's attendance + key metrics |
+| More | Search + 4 groups: School Management (School Profile, Teacher Management, Classes & Sections, Subjects, Timetable, Transport), Academics (Exams, Reports, Academic Calendar), Finance (Fee Management, Fee Reports), Communication (Announcements, Messages, Notifications) |
+| Student Management | Stat tiles (total/active/inactive/promoted), search, filter, paginated list (student, class & section, status, action), Quick Actions: Add Student, Import Students, Student Promotion, Export List |
+| Student Profile | Header (photo, ID, class, roll no), quick facts (age, gender, blood group, DOB), tabs: Overview / Academics / Attendance / Fees / Documents / More; Basic Info, Class Info, Attendance Summary, Parent/Guardian; Quick Actions: Call Parent, Send Message, View Report Card, View Attendance |
+| Fees Management | Stat tiles (total/collected/pending/overdue), Quick Actions (Fee Collection, Send Reminder, Fee Reports, Fee Settings), tabs Fee Overview / Class Wise Collection, recent payments, pending fee overview by class, auto-reminder toggle |
+| School Profile | Logo + code + status, Basic Information, Contact, Address (+map), Quick Stats, Important Documents, Edit School Profile |
+| Teacher Management | Stat tiles (total/active/inactive/female/male), search, filter, Add Teacher, paginated list (teacher, subjects, department, status, action), Quick Actions: Add Teacher, Import Teachers, Teacher Attendance, Teacher Leave, Export List |
+| Teacher Profile | Header (photo, EMP ID, subject, department, status), Basic Information, Teaching Details (assigned subjects, classes & sections, class teacher of), Attendance Summary (present/absent/leave/%), Quick Actions: Call, Message, View Attendance, Edit Profile |
+| Academic Calendar | Month grid with event dots, legend filter (Exams/Holidays/Events/Meetings), Upcoming Events list, Add New Event |
+| Reports | Search + filter, Quick Access tiles (Student, Attendance, Fee, Teacher, Exam, Transport reports), Detailed Reports list (Class Wise Performance, Subject Wise Performance, Daily Attendance, Custom Reports, Report History), Create Report |
+| Leave Approval | Stat tiles (total/pending/approved/rejected), search, tabs Pending/Approved/Rejected, request cards with Approve / Reject, Load More |
+| Also in checklist | Classes & Sections, Timetable, Transport, Exams, Payroll |
+
+> Note: the Reports screen mock still shows a "Fee Reports" tile under Quick Access while §1 and §3 say to remove Finance from Reports. **Resolve before building Reports** — see Open Questions.
+
+### 2.2 Teacher App
+
+**Bottom nav:** Home · Calendar · (Students) · Salary · Notifications — with the **Swipe To Punch** bar fixed directly above it on every screen.
+
+| Screen | Contents |
+|---|---|
+| Home | Greeting header, date selector, Today's Overview (classes today, students, homework due, tasks pending), Quick Actions grid (Mark Attendance, Homework, Marks, My Students, Apply Leave, Students Needing Focus, Calendar, More), Today's Schedule with Now/Upcoming badges |
+| Mark Attendance | Class picker, date, counters (total/present/absent), tabs Student List / Absent, search, per-student Present/Absent toggle, Save |
+| Homework | Tabs Assigned / Submissions, homework cards (title, class-subject, due date, submitted count), Create Homework |
+| Marks | Class picker, exam picker, Top Performers, class average, per-student score entry, distribution chart |
+| My Students | Class picker, search, student list with performance %, tap to open profile (**no fee information**) |
+| Students Needing Focus | Students flagged by attendance/performance indicators |
+| Apply Leave | Leave type, from date, to date, reason (0/500), optional attachment, Submit |
+| Messages | Tabs All / Announcements / Leave / Others; leave cards show type, dates, reason, applied-on, status (Pending/Approved/Rejected); Apply Leave FAB |
+| Calendar | Month grid + events list (PTM, exhibitions, tests) |
+| Salary Details | Personal salary/pay info, salary slips |
+
+---
+
+## 3. Current backend state (what we already have)
+
+Backend: Express + Prisma, **multi-tenant** — routes are mounted at `/:schoolId/api` and `/:schoolId/api/v1`
+(see [app.ts](../../backend/src/app.ts), [tenant.middleware.ts](../../backend/src/middleware/tenant.middleware.ts)).
+Auth is JWT bearer + refresh, roles `PRINCIPAL | ADMIN | TEACHER | ACCOUNTANT | PARENT`
+(see [auth.ts](../../backend/src/middleware/auth.ts)).
+
+**Existing API modules:** academicYears, activity, analytics, attendance, auth, chatbot, classes, communication, dashboard, demo, fees, homework, marks, notifications, onboarding, reports, settings, students, superAdmin, tenantSetup, users, whatsapp.
+
+**Existing Prisma models:** School, AcademicYear, User, RefreshToken, Class, Student, AuditLog, CommunicationLog, BehaviourRecord, StudentDocument, Subject, TeacherPeriodAssignment, Exam, ExamResult, HomeworkRecord, HomeworkAssignment, HomeworkSubmission, AttendanceSession, AttendanceRecord, FeeStructure, FeeInstallment, StudentFeeAssignment, Payment, FeeAdjustment, Receipt, Notification, Holiday.
+
+---
+
+## 4. Gap analysis — what V2.0 needs that does not exist yet
+
+| V2.0 feature | Backend status | Work needed |
+|---|---|---|
+| Student Mgmt + Profile | OK — students module | Mobile-shaped response (list + stat tiles in one call) |
+| Teacher Mgmt + Profile | PARTIAL — users module | Teacher-specific list/detail endpoints, gender/department stats |
+| Fees Management | OK — fees module | Aggregation endpoints for the stat tiles / class-wise collection |
+| Homework | OK — homework module | Submission counts for teacher list view |
+| Marks | OK — marks module | Top performers + class average endpoint |
+| Student attendance | OK — attendance module | Reuse as-is for teacher Mark Attendance |
+| Reports | OK — reports + analytics | Remove Finance from the mobile Reports screen |
+| Academic Calendar | PARTIAL — only `Holiday` | **New:** `CalendarEvent` model (type: EXAM/HOLIDAY/EVENT/MEETING) + CRUD |
+| Timetable | PARTIAL — `TeacherPeriodAssignment` | Period/time-slot definitions + "today's schedule" endpoint |
+| **Teacher punch (Swipe To Punch)** | MISSING | **New:** `StaffAttendance` model + punch-in/punch-out endpoints + today status |
+| **Leave (apply + approve)** | MISSING | **New:** `LeaveRequest` model, teacher submit, principal approve/reject, attachment upload |
+| **Payroll / Salary Details** | MISSING | **New:** `SalaryStructure` + `SalarySlip` models, principal payroll + teacher read-only view |
+| **Transport** | MISSING | **New:** routes, vehicles, drivers, student-route assignment |
+| Exams | OK — `Exam` model | Exam management screens |
+| Announcements | PARTIAL — communication module | First-class announcement entity + read state for the Messages tab |
+| **Push notifications** | MISSING | **New:** `DeviceToken` model + FCM integration |
+| Students Needing Focus | PARTIAL — analytics | Derived endpoint (attendance % + marks thresholds) |
+
+---
+
+## 5. Cross-cutting mobile concerns to settle first
+
+1. **School code at login.** The API is tenant-scoped by URL (`/:schoolId/api/...`). The web dashboard knows its
+   tenant; a mobile app does not. Login flow needs a school-code step (or a lookup-by-identifier endpoint) before
+   the app knows which tenant base URL to call.
+2. **Token storage & refresh.** Web uses cookies + bearer. Mobile needs encrypted secure storage plus a refresh
+   interceptor; sessions should be long-lived so teachers are not re-logging in daily.
+3. **Role gating.** Teacher app must be hard-blocked from all fee endpoints — enforced **server-side** with
+   `requireRole`, not just hidden in UI.
+4. **Offline behaviour.** Attendance marking and punch happen in corridors with poor signal. Decide: online-only
+   with clear errors, or queue-and-sync.
+5. **API base URL.** Native apps do not send an `Origin`, so CORS is a non-issue, but the app needs a
+   configurable base URL for dev/staging/prod.
+6. **File uploads.** Leave attachments, teacher/student photos, school logo — reuse the existing upload path.
+
+---
+
+## 6. Phased implementation plan
+
+Each phase states a verification check. Nothing moves forward until its check passes.
+
+### Phase 0 — Foundations ✅ done
+1. ✅ Flutter project at [mobile/](../../mobile/), two entrypoints + Gradle flavors →
+   **verified:** `flutter build apk --debug --flavor teacher|principal` both produce APKs.
+2. ✅ Shared API client ([api_client.dart](../../mobile/lib/core/api/api_client.dart)): tenant-scoped
+   `/{schoolCode}/api/v1` URLs, keystore token storage, single-flight refresh-on-401, error mapping →
+   **verified:** login, punch and refresh exercised over HTTP against a local backend.
+3. ✅ Design system: [app_colors.dart](../../mobile/lib/core/theme/app_colors.dart),
+   [app_theme.dart](../../mobile/lib/core/theme/app_theme.dart),
+   [app_cards.dart](../../mobile/lib/core/widgets/app_cards.dart) — cards, stat tiles, quick actions,
+   list rows, brand header, loading/error/empty views.
+
+### Phase 1 — Auth + shells ✅ done
+4. ✅ Login with school code + identifier + password, sign-out, session restore via `/auth/me` →
+   **verified:** each binary rejects the other's role with a message naming the right app.
+5. ✅ Principal shell: Home · Reports · **+** · Messages · More, Quick Add sheet, More screen with
+   search and the four blueprint groups →
+   **verified:** all 15 More tiles and all 5 Quick Add actions route to a labelled placeholder.
+6. ✅ Teacher shell: 5-tab nav with the Swipe To Punch bar pinned above it on every screen →
+   **verified:** 5 widget tests in
+   [swipe_to_punch_test.dart](../../mobile/test/swipe_to_punch_test.dart) — a tap never punches,
+   a short drag springs back, a full drag punches exactly once.
+
+#### Sessions survive closing the app (fixed 2026-09-11)
+Reopening the app signed the teacher out whenever the first check of the stored session did not get a clean
+answer. Two faults combined:
+- `restoreSession` cleared the stored tokens on **any** error from `/auth/me` — including a timeout while the
+  hosted backend woke from sleep, or simply no signal.
+- The refresh interceptor reported a refresh that never reached the server as the original 401, so even a network
+  failure looked like "session rejected".
+
+Now only a 401 ends a session. A refresh that fails without a 401/403 from the server surfaces as the network,
+timeout or 5xx error it was, and `restoreSession` keeps the session and shows "You are still signed in" with
+**Try again**. This lives in `core/`, so it applies to both apps. The backend was already correct — refresh tokens
+last 7 days and are not rotated. **Verified over HTTP** with 15-second access tokens: expired token 401, refresh
+with the stored token 200, the same refresh token again 200, a bogus token 401. Pinned by
+[auth_restore_test.dart](../../mobile/test/auth_restore_test.dart) and
+[api_client_refresh_test.dart](../../mobile/test/api_client_refresh_test.dart).
+
+Still true by design: signing out anywhere, including the web dashboard, revokes every refresh token that user
+holds, so it signs the phone out too.
+
+### Phase 2 — Teacher daily loop ✅ done
+7. ✅ **Backend:** `StaffAttendance` model + migration + `/staff-attendance/me/{today,punch-in,punch-out,history}` →
+   **verified:** [staffAttendance.test.ts](../../backend/tests/staffAttendance.test.ts) against a real
+   database, and over HTTP: punch-in 201, second punch-in 409, punch-out 200, second punch-out 409,
+   punch-out before punch-in 409.
+8. ✅ Swipe To Punch wired to the API through
+   [punch_controller.dart](../../mobile/lib/features/teacher/data/punch_controller.dart); state is
+   read from the server on launch, so it survives restart. A 409 re-reads rather than guessing.
+9. ✅ [Mark Attendance screen](../../mobile/lib/features/teacher/attendance/mark_attendance_screen.dart)
+   on the existing `/attendance/roster` + `/attendance/mark` endpoints — class picker, date picker,
+   live counters, Student List / Absent tabs, search, holiday lock.
+10. ✅ Today's Overview from `GET /dashboard`; Today's Schedule from the new `GET /users/me/schedule`.
+
+> **Not yet verified on a device.** Everything above is verified by build, widget tests, DB-level
+> integration tests and live HTTP calls. Nobody has run either APK on an emulator or handset yet, so
+> item 9's "appears in the principal web dashboard" and item 8's restart check still need a manual
+> pass. **Deferred from item 10:** the "Now / Upcoming" badge needs per-period start and end times,
+> which the schema does not have — `TeacherPeriodAssignment` stores only a period *number*. The
+> schedule therefore lists periods as "P1, P2, …". Real clock times arrive with Timetable in Phase 7.
+
+### Phase 3 — Teacher academics ✅ done
+11. ✅ [Homework](../../mobile/lib/features/teacher/homework/) — list with submitted/total progress,
+    Create Homework (class, subject, title, due date, description), and a Submissions screen that sets
+    each student's status →
+    **verified over HTTP:** creating an assignment returned 201, appeared in that class's list, and
+    auto-created a submission row for all 3 students.
+12. ✅ [Marks](../../mobile/lib/features/teacher/marks/marks_screen.dart) — class + exam pickers, class
+    average, max marks, pending count, top three performers, per-student entry →
+    **verified over HTTP:** marks 45 and 25 of 50 gave a class average of 70 with 2 entered / 1 pending;
+    90/60/30 of 100 gave 60 with grades A+/B/F.
+13. ✅ [My Students](../../mobile/lib/features/teacher/students/my_students_screen.dart) +
+    [Student Profile](../../mobile/lib/features/teacher/students/student_profile_screen.dart), fees stripped →
+    **verified:** see "Fee isolation" below.
+14. ✅ [Students Needing Focus](../../mobile/lib/features/teacher/students/students_needing_focus_screen.dart)
+    on a new fees-free endpoint; the screen prints the rules it used →
+    **verified:** 40% attendance flags HIGH, 100% attendance does not flag, 3 missing homework items flag
+    MEDIUM, and the thresholds are returned to the client rather than hardcoded in the app.
+
+#### Marks are write-once for teachers
+`PATCH /marks/exams/:id/results` returns **403** when a result already exists and the caller is a
+teacher — "Marks have already been submitted and can only be modified by a Principal or Admin." This is
+a deliberate integrity rule in the existing backend, not a bug. The Marks screen now reflects it: rows
+without a result are tappable, submitted rows show a lock, and a note explains that only the principal
+can amend them. **Confirmed live:** entering marks for an unscored student returned 200; amending the
+same student returned 403.
+
+#### Fee isolation (item 13) — verified, and one leak fixed
+The backend already gated fee data by role (`teacherTabs` has no `"fees"` entry), but auditing the real
+payloads turned up `transportFeeAmount` — a fee figure stored on the student row itself, which therefore
+rode along with the base column spread instead of the fee relations. It is now grouped with the other
+fee fields in both `listStudents` and `getStudent`.
+
+After the fix, for a teacher token:
+- `GET /students` — no fee-related key at all
+- `GET /students/:id` — `feeAssignments: []`, `feeBalance: 0`, and `access.allowedTabs` excludes `fees`.
+  The keys stay present so the web dashboard's response shape is unchanged, but carry no values.
+- The same calls as a principal still return the assignment, a balance of 10000 and the transport fee,
+  so the assertions prove something rather than passing vacuously.
+
+Pinned by [teacherStudentAccess.test.ts](../../backend/tests/teacherStudentAccess.test.ts).
+
+> **Still not device-tested.** As with Phases 0–2, everything here is verified by build, analyzer,
+> DB-level integration tests and live HTTP calls. No APK has been run on an emulator or handset yet.
+
+### Phase 4 — Leave & Messages (both apps) ✅ done
+15. ✅ **Backend:** `LeaveRequest` model +
+    [migration](../../backend/prisma/migrations/20260907000000_add_leave_and_announcements/migration.sql) +
+    [leave module](../../backend/src/modules/leave/) — apply (with an optional PDF/image attachment, 5 MB
+    cap), own list, school-wide list, approve/reject, withdraw, attachment download →
+    **verified over HTTP:** a teacher applying got 201; that teacher approving got 403; a **principal
+    approving their own request got 403 `CANNOT_DECIDE_OWN_LEAVE`**; the principal approving the teacher got
+    200; a second decision got 409.
+16. ✅ [Apply Leave](../../mobile/lib/features/teacher/leave/apply_leave_screen.dart) (type, date range with a
+    live day count, 500-character reason, optional attachment) and
+    [Messages](../../mobile/lib/features/teacher/messages/teacher_messages_screen.dart) with the blueprint's
+    All / Announcements / Leave tabs →
+    **verified over HTTP:** the teacher's own list returned the request as `APPROVED` on the next read, and
+    returned nothing at all for a second teacher.
+17. ✅ [Leave Approval](../../mobile/lib/features/principal/leave/leave_approval_screen.dart) — stat tiles,
+    Pending / Approved / Rejected tabs, search by name, Approve / Reject with an optional note, Load More →
+    **verified:** every list response carries the whole-school tile counts, so after the approval above the
+    tiles read total 2 / approved 1 / pending 1 and cannot drift from the list they sit over.
+18. ✅ Announcements in both apps —
+    [create](../../mobile/lib/features/principal/announcements/create_announcement_screen.dart) with audience
+    and priority, read with per-user read state →
+    **verified over HTTP:** a `STAFF` announcement posted by the principal appeared in the teacher's feed with
+    an unread badge of 1, a `PARENTS` one did not appear at all, a teacher posting got 403, and marking read
+    twice left one row and a badge of 0.
+
+#### Nobody approves their own leave
+A principal applies for leave through the same endpoint as everyone else, so role alone cannot enforce this:
+`PATCH /leave/requests/:id/decision` compares the applicant to the caller and returns **403
+`CANNOT_DECIDE_OWN_LEAVE`** when they match. Pinned by
+[leaveAndAnnouncements.test.ts](../../backend/tests/leaveAndAnnouncements.test.ts) and confirmed live.
+
+#### Leave attachments end to end
+Apply Leave has an optional attach/remove row backed by `file_picker`, uploading through a new multipart path
+in [api_client.dart](../../mobile/lib/core/api/api_client.dart). No Android permission is needed — the picker
+uses the system document chooser. Two details worth keeping:
+
+- The 401 refresh-and-retry clones the `FormData` before replaying it. A form body is a one-shot stream, so
+  the original retry would have re-sent an empty body after a token refresh.
+- `file_picker` is **held on 8.x**. From 9.x its Android module stops applying the Kotlin Gradle Plugin on
+  AGP 9 and expects `android.builtInKotlin`, which this project has off; turning that on instead breaks its
+  transitive `flutter_plugin_android_lifecycle`, which still applies KGP. 8.x is plain Java on Android and
+  needs neither, so no Gradle configuration changed. Re-test both APKs before raising that constraint.
+
+**Verified over HTTP:** a multipart apply returned 201 with the original filename preserved and the text
+fields still parsed; the stored PDF came back byte-identical; an `.exe` was rejected 400
+`UNSUPPORTED_ATTACHMENT_TYPE`; the applicant and the principal could both download it and a second teacher
+got 403; and the plain-JSON path (no file) still returned 201 with `hasAttachment: false`.
+
+> **Still not device-tested,** as with Phases 0–3. Everything above is verified by build, analyzer, widget
+> tests, DB-level integration tests and live HTTP calls against a local backend. No APK has been run on an
+> emulator or handset yet.
+
+### Phase 5 — Principal management screens
+19. Home / Dashboard → **verify:** metrics match the web dashboard for the same school and day.
+20. Student Management + Student Profile → **verify:** pagination, search, filter, and the 4 quick actions.
+21. Teacher Management + Teacher Profile → **verify:** stat tiles match a manual DB count.
+22. School Profile (view + edit + logo + documents) → **verify:** edits persist and appear on web.
+23. Classes & Sections, Subjects → **verify:** created class/section appears in teacher pickers.
+24. Fees Management (**principal only**) → **verify:** teacher token gets 403 on every fee endpoint.
+
+### Phase 6 — Calendar, Reports, Exams
+25. ✅ **Backend:** `CalendarEvent` model (EXAM/EVENT/MEETING) +
+    [migration](../../backend/prisma/migrations/20260911000000_add_calendar_events/migration.sql) +
+    [calendar module](../../backend/src/modules/calendar/) — `GET /calendar?month=YYYY-MM` for Principal, Admin and
+    Teacher; `POST /calendar/events`, `PATCH` and `DELETE /calendar/events/:id` for Principal and Admin →
+    **verified:** a holiday created through the existing `POST /attendance/holidays` came back from `/calendar` as a
+    `HOLIDAY` item on the same date. See "Holidays are not a calendar type" below.
+26. ◐ Academic Calendar — **teacher side done:**
+    [Calendar screen](../../mobile/lib/features/teacher/calendar/teacher_calendar_screen.dart) with a month grid showing
+    a dot per event type, a legend that doubles as the filter, and the month's events below; tapping a day narrows the
+    list to it. It opens from both the Calendar tab and the Home quick action. **The principal side (Add New Event) is not built
+    yet** — the endpoints exist, only the screen is missing →
+    **verified:** 4 widget tests in [teacher_calendar_test.dart](../../mobile/test/teacher_calendar_test.dart) — a
+    legend entry hides and restores its type, a day inside a multi-day exam lists only that exam, and paging to the
+    next month re-requests it and drops the day selection.
+27. Reports **without Finance** → **verify:** no fee/finance tile is present anywhere on the screen.
+28. Exams management → **verify:** an exam created here is selectable in the teacher Marks screen.
+
+#### Holidays are not a calendar type
+`Holiday` already exists, and it is what locks attendance marking for a day. A `HOLIDAY` calendar event would look the
+same on the calendar but would not lock attendance, so the two could disagree. The enum therefore has no `HOLIDAY`:
+the month endpoint merges `Holiday` rows in as `type: "HOLIDAY"`, `source: "HOLIDAY"`, and `POST /calendar/events`
+rejects that type with 400. Holidays are still created through the attendance endpoints the web dashboard already uses.
+
+Rows from the `Exam` table are not merged in either. There is one per class and subject, so a single exam week would
+flood the grid. A school marks the week itself as one `EXAM` event.
+
+Dates travel as plain `YYYY-MM-DD` strings. Events are stored at midnight UTC, like leave; holidays keep the
+server-local midnight the attendance module has always used, and are formatted the way that module formats them.
+
+**Verified** by [calendar.test.ts](../../backend/tests/calendar.test.ts) against a real database — an event crossing
+a month boundary appears in both months, another school's events never appear, and it covers role checks, a reversed
+date range, update and delete. **Also verified over HTTP** against a local backend. Teacher: GET 200, bad month 400,
+create / edit / delete 403. Principal: create 201; 31 February, `HOLIDAY` and an end before the start all 400; edit
+200; delete 204; a second delete 404.
+
+> **Still not device-tested,** as with Phases 0–4. The teacher APK builds; nobody has opened the calendar on a handset.
+
+### Phase 7 — New modules
+29. ✅ **Backend + UI:** bell timings. One school-wide bell: a
+    [`PeriodTime` table](../../backend/prisma/migrations/20260911120000_add_period_times/migration.sql),
+    `GET`/`PUT /settings/period-times` for Principal and Admin, and a **Bell Timings** section on the web dashboard's
+    Settings page. `GET /users/me/schedule` now carries each period's `startTime`/`endTime`, and the teacher Home
+    shows the time plus the blueprint's **Now** / **Upcoming** badges. Period assignment stays on the existing web
+    grid; the principal app's Timetable tile is still a placeholder →
+    **verified:** [periodTimes.test.ts](../../backend/tests/periodTimes.test.ts) against a real database
+    (out-of-range, reversed, zero-length, overlapping and duplicate periods rejected; untimed periods carry nulls;
+    lowering Periods Per Day hides later times); 7 unit tests in
+    [schedule_badges_test.dart](../../mobile/test/schedule_badges_test.dart); and over HTTP — teacher 403 on read and
+    write, a malformed time 400, overlapping periods 400, save 200, and the teacher's schedule came back as
+    `P1 08:00-08:45`.
+30. **Backend + UI:** Transport (routes, vehicles, drivers, assignment) → **verify:** transport report returns real data.
+31. ✅ **Backend + UI:** Payroll — a `SalarySlip` table
+    ([migration](../../backend/prisma/migrations/20260913000000_add_salary_slips/migration.sql)) and
+    [payroll module](../../backend/src/modules/payroll/): `GET /payroll/me/slips` for any staff member (own slips only,
+    there is no user id to pass), `GET /payroll/slips?month=`, `PUT /payroll/slips` (create-or-replace per person
+    and month) and `DELETE /payroll/slips/:id` for Principal and Admin. Figures are recorded, not computed:
+    net pay = basic + allowances − deductions. The principal records slips on the new web **Payroll** page; teachers
+    read them in the app **Salary** tab ([salary_screen.dart](../../mobile/lib/features/teacher/salary/salary_screen.dart))
+    and on the web **My Salary** page (`/teacher/salary`) →
+    **verified:** [payroll.test.ts](../../backend/tests/payroll.test.ts) against a real database, and over HTTP.
+    Principal save 200. Recording your own salary 403 `CANNOT_RECORD_OWN_SALARY`. Teacher write 403, teacher reading
+    the month sheet 403. Bad month 400, negative net pay 400, no token 401. A second teacher's `/me/slips` came back
+    empty. Widget tests in [salary_screen_test.dart](../../mobile/test/salary_screen_test.dart).
+
+#### Nobody records their own salary
+The same rule as leave: a principal or admin is also staff, so `PUT /payroll/slips` returns **403
+`CANNOT_RECORD_OWN_SALARY`** when the slip is the caller's, and the month sheet marks that row "Your own".
+
+### Teacher dashboard: web and app are one (2026-09-13)
+Both read `GET /dashboard`, `GET /users/me/schedule` and `GET /staff-attendance/me/today` and show the same sections
+in the same order: pulse line → KPI cards (Assigned Students, Pending Attendance, Pending Homework, Assigned Classes)
+→ today's punch and schedule → per-class attendance → Today's Actions (Marked / Unmarked / Homework) → alerts.
+- **App Home** ([teacher_home_screen.dart](../../mobile/lib/features/teacher/teacher_home_screen.dart)) adopted the web's
+  KPIs, pulse sentence, class attendance, Today's Actions and alerts. Greeting and Quick Actions stay app-only; on the
+  web, the page title and sidebar do those jobs.
+- **Web** ([TeacherDayPanel.tsx](../../frontend/src/features/dashboard/TeacherDayPanel.tsx)) gained Today's Punch and
+  Today's Schedule. Its Now/Upcoming rule is a line-for-line port of the app's `scheduleBadges`.
+- The web Activity feed is not on the app. It reads school-wide audit logs, which are not teacher data.
+
+### One look across web and apps (2026-09-13)
+[app_colors.dart](../../mobile/lib/core/theme/app_colors.dart) now carries the web's tokens from `globals.css` —
+brand #2456E6, ink/surface/border greys, success/warning/danger — plus the web's KPI card palette and 6/8px radii.
+Inter is bundled (`assets/fonts`, SIL OFL), so text matches the web offline too. A `KpiCard` widget reproduces the web
+KPI card. This lives in `core/`, so the principal app changed as well.
+
+Responsiveness is one layer, [responsive.dart](../../mobile/lib/core/widgets/responsive.dart):
+- `AppViewport` (MaterialApp.builder) caps content at 840dp, centred, on tablets and in landscape.
+- System font scaling is honoured up to 1.3×.
+- `ResponsiveGrid` picks columns by width (small phone / phone / wide) and sizes rows to their content, so scaled
+  text is never clipped.
+
+**Verified:** [teacher_dashboard_test.dart](../../mobile/test/teacher_dashboard_test.dart) renders Home at 390dp, at
+320dp with 1.3× text, and at 1200dp. The 320dp run caught a real overflow in the shared brand header, now fixed. Both
+APKs build.
+
+> **Still not device-tested,** as with Phases 0–6. The web pages pass `tsc` but have not been opened in a browser.
+
+### Phase 8 — Polish & release
+32. Push notifications (`DeviceToken` + FCM) → **verify:** an announcement triggers a device notification.
+33. Empty states, loading skeletons, error states, pull-to-refresh across all screens.
+34. Performance pass on long lists; offline behaviour per the Phase-0 decision.
+35. Play Store release prep: icons, splash, signing, privacy policy, internal testing track.
+
+---
+
+## 7. Suggested build order rationale
+
+Phase 2 (teacher daily loop) ships first because Swipe To Punch + Mark Attendance is the highest-frequency,
+highest-value interaction in the whole product and is mostly backed by APIs that already exist. Principal
+management screens (Phase 5) are largely a mobile re-skin of the existing web dashboard, so they carry less
+risk and can follow. The genuinely new backend domains — Leave, Payroll, Transport, Timetable, Calendar —
+are sequenced so each lands right before the screens that consume it.
+
+---
+
+## 8. Open questions
+
+The nine questions that opened this plan are all answered in **Decisions taken** at the top.
+What remains open is scoped to later phases:
+
+1. ~~**Period times for the timetable**~~ — answered 2026-09-11: one school-wide bell, set on the web dashboard.
+2. **Push notification provider** (Phase 8). FCM is assumed; needs a Firebase project and a decision on
+   whether notifications are per-device or per-user.
+3. **Play Store listings** (Phase 8). Two listings mean two sets of store metadata, screenshots and
+   privacy declarations.
+
+## 8a. Backend changes made for the mobile apps
+
+| Change | Why |
+|---|---|
+| `StaffAttendance` model + [migration](../../backend/prisma/migrations/20260905000000_add_staff_attendance/migration.sql) | Nothing recorded staff punches before. |
+| [staffAttendance module](../../backend/src/modules/staffAttendance/) | `/staff-attendance/me/today`, `/punch-in`, `/punch-out`, `/history`. Restricted to PRINCIPAL, ADMIN, TEACHER. |
+| `getRefreshToken` also reads `body.refreshToken` | The refresh token lives in an httpOnly cookie, which a native client has no jar for. Cookie still wins when present, so web is unchanged. |
+| Login returns `refreshToken` only for `x-client-type: mobile` | Keeps the token out of web responses, where the httpOnly cookie is the security boundary. |
+| `GET /users/me/schedule` | The teacher's own timetable for a weekday. The existing assignments endpoint is admin-only and returns free periods. |
+| `GET /students/needing-focus` | Teacher-accessible focus list. `analytics.riskSummary` could not be reused: it is principal-only and weighs pending fees, which teachers must never see. |
+| `transportFeeAmount` grouped with the fee fields | It is a fee figure on the student row, so it was reaching teachers through the base column spread. Principals and accountants still receive it. |
+| `LeaveRequest` model + [leave module](../../backend/src/modules/leave/) | Nothing recorded staff leave before. `/leave/requests` (apply, own list, school-wide list), `/requests/:id/decision`, `/requests/:id/cancel`, `/requests/:id/attachment`. |
+| `Announcement` + `AnnouncementRead` models + [announcements module](../../backend/src/modules/announcements/) | The existing `Notification` model is a WhatsApp/SMS delivery log keyed by a parent's phone number, so it could not back an in-app feed with per-user read state. |
+| Leave and announcement lists return their own tile counts | The mobile stat rows would otherwise need a second request per screen, and could drift out of step with the list above them. |
+| `CalendarEvent` model + [calendar module](../../backend/src/modules/calendar/) | Nothing but holidays had a date on a school calendar. `/calendar?month=` merges events with the existing holidays; `/calendar/events` is the principal-only CRUD. The holiday endpoints are untouched. |
+| `SalarySlip` model + [payroll module](../../backend/src/modules/payroll/) | Nothing recorded pay before. `/payroll/me/slips` (own, any staff), `/payroll/slips` month sheet + save + delete (Principal/Admin). |
+| `PeriodTime` model + `/settings/period-times` | Periods had a number but no clock time. `GET /users/me/schedule` adds `startTime`/`endTime` to each period (null when unset); its other fields are unchanged. |
+
+None of these change existing web behaviour for principal/admin roles. `npm run lint` (tsc) passes.
+
+---
+
+## 9. Files & conventions
+
+- Blueprint PDF: `docs/product/SmartShala_App_V2_0_Product_UI_Blueprint.pdf` (~17 MB — consider Git LFS)
+- This plan: `docs/product/APP_V2_IMPLEMENTATION_PLAN.md`
+- Mobile apps: [mobile/](../../mobile/) — see [mobile/README.md](../../mobile/README.md) to run them
+- Backend API base (multi-tenant): `/:schoolId/api/v1/...`
+- New backend work follows the existing module shape: `<module>.routes.ts` / `.controller.ts` / `.service.ts` / `.schemas.ts`
+
+## 10. How to verify what has been built
+
+```bash
+# Backend typecheck
+npm --prefix backend run lint
+
+# Punch state machine against a real database
+DATABASE_URL=<postgres url> npm --prefix backend run test:staff-attendance
+
+# Teacher fee isolation + focus thresholds
+DATABASE_URL=<postgres url> npm --prefix backend run test:teacher-access
+
+# Leave decision rules + announcement audience and read state
+DATABASE_URL=<postgres url> npm --prefix backend run test:leave
+
+# Calendar month overlap, holiday merge, school isolation and edit rights
+DATABASE_URL=<postgres url> npm --prefix backend run test:calendar
+
+# Bell timing validation and the times on a teacher's schedule
+DATABASE_URL=<postgres url> npm --prefix backend run test:period-times
+
+# Payroll: own-salary rule, role checks, net pay, school isolation
+DATABASE_URL=<postgres url> npm --prefix backend run test:payroll
+
+# Mobile analyzer + swipe-gesture tests
+cd mobile && flutter analyze && flutter test
+
+# Both APKs
+cd mobile
+flutter build apk --debug --flavor teacher   -t lib/main_teacher.dart
+flutter build apk --debug --flavor principal -t lib/main_principal.dart
+```
+
+To run the teacher app against a local backend, start the API on port 4000 and launch with the
+emulator's host alias (the default `API_BASE_URL` already points at `http://10.0.2.2:4000`). Sign in
+with the school code (e.g. `SS000001`) plus a teacher's phone/email and password.

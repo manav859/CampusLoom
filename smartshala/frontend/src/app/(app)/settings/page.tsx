@@ -8,6 +8,7 @@ import { tokenStore } from "@/lib/tokenStore";
 import { communicationTemplates, renderCommunicationTemplate } from "@/lib/communicationTemplates";
 import { invalidateCache } from "@/lib/prefetchCache";
 import { AcademicYearSection } from "./AcademicYearSection";
+import { PeriodTimesSection } from "./PeriodTimesSection";
 
 const previewVariables = {
   studentName: "Aarav Patel",
@@ -45,6 +46,8 @@ function defaultTemplateDrafts(): TemplateDrafts {
 export default function SettingsPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<SchoolProfilePayload>(emptyProfile);
+  // The bell editor follows the saved period count, not the unsaved field.
+  const [savedPeriodCount, setSavedPeriodCount] = useState(8);
   const [templateDrafts, setTemplateDrafts] = useState<TemplateDrafts>(() => defaultTemplateDrafts());
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,6 +85,7 @@ export default function SettingsPage() {
           logoUrl: row.logoUrl ?? "",
           timetablePeriodCount: row.timetablePeriodCount ?? 8
         });
+        setSavedPeriodCount(row.timetablePeriodCount ?? 8);
         setDeletionStatus(deletion);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Unable to load school profile");
@@ -144,6 +148,7 @@ export default function SettingsPage() {
       timetablePeriodCount: saved.timetablePeriodCount ?? 8
     };
     setProfile(normalized);
+    setSavedPeriodCount(normalized.timetablePeriodCount);
     invalidateCache("settings:schoolProfile");
     window.dispatchEvent(new CustomEvent("smartshala:school-logo", { detail: { logoUrl: normalized.logoUrl } }));
     setNotice(successMessage);
@@ -460,6 +465,8 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
+
+      {loading ? null : <PeriodTimesSection periodCount={savedPeriodCount} />}
 
       <section className="rounded-[6px] border border-[#F2B8B5] bg-[#FFF8F8] p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">

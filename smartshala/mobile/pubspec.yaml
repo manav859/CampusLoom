@@ -1,0 +1,51 @@
+name: smartshala_mobile
+description: "SmartShala V2 mobile apps — Principal Portal and Teacher Portal."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  dio: ^5.7.0
+  flutter_secure_storage: ^9.2.2
+  provider: ^6.1.2
+  intl: ^0.19.0
+  # Leave attachments. Held on 8.x on purpose: from 9.x the Android module stops
+  # applying the Kotlin Gradle Plugin on AGP 9 and expects android.builtInKotlin,
+  # which this project has off — and turning it on breaks its transitive
+  # flutter_plugin_android_lifecycle, which still applies KGP. 8.x is plain Java
+  # on Android and needs neither. Re-test the APK build before raising this.
+  file_picker: ^8.3.7
+  dio_cookie_manager: ^3.5.0
+  cookie_jar: ^4.0.9
+  path_provider: ^2.1.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Inter, the web dashboard's typeface, bundled so text renders the same
+  # offline and on first launch. SIL OFL — see assets/fonts/OFL.txt.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-ExtraBold.ttf
+          weight: 800

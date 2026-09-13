@@ -17,6 +17,14 @@ export const updateSchoolProfile = asyncHandler(async (req: Request, res: Respon
   res.json(await settingsService.updateSchoolProfile(req.user!.schoolId, req.body, req.user!.id));
 });
 
+export const getPeriodTimes = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await settingsService.getPeriodTimes(req.user!.schoolId));
+});
+
+export const updatePeriodTimes = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await settingsService.updatePeriodTimes(req.user!.schoolId, req.body.periods, req.user!.id));
+});
+
 function tenantSchoolIdFromRequest(req: Request) {
   const schoolId = req.tenant?.schoolId ?? req.user?.tenantSchoolId;
   if (!schoolId) {
