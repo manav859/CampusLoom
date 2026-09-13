@@ -1,3 +1,7 @@
+import '../../../core/data/dashboard_models.dart';
+
+export '../../../core/data/dashboard_models.dart';
+
 enum PunchState { notPunchedIn, punchedIn, punchedOut }
 
 class PunchStatus {
@@ -127,59 +131,6 @@ class TeacherOverview {
   }
 }
 
-/// One class in "Your Class Attendance" — a row of the daily report the web
-/// dashboard charts.
-class ClassAttendance {
-  const ClassAttendance({
-    required this.className,
-    required this.marked,
-    required this.totalStudents,
-    required this.present,
-    required this.absent,
-    required this.attendancePercentage,
-    this.classId,
-  });
-
-  final String? classId;
-  final String className;
-  final bool marked;
-  final int totalStudents;
-  final int present;
-  final int absent;
-  final int attendancePercentage;
-
-  factory ClassAttendance.fromJson(Map<String, dynamic> json) => ClassAttendance(
-        classId: json['classId'] as String?,
-        className: json['className'] as String? ?? '—',
-        marked: json['marked'] as bool? ?? false,
-        totalStudents: (json['totalStudents'] as num?)?.toInt() ?? 0,
-        present: (json['present'] as num?)?.toInt() ?? 0,
-        absent: (json['absent'] as num?)?.toInt() ?? 0,
-        attendancePercentage: (json['attendancePercentage'] as num?)?.round() ?? 0,
-      );
-}
-
-enum AlertSeverity { high, medium, low }
-
-/// An action item from GET /dashboard, e.g. attendance not yet submitted.
-class DashboardAlert {
-  const DashboardAlert({required this.type, required this.message, required this.severity});
-
-  final String type;
-  final String message;
-  final AlertSeverity severity;
-
-  factory DashboardAlert.fromJson(Map<String, dynamic> json) => DashboardAlert(
-        type: json['type'] as String? ?? '',
-        message: (json['message'] ?? json['studentName'] ?? 'Action needed') as String,
-        severity: switch (json['severity'] as String?) {
-          'HIGH' => AlertSeverity.high,
-          'MEDIUM' => AlertSeverity.medium,
-          _ => AlertSeverity.low,
-        },
-      );
-}
-
 /// Everything the teacher dashboard shows from GET /dashboard — the same
 /// response, and the same derived numbers, as the web teacher dashboard.
 class TeacherDashboard {
@@ -197,6 +148,9 @@ class TeacherDashboard {
 
   int get markedClasses => attendance.where((item) => item.marked).length;
 
+  /// The web's alert list for this dashboard. Teachers have no defaulters.
+  List<ActionAlert> get actionAlerts => buildActionAlerts(alerts: alerts, attendance: attendance);
+
   /// The web's pulse line, word for word.
   String get pulse =>
       '${overview.pendingAttendance} attendance actions and ${overview.pendingHomeworkSubmissions} '
@@ -204,12 +158,8 @@ class TeacherDashboard {
 
   factory TeacherDashboard.fromJson(Map<String, dynamic> json) => TeacherDashboard(
         overview: TeacherOverview.fromJson(json),
-        attendance: ((json['attendance'] as List?) ?? const [])
-            .map((item) => ClassAttendance.fromJson((item as Map).cast<String, dynamic>()))
-            .toList(),
-        alerts: ((json['alerts'] as List?) ?? const [])
-            .map((item) => DashboardAlert.fromJson((item as Map).cast<String, dynamic>()))
-            .toList(),
+        attendance: ClassAttendance.listFrom(json['attendance']),
+        alerts: DashboardAlert.listFrom(json['alerts']),
       );
 }
 

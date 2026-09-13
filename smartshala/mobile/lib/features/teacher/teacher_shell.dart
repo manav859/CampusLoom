@@ -34,12 +34,12 @@ class _TeacherShellState extends State<TeacherShell> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [
-          TeacherHomeScreen(),
-          TeacherCalendarScreen(),
-          MyStudentsScreen(),
-          SalaryScreen(),
-          TeacherMessagesScreen(),
+        children: [
+          TeacherHomeScreen(onOpenMessages: () => setState(() => _index = 4)),
+          const TeacherCalendarScreen(),
+          const MyStudentsScreen(),
+          const SalaryScreen(),
+          const TeacherMessagesScreen(),
         ],
       ),
       bottomNavigationBar: _BottomBar(

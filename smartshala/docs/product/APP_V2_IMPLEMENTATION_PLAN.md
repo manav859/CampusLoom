@@ -4,7 +4,8 @@
 **Created:** 2026-09-05
 **Status:** Phases 0–4 complete, plus the backend and teacher side of the Academic Calendar (Phase 6, items 25–26)
 bell timings with Now/Upcoming badges (Phase 7, item 29), and Payroll with teacher Salary Details (Phase 7, item 31).
-Every teacher screen in the blueprint is now built. Phase 5 (Principal management screens) is next.
+Every teacher screen in the blueprint is now built. Phase 5 has started with the principal Home (item 19);
+Student Management + Profile (item 20) is next.
 
 ## Decisions taken (2026-09-05)
 
@@ -327,7 +328,30 @@ got 403; and the plain-JSON path (no file) still returned 201 with `hasAttachmen
 > emulator or handset yet.
 
 ### Phase 5 — Principal management screens
-19. Home / Dashboard → **verify:** metrics match the web dashboard for the same school and day.
+19. ✅ Home / Dashboard — [principal_home_screen.dart](../../mobile/lib/features/principal/principal_home_screen.dart)
+    mirrors the web admin dashboard: pulse line, the five KPI cards (Students, Marked Today, Defaulters, Collected,
+    Alerts), attendance in marked classes, Fee Overview, the alert list and today's activity. App-only additions are the
+    school card and three working quick actions: Leave Approval (with a pending badge), Announcement and Messages. The
+    web's Record Payment / Send Fee Reminder / Add Student need Phase 5 screens that don't exist yet, so they are not on
+    the app. →
+    **verified:** metrics match the web for the same school and day. The real `GET /dashboard` and `GET /activity-logs`
+    responses from a local backend (27 students, 21 defaulters, 8 alerts) were fed to the web's own logic, copied
+    verbatim from `DashboardHome.tsx` / `formatters.ts`, and to the app's models. The two outputs were **byte-identical**
+    (pulse, all five KPIs, fee totals, every alert label, severity and detail, activity text). Pinned by
+    [principal_dashboard_test.dart](../../mobile/test/principal_dashboard_test.dart), which also lays the screen out at 390dp,
+    at 320dp with 1.3× text, and at 1200dp with all five KPIs on one row.
+
+#### One source for dashboard logic in the apps
+The web's `actionAlerts`, `formatINR`, `humanizeConstant`, `relativeTime` and activity wording are ported once, to
+[dashboard_models.dart](../../mobile/lib/core/data/dashboard_models.dart). The class attendance, segment bar, alert list and
+activity widgets live in [dashboard_widgets.dart](../../mobile/lib/core/widgets/dashboard_widgets.dart). Both Homes use them.
+As a result the teacher Home now also lists low-attendance classes in its alerts, as the web does.
+One deliberate difference: when an alert has no flags, the web prints the raw severity ("MEDIUM") as its detail line.
+The app leaves that line empty because the severity badge already says it.
+
+The notification bell in both apps used a hardcoded "3". It now shows the real unread announcement count and opens
+Messages. Salary amounts on the web Payroll and My Salary pages and in the app now format the same way: whole rupees
+unless there are paise, with the web's non-breaking space.
 20. Student Management + Student Profile → **verify:** pagination, search, filter, and the 4 quick actions.
 21. Teacher Management + Teacher Profile → **verify:** stat tiles match a manual DB count.
 22. School Profile (view + edit + logo + documents) → **verify:** edits persist and appear on web.

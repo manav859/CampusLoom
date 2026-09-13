@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../core/auth/auth_controller.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/widgets/brand_header.dart';
 import '../../core/widgets/state_views.dart';
 import 'messages/principal_messages_screen.dart';
+import 'principal_home_screen.dart';
 import 'principal_more_screen.dart';
 import 'quick_add_sheet.dart';
 
@@ -24,11 +22,11 @@ class _PrincipalShellState extends State<PrincipalShell> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const [
-          _HomeTab(),
-          _PendingTab(icon: Icons.insights_rounded, title: 'Reports', phase: 'Phase 6'),
-          PrincipalMessagesScreen(),
-          PrincipalMoreScreen(),
+        children: [
+          PrincipalHomeScreen(onOpenMessages: () => setState(() => _index = 2)),
+          const _PendingTab(icon: Icons.insights_rounded, title: 'Reports', phase: 'Phase 6'),
+          const PrincipalMessagesScreen(),
+          const PrincipalMoreScreen(),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -129,58 +127,6 @@ class _NavItem extends StatelessWidget {
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 color: color,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Home lands in Phase 5. Until then the tab still carries the branded header
-/// and the account actions so the shell is fully usable.
-class _HomeTab extends StatelessWidget {
-  const _HomeTab();
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = context.watch<AuthController>();
-
-    return Scaffold(
-      appBar: BrandAppBar(
-        portalLabel: 'PRINCIPAL APP',
-        notificationCount: 3,
-        leading: IconButton(
-          icon: const Icon(Icons.logout_rounded, size: 22),
-          tooltip: 'Sign out',
-          onPressed: () => context.read<AuthController>().logout(),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              auth.user?.schoolName ?? 'Your school',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Signed in as ${auth.user?.fullName ?? ''}',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 28),
-            const EmptyView(
-              icon: Icons.dashboard_rounded,
-              title: 'Dashboard',
-              message: 'The principal command centre lands in Phase 5. '
-                  'Open More to walk the module structure.',
             ),
           ],
         ),

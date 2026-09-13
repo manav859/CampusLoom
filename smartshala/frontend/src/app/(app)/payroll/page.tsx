@@ -40,8 +40,9 @@ function todayValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Whole rupees unless there are paise — the same as the teacher app. */
 function rupees(value: number) {
-  return formatINR(value, { compact: false, maximumFractionDigits: 2 });
+  return formatINR(value, { compact: false, maximumFractionDigits: Number.isInteger(value) ? 0 : 2 });
 }
 
 function draftFor(row: Row): Draft {

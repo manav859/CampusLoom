@@ -63,6 +63,9 @@ Future<void> _pump(WidgetTester tester, Map<String, dynamic> json, {double width
   await tester.pumpAndSettle();
 }
 
+/// The web and the app put a non-breaking space after the rupee sign.
+String rupees(String amount) => '₹${String.fromCharCode(0xa0)}$amount';
+
 void main() {
   test('parses slips and the yearly total', () {
     final salary = MySalary.fromJson(_slipsJson);
@@ -74,8 +77,8 @@ void main() {
   });
 
   test('formats whole rupees without paise and keeps paise when present', () {
-    expect(formatRupees(31000), '₹31,000');
-    expect(formatRupees(32700.5), '₹32,700.50');
+    expect(formatRupees(31000), rupees('31,000'));
+    expect(formatRupees(32700.5), rupees('32,700.50'));
   });
 
   testWidgets('shows the latest slip, the paid total and every slip', (tester) async {
@@ -83,7 +86,7 @@ void main() {
 
     expect(find.text('Latest slip · September 2026'), findsOneWidget);
     expect(find.text('Paid in 2026'), findsOneWidget);
-    expect(find.text('₹32,700.50'), findsNWidgets(2), reason: 'the paid total and the August row');
+    expect(find.text(rupees('32,700.50')), findsNWidgets(2), reason: 'the paid total and the August row');
     expect(find.text('August 2026'), findsOneWidget);
     expect(find.text('Paid 1 Sep'), findsOneWidget);
     expect(find.text('Pending'), findsNWidgets(2), reason: 'on the latest card and its row');
@@ -96,8 +99,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('August 2026'), findsNWidgets(2));
-    expect(find.text('− ₹1,800'), findsOneWidget);
-    expect(find.text('+ ₹4,500.50'), findsOneWidget);
+    expect(find.text('− ${rupees('1,800')}'), findsOneWidget);
+    expect(find.text('+ ${rupees('4,500.50')}'), findsOneWidget);
     expect(find.text('Note: Bank transfer'), findsOneWidget);
   });
 

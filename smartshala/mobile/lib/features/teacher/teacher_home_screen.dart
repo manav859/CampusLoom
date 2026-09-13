@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/data/messages_repository.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_cards.dart';
 import '../../core/widgets/app_chips.dart';
 import '../../core/widgets/brand_header.dart';
+import '../../core/widgets/dashboard_widgets.dart';
 import '../../core/widgets/responsive.dart';
 import '../../core/widgets/state_views.dart';
 import 'attendance/mark_attendance_screen.dart';
@@ -29,7 +31,10 @@ import 'students/students_needing_focus_screen.dart';
 /// the number on the other. Greeting and Quick Actions are app-only: on the
 /// web those jobs belong to the page title and the sidebar.
 class TeacherHomeScreen extends StatefulWidget {
-  const TeacherHomeScreen({super.key});
+  const TeacherHomeScreen({super.key, this.onOpenMessages});
+
+  /// Opens the Messages tab; the bell calls it.
+  final VoidCallback? onOpenMessages;
 
   @override
   State<TeacherHomeScreen> createState() => _TeacherHomeScreenState();
@@ -37,6 +42,7 @@ class TeacherHomeScreen extends StatefulWidget {
 
 class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   late Future<_HomeData> _future;
+  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -46,11 +52,15 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   Future<_HomeData> _load() async {
     final repository = context.read<TeacherRepository>();
+    final messages = context.read<MessagesRepository>();
     final results = await Future.wait([
       repository.dashboard(),
       repository.todaySchedule(),
+      // Only the unread count is needed for the bell.
+      messages.announcements(limit: 1).then((page) => page.unreadCount, onError: (Object _) => 0),
     ]);
 
+    if (mounted) setState(() => _unreadCount = results[2] as int);
     return _HomeData(
       dashboard: results[0] as TeacherDashboard,
       schedule: results[1] as List<SchedulePeriod>,
@@ -69,7 +79,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
     return Scaffold(
       appBar: BrandAppBar(
         portalLabel: 'TEACHER PORTAL',
-        notificationCount: 3,
+        notificationCount: _unreadCount,
+        onNotificationsTap: widget.onOpenMessages,
         leading: IconButton(
           icon: const Icon(Icons.logout_rounded, size: 22),
           tooltip: 'Sign out',
@@ -168,22 +179,30 @@ class _HomeBody extends StatelessWidget {
         _ScheduleList(periods: data.schedule),
         const SizedBox(height: 22),
         const SectionHeader(title: 'Your Class Attendance'),
-        _ClassAttendanceCard(classes: dashboard.attendance),
+        ClassAttendanceCard(
+          classes: dashboard.attendance,
+          onMark: () => _open(context, const MarkAttendanceScreen()),
+        ),
         const SizedBox(height: 22),
         const SectionHeader(title: "Today's Actions"),
-        _TodaysActionsCard(dashboard: dashboard),
-        const SizedBox(height: 22),
-        SectionHeader(
-          title: 'Alerts',
-          action: dashboard.alerts.isEmpty
-              ? null
-              : StatusChip(
-                  label: '${dashboard.alerts.length}',
-                  color: AppColors.warning,
-                  tint: AppColors.warningSoft,
-                ),
+        // The web workload donut's segments and colours.
+        SegmentBarCard(
+          segments: [
+            (label: 'Marked', value: dashboard.markedClasses, color: const Color(0xFF34C759)),
+            (label: 'Unmarked', value: dashboard.overview.pendingAttendance, color: const Color(0xFFFF9500)),
+            (label: 'Homework', value: dashboard.overview.pendingHomeworkSubmissions, color: const Color(0xFF7C3AED)),
+          ],
         ),
-        _AlertsList(alerts: dashboard.alerts),
+        const SizedBox(height: 22),
+        const SectionHeader(title: 'Alerts'),
+        ActionAlertList(
+          alerts: dashboard.actionAlerts,
+          onTap: (alert) => switch (alert.kind) {
+            ActionKind.attendancePending => () => _open(context, const MarkAttendanceScreen()),
+            ActionKind.homeworkPending => () => _open(context, const HomeworkScreen()),
+            _ => null,
+          },
+        ),
       ],
     );
   }
@@ -639,264 +658,6 @@ class _ScheduleRow extends StatelessWidget {
             const StatusChip(label: 'Now', color: AppColors.success, tint: AppColors.successSoft)
           else if (badge == PeriodBadge.upcoming)
             const StatusChip(label: 'Upcoming', color: AppColors.primary, tint: AppColors.primarySoft),
-        ],
-      ),
-    );
-  }
-}
-
-/// Per-class attendance for today — the web's "Your Class Attendance" chart
-/// as a list of bars, which reads better at phone width.
-class _ClassAttendanceCard extends StatelessWidget {
-  const _ClassAttendanceCard({required this.classes});
-
-  final List<ClassAttendance> classes;
-
-  @override
-  Widget build(BuildContext context) {
-    if (classes.isEmpty) {
-      return const AppCard(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: EmptyView(
-          icon: Icons.bar_chart_rounded,
-          title: 'No classes assigned',
-          message: 'Classes you teach will show their attendance here.',
-        ),
-      );
-    }
-
-    return AppCard(
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
-      child: Column(
-        children: [
-          for (var index = 0; index < classes.length; index++) ...[
-            if (index > 0) const Divider(),
-            _ClassAttendanceRow(item: classes[index]),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ClassAttendanceRow extends StatelessWidget {
-  const _ClassAttendanceRow({required this.item});
-
-  final ClassAttendance item;
-
-  @override
-  Widget build(BuildContext context) {
-    final percent = item.attendancePercentage.clamp(0, 100);
-    final color = percent >= 75
-        ? AppColors.success
-        : percent >= 60
-            ? AppColors.warning
-            : AppColors.danger;
-
-    return InkWell(
-      onTap: item.marked ? null : () => _open(context, const MarkAttendanceScreen()),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Class ${item.className}',
-                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                if (item.marked)
-                  Text(
-                    '$percent%',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: color),
-                  )
-                else
-                  const StatusChip(
-                    label: 'Not marked',
-                    color: AppColors.warning,
-                    tint: AppColors.warningSoft,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: item.marked ? percent / 100 : 0,
-                minHeight: 6,
-                color: color,
-                backgroundColor: AppColors.background,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              item.marked
-                  ? '${item.present} present · ${item.absent} absent · ${item.totalStudents} students'
-                  : '${item.totalStudents} students · tap to mark',
-              style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The web's "Today's Actions" (Marked / Unmarked / Homework) as one stacked
-/// bar with the same three colours and a legend.
-class _TodaysActionsCard extends StatelessWidget {
-  const _TodaysActionsCard({required this.dashboard});
-
-  final TeacherDashboard dashboard;
-
-  static const _marked = Color(0xFF34C759);
-  static const _unmarked = Color(0xFFFF9500);
-  static const _homework = Color(0xFF7C3AED);
-
-  @override
-  Widget build(BuildContext context) {
-    final segments = [
-      (label: 'Marked', value: dashboard.markedClasses, color: _marked),
-      (label: 'Unmarked', value: dashboard.overview.pendingAttendance, color: _unmarked),
-      (label: 'Homework', value: dashboard.overview.pendingHomeworkSubmissions, color: _homework),
-    ];
-    final total = segments.fold<int>(0, (sum, segment) => sum + segment.value);
-
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: SizedBox(
-              height: 12,
-              child: total == 0
-                  ? const ColoredBox(color: AppColors.background, child: SizedBox.expand())
-                  : Row(
-                      children: [
-                        for (final segment in segments)
-                          if (segment.value > 0)
-                            Expanded(
-                              flex: segment.value,
-                              child: ColoredBox(color: segment.color),
-                            ),
-                      ],
-                    ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              for (final segment in segments)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(color: segment.color, shape: BoxShape.circle),
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              segment.label,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${segment.value}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlertsList extends StatelessWidget {
-  const _AlertsList({required this.alerts});
-
-  final List<DashboardAlert> alerts;
-
-  @override
-  Widget build(BuildContext context) {
-    if (alerts.isEmpty) {
-      return const AppCard(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: EmptyView(
-          icon: Icons.verified_rounded,
-          title: 'All caught up',
-          message: 'Nothing needs your attention right now.',
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        for (var index = 0; index < alerts.length; index++) ...[
-          if (index > 0) const SizedBox(height: 8),
-          _AlertRow(alert: alerts[index]),
-        ],
-      ],
-    );
-  }
-}
-
-class _AlertRow extends StatelessWidget {
-  const _AlertRow({required this.alert});
-
-  final DashboardAlert alert;
-
-  @override
-  Widget build(BuildContext context) {
-    final high = alert.severity == AlertSeverity.high;
-    final color = high ? AppColors.danger : AppColors.warning;
-    final tint = high ? AppColors.dangerSoft : AppColors.warningSoft;
-    final Widget? target = switch (alert.type) {
-      'ATTENDANCE_PENDING' => const MarkAttendanceScreen(),
-      'HOMEWORK_PENDING' => const HomeworkScreen(),
-      _ => null,
-    };
-
-    return AppCard(
-      onTap: target == null ? null : () => _open(context, target),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadii.card)),
-            child: Icon(
-              high ? Icons.warning_amber_rounded : Icons.notifications_active_outlined,
-              size: 18,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              alert.message,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, height: 1.35),
-            ),
-          ),
-          if (target != null)
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
         ],
       ),
     );

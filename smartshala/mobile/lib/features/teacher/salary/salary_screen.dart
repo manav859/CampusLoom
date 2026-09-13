@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/data/dashboard_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/app_chips.dart';
@@ -10,12 +11,10 @@ import '../../../core/widgets/state_views.dart';
 import '../data/salary_models.dart';
 import '../data/teacher_repository.dart';
 
-final _rupees = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
-final _rupeesExact = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2);
-
-/// Whole rupees unless there are paise, as on the web Salary Details page.
+/// Whole rupees unless there are paise, the same as the web Payroll and
+/// Salary Details pages.
 String formatRupees(double value) =>
-    value == value.roundToDouble() ? _rupees.format(value) : _rupeesExact.format(value);
+    formatInr(value, compact: false, fractionDigits: value == value.roundToDouble() ? 0 : 2);
 
 /// The teacher's own slips, recorded by the principal on the web Payroll page.
 /// The web "My Salary" page shows the same data.

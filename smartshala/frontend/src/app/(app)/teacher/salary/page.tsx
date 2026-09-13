@@ -15,8 +15,9 @@ function dayLabel(day: string) {
   return new Date(`${day}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+/** Whole rupees unless there are paise — the same as the teacher app. */
 function rupees(value: number) {
-  return formatINR(value, { compact: false, maximumFractionDigits: 2 });
+  return formatINR(value, { compact: false, maximumFractionDigits: Number.isInteger(value) ? 0 : 2 });
 }
 
 function statusText(slip: SalarySlip) {

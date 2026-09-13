@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:smartshala_mobile/core/auth/app_user.dart';
 import 'package:smartshala_mobile/core/auth/auth_controller.dart';
+import 'package:smartshala_mobile/core/data/messages_models.dart';
+import 'package:smartshala_mobile/core/data/messages_repository.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/teacher/data/punch_controller.dart';
 import 'package:smartshala_mobile/features/teacher/data/teacher_models.dart';
@@ -48,6 +50,12 @@ class _FakeRepository extends Fake implements TeacherRepository {
       );
 }
 
+class _FakeMessages extends Fake implements MessagesRepository {
+  @override
+  Future<AnnouncementPage> announcements({int limit = 20, int offset = 0}) async =>
+      const AnnouncementPage(items: [], total: 2, unreadCount: 2, hasMore: false);
+}
+
 class _FakeAuth extends ChangeNotifier implements AuthController {
   @override
   AppUser? user = const AppUser(id: 'u1', fullName: 'Anita Sharma Deshpande', role: 'TEACHER', schoolName: 'Noble Public School');
@@ -70,6 +78,7 @@ Future<void> _pumpHome(WidgetTester tester, {required double width, double textS
       providers: [
         ChangeNotifierProvider<AuthController>.value(value: _FakeAuth()),
         Provider<TeacherRepository>.value(value: repository),
+        Provider<MessagesRepository>.value(value: _FakeMessages()),
         ChangeNotifierProvider<PunchController>.value(value: punch),
       ],
       child: MaterialApp(
@@ -105,6 +114,18 @@ void main() {
       expect(dashboard.alerts.first.type, 'ATTENDANCE_PENDING');
       expect(dashboard.alerts.first.severity, AlertSeverity.medium);
     });
+
+    test('builds the same alert list as the web teacher dashboard', () {
+      final alerts = dashboard.actionAlerts;
+      expect(alerts.map((alert) => alert.label), [
+        '8-C attendance is not submitted yet.',
+        '7 homework submissions need follow-up.',
+        '7-B low attendance',
+      ]);
+      expect(alerts.first.level, ActionLevel.high, reason: 'MEDIUM maps to the High badge');
+      expect(alerts.last.detail, '59% attendance today');
+      expect(alerts.last.level, ActionLevel.critical, reason: 'under 60% is critical');
+    });
   });
 
   testWidgets('home shows the web dashboard sections with the same labels', (tester) async {
@@ -123,6 +144,8 @@ void main() {
     expect(find.text('Not marked'), findsOneWidget);
     expect(find.text("Today's Actions"), findsOneWidget);
     expect(find.text('8-C attendance is not submitted yet.'), findsOneWidget);
+    expect(find.text('7-B low attendance'), findsOneWidget, reason: 'the web adds marked classes under 75%');
+    expect(find.text('2'), findsWidgets, reason: 'the bell shows the real unread count');
   });
 
   // A layout overflow fails a widget test, so reaching the end of
