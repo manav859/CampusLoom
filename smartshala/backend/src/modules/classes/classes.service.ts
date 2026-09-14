@@ -41,18 +41,48 @@ async function ensureClassSubjects(schoolId: string, classId: string, teacherId?
   }
 }
 
+/**
+ * Makes the class's subjects match `subjects` by name (case-insensitive).
+ * Subjects that stay keep their row, so exams, homework and timetable periods
+ * that point at them are untouched. A subject that is still in use cannot be
+ * removed: its links would silently be set to null.
+ */
 async function replaceClassSubjects(schoolId: string, classId: string, subjects: string[], teacherId?: string | null) {
-  const uniqueSubjects = Array.from(new Set(subjects.map((subject) => subject.trim()).filter(Boolean)));
-  await prisma.subject.deleteMany({ where: { schoolId, classId } });
-  await prisma.subject.createMany({
-    data: uniqueSubjects.map((name) => ({
-      schoolId,
-      classId,
-      teacherId: teacherId ?? null,
-      name
-    })),
-    skipDuplicates: true
+  const wanted = Array.from(new Set(subjects.map((subject) => subject.trim()).filter(Boolean)));
+  const wantedKeys = new Set(wanted.map((name) => name.toLowerCase()));
+  const existing = await prisma.subject.findMany({
+    where: { schoolId, classId },
+    select: {
+      id: true,
+      name: true,
+      _count: {
+        select: { exams: true, examResults: true, homeworkAssignments: true, homeworkRecords: true, teacherPeriodAssignments: true }
+      }
+    }
   });
+
+  const removed = existing.filter((subject) => !wantedKeys.has(subject.name.toLowerCase()));
+  const inUse = removed.filter((subject) => Object.values(subject._count).some((count) => count > 0));
+  if (inUse.length > 0) {
+    const names = inUse.map((subject) => subject.name);
+    throw new AppError(
+      409,
+      `${names.join(", ")} already ${names.length === 1 ? "has" : "have"} exams, homework or timetable periods, so ${names.length === 1 ? "it" : "they"} can't be removed.`,
+      "SUBJECT_IN_USE",
+      { subjects: names }
+    );
+  }
+
+  const existingKeys = new Set(existing.map((subject) => subject.name.toLowerCase()));
+  await prisma.$transaction([
+    prisma.subject.deleteMany({ where: { schoolId, id: { in: removed.map((subject) => subject.id) } } }),
+    prisma.subject.createMany({
+      data: wanted
+        .filter((name) => !existingKeys.has(name.toLowerCase()))
+        .map((name) => ({ schoolId, classId, teacherId: teacherId ?? null, name })),
+      skipDuplicates: true
+    })
+  ]);
 }
 
 export async function listClasses(user: Express.UserContext, options: { scope?: "classTeacher"; academicYearId?: string } = {}) {
@@ -154,8 +184,12 @@ export async function updateClass(schoolId: string, id: string, data: Record<str
   const existing = await prisma.class.findFirst({ where: { id, schoolId } });
   if (!existing) throw notFound("Class");
   const { subjects, ...classData } = data as { subjects?: string[] } & Record<string, unknown>;
+  // Subjects first: a refused removal must leave the rest of the class unchanged too.
+  if (subjects) {
+    const teacherId = "classTeacherId" in classData ? (classData.classTeacherId as string | null) : existing.classTeacherId;
+    await replaceClassSubjects(schoolId, id, subjects, teacherId);
+  }
   const updated = await prisma.class.update({ where: { id }, data: classData });
-  if (subjects) await replaceClassSubjects(schoolId, updated.id, subjects, updated.classTeacherId);
   if ("classTeacherId" in data) await ensureClassSubjects(schoolId, updated.id, updated.classTeacherId);
   return updated;
 }

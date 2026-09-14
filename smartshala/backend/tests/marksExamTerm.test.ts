@@ -25,4 +25,15 @@ for (const term of terms) {
 assert.equal(examTermSchema.safeParse("PRE_BOARD").success, false, "unknown exam term should be rejected");
 assert.equal(createExamWithMarksSchema.safeParse(basePayload).success, false, "exam create should require term");
 
+// Scheduling an exam before anyone has marks: results may be empty or omitted.
+const scheduled = createExamWithMarksSchema.safeParse({ ...basePayload, term: "MID_TERM", results: undefined });
+assert.equal(scheduled.success, true, "an exam can be scheduled without results");
+assert.deepEqual(scheduled.success && scheduled.data.results, [], "omitted results default to none");
+assert.equal(createExamWithMarksSchema.safeParse({ ...basePayload, term: "MID_TERM", results: [] }).success, true);
+assert.equal(
+  createExamWithMarksSchema.safeParse({ ...basePayload, term: "UNIT_TEST", results: [{ studentId: basePayload.results[0].studentId, marks: 101 }] }).success,
+  false,
+  "marks above max are still rejected"
+);
+
 console.log("marks exam term validation ok");

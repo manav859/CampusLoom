@@ -12,6 +12,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
 import '../data/student_models.dart';
+import '../fees/student_fee_ledger_screen.dart';
 import '../widgets/management_widgets.dart';
 
 /// A wa.me link for an Indian number: the last ten digits with the 91 prefix,
@@ -495,6 +496,15 @@ class _FeesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final openLedger = OutlinedButton.icon(
+      onPressed: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => StudentFeeLedgerScreen(studentId: student.id)),
+      ),
+      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+      icon: const Icon(Icons.receipt_long_rounded, size: 18),
+      label: const Text('Open Fee Ledger'),
+    );
+
     if (student.feeAssignments.isEmpty) {
       return const AppCard(
         padding: EdgeInsets.symmetric(vertical: 24),
@@ -523,6 +533,8 @@ class _FeesTab extends StatelessWidget {
             KpiCard(index: 2, label: 'Balance', value: formatInr(student.feeBalance), icon: Icons.pending_actions_rounded),
           ],
         ),
+        const SizedBox(height: 12),
+        openLedger,
         const SizedBox(height: 16),
         const SectionHeader(title: 'Fee Structures'),
         for (final assignment in student.feeAssignments)

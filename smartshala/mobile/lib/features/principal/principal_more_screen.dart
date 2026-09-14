@@ -7,9 +7,17 @@ import '../../core/widgets/app_cards.dart';
 import '../../core/widgets/placeholder_screen.dart';
 import '../../core/widgets/state_views.dart';
 import 'announcements/create_announcement_screen.dart';
+import 'calendar/academic_calendar_screen.dart';
+import 'classes/classes_screen.dart';
+import 'exams/exams_screen.dart';
+import 'fees/defaulters_screen.dart';
+import 'fees/fee_management_screen.dart';
 import 'leave/leave_approval_screen.dart';
 import 'messages/principal_messages_screen.dart';
+import 'reports/reports_screen.dart';
+import 'school/school_profile_screen.dart';
 import 'students/student_management_screen.dart';
+import 'subjects/subjects_screen.dart';
 import 'teachers/teacher_management_screen.dart';
 
 /// Every secondary module lives here rather than on Home, in the four groups
@@ -32,14 +40,17 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
             Icons.school_rounded, AppColors.primary, 'Phase 5',
             screen: StudentManagementScreen.new),
         _MoreEntry('School Profile', 'View and manage school information',
-            Icons.apartment_rounded, AppColors.primary, 'Phase 5'),
+            Icons.apartment_rounded, AppColors.primary, 'Phase 5',
+            screen: SchoolProfileScreen.new),
         _MoreEntry('Teacher Management', 'Manage teachers and their details',
             Icons.badge_rounded, AppColors.success, 'Phase 5',
             screen: TeacherManagementScreen.new),
         _MoreEntry('Classes & Sections', 'Manage classes and sections',
-            Icons.grid_view_rounded, AppColors.teal, 'Phase 5'),
+            Icons.grid_view_rounded, AppColors.teal, 'Phase 5',
+            screen: ClassesScreen.new),
         _MoreEntry('Subjects', 'Manage subjects and curriculum',
-            Icons.menu_book_rounded, AppColors.purple, 'Phase 5'),
+            Icons.menu_book_rounded, AppColors.purple, 'Phase 5',
+            screen: SubjectsScreen.new),
         _MoreEntry('Timetable', 'View and manage class timetable',
             Icons.schedule_rounded, AppColors.warning, 'Phase 7'),
         _MoreEntry('Transport', 'Manage routes, vehicles and drivers',
@@ -50,20 +61,25 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
       title: 'Academics',
       entries: [
         _MoreEntry('Exams', 'Manage exams, schedules and results',
-            Icons.assignment_rounded, AppColors.primary, 'Phase 6'),
+            Icons.assignment_rounded, AppColors.primary, 'Phase 6',
+            screen: ExamsScreen.new),
         _MoreEntry('Reports', 'View detailed reports and analytics',
-            Icons.insights_rounded, AppColors.purple, 'Phase 6'),
+            Icons.insights_rounded, AppColors.purple, 'Phase 6',
+            screen: ReportsScreen.new),
         _MoreEntry('Academic Calendar', 'View events, holidays and dates',
-            Icons.calendar_month_rounded, AppColors.teal, 'Phase 6'),
+            Icons.calendar_month_rounded, AppColors.teal, 'Phase 6',
+            screen: AcademicCalendarScreen.new),
       ],
     ),
     _MoreGroup(
       title: 'Finance',
       entries: [
         _MoreEntry('Fee Management', 'Track fee collection and pending fees',
-            Icons.currency_rupee_rounded, AppColors.success, 'Phase 5'),
+            Icons.currency_rupee_rounded, AppColors.success, 'Phase 5',
+            screen: FeeManagementScreen.new),
         _MoreEntry('Fee Reports', 'View fee collection reports',
-            Icons.account_balance_wallet_rounded, AppColors.teal, 'Phase 5'),
+            Icons.account_balance_wallet_rounded, AppColors.teal, 'Phase 5',
+            screen: DefaultersScreen.new),
       ],
     ),
     _MoreGroup(

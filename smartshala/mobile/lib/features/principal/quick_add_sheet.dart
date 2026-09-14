@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/widgets/placeholder_screen.dart';
 import 'announcements/create_announcement_screen.dart';
+import 'calendar/event_form_screen.dart';
+import 'classes/class_form_screen.dart';
 import 'students/add_student_screen.dart';
 import 'teachers/add_teacher_screen.dart';
 
@@ -26,7 +27,6 @@ class QuickAddSheet extends StatelessWidget {
       title: 'Add Student',
       subtitle: 'Enrol a new student',
       color: AppColors.primary,
-      phase: 'Phase 5',
       screen: AddStudentScreen.new,
     ),
     (
@@ -34,7 +34,6 @@ class QuickAddSheet extends StatelessWidget {
       title: 'Add Teacher',
       subtitle: 'Add a teaching staff member',
       color: AppColors.success,
-      phase: 'Phase 5',
       screen: AddTeacherScreen.new,
     ),
     (
@@ -42,15 +41,13 @@ class QuickAddSheet extends StatelessWidget {
       title: 'Add Class / Section',
       subtitle: 'Create a new class or section',
       color: AppColors.teal,
-      phase: 'Phase 5',
-      screen: null,
+      screen: ClassFormScreen.new,
     ),
     (
       icon: Icons.campaign_rounded,
       title: 'Create Announcement',
       subtitle: 'Notify staff and parents',
       color: AppColors.purple,
-      phase: 'Phase 4',
       screen: CreateAnnouncementScreen.new,
     ),
     (
@@ -58,8 +55,7 @@ class QuickAddSheet extends StatelessWidget {
       title: 'Create Event / Notice',
       subtitle: 'Add to the academic calendar',
       color: AppColors.warning,
-      phase: 'Phase 6',
-      screen: null,
+      screen: EventFormScreen.new,
     ),
   ];
 
@@ -126,15 +122,7 @@ class QuickAddSheet extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          action.screen?.call() ??
-                          PlaceholderScreen(
-                            title: action.title,
-                            icon: action.icon,
-                            phase: action.phase,
-                          ),
-                    ),
+                    MaterialPageRoute<void>(builder: (_) => action.screen()),
                   );
                 },
               ),

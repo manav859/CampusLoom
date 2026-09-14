@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:smartshala_mobile/features/teacher/calendar/teacher_calendar_screen.dart';
-import 'package:smartshala_mobile/features/teacher/data/calendar_models.dart';
+import 'package:smartshala_mobile/core/data/calendar_models.dart';
 import 'package:smartshala_mobile/features/teacher/data/teacher_repository.dart';
 
 /// Serves the same three items for whichever month the screen asks for, and

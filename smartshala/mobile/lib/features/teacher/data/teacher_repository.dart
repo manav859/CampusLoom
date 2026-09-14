@@ -2,7 +2,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
 import 'academics_models.dart';
-import 'calendar_models.dart';
+import '../../../core/data/calendar_models.dart';
 import 'salary_models.dart';
 import 'teacher_models.dart';
 
@@ -142,6 +142,17 @@ class TeacherRepository {
     return ((data as List?) ?? const [])
         .map((item) => ExamSummary.fromJson((item as Map).cast<String, dynamic>()))
         .toList();
+  }
+
+  /// The classes and subjects this teacher may schedule a test for.
+  Future<List<ExamClass>> examClasses() async {
+    final data = await api.get('/marks/context') as Map<String, dynamic>;
+    return ExamClass.listFromContext(data);
+  }
+
+  Future<ExamSummary> scheduleExam(NewExam exam) async {
+    final data = await api.post('/marks/exams', body: exam.toJson()) as Map<String, dynamic>;
+    return ExamSummary.fromJson(data);
   }
 
   Future<ExamDetail> exam(String examId) async {

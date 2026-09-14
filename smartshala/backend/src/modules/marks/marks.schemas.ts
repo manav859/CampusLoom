@@ -19,6 +19,8 @@ export const createExamWithMarksSchema = z.object({
   passingMarks: z.coerce.number().positive().max(999).optional(),
   description: z.string().trim().max(1000).optional(),
   date: z.coerce.date(),
+  // Empty schedules the exam: marks are then entered per student through
+  // PATCH /exams/:examId/results, which creates each result on first save.
   results: z.array(
     z.object({
       studentId: z.string().uuid(),
@@ -26,7 +28,7 @@ export const createExamWithMarksSchema = z.object({
       isAbsent: z.boolean().optional(),
       teacherNote: z.string().trim().max(1000).optional()
     })
-  ).min(1)
+  ).default([])
 }).superRefine((data, ctx) => {
   const seen = new Set<string>();
   data.results.forEach((result, index) => {

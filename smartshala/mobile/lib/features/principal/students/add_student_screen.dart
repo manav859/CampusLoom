@@ -112,7 +112,7 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             return const EmptyView(
               icon: Icons.class_rounded,
               title: 'No classes yet',
-              message: 'Create a class on the web dashboard before adding students.',
+              message: 'Create a class in More → Classes & Sections before adding students.',
             );
           }
 

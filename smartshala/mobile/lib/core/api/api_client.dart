@@ -189,7 +189,21 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send(() => _dio.get<dynamic>('$_apiRoot$path', queryParameters: query));
 
-  Future<dynamic> post(String path, {Object? body, bool skipAuth = false, String? schoolCode}) =>
+  /// A binary download, such as a receipt PDF.
+  Future<List<int>> getBytes(String path) async {
+    final data = await _send(
+      () => _dio.get<List<int>>('$_apiRoot$path', options: Options(responseType: ResponseType.bytes)),
+    );
+    return data as List<int>;
+  }
+
+  Future<dynamic> post(
+    String path, {
+    Object? body,
+    bool skipAuth = false,
+    String? schoolCode,
+    Map<String, String>? headers,
+  }) =>
       _send(() {
         final root = schoolCode != null
             ? '${_config.apiBaseUrl}/${schoolCode.toUpperCase()}/api/v1'
@@ -197,7 +211,7 @@ class ApiClient {
         return _dio.post<dynamic>(
           '$root$path',
           data: body,
-          options: Options(extra: {'skipAuth': skipAuth}),
+          options: Options(extra: {'skipAuth': skipAuth}, headers: headers),
         );
       });
 
@@ -221,7 +235,6 @@ class ApiClient {
 
   Future<dynamic> patch(String path, {Object? body}) =>
       _send(() => _dio.patch<dynamic>('$_apiRoot$path', data: body));
-
   Future<dynamic> delete(String path) => _send(() => _dio.delete<dynamic>('$_apiRoot$path'));
 
   Future<dynamic> _send(Future<Response<dynamic>> Function() request) async {

@@ -2,10 +2,9 @@
 
 **Source of truth:** [SmartShala_App_V2_0_Product_UI_Blueprint.pdf](SmartShala_App_V2_0_Product_UI_Blueprint.pdf) (in this folder)
 **Created:** 2026-09-05
-**Status:** Phases 0–4 complete, plus the backend and teacher side of the Academic Calendar (Phase 6, items 25–26)
-bell timings with Now/Upcoming badges (Phase 7, item 29), and Payroll with teacher Salary Details (Phase 7, item 31).
-Every teacher screen in the blueprint is now built. Phase 5 is under way: principal Home (item 19) and Student
-Management + Profile (item 20) and Teacher Management + Profile (item 21) are done; School Profile (item 22) is next.
+**Status:** Phases 0–6 complete, plus bell timings with Now/Upcoming badges (Phase 7, item 29) and Payroll with teacher
+Salary Details (Phase 7, item 31). The principal app has no placeholder left except Timetable, Transport (Phase 7) and
+Notifications (Phase 8). Next: Transport (item 30), then Phase 8.
 
 ## Decisions taken (2026-09-05)
 
@@ -442,9 +441,61 @@ manifest declares the `tel` and `https` intents Android 11+ requires for those l
 The web counts assigned periods over Monday–Saturday (`6 × periods`), but the backend only creates Monday–Friday rows.
 A fully booked teacher therefore shows at most 40/48. The app matches the web. Fixing it would change the web too, so
 it is left for a decision.
-22. School Profile (view + edit + logo + documents) → **verify:** edits persist and appear on web.
-23. Classes & Sections, Subjects → **verify:** created class/section appears in teacher pickers.
-24. Fees Management (**principal only**) → **verify:** teacher token gets 403 on every fee endpoint.
+22. ✅ School Profile — [school_profile_screen.dart](../../mobile/lib/features/principal/school/school_profile_screen.dart)
+    and [edit_school_profile_screen.dart](../../mobile/lib/features/principal/school/edit_school_profile_screen.dart), from More.
+    Logo, code and status; Quick Stats (students, teachers, classes); Basic Information, Contact and Address; Edit with the
+    web Settings form's text fields.
+    - `PATCH /settings/school-profile` replaces the whole profile: a missing `logoUrl` clears the logo and a missing
+      `timetablePeriodCount` resets it to 8. The app always sends both back unchanged.
+    - **Not built, on purpose:** logo upload and periods per day stay on the web. The blueprint's map, email and Important
+      Documents have no data in the schema.
+23. ✅ Classes & Sections, Subjects —
+    [classes/](../../mobile/lib/features/principal/classes/) (list, detail, add/edit) and
+    [subjects_screen.dart](../../mobile/lib/features/principal/subjects/subjects_screen.dart), from More and Quick Add.
+    - **Classes:** totals, search, class cards; detail with the last 30 days' stats, subjects and students; the web New
+      Class form's fields.
+    - **Academic year:** a new class goes in the school's *current* academic year (`GET /academic-years/current`), which is
+      the year `GET /classes` lists. The web form defaults to the calendar year ("2026-27"), so a class made there can
+      vanish from the list while the school is still on "2025-26". It falls back to that default only when no year is current.
+    - **Subjects** belong to a class; the screen adds to or removes from one class at a time.
+
+    **Backend:**
+    - Editing a class's subjects used to delete and recreate every subject row. Exams, homework, results and timetable
+      periods point at subjects with an optional relation, so each edit would have set those links to null. The web never
+      edited subjects after creation, so it never showed. `replaceClassSubjects` now matches by name, case-insensitively:
+      kept subjects keep their row, new ones are added, and removing one that is still used returns **409
+      `SUBJECT_IN_USE`** before anything in the request is changed.
+    - `PATCH /classes/:id` was the only classes handler not wrapped in `asyncHandler`. Any error in it, including its 404,
+      became an unhandled rejection and the request hung until the client timed out. It is wrapped now.
+
+    **Verified:**
+    - [classSubjects.test.ts](../../backend/tests/classSubjects.test.ts) against a real database: rows kept on add,
+      case-insensitive match, 409 leaves class and subjects unchanged, unused subject removed, other fields leave subjects alone.
+    - Over HTTP: class created 201 and its class teacher saw it in `GET /classes` and the Marks class picker; adding Science
+      kept English's id; removing a subject with an exam 409; removing an unused one 200; teacher create 403. Profile edit
+      200 and re-read with the period count kept; teacher 403.
+    - [school_and_classes_test.dart](../../mobile/test/school_and_classes_test.dart) — 16 tests, including layouts at 320dp
+      with 1.3× text.
+24. ✅ Fees Management (**principal only**) — [fees/](../../mobile/lib/features/principal/fees/), from More (Fee Management,
+    Fee Reports), the Home Defaulters and Collected cards, a Record Payment quick action, fee alerts and the Student
+    Profile Fees tab.
+    - **Fee Management:** the web Collection Command Center — six KPI cards, Record Payment, Send Reminder, collection
+      snapshot with aging buckets, the largest pending accounts and the fee structures (read-only).
+    - **Ledger:** summary, current due, assignments, concessions, and every payment with Receipt PDF (share sheet) and WhatsApp.
+    - **Record Payment:** find the student, then the web PaymentModal's form and validation, and the receipt.
+    - **Fee Reports:** the web Defaulter Follow-up Queue — search, class, status, due age and sort, with the web's WhatsApp
+      reminder text word for word.
+    - Each payment form sends one `Idempotency-Key` for its lifetime, so a retry or a replay after a token refresh records
+      the payment once.
+    - **Not built, on purpose:** fee structure create/edit, concessions and accountants stay on the web.
+
+    **Verified:**
+    - [feeRoleAccess.test.ts](../../backend/tests/feeRoleAccess.test.ts) walks every route the fees router declares, plus
+      `/reports/fees/pending`: a teacher gets 403 on all 26, no token 401, and a principal reaches validation.
+    - Over HTTP: UPI without a transaction id 400; payment 201; the same request with the same key returned the same receipt
+      and the ledger rose by the amount once; receipt PDF 200 starting `%PDF`.
+    - [fee_management_test.dart](../../mobile/test/fee_management_test.dart) — 15 tests. They caught two overflows at 320dp
+      and a validation message that read "Upi payments"; all fixed.
 
 ### Phase 6 — Calendar, Reports, Exams
 25. ✅ **Backend:** `CalendarEvent` model (EXAM/EVENT/MEETING) +
@@ -453,7 +504,15 @@ it is left for a decision.
     Teacher; `POST /calendar/events`, `PATCH` and `DELETE /calendar/events/:id` for Principal and Admin →
     **verified:** a holiday created through the existing `POST /attendance/holidays` came back from `/calendar` as a
     `HOLIDAY` item on the same date. See "Holidays are not a calendar type" below.
-26. ◐ Academic Calendar — **teacher side done:**
+26. ✅ Academic Calendar — **principal side (2026-09-14):**
+    [academic_calendar_screen.dart](../../mobile/lib/features/principal/calendar/academic_calendar_screen.dart) is the
+    teacher's month view plus Add New Event, and tapping an event opens
+    [event_form_screen.dart](../../mobile/lib/features/principal/calendar/event_form_screen.dart) to edit or delete it. It
+    opens from More, Quick Add (Create Event / Notice) and a Home quick action. Holidays can't be edited here; they lock
+    attendance and stay in Attendance on the web. The grid moved to
+    [school_calendar.dart](../../mobile/lib/core/widgets/school_calendar.dart), shared by both apps →
+    **verified over HTTP:** principal event 201 appeared in the teacher's month; edit 200; delete 204.
+    **Teacher side:**
     [Calendar screen](../../mobile/lib/features/teacher/calendar/teacher_calendar_screen.dart) with a month grid showing
     a dot per event type, a legend that doubles as the filter, and the month's events below; tapping a day narrows the
     list to it. It opens from both the Calendar tab and the Home quick action. **The principal side (Add New Event) is not built
@@ -461,8 +520,43 @@ it is left for a decision.
     **verified:** 4 widget tests in [teacher_calendar_test.dart](../../mobile/test/teacher_calendar_test.dart) — a
     legend entry hides and restores its type, a day inside a multi-day exam lists only that exam, and paging to the
     next month re-requests it and drops the day selection.
-27. Reports **without Finance** → **verify:** no fee/finance tile is present anywhere on the screen.
-28. Exams management → **verify:** an exam created here is selectable in the teacher Marks screen.
+27. ✅ Reports **without Finance** — [reports/](../../mobile/lib/features/principal/reports/), the principal Reports tab and
+    More. Quick Access: Student, Attendance, Teacher and Exam reports. Detailed Reports: Class Wise Performance, Subject Wise
+    Performance and Daily Attendance. Every report exports CSV.
+    - **Attendance:** the web Daily Attendance Report — Today / Yesterday / This week / This month, classes marked, rate,
+      pending classes with Nudge Teachers, the web's CSV. Home's Marked Today card and low-attendance alerts open it.
+    - **Student Report:** the risk summary the web Analytics page reads, with every `FEE_*` flag removed and the severity
+      recomputed without it by the server's own rule. Students flagged only for fees drop out. Home's Alerts card opens it.
+    - **Teacher Report:** the web Teacher Performance logic. **Class / Subject Wise:** month attendance with exam averages
+      weighted by marks entered.
+    - Blueprint *Fee*, *Transport*, *Custom Reports* and *Report History* tiles are not built: Finance is excluded by
+      decision, and the others have no backend.
+
+    **Verified:**
+    - [reports_test.dart](../../mobile/test/reports_test.dart) — 15 tests. No text containing fee, finance, ₹ or Rs. on any
+      report screen. Real risk-summary rows keep no fee flag. Layouts at 320dp with 1.3× text.
+    - Over HTTP: principal 200, teacher 403 on all four report endpoints.
+    - The real responses parsed into the app models. On the demo school all 21 risk rows were fee-only, and none remained.
+28. ✅ Exams management — [exams/](../../mobile/lib/features/principal/exams/) (list by class and stage, Schedule Exam,
+    results where the principal enters or amends any mark), from More and the Exam Report tile. **Teacher app:** Marks gains
+    **Create Test** (Unit or Class Test, as the server allows teachers), and the new test is selected for marks entry. Both
+    use [schedule_exam_screen.dart](../../mobile/lib/core/widgets/schedule_exam_screen.dart); exam models moved to
+    [exam_models.dart](../../mobile/lib/core/data/exam_models.dart).
+    - **Backend:** `POST /marks/exams` accepted an exam only together with marks for at least one student, so neither app
+      could schedule one. `results` now defaults to empty. Marks are then entered per student through
+      `PATCH /exams/:id/results`, which already created a result on first save. The web still sends marks with the exam,
+      so it is unchanged.
+    - The stage comes from the counts (Scheduled / Marks pending / Marks entered). The server's `status` calls any exam
+      dated today or earlier "marks entered" even with none.
+    - **Web parity:** scheduling an exam without marks is app-only for now; the web exams pages still take marks at creation.
+
+    **Verified:**
+    - [marksExamTerm.test.ts](../../backend/tests/marksExamTerm.test.ts) — schedule without results, marks above max still
+      rejected.
+    - [classSubjects.test.ts](../../backend/tests/classSubjects.test.ts) — a scheduled exam is in the class teacher's list.
+    - Over HTTP: teacher Class Test 201 with 0 entered; teacher Mid-Term 403; principal Mid-Term 201 and in the teacher's
+      Marks list; teacher marks 200, re-entry 403, principal amend 200.
+    - [exams_and_calendar_test.dart](../../mobile/test/exams_and_calendar_test.dart) — 11 tests.
 
 #### Holidays are not a calendar type
 `Holiday` already exists, and it is what locks attendance marking for a day. A `HOLIDAY` calendar event would look the
@@ -590,6 +684,9 @@ What remains open is scoped to later phases:
 | `CalendarEvent` model + [calendar module](../../backend/src/modules/calendar/) | Nothing but holidays had a date on a school calendar. `/calendar?month=` merges events with the existing holidays; `/calendar/events` is the principal-only CRUD. The holiday endpoints are untouched. |
 | `SalarySlip` model + [payroll module](../../backend/src/modules/payroll/) | Nothing recorded pay before. `/payroll/me/slips` (own, any staff), `/payroll/slips` month sheet + save + delete (Principal/Admin). |
 | `PeriodTime` model + `/settings/period-times` | Periods had a number but no clock time. `GET /users/me/schedule` adds `startTime`/`endTime` to each period (null when unset); its other fields are unchanged. |
+| `POST /marks/exams` `results` optional (default empty) | Lets both apps schedule an exam before marks exist. The web still sends marks. |
+| Class subject edits keep existing rows; removing a used subject 409 `SUBJECT_IN_USE` | The old delete-and-recreate set exam, homework and timetable links to null. |
+| `PATCH /classes/:id` wrapped in `asyncHandler` | Its errors were unhandled rejections and the request hung. |
 
 None of these change existing web behaviour for principal/admin roles. `npm run lint` (tsc) passes.
 
@@ -629,6 +726,12 @@ DATABASE_URL=<postgres url> npm --prefix backend run test:payroll
 
 # Staff month summary: working days, leave, join date, school isolation
 DATABASE_URL=<postgres url> npm --prefix backend run test:staff-summary
+
+# Every fee route refuses a teacher (no database needed)
+npm --prefix backend run test:fee-access
+
+# Class subject edits keep linked rows; scheduled exams reach the teacher
+DATABASE_URL=<postgres url> npm --prefix backend run test:class-subjects
 
 # Mobile analyzer + swipe-gesture tests
 cd mobile && flutter analyze && flutter test

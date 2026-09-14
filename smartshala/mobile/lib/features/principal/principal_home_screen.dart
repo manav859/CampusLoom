@@ -15,10 +15,18 @@ import '../../core/widgets/dashboard_widgets.dart';
 import '../../core/widgets/responsive.dart';
 import '../../core/widgets/state_views.dart';
 import 'announcements/create_announcement_screen.dart';
+import 'calendar/academic_calendar_screen.dart';
 import 'data/principal_dashboard.dart';
 import 'data/principal_repository.dart';
+import 'fees/defaulters_screen.dart';
+import 'fees/fee_management_screen.dart';
+import 'fees/record_payment_screen.dart';
+import 'fees/student_fee_ledger_screen.dart';
 import 'leave/leave_approval_screen.dart';
+import 'reports/attendance_report_screen.dart';
+import 'reports/student_report_screen.dart';
 import 'students/student_management_screen.dart';
+import 'students/student_profile_screen.dart';
 
 /// The principal command centre. It reads what the web admin dashboard reads
 /// (GET /dashboard and today's GET /activity-logs) and shows the same KPIs,
@@ -156,16 +164,22 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
                   dashboard: dashboard,
                   // The web Students card links to /students.
                   onStudents: () => _openAndRefresh(const StudentManagementScreen()),
+                  onMarkedToday: () => _openAndRefresh(const AttendanceReportScreen()),
+                  onDefaulters: () => _openAndRefresh(const DefaultersScreen()),
+                  onCollected: () => _openAndRefresh(const FeeManagementScreen()),
+                  onAlerts: () => _openAndRefresh(const StudentReportScreen()),
                 ),
                 const SizedBox(height: 22),
                 const SectionHeader(title: 'Quick Actions'),
                 _QuickActions(
                   pendingLeave: data.pendingLeave,
                   onStudents: () => _openAndRefresh(const StudentManagementScreen()),
+                  onRecordPayment: () => _openAndRefresh(const FindStudentForPaymentScreen()),
                   onLeave: () => _openAndRefresh(const LeaveApprovalScreen()),
                   onAnnouncement: () =>
                       _openAndRefresh(const CreateAnnouncementScreen()),
                   onMessages: widget.onOpenMessages,
+                  onCalendar: () => _openAndRefresh(const AcademicCalendarScreen()),
                 ),
                 const SizedBox(height: 22),
                 const SectionHeader(title: 'Attendance in Marked Classes'),
@@ -198,7 +212,20 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
                 ),
                 const SizedBox(height: 22),
                 const SectionHeader(title: 'Alerts'),
-                ActionAlertList(alerts: dashboard.actionAlerts),
+                ActionAlertList(
+                  alerts: dashboard.actionAlerts,
+                  // Where the web alert links: a fee alert to the ledger, a
+                  // student alert to the profile, low attendance to the report.
+                  onTap: (alert) => switch (alert) {
+                    ActionAlert(kind: ActionKind.feeDefaulter, studentId: final String id) =>
+                      () => _openAndRefresh(StudentFeeLedgerScreen(studentId: id)),
+                    ActionAlert(kind: ActionKind.student, studentId: final String id) =>
+                      () => _openAndRefresh(PrincipalStudentProfileScreen(studentId: id)),
+                    ActionAlert(kind: ActionKind.lowAttendance) =>
+                      () => _openAndRefresh(const AttendanceReportScreen()),
+                    _ => null,
+                  },
+                ),
                 const SizedBox(height: 22),
                 const SectionHeader(title: "Today's Activity"),
                 ActivityList(entries: data.activity, now: DateTime.now()),
@@ -278,10 +305,21 @@ class _SchoolCard extends StatelessWidget {
 
 /// The web admin dashboard's five KPI cards, with the same labels, order and colours.
 class _KpiGrid extends StatelessWidget {
-  const _KpiGrid({required this.dashboard, this.onStudents});
+  const _KpiGrid({
+    required this.dashboard,
+    this.onStudents,
+    this.onMarkedToday,
+    this.onDefaulters,
+    this.onCollected,
+    this.onAlerts,
+  });
 
   final PrincipalDashboard dashboard;
   final VoidCallback? onStudents;
+  final VoidCallback? onMarkedToday;
+  final VoidCallback? onDefaulters;
+  final VoidCallback? onCollected;
+  final VoidCallback? onAlerts;
 
   @override
   Widget build(BuildContext context) {
@@ -323,7 +361,15 @@ class _KpiGrid extends StatelessWidget {
             label: cards[index].label,
             value: cards[index].value,
             icon: cards[index].icon,
-            onTap: index == 0 ? onStudents : null,
+            // The web cards link to /students, the daily attendance report,
+            // /fees/defaulters, /fees and the student risk insights.
+            onTap: switch (index) {
+              0 => onStudents,
+              1 => onMarkedToday,
+              2 => onDefaulters,
+              3 => onCollected,
+              _ => onAlerts,
+            },
           ),
       ],
     );
@@ -335,28 +381,38 @@ class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.pendingLeave,
     required this.onStudents,
+    required this.onRecordPayment,
     required this.onLeave,
     required this.onAnnouncement,
     required this.onMessages,
+    required this.onCalendar,
   });
 
   final int pendingLeave;
   final VoidCallback onStudents;
+  final VoidCallback onRecordPayment;
   final VoidCallback onLeave;
   final VoidCallback onAnnouncement;
   final VoidCallback? onMessages;
+  final VoidCallback onCalendar;
 
   @override
   Widget build(BuildContext context) {
     return ResponsiveGrid(
-      phoneColumns: 4,
-      wideColumns: 4,
+      phoneColumns: 3,
+      wideColumns: 6,
       children: [
         _ActionTile(
           icon: Icons.school_rounded,
           title: 'Students',
           color: AppColors.teal,
           onTap: onStudents,
+        ),
+        _ActionTile(
+          icon: Icons.payments_rounded,
+          title: 'Record Payment',
+          color: AppColors.warning,
+          onTap: onRecordPayment,
         ),
         _ActionTile(
           icon: Icons.event_available_rounded,
@@ -376,6 +432,12 @@ class _QuickActions extends StatelessWidget {
           title: 'Messages',
           color: AppColors.primary,
           onTap: onMessages,
+        ),
+        _ActionTile(
+          icon: Icons.calendar_month_rounded,
+          title: 'Calendar',
+          color: AppColors.danger,
+          onTap: onCalendar,
         ),
       ],
     );

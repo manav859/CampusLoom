@@ -15,9 +15,9 @@ export const createClass = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(await classesService.createClass(req.user!.schoolId, req.body));
 });
 
-export async function updateClass(req: Request, res: Response) {
+export const updateClass = asyncHandler(async (req: Request, res: Response) => {
   res.json(await classesService.updateClass(req.user!.schoolId, req.params.id, req.body));
-}
+});
 
 export const getClass = asyncHandler(async (req: Request, res: Response) => {
   res.json(await classesService.getClass(req.user!, req.params.id));

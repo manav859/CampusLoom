@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/widgets/state_views.dart';
 import 'messages/principal_messages_screen.dart';
 import 'principal_home_screen.dart';
 import 'principal_more_screen.dart';
 import 'quick_add_sheet.dart';
+import 'reports/reports_screen.dart';
 
 class PrincipalShell extends StatefulWidget {
   const PrincipalShell({super.key});
@@ -24,7 +24,7 @@ class _PrincipalShellState extends State<PrincipalShell> {
         index: _index,
         children: [
           PrincipalHomeScreen(onOpenMessages: () => setState(() => _index = 2)),
-          const _PendingTab(icon: Icons.insights_rounded, title: 'Reports', phase: 'Phase 6'),
+          const ReportsScreen(),
           const PrincipalMessagesScreen(),
           const PrincipalMoreScreen(),
         ],
@@ -130,26 +130,6 @@ class _NavItem extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PendingTab extends StatelessWidget {
-  const _PendingTab({required this.icon, required this.title, required this.phase});
-
-  final IconData icon;
-  final String title;
-  final String phase;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: EmptyView(
-        icon: icon,
-        title: title,
-        message: 'Planned for $phase of the V2 rollout.',
       ),
     );
   }

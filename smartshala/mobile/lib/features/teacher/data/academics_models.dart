@@ -1,5 +1,8 @@
 import 'teacher_models.dart';
 
+// Exams are shared with the principal app; teacher screens keep importing them from here.
+export '../../../core/data/exam_models.dart';
+
 /// A class with the subjects this teacher may attach work to.
 class TeachingClass {
   const TeachingClass({
@@ -140,111 +143,6 @@ class HomeworkDetail {
         assignment: HomeworkAssignment.fromJson(json),
         submissions: ((json['submissions'] as List?) ?? const [])
             .map((item) => HomeworkSubmission.fromJson((item as Map).cast<String, dynamic>()))
-            .toList(),
-      );
-}
-
-// ------------------------------------------------------------------- marks
-
-/// Teachers may only create these two exam kinds; the server enforces it.
-enum ExamTerm { unitTest, classTest }
-
-extension ExamTermApi on ExamTerm {
-  String get apiValue => this == ExamTerm.unitTest ? 'UNIT_TEST' : 'CLASS_TEST';
-  String get label => this == ExamTerm.unitTest ? 'Unit Test' : 'Class Test';
-}
-
-class ExamSummary {
-  const ExamSummary({
-    required this.id,
-    required this.name,
-    required this.className,
-    required this.subject,
-    required this.date,
-    required this.maxMarks,
-    required this.classAverage,
-    required this.enteredCount,
-    required this.pendingCount,
-    this.classId,
-  });
-
-  final String id;
-  final String name;
-  final String className;
-  final String subject;
-  final DateTime date;
-  final double maxMarks;
-  final int classAverage;
-  final int enteredCount;
-  final int pendingCount;
-  final String? classId;
-
-  factory ExamSummary.fromJson(Map<String, dynamic> json) => ExamSummary(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        className: json['className'] as String? ?? '',
-        subject: json['subject'] as String? ?? 'General',
-        classId: json['classId'] as String?,
-        date: DateTime.parse(json['date'] as String).toLocal(),
-        maxMarks: (json['maxMarks'] as num?)?.toDouble() ?? 0,
-        classAverage: (json['classAverage'] as num?)?.toInt() ?? 0,
-        enteredCount: (json['enteredCount'] as num?)?.toInt() ?? 0,
-        pendingCount: (json['pendingCount'] as num?)?.toInt() ?? 0,
-      );
-}
-
-class ExamStudentResult {
-  ExamStudentResult({
-    required this.studentId,
-    required this.fullName,
-    required this.rollNumber,
-    this.marks,
-    this.percentage,
-    this.grade,
-    this.isAbsent = false,
-  });
-
-  final String studentId;
-  final String fullName;
-  final int? rollNumber;
-  double? marks;
-  final double? percentage;
-  final String? grade;
-  bool isAbsent;
-
-  bool get hasResult => marks != null;
-
-  factory ExamStudentResult.fromJson(Map<String, dynamic> json) {
-    final result = (json['result'] as Map?)?.cast<String, dynamic>();
-    return ExamStudentResult(
-      studentId: json['studentId'] as String,
-      fullName: json['fullName'] as String? ?? '',
-      rollNumber: (json['rollNumber'] as num?)?.toInt(),
-      marks: (result?['marks'] as num?)?.toDouble(),
-      percentage: (result?['percentage'] as num?)?.toDouble(),
-      grade: result?['grade'] as String?,
-      isAbsent: result?['isAbsent'] as bool? ?? false,
-    );
-  }
-}
-
-class ExamDetail {
-  const ExamDetail({required this.exam, required this.students});
-
-  final ExamSummary exam;
-  final List<ExamStudentResult> students;
-
-  /// Top three by percentage, entered results only.
-  List<ExamStudentResult> get topPerformers {
-    final scored = students.where((s) => s.hasResult && !s.isAbsent).toList()
-      ..sort((a, b) => (b.marks ?? 0).compareTo(a.marks ?? 0));
-    return scored.take(3).toList();
-  }
-
-  factory ExamDetail.fromJson(Map<String, dynamic> json) => ExamDetail(
-        exam: ExamSummary.fromJson(json),
-        students: ((json['students'] as List?) ?? const [])
-            .map((item) => ExamStudentResult.fromJson((item as Map).cast<String, dynamic>()))
             .toList(),
       );
 }

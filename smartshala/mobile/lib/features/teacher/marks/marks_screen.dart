@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
+import '../../../core/widgets/marks_entry_dialog.dart';
+import '../../../core/widgets/schedule_exam_screen.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/academics_models.dart';
 import '../data/teacher_models.dart';
@@ -62,7 +64,26 @@ class _MarksScreenState extends State<MarksScreen> {
     }
   }
 
-  Future<void> _loadExams() async {
+  /// A teacher may schedule a unit or class test; the new exam is then
+  /// selected so marks can be entered straight away.
+  Future<void> _createTest() async {
+    final created = await Navigator.of(context).push<ExamSummary>(
+      MaterialPageRoute(
+        builder: (_) => ScheduleExamScreen(
+          loadClasses: _repository.examClasses,
+          terms: ExamTerm.teacherTerms,
+          onSubmit: _repository.scheduleExam,
+          initialClassId: _selectedClass?.id,
+        ),
+      ),
+    );
+    if (created == null || !mounted) return;
+    final examClass = _classes.where((item) => item.id == created.classId).firstOrNull;
+    if (examClass != null) setState(() => _selectedClass = examClass);
+    await _loadExams(selectExamId: created.id);
+  }
+
+  Future<void> _loadExams({String? selectExamId}) async {
     final selected = _selectedClass;
     if (selected == null) return;
 
@@ -77,7 +98,7 @@ class _MarksScreenState extends State<MarksScreen> {
       if (!mounted) return;
       setState(() {
         _exams = exams;
-        _selectedExam = exams.firstOrNull;
+        _selectedExam = exams.where((exam) => exam.id == selectExamId).firstOrNull ?? exams.firstOrNull;
         _loadingExams = false;
       });
       if (_selectedExam != null) await _loadDetail();
@@ -115,9 +136,9 @@ class _MarksScreenState extends State<MarksScreen> {
     final exam = _selectedExam;
     if (exam == null) return;
 
-    final result = await showDialog<_MarksEntry>(
+    final result = await showDialog<MarksEntry>(
       context: context,
-      builder: (_) => _MarksDialog(student: student, maxMarks: exam.maxMarks),
+      builder: (_) => MarksEntryDialog(student: student, maxMarks: exam.maxMarks),
     );
     if (result == null) return;
 
@@ -151,7 +172,17 @@ class _MarksScreenState extends State<MarksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Marks')),
+      appBar: AppBar(
+        title: const Text('Marks'),
+        actions: [
+          if (_classes.isNotEmpty)
+            TextButton.icon(
+              onPressed: _createTest,
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Create Test'),
+            ),
+        ],
+      ),
       body: _loadingClasses
           ? const LoadingView(message: 'Loading your classes…')
           : _error != null && _detail == null
@@ -182,12 +213,21 @@ class _MarksScreenState extends State<MarksScreen> {
                             child: LoadingView(),
                           )
                         else if (_exams.isEmpty)
-                          const AppCard(
-                            padding: EdgeInsets.symmetric(vertical: 28),
-                            child: EmptyView(
-                              icon: Icons.assignment_outlined,
-                              title: 'No exams for this class',
-                              message: 'Exams created by your school will appear here.',
+                          AppCard(
+                            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                            child: Column(
+                              children: [
+                                const EmptyView(
+                                  icon: Icons.assignment_outlined,
+                                  title: 'No exams for this class',
+                                  message: 'Create a unit or class test, or enter marks once your school schedules an exam.',
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: _createTest,
+                                  icon: const Icon(Icons.add_rounded, size: 18),
+                                  label: const Text('Create Test'),
+                                ),
+                              ],
                             ),
                           )
                         else ...[
@@ -453,98 +493,6 @@ class _StudentMarksRow extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _MarksEntry {
-  const _MarksEntry({required this.marks, required this.isAbsent});
-
-  final double marks;
-  final bool isAbsent;
-}
-
-class _MarksDialog extends StatefulWidget {
-  const _MarksDialog({required this.student, required this.maxMarks});
-
-  final ExamStudentResult student;
-  final double maxMarks;
-
-  @override
-  State<_MarksDialog> createState() => _MarksDialogState();
-}
-
-class _MarksDialogState extends State<_MarksDialog> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.student.marks?.toStringAsFixed(0) ?? '');
-  late bool _isAbsent = widget.student.isAbsent;
-  String? _error;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    if (_isAbsent) {
-      Navigator.of(context).pop(const _MarksEntry(marks: 0, isAbsent: true));
-      return;
-    }
-
-    final marks = double.tryParse(_controller.text.trim());
-    if (marks == null || marks < 0) {
-      setState(() => _error = 'Enter a number of marks');
-      return;
-    }
-    if (marks > widget.maxMarks) {
-      setState(() => _error = 'Cannot exceed ${widget.maxMarks.toStringAsFixed(0)}');
-      return;
-    }
-
-    Navigator.of(context).pop(_MarksEntry(marks: marks, isAbsent: false));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      title: Text(widget.student.fullName),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _controller,
-            autofocus: !_isAbsent,
-            enabled: !_isAbsent,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Marks out of ${widget.maxMarks.toStringAsFixed(0)}',
-              errorText: _error,
-            ),
-            onChanged: (_) => setState(() => _error = null),
-          ),
-          const SizedBox(height: 6),
-          CheckboxListTile(
-            value: _isAbsent,
-            onChanged: (value) => setState(() => _isAbsent = value ?? false),
-            title: const Text('Marked absent', style: TextStyle(fontSize: 14)),
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _save,
-          style: FilledButton.styleFrom(minimumSize: const Size(88, 42)),
-          child: const Text('Save'),
-        ),
-      ],
     );
   }
 }

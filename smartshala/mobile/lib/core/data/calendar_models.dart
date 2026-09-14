@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_colors.dart';
+import '../theme/app_colors.dart';
 
 enum CalendarEventType { exam, holiday, event, meeting }
 
@@ -94,4 +94,39 @@ class CalendarEvent {
 DateTime _parseDay(Object? value) {
   final parsed = (value is String ? DateTime.tryParse(value) : null) ?? DateTime.now();
   return DateTime(parsed.year, parsed.month, parsed.day);
+}
+
+/// The body of POST and PATCH /calendar/events. Holidays are not a calendar
+/// type: they lock attendance, so they are still made in Attendance.
+class CalendarEventDraft {
+  const CalendarEventDraft({
+    required this.type,
+    required this.title,
+    required this.startDate,
+    required this.endDate,
+    this.description,
+  });
+
+  static const editableTypes = [CalendarEventType.exam, CalendarEventType.event, CalendarEventType.meeting];
+
+  final CalendarEventType type;
+  final String title;
+  final String? description;
+  final DateTime startDate;
+  final DateTime endDate;
+
+  static String _day(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  Map<String, dynamic> toJson() => {
+        'type': switch (type) {
+          CalendarEventType.exam => 'EXAM',
+          CalendarEventType.meeting => 'MEETING',
+          _ => 'EVENT',
+        },
+        'title': title.trim(),
+        if (description != null && description!.trim().isNotEmpty) 'description': description!.trim(),
+        'startDate': _day(startDate),
+        'endDate': _day(endDate),
+      };
 }
