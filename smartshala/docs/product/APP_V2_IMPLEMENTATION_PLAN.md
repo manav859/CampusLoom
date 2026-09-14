@@ -4,8 +4,8 @@
 **Created:** 2026-09-05
 **Status:** Phases 0–4 complete, plus the backend and teacher side of the Academic Calendar (Phase 6, items 25–26)
 bell timings with Now/Upcoming badges (Phase 7, item 29), and Payroll with teacher Salary Details (Phase 7, item 31).
-Every teacher screen in the blueprint is now built. Phase 5 has started with the principal Home (item 19);
-Student Management + Profile (item 20) is next.
+Every teacher screen in the blueprint is now built. Phase 5 is under way: principal Home (item 19) and Student
+Management + Profile (item 20) and Teacher Management + Profile (item 21) are done; School Profile (item 22) is next.
 
 ## Decisions taken (2026-09-05)
 
@@ -352,8 +352,96 @@ The app leaves that line empty because the severity badge already says it.
 The notification bell in both apps used a hardcoded "3". It now shows the real unread announcement count and opens
 Messages. Salary amounts on the web Payroll and My Salary pages and in the app now format the same way: whole rupees
 unless there are paise, with the web's non-breaking space.
-20. Student Management + Student Profile → **verify:** pagination, search, filter, and the 4 quick actions.
-21. Teacher Management + Teacher Profile → **verify:** stat tiles match a manual DB count.
+20. ✅ Student Management + Student Profile —
+    [student_management_screen.dart](../../mobile/lib/features/principal/students/student_management_screen.dart),
+    [student_profile_screen.dart](../../mobile/lib/features/principal/students/student_profile_screen.dart) and
+    [add_student_screen.dart](../../mobile/lib/features/principal/students/add_student_screen.dart), opened from More,
+    Quick Add, the Home Students KPI card and a Students quick action.
+    - **List:** Total / Active / Inactive tiles, debounced search, class and fee-status filters, an Active / Inactive
+      switch and Load More paging. Filters and paging are the same as the web Students page's.
+    - **Quick actions:** **Add Student** (the web form's required fields; the admission number is generated when blank)
+      and **Export List** (CSV through the Android share sheet).
+    - **Profile:** header, quick facts (age, gender, DOB, joined), Call Parent / WhatsApp / Attendance, tabs Overview ·
+      Academics · Attendance · Fees · Documents limited to the server's `access.allowedTabs`, and Deactivate /
+      Reactivate.
+
+    **Not built, on purpose:**
+    - *Import Students* and *Student Promotion* stay on the web. Import is a CSV mapping flow; promotion is the
+      academic-year rollover.
+    - The blueprint's *Promoted* tile and *blood group* fact have no data in the schema.
+
+    **Verified:**
+    - [student_management_test.dart](../../mobile/test/student_management_test.dart) — 20 tests: fee-status rules,
+      CSV, WhatsApp link, create payload, paging, search debounce, filters, server-driven tabs, deactivate confirm,
+      form validation, and layouts at 320dp with 1.3× text and at 1200dp. They caught a filter chip overflow and a
+      `setState` that returned a Future; both are fixed.
+    - The web's own `toStudentRows` + CSV code, run on all 27 real students from a local backend, and the app's
+      models gave a **byte-identical** CSV (6 overdue, 6 paid, 15 pending).
+    - Over HTTP: create 201 with auto admission number `ADM-2026-001`; missing parent phone 400; search, class filter
+      and pagination (10/28, 8/28, 0) correct; deactivate / reactivate moved the counts; teacher create and deactivate 403.
+
+#### Fee-status filter: the app matches the web, including its gap
+The server's fee filter reads stored assignment status. The Students list derives its badge from that status *plus*
+money due now. So a "Pending" query returns students the list badges Overdue (on real data: 21 rows, 6 of them
+badged Overdue). The web re-filters each page on its side and shows 15; the app now does the same, and counts paging
+on server rows so Load More still ends.
+
+**Open bug, web and app alike:** "Overdue Fees" returns nothing for students who are overdue only by due date
+(0 results against 6 Overdue badges). The fix belongs in `getFeeStatusFilter` (backend) and would change the web too,
+so it is left for a decision.
+
+#### Two new Android plugins, one Gradle setting
+`url_launcher` (Call / WhatsApp) and `share_plus` (Export) were added. `share_plus` failed to compile with "Could not
+close incremental caches". That is a Kotlin incremental-compilation bug on Windows when the project (D:) and the pub
+cache (C:) are on different drives. [gradle.properties](../../mobile/android/gradle.properties) now sets
+`kotlin.incremental=false`. Both APKs build; the remaining "Built-in Kotlin" message is a deprecation warning. The
+manifest declares the `tel` and `https` intents Android 11+ requires for those launches.
+21. ✅ Teacher Management + Teacher Profile —
+    [teacher_management_screen.dart](../../mobile/lib/features/principal/teachers/teacher_management_screen.dart),
+    [teacher_profile_screen.dart](../../mobile/lib/features/principal/teachers/teacher_profile_screen.dart) and
+    [add_teacher_screen.dart](../../mobile/lib/features/principal/teachers/add_teacher_screen.dart) (Add and Edit),
+    opened from More and Quick Add.
+    - **List:** Total / Active / Inactive tiles, search, Subject and Class Teacher filters, an Active / Inactive
+      switch, 20 rows at a time. Like the web Teachers page, it loads the whole list and filters locally.
+    - **Quick actions:** **Add Teacher** (the web form's fields), **Export List** (CSV) and **Teacher Leave**
+      (opens Leave Approval).
+    - **Profile:** header, Call / WhatsApp / Edit Profile, Basic Information, Teaching Details (subjects, classes,
+      class teacher of, weekly periods — all from the timetable), this month's Attendance Summary, and
+      Deactivate / Reactivate.
+
+    **Backend:**
+    - New `GET /staff-attendance/users/:id/summary?month=YYYY-MM` for Principal and Admin. Working days run from the
+      month start (or the join date) to today, minus Sundays and holidays, which are the days student attendance
+      counts. Each day is present (punched), leave (approved leave) or absent. Today counts only once punched or on leave.
+    - `GET /users/teachers/:id` also returns `academicBackground`, `createdAt`, `periodAssignments`,
+      `classTeacherFor` and `timetablePeriodCount`. The fields are additive, so the web edit page is unchanged.
+
+    **Not built, on purpose:**
+    - *Import Teachers*, period assignment and Reset Password stay on the web.
+    - *Teacher Attendance* as a school-wide screen isn't built; the profile shows each teacher's month.
+    - The blueprint's *Female / Male* tiles, *EMP ID* and *department* have no data in the schema.
+
+    **Verified:**
+    - [staffMonthSummary.test.ts](../../backend/tests/staffMonthSummary.test.ts) against a real database: holiday,
+      Sundays, approved vs rejected leave, leave crossing a month, punched leave day, today, join date mid-month,
+      future and past months, other school and non-staff 404.
+    - [teacher_management_test.dart](../../mobile/test/teacher_management_test.dart) — 17 tests: timetable
+      derivations, search, payloads, CSV, paging, local filters, Inactive tab, profile, an attendance error that
+      leaves the profile usable, deactivate confirm, edit, form validation, and layouts at 320dp with 1.3× text and
+      at 1200dp. They caught an unhandled attendance error and a header chip overflow; both are fixed.
+    - Over HTTP: summary 200; bad month, missing month or bad id 400; unknown id 404; teacher 403 on the summary
+      and on the teacher detail; no token 401. A teacher who joined and punched today returned 1/1 = 100%.
+      The detail's periods matched the list row. Create 201, duplicate phone 409, edit with a cleared email 200,
+      deactivate 204 (inactive count +1), activate 200.
+
+    The Students screens' private action button, filter chip, sheet picker, profile action and info section moved to
+    [management_widgets.dart](../../mobile/lib/features/principal/widgets/management_widgets.dart) so both screens
+    share them. The student tests still pass.
+
+#### Periods: the web divides by six days, the backend fills five
+The web counts assigned periods over Monday–Saturday (`6 × periods`), but the backend only creates Monday–Friday rows.
+A fully booked teacher therefore shows at most 40/48. The app matches the web. Fixing it would change the web too, so
+it is left for a decision.
 22. School Profile (view + edit + logo + documents) → **verify:** edits persist and appear on web.
 23. Classes & Sections, Subjects → **verify:** created class/section appears in teacher pickers.
 24. Fees Management (**principal only**) → **verify:** teacher token gets 403 on every fee endpoint.
@@ -538,6 +626,9 @@ DATABASE_URL=<postgres url> npm --prefix backend run test:period-times
 
 # Payroll: own-salary rule, role checks, net pay, school isolation
 DATABASE_URL=<postgres url> npm --prefix backend run test:payroll
+
+# Staff month summary: working days, leave, join date, school isolation
+DATABASE_URL=<postgres url> npm --prefix backend run test:staff-summary
 
 # Mobile analyzer + swipe-gesture tests
 cd mobile && flutter analyze && flutter test

@@ -31,7 +31,8 @@
     "test:leave": "tsx tests/leaveAndAnnouncements.test.ts",
     "test:calendar": "tsx tests/calendar.test.ts",
     "test:period-times": "tsx tests/periodTimes.test.ts",
-    "test:payroll": "tsx tests/payroll.test.ts"
+    "test:payroll": "tsx tests/payroll.test.ts",
+    "test:staff-summary": "tsx tests/staffMonthSummary.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

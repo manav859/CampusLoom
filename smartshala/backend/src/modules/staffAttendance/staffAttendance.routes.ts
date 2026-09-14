@@ -17,3 +17,14 @@ staffAttendanceRouter.get(
 );
 staffAttendanceRouter.post("/me/punch-in", controller.punchIn);
 staffAttendanceRouter.post("/me/punch-out", controller.punchOut);
+
+// The principal's view of one staff member's month, for the Teacher Profile.
+staffAttendanceRouter.get(
+  "/users/:id/summary",
+  requireRole([UserRole.PRINCIPAL, UserRole.ADMIN]),
+  validate({
+    params: z.object({ id: z.string().uuid() }),
+    query: z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) })
+  }),
+  controller.getStaffMonthSummary
+);

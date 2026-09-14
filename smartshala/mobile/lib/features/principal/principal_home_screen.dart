@@ -18,6 +18,7 @@ import 'announcements/create_announcement_screen.dart';
 import 'data/principal_dashboard.dart';
 import 'data/principal_repository.dart';
 import 'leave/leave_approval_screen.dart';
+import 'students/student_management_screen.dart';
 
 /// The principal command centre. It reads what the web admin dashboard reads
 /// (GET /dashboard and today's GET /activity-logs) and shows the same KPIs,
@@ -108,11 +109,6 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
         portalLabel: 'PRINCIPAL APP',
         notificationCount: _unreadCount,
         onNotificationsTap: widget.onOpenMessages,
-        leading: IconButton(
-          icon: const Icon(Icons.logout_rounded, size: 22),
-          tooltip: 'Sign out',
-          onPressed: () => context.read<AuthController>().logout(),
-        ),
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -156,11 +152,16 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _KpiGrid(dashboard: dashboard),
+                _KpiGrid(
+                  dashboard: dashboard,
+                  // The web Students card links to /students.
+                  onStudents: () => _openAndRefresh(const StudentManagementScreen()),
+                ),
                 const SizedBox(height: 22),
                 const SectionHeader(title: 'Quick Actions'),
                 _QuickActions(
                   pendingLeave: data.pendingLeave,
+                  onStudents: () => _openAndRefresh(const StudentManagementScreen()),
                   onLeave: () => _openAndRefresh(const LeaveApprovalScreen()),
                   onAnnouncement: () =>
                       _openAndRefresh(const CreateAnnouncementScreen()),
@@ -277,9 +278,10 @@ class _SchoolCard extends StatelessWidget {
 
 /// The web admin dashboard's five KPI cards, with the same labels, order and colours.
 class _KpiGrid extends StatelessWidget {
-  const _KpiGrid({required this.dashboard});
+  const _KpiGrid({required this.dashboard, this.onStudents});
 
   final PrincipalDashboard dashboard;
+  final VoidCallback? onStudents;
 
   @override
   Widget build(BuildContext context) {
@@ -321,6 +323,7 @@ class _KpiGrid extends StatelessWidget {
             label: cards[index].label,
             value: cards[index].value,
             icon: cards[index].icon,
+            onTap: index == 0 ? onStudents : null,
           ),
       ],
     );
@@ -331,12 +334,14 @@ class _KpiGrid extends StatelessWidget {
 class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.pendingLeave,
+    required this.onStudents,
     required this.onLeave,
     required this.onAnnouncement,
     required this.onMessages,
   });
 
   final int pendingLeave;
+  final VoidCallback onStudents;
   final VoidCallback onLeave;
   final VoidCallback onAnnouncement;
   final VoidCallback? onMessages;
@@ -344,9 +349,15 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsiveGrid(
-      phoneColumns: 3,
-      wideColumns: 3,
+      phoneColumns: 4,
+      wideColumns: 4,
       children: [
+        _ActionTile(
+          icon: Icons.school_rounded,
+          title: 'Students',
+          color: AppColors.teal,
+          onTap: onStudents,
+        ),
         _ActionTile(
           icon: Icons.event_available_rounded,
           title: 'Leave Approval',

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_cards.dart';
 import '../../core/widgets/placeholder_screen.dart';
@@ -7,6 +9,8 @@ import '../../core/widgets/state_views.dart';
 import 'announcements/create_announcement_screen.dart';
 import 'leave/leave_approval_screen.dart';
 import 'messages/principal_messages_screen.dart';
+import 'students/student_management_screen.dart';
+import 'teachers/teacher_management_screen.dart';
 
 /// Every secondary module lives here rather than on Home, in the four groups
 /// the blueprint defines: School Management, Academics, Finance, Communication.
@@ -24,10 +28,14 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
     _MoreGroup(
       title: 'School Management',
       entries: [
+        _MoreEntry('Student Management', 'Search, add and manage students',
+            Icons.school_rounded, AppColors.primary, 'Phase 5',
+            screen: StudentManagementScreen.new),
         _MoreEntry('School Profile', 'View and manage school information',
             Icons.apartment_rounded, AppColors.primary, 'Phase 5'),
         _MoreEntry('Teacher Management', 'Manage teachers and their details',
-            Icons.badge_rounded, AppColors.success, 'Phase 5'),
+            Icons.badge_rounded, AppColors.success, 'Phase 5',
+            screen: TeacherManagementScreen.new),
         _MoreEntry('Classes & Sections', 'Manage classes and sections',
             Icons.grid_view_rounded, AppColors.teal, 'Phase 5'),
         _MoreEntry('Subjects', 'Manage subjects and curriculum',
@@ -150,6 +158,12 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
             ],
             const SizedBox(height: 12),
           ],
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => context.read<AuthController>().logout(),
+            icon: const Icon(Icons.logout_rounded, size: 20),
+            label: const Text('Sign out'),
+          ),
         ],
       ),
     );

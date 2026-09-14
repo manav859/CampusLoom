@@ -17,3 +17,7 @@ export const punchOut = asyncHandler(async (req: Request, res: Response) => {
 export const getMyHistory = asyncHandler(async (req: Request, res: Response) => {
   res.json(await staffAttendanceService.getMyHistory(req.user!, req.query.month as string));
 });
+
+export const getStaffMonthSummary = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await staffAttendanceService.getStaffMonthSummary(req.user!.schoolId, req.params.id, req.query.month as string));
+});

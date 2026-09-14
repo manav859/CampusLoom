@@ -30,6 +30,8 @@ class AppTheme {
         ),
       ),
       // Web type scale: h1 24, h2 20, h3 16, body 14, caption 12.
+      // Each replaced style needs its own colour: copyWith drops the one apply
+      // set, and text without a colour is painted white (dropdowns use titleMedium).
       textTheme: base.textTheme
           .apply(
             fontFamily: fontFamily,
@@ -41,14 +43,21 @@ class AppTheme {
               fontFamily: fontFamily,
               fontSize: 22,
               fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
               height: 1.3,
             ),
             titleMedium: const TextStyle(
               fontFamily: fontFamily,
               fontSize: 16,
               fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
-            bodyMedium: const TextStyle(fontFamily: fontFamily, fontSize: 14, height: 1.55),
+            bodyMedium: const TextStyle(
+              fontFamily: fontFamily,
+              fontSize: 14,
+              color: AppColors.textPrimary,
+              height: 1.55,
+            ),
             bodySmall: const TextStyle(
               fontFamily: fontFamily,
               fontSize: 12,

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/placeholder_screen.dart';
 import 'announcements/create_announcement_screen.dart';
+import 'students/add_student_screen.dart';
+import 'teachers/add_teacher_screen.dart';
 
 /// The "+" creation menu. Per the blueprint the + button is reserved for
 /// creation actions only — never for navigation.
@@ -25,7 +27,7 @@ class QuickAddSheet extends StatelessWidget {
       subtitle: 'Enrol a new student',
       color: AppColors.primary,
       phase: 'Phase 5',
-      screen: null,
+      screen: AddStudentScreen.new,
     ),
     (
       icon: Icons.badge_rounded,
@@ -33,7 +35,7 @@ class QuickAddSheet extends StatelessWidget {
       subtitle: 'Add a teaching staff member',
       color: AppColors.success,
       phase: 'Phase 5',
-      screen: null,
+      screen: AddTeacherScreen.new,
     ),
     (
       icon: Icons.grid_view_rounded,

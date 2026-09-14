@@ -205,11 +205,25 @@ export async function getTeacher(schoolId: string, id: string) {
       fullName: true,
       email: true,
       phone: true,
-      status: true
+      status: true,
+      academicBackground: true,
+      createdAt: true,
+      periodAssignments: {
+        orderBy: [{ dayOfWeek: "asc" }, { periodNumber: "asc" }],
+        include: {
+          class: { select: { id: true, name: true, section: true, academicYear: true } },
+          subject: { select: { id: true, name: true } }
+        }
+      },
+      classTeacherFor: { select: { id: true, name: true, section: true } }
     }
   });
   if (!teacher) throw notFound("Teacher");
-  return teacher;
+  return {
+    ...teacher,
+    periodAssignments: teacher.periodAssignments.map(mapPeriod),
+    timetablePeriodCount: await getTimetablePeriodCount(schoolId)
+  };
 }
 
 export async function resetTeacherPassword(schoolId: string, teacherId: string, newPassword: string) {

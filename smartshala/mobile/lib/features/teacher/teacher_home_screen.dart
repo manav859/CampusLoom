@@ -81,11 +81,6 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         portalLabel: 'TEACHER PORTAL',
         notificationCount: _unreadCount,
         onNotificationsTap: widget.onOpenMessages,
-        leading: IconButton(
-          icon: const Icon(Icons.logout_rounded, size: 22),
-          tooltip: 'Sign out',
-          onPressed: () => context.read<AuthController>().logout(),
-        ),
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -202,6 +197,13 @@ class _HomeBody extends StatelessWidget {
             ActionKind.homeworkPending => () => _open(context, const HomeworkScreen()),
             _ => null,
           },
+        ),
+        const SizedBox(height: 28),
+        // The teacher app has no More tab, so signing out lives at the end of Home.
+        OutlinedButton.icon(
+          onPressed: () => context.read<AuthController>().logout(),
+          icon: const Icon(Icons.logout_rounded, size: 20),
+          label: const Text('Sign out'),
         ),
       ],
     );
