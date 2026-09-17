@@ -1755,6 +1755,109 @@ export const payrollApi = {
   remove: (id: string) => apiFetch<void>(`/payroll/slips/${id}`, { method: "DELETE" })
 };
 
+export type TransportVehicle = {
+  id: string;
+  registrationNumber: string;
+  capacity: number;
+  driverName: string | null;
+  driverPhone: string | null;
+};
+
+export type TransportStop = {
+  id: string;
+  sequence: number;
+  name: string;
+  pickupTime: string | null;
+  dropTime: string | null;
+};
+
+export type TransportOverview = {
+  summary: { routes: number; vehicles: number; studentsOnTransport: number; seats: number };
+  routes: { id: string; name: string; vehicle: TransportVehicle | null; stops: TransportStop[]; studentCount: number }[];
+  vehicles: (TransportVehicle & { routes: { id: string; name: string }[] })[];
+};
+
+export type TransportRouteDetail = {
+  id: string;
+  name: string;
+  vehicle: TransportVehicle | null;
+  stops: TransportStop[];
+  students: {
+    id: string;
+    fullName: string;
+    admissionNumber: string;
+    parentPhone: string;
+    transportRequired: boolean;
+    className: string;
+    stopId: string | null;
+  }[];
+};
+
+export type TransportVehiclePayload = {
+  registrationNumber: string;
+  capacity: number;
+  driverName: string | null;
+  driverPhone: string | null;
+};
+
+/** Stops in travel order; a stop sent with its id keeps its riders. */
+export type TransportRoutePayload = {
+  name: string;
+  vehicleId: string | null;
+  stops: { id?: string; name: string; pickupTime: string | null; dropTime: string | null }[];
+};
+
+export type TransportReportStudent = {
+  id: string;
+  fullName: string;
+  admissionNumber: string;
+  parentPhone: string;
+  className: string;
+};
+
+export type TransportReport = {
+  summary: {
+    routes: number;
+    studentsOnTransport: number;
+    routesOverCapacity: number;
+    routesWithoutVehicle: number;
+    needsRoute: number;
+    notMarked: number;
+  };
+  routes: {
+    id: string;
+    name: string;
+    vehicle: TransportVehicle | null;
+    students: number;
+    capacity: number | null;
+    occupancy: number | null;
+    overCapacity: boolean;
+    withoutStop: number;
+    stops: (TransportStop & { students: number })[];
+  }[];
+  needsRoute: TransportReportStudent[];
+  notMarked: (TransportReportStudent & { routeName: string | null })[];
+};
+
+export const transportApi = {
+  overview: () => apiFetch<TransportOverview>("/transport"),
+  report: () => apiFetch<TransportReport>("/transport/report"),
+  route: (id: string) => apiFetch<TransportRouteDetail>(`/transport/routes/${id}`),
+  createVehicle: (payload: TransportVehiclePayload) =>
+    apiFetch<TransportVehicle>("/transport/vehicles", { method: "POST", body: JSON.stringify(payload) }),
+  updateVehicle: (id: string, payload: TransportVehiclePayload) =>
+    apiFetch<TransportVehicle>(`/transport/vehicles/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  removeVehicle: (id: string) => apiFetch<void>(`/transport/vehicles/${id}`, { method: "DELETE" }),
+  createRoute: (payload: TransportRoutePayload) =>
+    apiFetch<TransportRouteDetail>("/transport/routes", { method: "POST", body: JSON.stringify(payload) }),
+  updateRoute: (id: string, payload: TransportRoutePayload) =>
+    apiFetch<TransportRouteDetail>(`/transport/routes/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  removeRoute: (id: string) => apiFetch<void>(`/transport/routes/${id}`, { method: "DELETE" }),
+  assign: (payload: { studentIds: string[]; routeId: string; stopId: string | null }) =>
+    apiFetch<{ assigned: number }>("/transport/assignments", { method: "POST", body: JSON.stringify(payload) }),
+  unassign: (studentId: string) => apiFetch<void>(`/transport/assignments/${studentId}`, { method: "DELETE" })
+};
+
 /** The same punch the teacher app's Swipe To Punch records. */
 export type PunchStatus = {
   date: string;

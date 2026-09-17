@@ -3,8 +3,8 @@
 **Source of truth:** [SmartShala_App_V2_0_Product_UI_Blueprint.pdf](SmartShala_App_V2_0_Product_UI_Blueprint.pdf) (in this folder)
 **Created:** 2026-09-05
 **Status:** Phases 0–6 complete, plus bell timings with Now/Upcoming badges (Phase 7, item 29) and Payroll with teacher
-Salary Details (Phase 7, item 31). The principal app has no placeholder left except Timetable, Transport (Phase 7) and
-Notifications (Phase 8). Next: Transport (item 30), then Phase 8.
+Salary Details (Phase 7, item 31) and Transport (Phase 7, item 30). The principal app has no placeholder left except
+Timetable (Phase 7) and Notifications (Phase 8). Next: Phase 8.
 
 ## Decisions taken (2026-09-05)
 
@@ -591,7 +591,38 @@ create / edit / delete 403. Principal: create 201; 31 February, `HOLIDAY` and an
     [schedule_badges_test.dart](../../mobile/test/schedule_badges_test.dart); and over HTTP — teacher 403 on read and
     write, a malformed time 400, overlapping periods 400, save 200, and the teacher's schedule came back as
     `P1 08:00-08:45`.
-30. **Backend + UI:** Transport (routes, vehicles, drivers, assignment) → **verify:** transport report returns real data.
+30. ✅ **Backend + UI:** Transport, records only (no live tracking), agreed with the user 2026-09-17.
+    - **Data** ([migration](../../backend/prisma/migrations/20260917000000_add_transport/migration.sql)): `TransportVehicle`
+      (registration, seats, driver name and phone; drivers don't log in, so they have no table), `TransportRoute` (name,
+      optional vehicle) with ordered `TransportStop`s (pickup and drop times), and `transportRouteId` / `transportStopId` on
+      `students`.
+    - **API** ([transport module](../../backend/src/modules/transport/)), Principal and Admin only: `GET /transport`,
+      `GET /transport/report`, vehicles and routes create / edit / delete, `GET /transport/routes/:id` with its riders,
+      `POST /transport/assignments` (moves students off any other route) and `DELETE /transport/assignments/:studentId`.
+    - **Fees are never touched.** Assigning, moving or removing a rider leaves `transportRequired` and the transport fee as
+      they were. The report lists the two mismatches instead: marked as needing transport but on no route, and riding a
+      route while not marked.
+    - Registration numbers are stored without spaces or dashes, upper case, unique per school; route names are unique
+      regardless of case. Editing a route keeps a stop sent with its id, so its riders stay; riders at a removed stop stay on
+      the route with no stop. Deleting a vehicle leaves its routes without one; deleting a route leaves its riders without one.
+    - **Web:** [Transport](../../frontend/src/app/(app)/transport/page.tsx) page (sidebar, after Payroll) and
+      [Transport Report](../../frontend/src/app/(app)/reports/transport/page.tsx) (Reports, CSV and PDF).
+    - **App:** More → Transport ([transport/](../../mobile/lib/features/principal/transport/)): routes and vehicles tabs, route
+      detail with Call Driver, add/edit route and vehicle, Add Students by class; and a Transport Report tile in Reports,
+      with no fee wording.
+
+    **Verified:**
+    - [transport.test.ts](../../backend/tests/transport.test.ts) against a real database: normalised and duplicate
+      registrations, per-school isolation, case-insensitive route names, stop edits keeping riders, moving between routes,
+      inactive and other-school students refused, over-capacity and per-stop counts, fees unchanged, deletes, teacher 403.
+    - The migration applied cleanly to a copy of the local demo database with data.
+    - Over HTTP against that copy: vehicle 201, duplicate 409, bad phone and zero seats 400, route 201, same name in another
+      case 409, `7:10` 400, assign 200, unknown route 404, unassign 204; teacher 403 on read and write; no token 401.
+      The report on real students matched SQL: 2 students marked as needing transport, both assigned, so 0 need a route;
+      4 riders on a 2-seat bus showed 200% and over capacity; the 2 unmarked riders were listed.
+    - [transport_test.dart](../../mobile/test/transport_test.dart), 16 tests, including layouts at 320dp with 1.3× text. They
+      caught two chips too long to fit at that size; both are plain text now.
+    - **Not yet:** the web pages have not been opened in a browser, and the app screens have not been opened on a phone.
 31. ✅ **Backend + UI:** Payroll — a `SalarySlip` table
     ([migration](../../backend/prisma/migrations/20260913000000_add_salary_slips/migration.sql)) and
     [payroll module](../../backend/src/modules/payroll/): `GET /payroll/me/slips` for any staff member (own slips only,

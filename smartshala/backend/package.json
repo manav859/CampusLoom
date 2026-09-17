@@ -32,6 +32,7 @@
     "test:calendar": "tsx tests/calendar.test.ts",
     "test:period-times": "tsx tests/periodTimes.test.ts",
     "test:payroll": "tsx tests/payroll.test.ts",
+    "test:transport": "tsx tests/transport.test.ts",
     "test:staff-summary": "tsx tests/staffMonthSummary.test.ts",
     "test:fee-access": "tsx tests/feeRoleAccess.test.ts",
     "test:class-subjects": "tsx tests/classSubjects.test.ts"

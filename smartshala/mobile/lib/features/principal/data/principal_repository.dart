@@ -10,6 +10,7 @@ import 'report_models.dart';
 import 'school_models.dart';
 import 'student_models.dart' hide ExamSummary;
 import 'teacher_models.dart';
+import 'transport_models.dart';
 
 class PrincipalRepository {
   PrincipalRepository(this.api);
@@ -350,4 +351,43 @@ class PrincipalRepository {
   /// A principal may enter or amend any student's marks.
   Future<void> saveExamResult({required String examId, required String studentId, required double marks, bool isAbsent = false}) =>
       api.patch('/marks/exams/$examId/results', body: {'studentId': studentId, 'marks': marks, 'isAbsent': isAbsent});
+
+  // ------------------------------------------------------------- transport
+
+  Future<TransportOverview> transport() async {
+    final data = await api.get('/transport') as Map<String, dynamic>;
+    return TransportOverview.fromJson(data);
+  }
+
+  Future<TransportRouteDetail> transportRoute(String id) async {
+    final data = await api.get('/transport/routes/$id') as Map<String, dynamic>;
+    return TransportRouteDetail.fromJson(data);
+  }
+
+  Future<TransportReport> transportReport() async {
+    final data = await api.get('/transport/report') as Map<String, dynamic>;
+    return TransportReport.fromJson(data);
+  }
+
+  Future<void> createVehicle(VehicleDraft draft) => api.post('/transport/vehicles', body: draft.toJson());
+
+  Future<void> updateVehicle(String id, VehicleDraft draft) => api.patch('/transport/vehicles/$id', body: draft.toJson());
+
+  Future<void> deleteVehicle(String id) => api.delete('/transport/vehicles/$id');
+
+  /// Returns the saved route's id.
+  Future<String> saveRoute(RouteDraft draft, {String? id}) async {
+    final data = await (id == null
+        ? api.post('/transport/routes', body: draft.toJson())
+        : api.patch('/transport/routes/$id', body: draft.toJson())) as Map<String, dynamic>;
+    return data['id'] as String;
+  }
+
+  Future<void> deleteRoute(String id) => api.delete('/transport/routes/$id');
+
+  /// Students already on another route move to this one. Fees are not touched.
+  Future<void> assignToRoute({required List<String> studentIds, required String routeId, String? stopId}) =>
+      api.post('/transport/assignments', body: {'studentIds': studentIds, 'routeId': routeId, 'stopId': stopId});
+
+  Future<void> removeFromRoute(String studentId) => api.delete('/transport/assignments/$studentId');
 }

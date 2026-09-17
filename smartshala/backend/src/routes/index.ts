@@ -27,6 +27,7 @@ import { staffAttendanceRouter } from "../modules/staffAttendance/staffAttendanc
 import { studentsRouter } from "../modules/students/students.routes.js";
 import { superAdminRouter } from "../modules/superAdmin/superAdmin.routes.js";
 import { tenantSetupRouter } from "../modules/tenantSetup/tenantSetup.routes.js";
+import { transportRouter } from "../modules/transport/transport.routes.js";
 import { usersRouter } from "../modules/users/users.routes.js";
 import { whatsappRouter } from "../modules/whatsapp/whatsapp.routes.js";
 import { auditMutatingRequest } from "../middleware/activityAudit.js";
@@ -57,6 +58,7 @@ apiRouter.use("/leave", leaveRouter);
 apiRouter.use("/announcements", announcementsRouter);
 apiRouter.use("/calendar", calendarRouter);
 apiRouter.use("/payroll", payrollRouter);
+apiRouter.use("/transport", transportRouter);
 apiRouter.use("/homework", homeworkRouter);
 apiRouter.use("/marks", marksRouter);
 apiRouter.use("/fees", feesRouter);

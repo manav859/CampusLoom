@@ -31,6 +31,12 @@ const reports = [
     title: "Exam Reports",
     copy: "Filterable student exam reports, exportable to CSV and PDF across classes and subjects.",
     action: "Open Report"
+  },
+  {
+    href: "/reports/transport",
+    title: "Transport Report",
+    copy: "Students and seats per route, riders per stop, and students whose transport record and route disagree.",
+    action: "Open Report"
   }
 ];
 

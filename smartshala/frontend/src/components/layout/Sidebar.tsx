@@ -23,7 +23,8 @@ type NavIconName =
   | "settings"
   | "exams"
   | "billing"
-  | "payroll";
+  | "payroll"
+  | "transport";
 
 type NavLink = {
   label: string;
@@ -59,11 +60,13 @@ const adminLinks: NavItem[] = [
       { label: "Student Performance Report", href: "/reports/student-performance", icon: "students" },
       { label: "Subject Wise Report", href: "/reports/subject-wise", icon: "reports" },
       { label: "Teacher Performance", href: "/reports/teacher-performance", icon: "teachers" },
-      { label: "Exam Reports", href: "/reports/exams", icon: "exams" }
+      { label: "Exam Reports", href: "/reports/exams", icon: "exams" },
+      { label: "Transport Report", href: "/reports/transport", icon: "transport" }
     ]
   },
   { label: "Fees", href: "/fees", icon: "fees" },
   { label: "Payroll", href: "/payroll", icon: "payroll" },
+  { label: "Transport", href: "/transport", icon: "transport" },
   { label: "Exams & Marks", href: "/exams", icon: "exams" },
   { label: "Analytics", href: "/analytics", icon: "analytics" },
   {
@@ -286,6 +289,20 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
       <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M15.5 2H8.62a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6.88a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" />
         <path d="M18.5 6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6.88a2 2 0 0 1-2-2" />
+      </svg>
+    );
+  }
+
+  if (icon === "transport") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 6v6" />
+        <path d="M15 6v6" />
+        <path d="M2 12h19.6" />
+        <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" />
+        <circle cx="7" cy="18" r="2" />
+        <path d="M9 18h5" />
+        <circle cx="16" cy="18" r="2" />
       </svg>
     );
   }

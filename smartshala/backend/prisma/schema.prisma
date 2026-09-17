@@ -50,6 +50,8 @@ model School {
   calendarEvents           CalendarEvent[]
   periodTimes              PeriodTime[]
   salarySlips              SalarySlip[]
+  transportVehicles        TransportVehicle[]
+  transportRoutes          TransportRoute[]
 
   @@map("schools")
 }
@@ -192,6 +194,8 @@ model Student {
   joiningDate         DateTime               @default(now())
   transportRequired   Boolean                @default(false)
   transportFeeAmount  Decimal                @default(0) @db.Decimal(12, 2)
+  transportRouteId    String?                @db.Uuid
+  transportStopId     String?                @db.Uuid
   isActive            Boolean                @default(true)
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
@@ -208,12 +212,15 @@ model Student {
   feeAssignments      StudentFeeAssignment[]
   class               Class                  @relation(fields: [classId], references: [id])
   school              School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  transportRoute      TransportRoute?        @relation(fields: [transportRouteId], references: [id], onDelete: SetNull)
+  transportStop       TransportStop?         @relation(fields: [transportStopId], references: [id], onDelete: SetNull)
 
   @@unique([schoolId, admissionNumber])
   @@index([schoolId, classId])
   @@index([schoolId, isActive])
   @@index([schoolId, parentPhone])
   @@index([schoolId, alternatePhone])
+  @@index([transportRouteId])
   @@map("students")
 }
 
@@ -1027,4 +1034,54 @@ model SalarySlip {
   @@unique([userId, month])
   @@index([schoolId, month])
   @@map("salary_slips")
+}
+
+// Transport records: vehicles with their driver, routes with ordered stops,
+// and which route and stop each student rides. No live tracking.
+model TransportVehicle {
+  id                 String           @id @default(uuid()) @db.Uuid
+  schoolId           String           @db.Uuid
+  registrationNumber String
+  capacity           Int
+  driverName         String?
+  driverPhone        String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  school             School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  routes             TransportRoute[]
+
+  @@unique([schoolId, registrationNumber])
+  @@map("transport_vehicles")
+}
+
+model TransportRoute {
+  id        String            @id @default(uuid()) @db.Uuid
+  schoolId  String            @db.Uuid
+  name      String
+  vehicleId String?           @db.Uuid
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  school    School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  vehicle   TransportVehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  stops     TransportStop[]
+  students  Student[]
+
+  @@unique([schoolId, name])
+  @@map("transport_routes")
+}
+
+model TransportStop {
+  id         String         @id @default(uuid()) @db.Uuid
+  routeId    String         @db.Uuid
+  sequence   Int
+  name       String
+  pickupTime String?
+  dropTime   String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  route      TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  students   Student[]
+
+  @@index([routeId, sequence])
+  @@map("transport_stops")
 }

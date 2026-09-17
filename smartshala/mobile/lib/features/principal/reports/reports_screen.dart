@@ -10,6 +10,7 @@ import 'class_performance_report_screen.dart';
 import 'student_report_screen.dart';
 import 'subject_performance_report_screen.dart';
 import 'teacher_report_screen.dart';
+import '../transport/transport_report_screen.dart';
 
 typedef ReportEntry = ({String title, String subtitle, IconData icon, Color color, Widget Function() screen});
 
@@ -47,6 +48,13 @@ class ReportsScreen extends StatefulWidget {
       icon: Icons.assignment_rounded,
       color: AppColors.warning,
       screen: ExamsScreen.new,
+    ),
+    (
+      title: 'Transport Report',
+      subtitle: 'Students and seats per route',
+      icon: Icons.directions_bus_rounded,
+      color: AppColors.danger,
+      screen: TransportReportScreen.new,
     ),
   ];
 
