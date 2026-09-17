@@ -14,17 +14,15 @@ void main() {
   runApp(
     SmartShalaApp(
       config: AppConfig.forFlavor(AppFlavor.teacher),
-      shellBuilder: (context) => MultiProvider(
-        providers: [
-          Provider<TeacherRepository>(
-            create: (context) => TeacherRepository(context.read<ApiClient>()),
-          ),
-          ChangeNotifierProvider<PunchController>(
-            create: (context) => PunchController(context.read<TeacherRepository>()),
-          ),
-        ],
-        child: const TeacherShell(),
-      ),
+      sessionProviders: [
+        Provider<TeacherRepository>(
+          create: (context) => TeacherRepository(context.read<ApiClient>()),
+        ),
+        ChangeNotifierProvider<PunchController>(
+          create: (context) => PunchController(context.read<TeacherRepository>()),
+        ),
+      ],
+      shellBuilder: (_) => const TeacherShell(),
     ),
   );
 }

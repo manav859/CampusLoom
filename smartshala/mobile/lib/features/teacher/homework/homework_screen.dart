@@ -29,7 +29,7 @@ class _HomeworkScreenState extends State<HomeworkScreen> {
 
   Future<void> _refresh() async {
     final future = context.read<TeacherRepository>().homeworkAssignments();
-    setState(() => _future = future);
+    setState(() { _future = future; });
     await future.catchError((Object _) => <HomeworkAssignment>[]);
   }
 

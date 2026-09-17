@@ -27,7 +27,7 @@ class _StudentsNeedingFocusScreenState extends State<StudentsNeedingFocusScreen>
 
   Future<void> _refresh() async {
     final future = context.read<TeacherRepository>().studentsNeedingFocus();
-    setState(() => _future = future);
+    setState(() { _future = future; });
     await future.catchError(
       (Object _) => const FocusResult(thresholds: FocusThresholds.fallback, students: []),
     );

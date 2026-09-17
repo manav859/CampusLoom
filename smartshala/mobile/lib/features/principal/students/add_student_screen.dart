@@ -103,7 +103,9 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               message: snapshot.error is ApiException
                   ? (snapshot.error as ApiException).message
                   : 'Could not load classes.',
-              onRetry: () => setState(() => _classes = context.read<PrincipalRepository>().classes()),
+              onRetry: () => setState(() {
+                _classes = context.read<PrincipalRepository>().classes();
+              }),
             );
           }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 
 import '../../features/auth/login_screen.dart';
 import '../api/api_client.dart';
@@ -13,13 +14,23 @@ import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 import '../widgets/state_views.dart';
 
-/// Shared root for both binaries. `shellBuilder` is the only difference: the
-/// principal app mounts the principal shell, the teacher app the teacher shell.
+/// Shared root for both binaries. `shellBuilder` and `sessionProviders` are the
+/// only differences: the principal app mounts the principal shell and
+/// repository, the teacher app the teacher ones.
 class SmartShalaApp extends StatelessWidget {
-  const SmartShalaApp({super.key, required this.config, required this.shellBuilder});
+  const SmartShalaApp({
+    super.key,
+    required this.config,
+    required this.shellBuilder,
+    required this.sessionProviders,
+  });
 
   final AppConfig config;
   final WidgetBuilder shellBuilder;
+
+  /// Mounted above the Navigator, so screens pushed as routes can read them
+  /// too. Keyed by the signed-in user: a different user gets fresh ones.
+  final List<SingleChildWidget> sessionProviders;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +63,13 @@ class SmartShalaApp extends StatelessWidget {
         title: config.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.build(),
-        builder: (context, child) => AppViewport(child: child),
+        builder: (context, child) => AppViewport(
+          child: MultiProvider(
+            key: ValueKey(context.select<AuthController, String?>((auth) => auth.user?.id)),
+            providers: sessionProviders,
+            child: child,
+          ),
+        ),
         home: _AuthGate(shellBuilder: shellBuilder),
       ),
     );

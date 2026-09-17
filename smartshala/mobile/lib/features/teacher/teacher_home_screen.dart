@@ -69,7 +69,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
   Future<void> _refresh() async {
     final future = _load();
-    setState(() => _future = future);
+    setState(() { _future = future; });
     unawaited(context.read<PunchController>().load());
     await future.catchError((Object _) => _HomeData.empty);
   }

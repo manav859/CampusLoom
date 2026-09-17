@@ -13,10 +13,12 @@ void main() {
   runApp(
     SmartShalaApp(
       config: AppConfig.forFlavor(AppFlavor.principal),
-      shellBuilder: (context) => Provider<PrincipalRepository>(
-        create: (context) => PrincipalRepository(context.read<ApiClient>()),
-        child: const PrincipalShell(),
-      ),
+      sessionProviders: [
+        Provider<PrincipalRepository>(
+          create: (context) => PrincipalRepository(context.read<ApiClient>()),
+        ),
+      ],
+      shellBuilder: (_) => const PrincipalShell(),
     ),
   );
 }

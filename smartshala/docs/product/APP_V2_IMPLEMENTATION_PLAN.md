@@ -638,6 +638,31 @@ APKs build.
 
 > **Still not device-tested,** as with Phases 0–6. The web pages pass `tsc` but have not been opened in a browser.
 
+### First device run (2026-09-17)
+Both debug APKs on an Android 13 phone (OPPO CPH2263, 360dp wide) against staging, school SS000001.
+
+**Opened and working:** principal Home, School Profile, Classes & Sections and a class, Subjects, Fee Management, a fee
+ledger, Record Payment (validation only, nothing recorded), Defaulter Follow-up, Exams, Academic Calendar (an event
+added, opened and deleted), and the Student, Attendance and Teacher reports; teacher Home, Marks, Create Test (form
+only), Students Needing Focus, Apply Leave (form only) and Salary.
+
+**Fixed:**
+- **Pushed screens could not find their repository.** `PrincipalRepository`, `TeacherRepository` and `PunchController`
+  were provided around the shell, but screens opened with `Navigator.push` sit under the Navigator, not the shell.
+  On the phone School Profile showed "Unable to load the school profile." Widget tests missed it because they put
+  providers above `MaterialApp`. `SmartShalaApp` now takes `sessionProviders` and mounts them above the Navigator,
+  keyed by the signed-in user's id so a different user still gets fresh ones →
+  **verified:** [session_providers_test.dart](../../mobile/test/session_providers_test.dart) pumps the real app and
+  reads a provider from a pushed route; it fails with the old placement. On the phone, School Profile and teacher
+  Marks load.
+- **Pull-to-refresh threw** "setState() callback argument returned a Future" (principal Home, teacher Home, Homework,
+  Salary, Students Needing Focus, and Retry on Add Student) → reproduced in logcat, gone after the fix.
+
+**Open, for a decision:** a subject teacher with periods in a class sees that class in Marks, but Create Test says
+"This class has no subjects you can examine". The backend lets a teacher examine a subject only when they are its
+`Subject.teacherId` or the class teacher, and `ensureClassSubjects` assigns every subject to the class teacher.
+Period assignments (which carry `subjectId`) are not considered. This rule also applies on the web.
+
 ### Phase 8 — Polish & release
 32. Push notifications (`DeviceToken` + FCM) → **verify:** an announcement triggers a device notification.
 33. Empty states, loading skeletons, error states, pull-to-refresh across all screens.

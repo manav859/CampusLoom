@@ -36,7 +36,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
 
   Future<void> _refresh() async {
     final future = context.read<TeacherRepository>().mySalary();
-    setState(() => _future = future);
+    setState(() { _future = future; });
     await future.then((_) {}, onError: (Object _) {});
   }
 
