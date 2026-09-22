@@ -31,6 +31,10 @@ export const getClassStats = asyncHandler(async (req: Request, res: Response) =>
   res.json(await classesService.getClassStats(req.user!, req.params.id));
 });
 
+export const getClassTimetable = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await classesService.getClassTimetable(req.user!, req.params.id));
+});
+
 export const deleteClass = asyncHandler(async (req: Request, res: Response) => {
   res.status(204).json(await classesService.deleteClass(req.user!.schoolId, req.params.id));
 });

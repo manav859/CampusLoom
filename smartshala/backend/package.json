@@ -35,7 +35,8 @@
     "test:transport": "tsx tests/transport.test.ts",
     "test:staff-summary": "tsx tests/staffMonthSummary.test.ts",
     "test:fee-access": "tsx tests/feeRoleAccess.test.ts",
-    "test:class-subjects": "tsx tests/classSubjects.test.ts"
+    "test:class-subjects": "tsx tests/classSubjects.test.ts",
+    "test:timetable": "tsx tests/timetable.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

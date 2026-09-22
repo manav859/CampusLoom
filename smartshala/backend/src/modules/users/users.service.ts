@@ -14,8 +14,8 @@ type TeacherPeriodInput = {
   subjectId?: string | null;
 };
 
-const timetableDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"] as const;
-const timetableDayLabels: Record<(typeof timetableDays)[number], string> = {
+export const timetableDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"] as const;
+export const timetableDayLabels: Record<(typeof timetableDays)[number], string> = {
   MONDAY: "Monday",
   TUESDAY: "Tuesday",
   WEDNESDAY: "Wednesday",
@@ -23,7 +23,7 @@ const timetableDayLabels: Record<(typeof timetableDays)[number], string> = {
   FRIDAY: "Friday"
 };
 
-async function getTimetablePeriodCount(schoolId: string) {
+export async function getTimetablePeriodCount(schoolId: string) {
   const school = await prisma.school.findUnique({
     where: { id: schoolId },
     select: { timetablePeriodCount: true }
@@ -369,6 +369,42 @@ export async function getMySchedule(user: Express.UserContext, day?: string) {
 function weekdayName(date: Date) {
   return ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"][date.getDay()];
 }
+
+// The same timetable as getMySchedule, but all five weekdays at once. The app's
+// My Timetable screen needs the week; five round trips on a phone is four too
+// many, and getMySchedule already loads every weekday and discards four of them.
+export async function getMyWeekSchedule(user: Express.UserContext) {
+  const [periods, times] = await Promise.all([
+    prisma.teacherPeriodAssignment.findMany({
+      where: { schoolId: user.schoolId, teacherId: user.id, classId: { not: null } },
+      orderBy: { periodNumber: "asc" },
+      include: {
+        class: { select: { id: true, name: true, section: true, academicYear: true } },
+        subject: { select: { id: true, name: true } }
+      }
+    }),
+    prisma.periodTime.findMany({
+      where: { schoolId: user.schoolId },
+      select: { periodNumber: true, startTime: true, endTime: true }
+    })
+  ]);
+  const timeByPeriod = new Map(times.map((time) => [time.periodNumber, time]));
+
+  return {
+    days: timetableDays.map((dayOfWeek) => ({
+      dayOfWeek,
+      label: timetableDayLabels[dayOfWeek],
+      periods: periods
+        .filter((period) => period.dayOfWeek === dayOfWeek)
+        .map((period) => ({
+          ...mapPeriod(period),
+          startTime: timeByPeriod.get(period.periodNumber)?.startTime ?? null,
+          endTime: timeByPeriod.get(period.periodNumber)?.endTime ?? null
+        }))
+    }))
+  };
+}
+
 
 export async function updateTeacherAssignments(schoolId: string, teacherId: string, periods: TeacherPeriodInput[]) {
   const teacher = await prisma.user.findFirst({ where: { id: teacherId, schoolId, role: UserRole.TEACHER }, select: { id: true } });

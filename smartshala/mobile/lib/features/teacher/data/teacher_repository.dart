@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import 'academics_models.dart';
 import '../../../core/data/calendar_models.dart';
+import '../../../core/data/timetable_models.dart';
 import 'salary_models.dart';
 import 'teacher_models.dart';
 
@@ -44,6 +45,12 @@ class TeacherRepository {
     return ((data['periods'] as List?) ?? const [])
         .map((item) => SchedulePeriod.fromJson((item as Map).cast<String, dynamic>()))
         .toList();
+  }
+
+  /// The whole week, for My Timetable. One request, not five.
+  Future<WeekTimetable> weekTimetable() async {
+    final data = await api.get('/users/me/schedule/week') as Map<String, dynamic>;
+    return WeekTimetable.forTeacher(data);
   }
 
   /// Only the classes this teacher is assigned to — the server scopes

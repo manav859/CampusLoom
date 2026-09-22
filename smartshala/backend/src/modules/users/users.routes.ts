@@ -16,6 +16,7 @@ usersRouter.get(
   validate({ query: myScheduleQuerySchema }),
   controller.getMySchedule
 );
+usersRouter.get("/me/schedule/week", controller.getMyWeekSchedule);
 usersRouter.get("/teachers", requireRole(adminRoles), controller.listTeachers);
 usersRouter.post("/teachers", requireRole(adminRoles), validate({ body: createTeacherSchema }), controller.createTeacher);
 usersRouter.post("/accountants", requireRole(adminRoles), validate({ body: createAccountantSchema }), controller.createAccountant);

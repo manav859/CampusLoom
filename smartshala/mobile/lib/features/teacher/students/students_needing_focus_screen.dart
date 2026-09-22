@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
+import '../../../core/widgets/list_with_header.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/academics_models.dart';
 import '../data/teacher_repository.dart';
@@ -61,35 +62,40 @@ class _StudentsNeedingFocusScreenState extends State<StudentsNeedingFocusScreen>
             }
 
             final result = snapshot.data!;
-            return ListView(
+            return ListWithHeader(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [
-                _ThresholdsCard(thresholds: result.thresholds),
-                const SizedBox(height: 18),
-                if (result.students.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 40),
-                    child: EmptyView(
-                      icon: Icons.verified_rounded,
-                      title: 'Nobody is flagged',
-                      message: 'No student in your classes is currently below the thresholds.',
-                    ),
-                  )
-                else ...[
-                  SectionHeader(title: '${result.students.length} students flagged'),
-                  for (final student in result.students) ...[
-                    _FocusCard(
-                      student: student,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => StudentProfileScreen(studentId: student.studentId),
-                        ),
+              header: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _ThresholdsCard(thresholds: result.thresholds),
+                  const SizedBox(height: 18),
+                  if (result.students.isNotEmpty)
+                    SectionHeader(title: '${result.students.length} students flagged'),
+                ],
+              ),
+              empty: const Padding(
+                padding: EdgeInsets.only(top: 40),
+                child: EmptyView(
+                  icon: Icons.verified_rounded,
+                  title: 'Nobody is flagged',
+                  message: 'No student in your classes is currently below the thresholds.',
+                ),
+              ),
+              itemCount: result.students.length,
+              itemBuilder: (context, index) {
+                final student = result.students[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _FocusCard(
+                    student: student,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => StudentProfileScreen(studentId: student.studentId),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                  ],
-                ],
-              ],
+                  ),
+                );
+              },
             );
           },
         ),

@@ -24,6 +24,7 @@ import 'leave/apply_leave_screen.dart';
 import 'marks/marks_screen.dart';
 import 'students/my_students_screen.dart';
 import 'students/students_needing_focus_screen.dart';
+import 'timetable/my_timetable_screen.dart';
 
 /// The teacher dashboard. It reads the same endpoints as the web teacher
 /// dashboard (GET /dashboard, /users/me/schedule, /staff-attendance/me/today)
@@ -162,13 +163,16 @@ class _HomeBody extends StatelessWidget {
         const SizedBox(height: 22),
         SectionHeader(
           title: "Today's Schedule",
-          action: Text(
-            data.schedule.isEmpty ? '' : '${data.schedule.length} periods',
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          action: TextButton(
+            onPressed: () => _open(context, const MyTimetableScreen()),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
+            child: const Text('View week'),
           ),
         ),
         _ScheduleList(periods: data.schedule),

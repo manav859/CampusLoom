@@ -10,6 +10,7 @@ import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/app_chips.dart';
+import '../../../core/widgets/list_with_header.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
@@ -192,121 +193,127 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
     final counts = _counts;
     final filtered = _filtered;
     final visible = filtered.take(_shown).toList();
+    final showRows = !_loading && _error == null && filtered.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Teacher Management')),
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: ListView(
+        child: ListWithHeader(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          children: [
-            ResponsiveGrid(
-              phoneColumns: 3,
-              wideColumns: 3,
-              children: [
-                KpiCard(index: 1, label: 'Total', value: counts == null ? '—' : '${counts.total}', icon: Icons.badge_rounded),
-                KpiCard(index: 3, label: 'Active', value: counts == null ? '—' : '${counts.active}', icon: Icons.how_to_reg_rounded),
-                KpiCard(index: 2, label: 'Inactive', value: counts == null ? '—' : '${counts.inactive}', icon: Icons.person_off_rounded),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ResponsiveGrid(
-              phoneColumns: 2,
-              wideColumns: 3,
-              children: [
-                ManagementActionButton(
-                  icon: Icons.person_add_alt_1_rounded,
-                  label: 'Add Teacher',
-                  primary: true,
-                  onTap: _addTeacher,
+          header: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ResponsiveGrid(
+                phoneColumns: 3,
+                wideColumns: 3,
+                children: [
+                  KpiCard(index: 1, label: 'Total', value: counts == null ? '—' : '${counts.total}', icon: Icons.badge_rounded),
+                  KpiCard(index: 3, label: 'Active', value: counts == null ? '—' : '${counts.active}', icon: Icons.how_to_reg_rounded),
+                  KpiCard(index: 2, label: 'Inactive', value: counts == null ? '—' : '${counts.inactive}', icon: Icons.person_off_rounded),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ResponsiveGrid(
+                phoneColumns: 2,
+                wideColumns: 3,
+                children: [
+                  ManagementActionButton(
+                    icon: Icons.person_add_alt_1_rounded,
+                    label: 'Add Teacher',
+                    primary: true,
+                    onTap: _addTeacher,
+                  ),
+                  ManagementActionButton(
+                    icon: Icons.ios_share_rounded,
+                    label: _exporting ? 'Exporting…' : 'Export List',
+                    onTap: _exporting || _loading ? null : _export,
+                  ),
+                  ManagementActionButton(
+                    icon: Icons.event_available_rounded,
+                    label: 'Teacher Leave',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const LeaveApprovalScreen()),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                onChanged: (value) => _setFilter(() => _search = value),
+                textInputAction: TextInputAction.search,
+                decoration: const InputDecoration(
+                  hintText: 'Search by name, phone or email',
+                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
                 ),
-                ManagementActionButton(
-                  icon: Icons.ios_share_rounded,
-                  label: _exporting ? 'Exporting…' : 'Export List',
-                  onTap: _exporting || _loading ? null : _export,
-                ),
-                ManagementActionButton(
-                  icon: Icons.event_available_rounded,
-                  label: 'Teacher Leave',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const LeaveApprovalScreen()),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilterChipButton(
+                    label: _subject ?? 'All Subjects',
+                    active: _subject != null,
+                    onTap: _pickSubject,
+                  ),
+                  FilterChipButton(
+                    label: _classTeacher == null ? 'All Class Teachers' : 'Class $_classTeacher',
+                    active: _classTeacher != null,
+                    onTap: _pickClassTeacher,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SegmentedTabs(
+                labels: const ['Active', 'Inactive'],
+                counts: counts == null ? null : [counts.active, counts.inactive],
+                index: _inactive ? 1 : 0,
+                onChanged: (index) {
+                  if ((index == 1) == _inactive) return;
+                  setState(() => _inactive = index == 1);
+                  _reload();
+                },
+              ),
+              const SizedBox(height: 14),
+              if (_loading)
+                const Padding(padding: EdgeInsets.symmetric(vertical: 48), child: LoadingView())
+              else if (_error != null)
+                ErrorView(message: _error!, onRetry: _reload)
+              else if (filtered.isEmpty)
+                const AppCard(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: EmptyView(
+                    icon: Icons.person_search_rounded,
+                    title: 'No teachers found',
+                    message: 'Try a different search or filter.',
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Showing ${visible.length} of ${filtered.length}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              onChanged: (value) => _setFilter(() => _search = value),
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                hintText: 'Search by name, phone or email',
-                prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilterChipButton(
-                  label: _subject ?? 'All Subjects',
-                  active: _subject != null,
-                  onTap: _pickSubject,
-                ),
-                FilterChipButton(
-                  label: _classTeacher == null ? 'All Class Teachers' : 'Class $_classTeacher',
-                  active: _classTeacher != null,
-                  onTap: _pickClassTeacher,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SegmentedTabs(
-              labels: const ['Active', 'Inactive'],
-              counts: counts == null ? null : [counts.active, counts.inactive],
-              index: _inactive ? 1 : 0,
-              onChanged: (index) {
-                if ((index == 1) == _inactive) return;
-                setState(() => _inactive = index == 1);
-                _reload();
-              },
-            ),
-            const SizedBox(height: 14),
-            if (_loading)
-              const Padding(padding: EdgeInsets.symmetric(vertical: 48), child: LoadingView())
-            else if (_error != null)
-              ErrorView(message: _error!, onRetry: _reload)
-            else if (filtered.isEmpty)
-              const AppCard(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: EmptyView(
-                  icon: Icons.person_search_rounded,
-                  title: 'No teachers found',
-                  message: 'Try a different search or filter.',
-                ),
-              )
-            else ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'Showing ${visible.length} of ${filtered.length}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                ),
-              ),
-              for (var index = 0; index < visible.length; index++) ...[
-                if (index > 0) const SizedBox(height: 8),
-                TeacherRowCard(teacher: visible[index], onTap: () => _openTeacher(visible[index])),
-              ],
-              if (visible.length < filtered.length) ...[
-                const SizedBox(height: 14),
-                OutlinedButton(
-                  onPressed: () => setState(() => _shown += _pageSize),
-                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
-                  child: const Text('Load More'),
-                ),
-              ],
             ],
-          ],
+          ),
+          itemCount: showRows ? visible.length : 0,
+          itemBuilder: (context, index) => Padding(
+            padding: EdgeInsets.only(top: index == 0 ? 0 : 8),
+            child: TeacherRowCard(teacher: visible[index], onTap: () => _openTeacher(visible[index])),
+          ),
+          footer: showRows && visible.length < filtered.length
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: OutlinedButton(
+                    onPressed: () => setState(() => _shown += _pageSize),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+                    child: const Text('Load More'),
+                  ),
+                )
+              : null,
         ),
       ),
     );

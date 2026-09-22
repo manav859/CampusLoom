@@ -12,6 +12,7 @@ import '../../../core/data/dashboard_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/app_chips.dart';
+import '../../../core/widgets/list_with_header.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
@@ -256,120 +257,128 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
   Widget build(BuildContext context) {
     final counts = _counts;
     final hasMore = _fetched < _total;
+    final showRows = !_loading && _error == null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Student Management')),
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: ListView(
+        child: ListWithHeader(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          children: [
-            ResponsiveGrid(
-              phoneColumns: 3,
-              wideColumns: 3,
-              children: [
-                KpiCard(index: 1, label: 'Total', value: counts == null ? '—' : '${counts.total}', icon: Icons.groups_rounded),
-                KpiCard(index: 3, label: 'Active', value: counts == null ? '—' : '${counts.active}', icon: Icons.how_to_reg_rounded),
-                KpiCard(index: 2, label: 'Inactive', value: counts == null ? '—' : '${counts.inactive}', icon: Icons.person_off_rounded),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ResponsiveGrid(
-              phoneColumns: 2,
-              wideColumns: 2,
-              children: [
-                ManagementActionButton(
-                  icon: Icons.person_add_alt_1_rounded,
-                  label: 'Add Student',
-                  primary: true,
-                  onTap: _addStudent,
-                ),
-                ManagementActionButton(
-                  icon: Icons.ios_share_rounded,
-                  label: _exporting ? 'Exporting…' : 'Export List',
-                  onTap: _exporting ? null : _export,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                hintText: 'Search by name, admission no or phone',
-                prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
+          header: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ResponsiveGrid(
+                phoneColumns: 3,
+                wideColumns: 3,
+                children: [
+                  KpiCard(index: 1, label: 'Total', value: counts == null ? '—' : '${counts.total}', icon: Icons.groups_rounded),
+                  KpiCard(index: 3, label: 'Active', value: counts == null ? '—' : '${counts.active}', icon: Icons.how_to_reg_rounded),
+                  KpiCard(index: 2, label: 'Inactive', value: counts == null ? '—' : '${counts.inactive}', icon: Icons.person_off_rounded),
+                ],
               ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilterChipButton(
-                  label: _class?.label ?? 'All Classes',
-                  active: _class != null,
-                  onTap: _pickClass,
-                ),
-                FilterChipButton(
-                  label: switch (_feeStatus) {
-                    null => 'All Fee Statuses',
-                    final status => '${status.label} Fees',
-                  },
-                  active: _feeStatus != null,
-                  onTap: _pickFeeStatus,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            SegmentedTabs(
-              labels: const ['Active', 'Inactive'],
-              counts: counts == null ? null : [counts.active, counts.inactive],
-              index: _inactive ? 1 : 0,
-              onChanged: (index) {
-                if ((index == 1) == _inactive) return;
-                setState(() => _inactive = index == 1);
-                _reload();
-              },
-            ),
-            const SizedBox(height: 14),
-            if (_loading)
-              const Padding(padding: EdgeInsets.symmetric(vertical: 48), child: LoadingView())
-            else if (_error != null)
-              ErrorView(message: _error!, onRetry: _reload)
-            else if (_rows.isEmpty && !hasMore)
-              const AppCard(
-                padding: EdgeInsets.symmetric(vertical: 24),
-                child: EmptyView(
-                  icon: Icons.person_search_rounded,
-                  title: 'No students found',
-                  message: 'Try a different search or filter.',
-                ),
-              )
-            else ...[
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  _feeStatus == null
-                      ? 'Showing ${_rows.length} of $_total'
-                      : 'Showing ${_rows.length} with ${_feeStatus!.label.toLowerCase()} fees',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              const SizedBox(height: 16),
+              ResponsiveGrid(
+                phoneColumns: 2,
+                wideColumns: 2,
+                children: [
+                  ManagementActionButton(
+                    icon: Icons.person_add_alt_1_rounded,
+                    label: 'Add Student',
+                    primary: true,
+                    onTap: _addStudent,
+                  ),
+                  ManagementActionButton(
+                    icon: Icons.ios_share_rounded,
+                    label: _exporting ? 'Exporting…' : 'Export List',
+                    onTap: _exporting ? null : _export,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                textInputAction: TextInputAction.search,
+                decoration: const InputDecoration(
+                  hintText: 'Search by name, admission no or phone',
+                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
                 ),
               ),
-              for (var index = 0; index < _rows.length; index++) ...[
-                if (index > 0) const SizedBox(height: 8),
-                StudentRowCard(student: _rows[index], onTap: () => _openStudent(_rows[index])),
-              ],
-              if (hasMore) ...[
-                const SizedBox(height: 14),
-                OutlinedButton(
-                  onPressed: _loadingMore ? null : _loadMore,
-                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
-                  child: Text(_loadingMore ? 'Loading…' : 'Load More'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilterChipButton(
+                    label: _class?.label ?? 'All Classes',
+                    active: _class != null,
+                    onTap: _pickClass,
+                  ),
+                  FilterChipButton(
+                    label: switch (_feeStatus) {
+                      null => 'All Fee Statuses',
+                      final status => '${status.label} Fees',
+                    },
+                    active: _feeStatus != null,
+                    onTap: _pickFeeStatus,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SegmentedTabs(
+                labels: const ['Active', 'Inactive'],
+                counts: counts == null ? null : [counts.active, counts.inactive],
+                index: _inactive ? 1 : 0,
+                onChanged: (index) {
+                  if ((index == 1) == _inactive) return;
+                  setState(() => _inactive = index == 1);
+                  _reload();
+                },
+              ),
+              const SizedBox(height: 14),
+              if (_loading)
+                const Padding(padding: EdgeInsets.symmetric(vertical: 48), child: LoadingView())
+              else if (_error != null)
+                ErrorView(message: _error!, onRetry: _reload)
+              else if (_rows.isEmpty && !hasMore)
+                const AppCard(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: EmptyView(
+                    icon: Icons.person_search_rounded,
+                    title: 'No students found',
+                    message: 'Try a different search or filter.',
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _feeStatus == null
+                        ? 'Showing ${_rows.length} of $_total'
+                        : 'Showing ${_rows.length} with ${_feeStatus!.label.toLowerCase()} fees',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
                 ),
-              ],
             ],
-          ],
+          ),
+          // Load More appends to the same list, so this grows without limit —
+          // the rows have to be built on demand.
+          itemCount: showRows ? _rows.length : 0,
+          itemBuilder: (context, index) => Padding(
+            padding: EdgeInsets.only(top: index == 0 ? 0 : 8),
+            child: StudentRowCard(student: _rows[index], onTap: () => _openStudent(_rows[index])),
+          ),
+          footer: showRows && hasMore
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: OutlinedButton(
+                    onPressed: _loadingMore ? null : _loadMore,
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+                    child: Text(_loadingMore ? 'Loading…' : 'Load More'),
+                  ),
+                )
+              : null,
         ),
       ),
     );

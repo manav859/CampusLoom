@@ -19,6 +19,7 @@ import 'school/school_profile_screen.dart';
 import 'students/student_management_screen.dart';
 import 'subjects/subjects_screen.dart';
 import 'teachers/teacher_management_screen.dart';
+import 'timetable/timetable_screen.dart';
 import 'transport/transport_screen.dart';
 
 /// Every secondary module lives here rather than on Home, in the four groups
@@ -52,8 +53,9 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
         _MoreEntry('Subjects', 'Manage subjects and curriculum',
             Icons.menu_book_rounded, AppColors.purple, 'Phase 5',
             screen: SubjectsScreen.new),
-        _MoreEntry('Timetable', 'View and manage class timetable',
-            Icons.schedule_rounded, AppColors.warning, 'Phase 7'),
+        _MoreEntry('Timetable', 'View the weekly timetable for each class',
+            Icons.schedule_rounded, AppColors.warning, 'Phase 7',
+            screen: TimetableScreen.new),
         _MoreEntry('Transport', 'Manage routes, vehicles and drivers',
             Icons.directions_bus_rounded, AppColors.danger, 'Phase 7',
             screen: TransportScreen.new),

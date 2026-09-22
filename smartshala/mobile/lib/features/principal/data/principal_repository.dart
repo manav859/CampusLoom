@@ -4,6 +4,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/data/calendar_models.dart';
 import '../../../core/data/dashboard_models.dart';
 import '../../../core/data/exam_models.dart';
+import '../../../core/data/timetable_models.dart';
 import 'fee_models.dart';
 import 'principal_dashboard.dart';
 import 'report_models.dart';
@@ -290,6 +291,13 @@ class PrincipalRepository {
   Future<ClassRow> classDetail(String id) async {
     final data = await api.get('/classes/$id') as Map<String, dynamic>;
     return ClassRow.fromJson(data);
+  }
+
+  /// One class's week, pivoted server-side out of the teacher assignments the
+  /// web grid writes.
+  Future<WeekTimetable> classTimetable(String id) async {
+    final data = await api.get('/classes/$id/timetable') as Map<String, dynamic>;
+    return WeekTimetable.forClass(data);
   }
 
   Future<ClassStats> classStats(String id) async {

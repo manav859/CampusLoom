@@ -23,6 +23,10 @@ export const getMySchedule = asyncHandler(async (req: Request, res: Response) =>
   res.json(await usersService.getMySchedule(req.user!, req.query.day as string | undefined));
 });
 
+export const getMyWeekSchedule = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await usersService.getMyWeekSchedule(req.user!));
+});
+
 export const getTeacherAssignments = asyncHandler(async (req: Request, res: Response) => {
   res.json(await usersService.getTeacherAssignments(req.user!.schoolId, req.params.id));
 });

@@ -6,6 +6,7 @@ import '../../../core/data/dashboard_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/app_chips.dart';
+import '../../../core/widgets/list_with_header.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
@@ -79,56 +80,62 @@ class _StudentReportScreenState extends State<StudentReportScreen> {
               ),
             _ => RefreshIndicator(
                 onRefresh: _reload,
-                child: ListView(
+                child: ListWithHeader(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                  children: [
-                    ResponsiveGrid(
-                      phoneColumns: 3,
-                      wideColumns: 3,
-                      children: [
-                        KpiCard(
-                          index: 2,
-                          label: 'Below 75%',
-                          value: '${all!.where((row) => row.flags.contains('LOW_ATTENDANCE')).length}',
-                          icon: Icons.trending_down_rounded,
-                        ),
-                        KpiCard(
-                          index: 4,
-                          label: 'Repeat absentees',
-                          value: '${all.where((row) => row.flags.contains('REPEAT_ABSENTEE')).length}',
-                          icon: Icons.event_busy_rounded,
-                        ),
-                        KpiCard(
-                          index: 0,
-                          label: 'High priority',
-                          value: '${all.where((row) => row.level == RiskLevel.high).length}',
-                          icon: Icons.priority_high_rounded,
-                        ),
-                      ],
+                  header: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ResponsiveGrid(
+                        phoneColumns: 3,
+                        wideColumns: 3,
+                        children: [
+                          KpiCard(
+                            index: 2,
+                            label: 'Below 75%',
+                            value: '${all!.where((row) => row.flags.contains('LOW_ATTENDANCE')).length}',
+                            icon: Icons.trending_down_rounded,
+                          ),
+                          KpiCard(
+                            index: 4,
+                            label: 'Repeat absentees',
+                            value: '${all.where((row) => row.flags.contains('REPEAT_ABSENTEE')).length}',
+                            icon: Icons.event_busy_rounded,
+                          ),
+                          KpiCard(
+                            index: 0,
+                            label: 'High priority',
+                            value: '${all.where((row) => row.level == RiskLevel.high).length}',
+                            icon: Icons.priority_high_rounded,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      SegmentedTabs(
+                        labels: const ['All', 'High', 'Medium', 'Low'],
+                        counts: [
+                          all.length,
+                          for (final level in RiskLevel.values) all.where((row) => row.level == level).length,
+                        ],
+                        index: _level == null ? 0 : _level!.index + 1,
+                        onChanged: (index) => setState(() => _level = index == 0 ? null : RiskLevel.values[index - 1]),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                  empty: const AppCard(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: EmptyView(
+                      icon: Icons.sentiment_satisfied_alt_rounded,
+                      title: 'No students flagged',
+                      message: 'Attendance this month is on track.',
                     ),
-                    const SizedBox(height: 14),
-                    SegmentedTabs(
-                      labels: const ['All', 'High', 'Medium', 'Low'],
-                      counts: [
-                        all.length,
-                        for (final level in RiskLevel.values) all.where((row) => row.level == level).length,
-                      ],
-                      index: _level == null ? 0 : _level!.index + 1,
-                      onChanged: (index) => setState(() => _level = index == 0 ? null : RiskLevel.values[index - 1]),
-                    ),
-                    const SizedBox(height: 12),
-                    if (visible!.isEmpty)
-                      const AppCard(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: EmptyView(
-                          icon: Icons.sentiment_satisfied_alt_rounded,
-                          title: 'No students flagged',
-                          message: 'Attendance this month is on track.',
-                        ),
-                      )
-                    else
-                      for (final row in visible) ...[
-                        AppCard(
+                  ),
+                  itemCount: visible!.length,
+                  itemBuilder: (context, index) {
+                    final row = visible[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: AppCard(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(builder: (_) => PrincipalStudentProfileScreen(studentId: row.studentId)),
@@ -161,9 +168,8 @@ class _StudentReportScreenState extends State<StudentReportScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                      ],
-                  ],
+                    );
+                  },
                 ),
               ),
           },

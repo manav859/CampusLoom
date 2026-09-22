@@ -6,6 +6,7 @@ import '../../../core/data/dashboard_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/app_chips.dart';
+import '../../../core/widgets/list_with_header.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/fee_models.dart';
 import '../data/principal_repository.dart';
@@ -106,106 +107,111 @@ class _DefaultersScreenState extends State<DefaultersScreen> {
 
           return RefreshIndicator(
             onRefresh: _reload,
-            child: ListView(
+            child: ListWithHeader(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              children: [
-                TextField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _search = value),
-                  decoration: const InputDecoration(
-                    hintText: 'Search student or class...',
-                    prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
+              header: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _search = value),
+                    decoration: const InputDecoration(
+                      hintText: 'Search student or class...',
+                      prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilterChipButton(
-                      label: _class ?? 'All Classes',
-                      active: _class != null,
-                      onTap: () => _pick<String?>(
-                        'Class',
-                        [(label: 'All Classes', value: null), for (final name in classes) (label: name, value: name)],
-                        _class,
-                        (value) => _class = value,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilterChipButton(
+                        label: _class ?? 'All Classes',
+                        active: _class != null,
+                        onTap: () => _pick<String?>(
+                          'Class',
+                          [(label: 'All Classes', value: null), for (final name in classes) (label: name, value: name)],
+                          _class,
+                          (value) => _class = value,
+                        ),
                       ),
-                    ),
-                    FilterChipButton(
-                      label: _statuses.where((item) => item.$1 == _status).firstOrNull?.$2 ?? 'All Fee Statuses',
-                      active: _status != null,
-                      onTap: () => _pick<String?>(
-                        'Fee status',
-                        [
-                          (label: 'All Fee Statuses', value: null),
-                          for (final (value, label) in _statuses) (label: label, value: value),
-                        ],
-                        _status,
-                        (value) => _status = value,
+                      FilterChipButton(
+                        label: _statuses.where((item) => item.$1 == _status).firstOrNull?.$2 ?? 'All Fee Statuses',
+                        active: _status != null,
+                        onTap: () => _pick<String?>(
+                          'Fee status',
+                          [
+                            (label: 'All Fee Statuses', value: null),
+                            for (final (value, label) in _statuses) (label: label, value: value),
+                          ],
+                          _status,
+                          (value) => _status = value,
+                        ),
                       ),
-                    ),
-                    FilterChipButton(
-                      label: _dueAge?.label ?? 'All Due Ages',
-                      active: _dueAge != null,
-                      onTap: () => _pick<DueAge?>(
-                        'Due age',
-                        [(label: 'All Due Ages', value: null), for (final age in DueAge.values) (label: age.label, value: age)],
-                        _dueAge,
-                        (value) => _dueAge = value,
+                      FilterChipButton(
+                        label: _dueAge?.label ?? 'All Due Ages',
+                        active: _dueAge != null,
+                        onTap: () => _pick<DueAge?>(
+                          'Due age',
+                          [(label: 'All Due Ages', value: null), for (final age in DueAge.values) (label: age.label, value: age)],
+                          _dueAge,
+                          (value) => _dueAge = value,
+                        ),
                       ),
-                    ),
-                    FilterChipButton(
-                      label: _sort.label,
-                      active: _sort != DefaulterSort.overdueDesc,
-                      onTap: () => _pick<DefaulterSort>(
-                        'Sort',
-                        [for (final sort in DefaulterSort.values) (label: sort.label, value: sort)],
-                        _sort,
-                        (value) => _sort = value,
+                      FilterChipButton(
+                        label: _sort.label,
+                        active: _sort != DefaulterSort.overdueDesc,
+                        onTap: () => _pick<DefaulterSort>(
+                          'Sort',
+                          [for (final sort in DefaulterSort.values) (label: sort.label, value: sort)],
+                          _sort,
+                          (value) => _sort = value,
+                        ),
                       ),
-                    ),
-                    if (_hasFilters)
-                      TextButton(
-                        onPressed: () => setState(() {
-                          _searchController.clear();
-                          _search = '';
-                          _class = null;
-                          _status = null;
-                          _dueAge = null;
-                          _sort = DefaulterSort.overdueDesc;
-                        }),
-                        child: const Text('Clear'),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Showing ${visible.length} of ${rows.length} pending active fee accounts.',
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 10),
-                if (visible.isEmpty)
-                  const AppCard(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: EmptyView(icon: Icons.task_alt_rounded, title: 'No defaulters match the selected filters.'),
-                  )
-                else
-                  for (final row in visible) ...[
-                    _DefaulterCard(
-                      row: row,
-                      sending: _sendingId == row.studentId,
-                      onOpen: () async {
-                        final changed = await Navigator.of(context).push<bool>(
-                          MaterialPageRoute(builder: (_) => StudentFeeLedgerScreen(studentId: row.studentId)),
-                        );
-                        if (changed == true && mounted) await _reload();
-                      },
-                      onRemind: () => _sendReminder(row),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-              ],
+                      if (_hasFilters)
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _searchController.clear();
+                            _search = '';
+                            _class = null;
+                            _status = null;
+                            _dueAge = null;
+                            _sort = DefaulterSort.overdueDesc;
+                          }),
+                          child: const Text('Clear'),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Showing ${visible.length} of ${rows.length} pending active fee accounts.',
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
+              empty: const AppCard(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: EmptyView(icon: Icons.task_alt_rounded, title: 'No defaulters match the selected filters.'),
+              ),
+              itemCount: visible.length,
+              itemBuilder: (context, index) {
+                final row = visible[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _DefaulterCard(
+                    row: row,
+                    sending: _sendingId == row.studentId,
+                    onOpen: () async {
+                      final changed = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(builder: (_) => StudentFeeLedgerScreen(studentId: row.studentId)),
+                      );
+                      if (changed == true && mounted) await _reload();
+                    },
+                    onRemind: () => _sendReminder(row),
+                  ),
+                );
+              },
             ),
           );
         },

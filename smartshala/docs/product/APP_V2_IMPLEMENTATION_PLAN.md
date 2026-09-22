@@ -2,9 +2,11 @@
 
 **Source of truth:** [SmartShala_App_V2_0_Product_UI_Blueprint.pdf](SmartShala_App_V2_0_Product_UI_Blueprint.pdf) (in this folder)
 **Created:** 2026-09-05
-**Status:** Phases 0–6 complete, plus bell timings with Now/Upcoming badges (Phase 7, item 29) and Payroll with teacher
-Salary Details (Phase 7, item 31) and Transport (Phase 7, item 30). The principal app has no placeholder left except
-Timetable (Phase 7) and Notifications (Phase 8). Next: Phase 8.
+**Status:** Phases 0–6 complete, and **Phase 7 is done**: bell timings with Now/Upcoming badges (item 29),
+Transport (item 30), Payroll with teacher Salary Details (item 31) and Timetable in both apps (2026-09-19).
+Phase 8 items 33 and 34 are done too. What is left — push notifications (32) and Play Store prep (35), and with them
+the principal app's last placeholder, Notifications — is **blocked on a Firebase project and a signing keystore**,
+not on code. See Phase 8 for what is needed.
 
 ## Decisions taken (2026-09-05)
 
@@ -584,7 +586,7 @@ create / edit / delete 403. Principal: create 201; 31 February, `HOLIDAY` and an
     `GET`/`PUT /settings/period-times` for Principal and Admin, and a **Bell Timings** section on the web dashboard's
     Settings page. `GET /users/me/schedule` now carries each period's `startTime`/`endTime`, and the teacher Home
     shows the time plus the blueprint's **Now** / **Upcoming** badges. Period assignment stays on the existing web
-    grid; the principal app's Timetable tile is still a placeholder →
+    grid; the principal app's Timetable tile reads that grid (see Timetable in both apps, below) →
     **verified:** [periodTimes.test.ts](../../backend/tests/periodTimes.test.ts) against a real database
     (out-of-range, reversed, zero-length, overlapping and duplicate periods rejected; untimed periods carry nulls;
     lowering Periods Per Day hides later times); 7 unit tests in
@@ -639,6 +641,46 @@ create / edit / delete 403. Principal: create 201; 31 February, `HOLIDAY` and an
 #### Nobody records their own salary
 The same rule as leave: a principal or admin is also staff, so `PUT /payroll/slips` returns **403
 `CANNOT_RECORD_OWN_SALARY`** when the slip is the caller's, and the month sheet marks that row "Your own".
+
+
+#### Timetable in both apps (2026-09-19)
+The last Phase 7 placeholder. Both screens **read** the timetable; period assignment stays on the web grid, as
+decided with item 29, so no new write path and no double-booking rules to re-implement on a phone. No migration —
+`TeacherPeriodAssignment` already carries `classId`, and `PeriodTime` the bell.
+- **API:** `GET /classes/:id/timetable` pivots the per-teacher assignments into one class's week. Every period
+  `1..periodCount` is present on every weekday with nulls for free slots, so the app lays out a grid without filling
+  gaps. Access follows its sibling class reads: Principal and Admin see any class, a teacher only one they teach.
+  `GET /users/me/schedule/week` is `GET /users/me/schedule` for all five weekdays at once — that call already loaded
+  every weekday and discarded four, and five round trips on a phone is four too many.
+- **Double-booked slots are named, not hidden.** `ensureTeacherPeriods` seeds assignments with no conflict check
+  (only saving from the web grid checks), so two teachers can hold the same class, day and period. The response
+  carries `contestedBy`, and both apps show a **Double-booked** chip. On the local demo data three real slots were
+  already contested.
+- **Shared:** [timetable_models.dart](../../mobile/lib/core/data/timetable_models.dart) and
+  [timetable_week.dart](../../mobile/lib/core/widgets/timetable_week.dart) — day chips over period rows, one widget
+  for both apps. The Now/Upcoming rule moved here as `periodBadges`; `scheduleBadges` now delegates to it, so the
+  teacher Home and the new screens cannot drift apart.
+- **Principal app:** More → Timetable ([timetable/](../../mobile/lib/features/principal/timetable/)) — class picker,
+  weekday chips, each period with its bell time, subject and teacher, and a note saying periods are assigned on the
+  web dashboard.
+- **Teacher app:** My Timetable ([timetable/](../../mobile/lib/features/teacher/timetable/)), opened from **View week**
+  on Home's Today's Schedule. Same layout, with the class opposite the subject instead of the teacher. Home's header
+  now shows that link in place of its "N periods" count; the list below it already says as much.
+
+**Verified:**
+- [timetable.test.ts](../../backend/tests/timetable.test.ts) against a real database (`npm run test:timetable`): the
+  grid carries every period on every weekday, free slots come back all null, an untimed period carries null times, a
+  contested slot reports `contestedBy: 1` and names the first teacher alphabetically, another school's class 404s, a
+  teacher who teaches the class may read it and one who does not 404s, and a teacher's own week carries only their
+  own rows and drops periods with no class.
+- Over HTTP against a copy of the local demo database with data: class timetable 200 with 8 periods on each of 5
+  days; the three `contestedBy` slots matched SQL exactly (Mon P5, Thu P3, Fri P6); the teacher's week returned 7
+  periods a day, matching SQL; teacher reading a class they teach 200, unknown class 404, no token 401 on both
+  endpoints.
+- [timetable_test.dart](../../mobile/test/timetable_test.dart), 17 tests, including both screens at 320dp with 1.3×
+  text. That caught a real overflow: the double-booked chip was originally "+N more assigned", 34px too wide, and is
+  plain "Double-booked" now. The full mobile suite (189 tests) passes and both APKs build.
+- **Not yet:** neither screen has been opened on a phone.
 
 ### Teacher dashboard: web and app are one (2026-09-13)
 Both read `GET /dashboard`, `GET /users/me/schedule` and `GET /staff-attendance/me/today` and show the same sections
@@ -695,10 +737,45 @@ only), Students Needing Focus, Apply Leave (form only) and Salary.
 Period assignments (which carry `subjectId`) are not considered. This rule also applies on the web.
 
 ### Phase 8 — Polish & release
-32. Push notifications (`DeviceToken` + FCM) → **verify:** an announcement triggers a device notification.
-33. Empty states, loading skeletons, error states, pull-to-refresh across all screens.
-34. Performance pass on long lists; offline behaviour per the Phase-0 decision.
-35. Play Store release prep: icons, splash, signing, privacy policy, internal testing track.
+32. **Blocked, not started.** Push notifications (`DeviceToken` + FCM) → **verify:** an announcement triggers a device
+    notification. There is no Firebase project and no `google-services.json` anywhere in the repo, and
+    `firebase_messaging` cannot be added to the app without one. Open question 2 (per-device or per-user tokens) is
+    still unanswered. Nothing was stubbed: a half-wired FCM path that cannot be delivered to or tested is worse than
+    an honest gap. **Needs from the owner:** a Firebase project for the two application IDs, its
+    `google-services.json`, a service account for the backend, and the per-device/per-user decision.
+    The principal app's **Notifications** tile stays a placeholder for the same reason — the in-app feed it would
+    otherwise show is already the Messages tab in both apps (announcements with per-user read state, plus leave).
+33. ✅ **Audited, already in place.** Every screen was checked for the four states. Loading, error with retry, and
+    empty are on every screen that loads data; the two Calendar screens looked bare only because they delegate to the
+    shared [school_calendar.dart](../../mobile/lib/core/widgets/school_calendar.dart), which has all four. Screens
+    with no pull-to-refresh are forms and pickers, where it would do nothing. No changes were needed.
+34. ✅ **Long lists build on demand** (2026-09-19). Nine lists were already lazy (`ListView.separated`); the rest were
+    eager `ListView(children: [...])`, which builds every row before the first frame. That is fine for a form or a
+    class roster and wrong for a list as long as the school.
+    - New [list_with_header.dart](../../mobile/lib/core/widgets/list_with_header.dart): a `ListView.builder` whose
+      first item is the screen's existing header, with optional `empty` and `footer` slots. It sets
+      `AlwaysScrollableScrollPhysics` so a short or empty list still drags — otherwise pull-to-refresh dies on exactly
+      the screens with nothing to show.
+    - Converted the five school-scale lists: **Defaulter Follow-up** (every pending account), **Student Report**
+      (every flagged student), **Student Management** and **Teacher Management** (both grow without limit through
+      Load More, which is now the `footer`), and the teacher's **Students Needing Focus**.
+    - **Left alone on purpose:** class rosters (Mark Attendance, Marks, Exam Results, Class Detail), route riders,
+      one student's fee ledger, and the per-class and per-teacher report rows. All are bounded by class size or class
+      count, and converting them would be churn.
+    - **Offline** needs no work beyond what exists: the Phase-0 decision is online-only with explicit error and retry,
+      and `ApiException.fromDio` already turns a connection failure into a plain "Cannot reach SmartShala. Check your
+      internet connection." that every `ErrorView` shows with a Try again button.
+
+    **Verified:** [list_with_header_test.dart](../../mobile/test/list_with_header_test.dart), 7 tests — a 500-row list
+    builds under 60 rows and never builds row 499, scrolling still reaches row 400, the empty slot replaces the rows
+    while keeping the header, the footer sits after the last row and survives an empty list, and a fling on an empty
+    list fires pull-to-refresh. Plus a screen-level guard in
+    [fee_management_test.dart](../../mobile/test/fee_management_test.dart): Defaulter Follow-up with 400 students
+    builds fewer than 200 cards and leaves the last row unbuilt. The whole mobile suite (197 tests) passes, `flutter
+    analyze` is clean and both APKs build.
+35. **Blocked, not started.** Play Store release prep: icons, splash, signing, privacy policy, internal testing track.
+    **Needs from the owner:** an upload keystore (and somewhere safe to keep it), a Play Console account with the two
+    listings created, store assets, and a publicly hosted privacy policy URL.
 
 ---
 
@@ -740,6 +817,7 @@ What remains open is scoped to later phases:
 | `CalendarEvent` model + [calendar module](../../backend/src/modules/calendar/) | Nothing but holidays had a date on a school calendar. `/calendar?month=` merges events with the existing holidays; `/calendar/events` is the principal-only CRUD. The holiday endpoints are untouched. |
 | `SalarySlip` model + [payroll module](../../backend/src/modules/payroll/) | Nothing recorded pay before. `/payroll/me/slips` (own, any staff), `/payroll/slips` month sheet + save + delete (Principal/Admin). |
 | `PeriodTime` model + `/settings/period-times` | Periods had a number but no clock time. `GET /users/me/schedule` adds `startTime`/`endTime` to each period (null when unset); its other fields are unchanged. |
+| `GET /classes/:id/timetable` + `GET /users/me/schedule/week` | The apps needed a class's week and a teacher's whole week. Both are reads over the existing `TeacherPeriodAssignment` rows — no migration. `contestedBy` names a slot two teachers hold. |
 | `POST /marks/exams` `results` optional (default empty) | Lets both apps schedule an exam before marks exist. The web still sends marks. |
 | Class subject edits keep existing rows; removing a used subject 409 `SUBJECT_IN_USE` | The old delete-and-recreate set exam, homework and timetable links to null. |
 | `PATCH /classes/:id` wrapped in `asyncHandler` | Its errors were unhandled rejections and the request hung. |

@@ -1,6 +1,8 @@
 import '../../../core/data/dashboard_models.dart';
+import '../../../core/data/timetable_models.dart';
 
 export '../../../core/data/dashboard_models.dart';
+export '../../../core/data/timetable_models.dart' show PeriodBadge;
 
 enum PunchState { notPunchedIn, punchedIn, punchedOut }
 
@@ -54,8 +56,8 @@ class SchedulePeriod {
   final String? endTime;
 
   /// Minutes after midnight, or null when the period has no time.
-  int? get startMinute => _minutesOf(startTime);
-  int? get endMinute => _minutesOf(endTime);
+  int? get startMinute => timeToMinutes(startTime);
+  int? get endMinute => timeToMinutes(endTime);
 
   factory SchedulePeriod.fromJson(Map<String, dynamic> json) => SchedulePeriod(
         periodNumber: (json['periodNumber'] as num).toInt(),
@@ -67,35 +69,12 @@ class SchedulePeriod {
       );
 }
 
-int? _minutesOf(String? time) {
-  final parts = time?.split(':');
-  if (parts == null || parts.length != 2) return null;
-  final hours = int.tryParse(parts[0]);
-  final minutes = int.tryParse(parts[1]);
-  return hours == null || minutes == null ? null : hours * 60 + minutes;
-}
-
-enum PeriodBadge { now, upcoming }
-
-/// The blueprint's "Now" and "Upcoming" badges at [now]: the period in
-/// progress, and the single next one to start. Untimed periods get neither.
-/// The bell is validated to run in period order, so list order is time order.
-List<PeriodBadge?> scheduleBadges(List<SchedulePeriod> periods, DateTime now) {
-  final minute = now.hour * 60 + now.minute;
-  var upcomingGiven = false;
-
-  return periods.map((period) {
-    final start = period.startMinute;
-    final end = period.endMinute;
-    if (start == null || end == null) return null;
-    if (start <= minute && minute < end) return PeriodBadge.now;
-    if (!upcomingGiven && start > minute) {
-      upcomingGiven = true;
-      return PeriodBadge.upcoming;
-    }
-    return null;
-  }).toList();
-}
+/// Today's Now/Upcoming badges, by the one rule in [periodBadges].
+List<PeriodBadge?> scheduleBadges(List<SchedulePeriod> periods, DateTime now) =>
+    periodBadges(
+      periods.map((period) => (start: period.startMinute, end: period.endMinute)).toList(),
+      now,
+    );
 
 /// The four "Today's Overview" counters on the teacher home screen.
 class TeacherOverview {

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:smartshala_mobile/core/api/api_exception.dart';
+import 'package:smartshala_mobile/core/widgets/app_cards.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/principal/data/fee_models.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_repository.dart';
@@ -66,6 +67,11 @@ Map<String, dynamic> _ledgerJson({double balance = 15000}) => {
     };
 
 class _FakeRepository extends Fake implements PrincipalRepository {
+  _FakeRepository({this.defaulterRows});
+
+  /// Overrides the three-row default, for the long-list test.
+  final List<DefaulterRow>? defaulterRows;
+
   final payments = <(NewPayment, String)>[];
   final reminders = <String>[];
   int ledgerCalls = 0;
@@ -94,7 +100,9 @@ class _FakeRepository extends Fake implements PrincipalRepository {
       });
 
   @override
-  Future<List<DefaulterRow>> defaulters() async => [
+  Future<List<DefaulterRow>> defaulters() async =>
+      defaulterRows ??
+      [
         _defaulter('Aarav Mehta', '6-A', balance: 15000, days: 45, status: 'PARTIAL'),
         _defaulter('Diya Rao', '7-B', balance: 8000, days: 3),
         _defaulter('Kabir Shah', '6-A', balance: 22000, days: 120, status: 'OVERDUE'),
@@ -281,6 +289,32 @@ void main() {
     testWidgets('lays out at 320dp with 1.3x text', (tester) async {
       await _pump(tester, const DefaultersScreen(), width: 320, textScale: 1.3);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a school-sized list builds only the rows on screen', (tester) async {
+      // The server returns every pending account at once, so this list is as
+      // long as the school. It must not build a card per student up front.
+      await _pump(
+        tester,
+        const DefaultersScreen(),
+        repository: _FakeRepository(
+          defaulterRows: [
+            for (var index = 0; index < 400; index++)
+              _defaulter('Student $index', '6-A', balance: 1000 + index.toDouble()),
+          ],
+        ),
+      );
+
+      // The default sort is longest overdue then largest balance, so the
+      // highest-numbered student leads and Student 0 is 400 rows down.
+      expect(find.text('Showing 400 of 400 pending active fee accounts.'), findsOneWidget);
+      expect(find.text('Student 399'), findsOneWidget);
+      expect(find.text('Student 0'), findsNothing);
+      expect(
+        tester.widgetList(find.byType(AppCard)).length,
+        lessThan(200),
+        reason: 'an eager ListView would have built all 400 cards',
+      );
     });
   });
 
