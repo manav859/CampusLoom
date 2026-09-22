@@ -76,9 +76,11 @@ async function subjectForAssignment(user: HomeworkUser, classId: string, subject
 async function ensureClassSubjects(user: HomeworkUser, classId: string, teacherId?: string | null) {
   const count = await prisma.subject.count({ where: { schoolId: user.schoolId, classId } });
   if (count > 0) {
+    // Only fill in the subjects nobody owns. Taking one off the teacher it names
+    // would undo a deliberate choice made on the web dashboard.
     if (teacherId) {
       await prisma.subject.updateMany({
-        where: { schoolId: user.schoolId, classId, OR: [{ teacherId: null }, { teacherId: { not: teacherId } }] },
+        where: { schoolId: user.schoolId, classId, teacherId: null },
         data: { teacherId }
       });
     }

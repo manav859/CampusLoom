@@ -34,9 +34,11 @@ async function ensureClassSubjects(schoolId: string, classId: string, teacherId?
     return;
   }
 
-  if (teacherId && existing.some((subject) => subject.teacherId !== teacherId)) {
+  // Only fill in the subjects nobody owns. Taking one off the teacher it names
+  // would undo a deliberate choice made on the web dashboard.
+  if (teacherId && existing.some((subject) => subject.teacherId === null)) {
     await prisma.subject.updateMany({
-      where: { schoolId, classId, OR: [{ teacherId: null }, { teacherId: { not: teacherId } }] },
+      where: { schoolId, classId, teacherId: null },
       data: { teacherId }
     });
   }
@@ -125,9 +127,7 @@ export async function listClasses(user: Express.UserContext, options: { scope?: 
   });
 
   const classesNeedingSubjects = classes.filter(
-    (classRecord) =>
-      classRecord.subjects.length === 0 ||
-      Boolean(classRecord.classTeacherId && classRecord.subjects.some((subject) => subject.teacherId !== classRecord.classTeacherId))
+    (classRecord) => classRecord.subjects.length === 0 || classRecord.subjects.some((subject) => subject.teacherId === null)
   );
 
   if (classesNeedingSubjects.length === 0) {

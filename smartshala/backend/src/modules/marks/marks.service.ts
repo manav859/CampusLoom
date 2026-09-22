@@ -44,6 +44,23 @@ function canManageMarks(user: MarksUser) {
   return user.role === UserRole.TEACHER || user.role === UserRole.PRINCIPAL || user.role === UserRole.ADMIN;
 }
 
+type TaughtSubject = { classId: string; subjectId: string };
+
+// The class-and-subject pairs a teacher holds periods for. `Subject.teacherId`
+// names one teacher per subject, so a subject teacher who is not that one — and
+// is not the class teacher — has no record of teaching it anywhere but the
+// timetable. Empty for anyone who is not a teacher: they see every subject.
+async function taughtSubjects(user: MarksUser): Promise<TaughtSubject[]> {
+  if (user.role !== UserRole.TEACHER) return [];
+
+  const assignments = await prisma.teacherPeriodAssignment.findMany({
+    where: { schoolId: user.schoolId, teacherId: user.id, classId: { not: null }, subjectId: { not: null } },
+    select: { classId: true, subjectId: true },
+    distinct: ["classId", "subjectId"]
+  });
+  return assignments.map((assignment) => ({ classId: assignment.classId!, subjectId: assignment.subjectId! }));
+}
+
 async function assertClassAccess(user: MarksUser, classId: string) {
   if (!canManageMarks(user)) {
     throw new AppError(403, "You do not have permission to manage marks", "FORBIDDEN");
@@ -69,7 +86,15 @@ async function assertSubjectAccess(user: MarksUser, classId: string, subjectId: 
       schoolId: user.schoolId,
       AND: [
         { OR: [{ classId }, { classId: null }] },
-        ...(user.role === UserRole.TEACHER ? [{ OR: [{ teacherId: user.id }, { class: { classTeacherId: user.id } }] }] : [])
+        ...(user.role === UserRole.TEACHER
+          ? [{
+              OR: [
+                { teacherId: user.id },
+                { class: { classTeacherId: user.id } },
+                { teacherPeriodAssignments: { some: { teacherId: user.id, classId } } }
+              ]
+            }]
+          : [])
       ]
     },
     select: { id: true, name: true }
@@ -81,9 +106,11 @@ async function assertSubjectAccess(user: MarksUser, classId: string, subjectId: 
 async function ensureClassSubjects(user: MarksUser, classId: string, teacherId?: string | null) {
   const count = await prisma.subject.count({ where: { schoolId: user.schoolId, classId } });
   if (count > 0) {
+    // Only fill in the subjects nobody owns. Taking one off the teacher it names
+    // would undo a deliberate choice made on the web dashboard.
     if (teacherId) {
       await prisma.subject.updateMany({
-        where: { schoolId: user.schoolId, classId, OR: [{ teacherId: null }, { teacherId: { not: teacherId } }] },
+        where: { schoolId: user.schoolId, classId, teacherId: null },
         data: { teacherId }
       });
     }
@@ -146,12 +173,15 @@ function mapExam(exam: {
   };
 }
 
-function teacherExamWhere(user: MarksUser) {
+function teacherExamWhere(user: MarksUser, taught: TaughtSubject[]) {
   return user.role === UserRole.TEACHER
     ? {
         OR: [
           { class: { classTeacherId: user.id } },
-          { subjectRef: { teacherId: user.id } }
+          { subjectRef: { teacherId: user.id } },
+          // One branch per class-and-subject pair: a nested filter cannot tie
+          // the subject's periods back to this exam's own class.
+          ...taught.map(({ classId, subjectId }) => ({ classId, subjectId }))
         ]
       }
     : {};
@@ -248,8 +278,7 @@ export async function marksContext(user: Express.UserContext) {
       classes
         .filter(
           (classRecord) =>
-            classRecord.subjects.length === 0 ||
-            Boolean(classRecord.classTeacherId && classRecord.subjects.some((subject) => subject.teacherId !== classRecord.classTeacherId))
+            classRecord.subjects.length === 0 || classRecord.subjects.some((subject) => subject.teacherId === null)
         )
         .map((classRecord) => ensureClassSubjects(user, classRecord.id, classRecord.classTeacherId))
     );
@@ -262,9 +291,10 @@ export async function marksContext(user: Express.UserContext) {
           : {})
       },
       include: {
+        // Filtered below rather than here: which subjects a teacher may examine
+        // depends on the class each one sits in, which a nested where cannot see.
         subjects: {
-          where: user.role === UserRole.TEACHER ? { OR: [{ teacherId: user.id }, { class: { classTeacherId: user.id } }] } : {},
-          select: { id: true, name: true },
+          select: { id: true, name: true, teacherId: true },
           orderBy: { name: "asc" }
         },
         students: {
@@ -276,12 +306,21 @@ export async function marksContext(user: Express.UserContext) {
       orderBy: [{ name: "asc" }, { section: "asc" }]
     });
 
+    const taught = await taughtSubjects(user);
+    const canExamine = (classRecord: { id: string; classTeacherId: string | null }, subject: { id: string; teacherId: string | null }) =>
+      user.role !== UserRole.TEACHER ||
+      subject.teacherId === user.id ||
+      classRecord.classTeacherId === user.id ||
+      taught.some((pair) => pair.classId === classRecord.id && pair.subjectId === subject.id);
+
     return {
       classes: hydratedClasses.map((classRecord) => ({
         id: classRecord.id,
         name: classRecord.name,
         section: classRecord.section,
-        subjects: classRecord.subjects,
+        subjects: classRecord.subjects
+          .filter((subject) => canExamine(classRecord, subject))
+          .map(({ id, name }) => ({ id, name })),
         students: classRecord.students
       }))
     };
@@ -310,7 +349,7 @@ export async function listExams(user: Express.UserContext, query: { classId?: st
       where: {
         schoolId: user.schoolId,
         classId: { in: classIds },
-        ...teacherExamWhere(user)
+        ...teacherExamWhere(user, await taughtSubjects(user))
       },
       include: {
         class: { select: { id: true, name: true, section: true } },
@@ -427,7 +466,7 @@ export async function getExam(user: Express.UserContext, examId: string) {
       where: {
         id: examId,
         schoolId: user.schoolId,
-        ...teacherExamWhere(user)
+        ...teacherExamWhere(user, await taughtSubjects(user))
       },
       include: {
         class: {
@@ -498,7 +537,7 @@ export async function updateExamResult(user: Express.UserContext, examId: string
       where: {
         id: examId,
         schoolId: user.schoolId,
-        ...teacherExamWhere(user)
+        ...teacherExamWhere(user, await taughtSubjects(user))
       },
       include: {
         class: { select: { id: true } },

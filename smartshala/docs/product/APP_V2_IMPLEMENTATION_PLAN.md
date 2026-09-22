@@ -4,7 +4,8 @@
 **Created:** 2026-09-05
 **Status:** Phases 0–6 complete, and **Phase 7 is done**: bell timings with Now/Upcoming badges (item 29),
 Transport (item 30), Payroll with teacher Salary Details (item 31) and Timetable in both apps (2026-09-19).
-Phase 8 items 33 and 34 are done too. What is left — push notifications (32) and Play Store prep (35), and with them
+Phase 8 items 33 and 34 are done too, and the device run's one open decision — who may examine a subject — was
+settled and fixed on 2026-09-22. What is left — push notifications (32) and Play Store prep (35), and with them
 the principal app's last placeholder, Notifications — is **blocked on a Firebase project and a signing keystore**,
 not on code. See Phase 8 for what is needed.
 
@@ -731,10 +732,37 @@ only), Students Needing Focus, Apply Leave (form only) and Salary.
 - **Pull-to-refresh threw** "setState() callback argument returned a Future" (principal Home, teacher Home, Homework,
   Salary, Students Needing Focus, and Retry on Add Student) → reproduced in logcat, gone after the fix.
 
-**Open, for a decision:** a subject teacher with periods in a class sees that class in Marks, but Create Test says
-"This class has no subjects you can examine". The backend lets a teacher examine a subject only when they are its
-`Subject.teacherId` or the class teacher, and `ensureClassSubjects` assigns every subject to the class teacher.
-Period assignments (which carry `subjectId`) are not considered. This rule also applies on the web.
+#### A subject teacher may examine what the timetable says they teach (2026-09-22)
+The device run left one thing open: a subject teacher with periods in a class saw that class in Marks, but Create Test
+said "This class has no subjects you can examine". A teacher could examine a subject only when they were its
+`Subject.teacherId` or the class teacher, and `ensureClassSubjects` handed every subject to the class teacher, so a
+subject teacher was never either. Decided with the user: **holding a period for a subject in a class is teaching it.**
+
+- **The rule**, in all three places it is asked ([marks.service.ts](../../backend/src/modules/marks/marks.service.ts)):
+  `assertSubjectAccess` when a test is created, the subject list `marksContext` offers the pickers, and
+  `teacherExamWhere` for which exams a teacher may open and enter marks against. Missing any one of them would let a
+  teacher set a test they then could not find.
+- **Correlated by class.** A period for Mathematics in 7-A grants Mathematics in 7-A, not the Mathematics row in 8-A.
+  `assertSubjectAccess` has the class id to hand, so it asks the database directly; the other two cannot — a nested
+  filter cannot tie a subject's periods back to the exam's own class — so `taughtSubjects` reads the teacher's distinct
+  class-and-subject pairs and the rule is one OR branch per pair.
+- **A period with no subject on it grants nothing.** It puts the class in reach, as it always did, and names no subject.
+- **Subject ownership set on the web now sticks.** `ensureClassSubjects` used to overwrite *every* subject in the class
+  with the class teacher on each call, so naming a subject teacher on the dashboard was undone by the next page load.
+  It now fills in only the subjects nobody owns. All three copies changed — marks, [classes](../../backend/src/modules/classes/classes.service.ts)
+  and [homework](../../backend/src/modules/homework/homework.service.ts) — since one left alone would undo the others.
+  The callers that existed to trigger that overwrite now run only when a subject has no teacher.
+- **No app or web change.** Both read the same endpoints, and "This class has no subjects you can examine" is still
+  the right words for a teacher whose periods name no subject.
+
+**Verified:** [subjectTeacherMarks.test.ts](../../backend/tests/subjectTeacherMarks.test.ts)
+(`npm run test:subject-teacher`) against a real database: a period for Mathematics offers Mathematics and not the rest
+of the class, the class teacher still gets every subject, a subject in another class with the same name stays out, a
+period with no subject offers nothing, creating the test succeeds for the subject teacher and 404s for a subject they
+do not teach and for a teacher with an empty period, and the exam list shows each teacher only their own subjects.
+It fails on the old code — the subject list came back empty. `classSubjects`, `timetable`, `periodTimes`,
+`teacherStudentAccess`, `marksExamTerm`, `studentAttendance` and `calendar` still pass, and `npm run lint` is clean.
+**Not yet:** not re-checked on a phone.
 
 ### Phase 8 — Polish & release
 32. **Blocked, not started.** Push notifications (`DeviceToken` + FCM) → **verify:** an announcement triggers a device
@@ -818,6 +846,8 @@ What remains open is scoped to later phases:
 | `SalarySlip` model + [payroll module](../../backend/src/modules/payroll/) | Nothing recorded pay before. `/payroll/me/slips` (own, any staff), `/payroll/slips` month sheet + save + delete (Principal/Admin). |
 | `PeriodTime` model + `/settings/period-times` | Periods had a number but no clock time. `GET /users/me/schedule` adds `startTime`/`endTime` to each period (null when unset); its other fields are unchanged. |
 | `GET /classes/:id/timetable` + `GET /users/me/schedule/week` | The apps needed a class's week and a teacher's whole week. Both are reads over the existing `TeacherPeriodAssignment` rows — no migration. `contestedBy` names a slot two teachers hold. |
+| A teacher may examine a subject their timetable periods name, in that class | `Subject.teacherId` names one teacher, and the seeding made it the class teacher, so a subject teacher could open a class in Marks but no subject inside it. |
+| `ensureClassSubjects` fills in only unowned subjects | It used to reassign every subject in the class to the class teacher on each call, undoing subject teachers named on the web dashboard. |
 | `POST /marks/exams` `results` optional (default empty) | Lets both apps schedule an exam before marks exist. The web still sends marks. |
 | Class subject edits keep existing rows; removing a used subject 409 `SUBJECT_IN_USE` | The old delete-and-recreate set exam, homework and timetable links to null. |
 | `PATCH /classes/:id` wrapped in `asyncHandler` | Its errors were unhandled rejections and the request hung. |
@@ -866,6 +896,9 @@ npm --prefix backend run test:fee-access
 
 # Class subject edits keep linked rows; scheduled exams reach the teacher
 DATABASE_URL=<postgres url> npm --prefix backend run test:class-subjects
+
+# A subject teacher may examine the subject their periods name, and only that one
+DATABASE_URL=<postgres url> npm --prefix backend run test:subject-teacher
 
 # Mobile analyzer + swipe-gesture tests
 cd mobile && flutter analyze && flutter test
