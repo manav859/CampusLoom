@@ -21,3 +21,7 @@ export const getMyHistory = asyncHandler(async (req: Request, res: Response) => 
 export const getStaffMonthSummary = asyncHandler(async (req: Request, res: Response) => {
   res.json(await staffAttendanceService.getStaffMonthSummary(req.user!.schoolId, req.params.id, req.query.month as string));
 });
+
+export const getStaffDay = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await staffAttendanceService.getStaffDay(req.user!.schoolId, req.query.date as string));
+});

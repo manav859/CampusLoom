@@ -169,6 +169,14 @@ class PrincipalRepository {
     return TeacherAttendanceSummary.fromJson(data);
   }
 
+  Future<StaffDay> staffDay(DateTime date) async {
+    final data = await api.get(
+      '/staff-attendance/day',
+      query: {'date': DateFormat('yyyy-MM-dd').format(date)},
+    ) as Map<String, dynamic>;
+    return StaffDay.fromJson(data);
+  }
+
   Future<void> createTeacher(NewTeacher teacher) => api.post('/users/teachers', body: teacher.toJson());
 
   Future<void> updateTeacher(String id, {required String fullName, required String phone, required String email}) =>

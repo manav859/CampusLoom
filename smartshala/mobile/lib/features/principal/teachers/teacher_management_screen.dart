@@ -18,6 +18,7 @@ import '../data/teacher_models.dart';
 import '../leave/leave_approval_screen.dart';
 import '../widgets/management_widgets.dart';
 import 'add_teacher_screen.dart';
+import 'teacher_attendance_screen.dart';
 import 'teacher_profile_screen.dart';
 
 /// Teacher Management. Loads the whole active or inactive list, as the web
@@ -228,6 +229,13 @@ class _TeacherManagementScreenState extends State<TeacherManagementScreen> {
                     icon: Icons.ios_share_rounded,
                     label: _exporting ? 'Exporting…' : 'Export List',
                     onTap: _exporting || _loading ? null : _export,
+                  ),
+                  ManagementActionButton(
+                    icon: Icons.how_to_reg_rounded,
+                    label: 'Teacher Attendance',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => const TeacherAttendanceScreen()),
+                    ),
                   ),
                   ManagementActionButton(
                     icon: Icons.event_available_rounded,

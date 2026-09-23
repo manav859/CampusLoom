@@ -28,3 +28,11 @@ staffAttendanceRouter.get(
   }),
   controller.getStaffMonthSummary
 );
+
+// The principal's view of every teacher's punch on one day.
+staffAttendanceRouter.get(
+  "/day",
+  requireRole([UserRole.PRINCIPAL, UserRole.ADMIN]),
+  validate({ query: z.object({ date: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/) }) }),
+  controller.getStaffDay
+);

@@ -1,3 +1,4 @@
+import '../../../core/data/messages_models.dart';
 import 'student_models.dart';
 
 int? _intOrNull(Object? value) => value is num ? value.toInt() : int.tryParse('$value');
@@ -146,6 +147,82 @@ class TeacherAttendanceSummary {
         leaveDays: _intOrNull(json['leaveDays']) ?? 0,
         absentDays: _intOrNull(json['absentDays']) ?? 0,
         percentage: _intOrNull(json['percentage']),
+      );
+}
+
+enum StaffDayStatus { notPunchedIn, onLeave, present }
+
+/// One teacher's row in `GET /staff-attendance/day`.
+class StaffDayRow {
+  const StaffDayRow({
+    required this.id,
+    required this.fullName,
+    required this.phone,
+    required this.status,
+    this.leaveType,
+    this.punchInAt,
+    this.punchOutAt,
+    this.workedMinutes,
+  });
+
+  final String id;
+  final String fullName;
+  final String phone;
+  final StaffDayStatus status;
+  final LeaveType? leaveType;
+  final DateTime? punchInAt;
+  final DateTime? punchOutAt;
+
+  /// Null when a past day's punch was never closed.
+  final int? workedMinutes;
+
+  static DateTime? _time(Object? value) => value is String ? DateTime.tryParse(value)?.toLocal() : null;
+
+  factory StaffDayRow.fromJson(Map<String, dynamic> json) => StaffDayRow(
+        id: json['id'] as String,
+        fullName: json['fullName'] as String? ?? '',
+        phone: json['phone'] as String? ?? '',
+        status: switch (json['status']) {
+          'PRESENT' => StaffDayStatus.present,
+          'ON_LEAVE' => StaffDayStatus.onLeave,
+          _ => StaffDayStatus.notPunchedIn,
+        },
+        leaveType: json['leaveType'] == null ? null : LeaveTypeX.fromApi(json['leaveType'] as String?),
+        punchInAt: _time(json['punchInAt']),
+        punchOutAt: _time(json['punchOutAt']),
+        workedMinutes: _intOrNull(json['workedMinutes']),
+      );
+}
+
+/// `GET /staff-attendance/day`: every active teacher's punch on one day,
+/// not-punched-in first.
+class StaffDay {
+  const StaffDay({
+    required this.isSunday,
+    required this.present,
+    required this.onLeave,
+    required this.notPunchedIn,
+    required this.staff,
+    this.holiday,
+  });
+
+  final bool isSunday;
+  final String? holiday;
+  final int present;
+  final int onLeave;
+  final int notPunchedIn;
+  final List<StaffDayRow> staff;
+
+  factory StaffDay.fromJson(Map<String, dynamic> json) => StaffDay(
+        isSunday: json['isSunday'] == true,
+        holiday: json['holiday'] as String?,
+        present: _intOrNull(json['present']) ?? 0,
+        onLeave: _intOrNull(json['onLeave']) ?? 0,
+        notPunchedIn: _intOrNull(json['notPunchedIn']) ?? 0,
+        staff: [
+          for (final row in (json['staff'] as List? ?? const []))
+            StaffDayRow.fromJson(Map<String, dynamic>.from(row as Map)),
+        ],
       );
 }
 

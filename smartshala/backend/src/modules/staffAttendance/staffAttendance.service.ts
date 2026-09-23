@@ -10,11 +10,11 @@ function startOfToday() {
 
 type PunchState = "NOT_PUNCHED_IN" | "PUNCHED_IN" | "PUNCHED_OUT";
 
-function toStatus(record: { punchInAt: Date; punchOutAt: Date | null } | null) {
+function toStatus(record: { punchInAt: Date; punchOutAt: Date | null } | null, now = new Date()) {
   if (!record) return { state: "NOT_PUNCHED_IN" as PunchState, punchInAt: null, punchOutAt: null, workedMinutes: 0 };
 
   const state: PunchState = record.punchOutAt ? "PUNCHED_OUT" : "PUNCHED_IN";
-  const until = record.punchOutAt ?? new Date();
+  const until = record.punchOutAt ?? now;
   const workedMinutes = Math.max(0, Math.round((until.getTime() - record.punchInAt.getTime()) / 60000));
 
   return { state, punchInAt: record.punchInAt, punchOutAt: record.punchOutAt, workedMinutes };
@@ -157,5 +157,68 @@ export async function getStaffMonthSummary(schoolId: string, userId: string, mon
     leaveDays,
     absentDays,
     percentage: workingDays === 0 ? null : Math.round((presentDays / workingDays) * 100)
+  };
+}
+
+type DayStatus = "NOT_PUNCHED_IN" | "ON_LEAVE" | "PRESENT";
+const dayStatusOrder: Record<DayStatus, number> = { NOT_PUNCHED_IN: 0, ON_LEAVE: 1, PRESENT: 2 };
+
+/**
+ * Every active teacher's punch for one day, for the principal. A punch wins
+ * over leave, as in the month summary. Teachers who have not punched in come
+ * first, because they are who the principal is looking for.
+ */
+export async function getStaffDay(schoolId: string, date: string, now = new Date()) {
+  const [year, monthIndex, dayOfMonth] = date.split("-").map(Number);
+  const from = new Date(year, monthIndex - 1, dayOfMonth);
+  const to = new Date(year, monthIndex - 1, dayOfMonth + 1);
+  // Leave days are stored at midnight UTC.
+  const leaveDay = new Date(Date.UTC(year, monthIndex - 1, dayOfMonth));
+
+  const [teachers, punches, leaves, holiday] = await Promise.all([
+    prisma.user.findMany({
+      where: { schoolId, role: UserRole.TEACHER, isActive: true },
+      select: { id: true, fullName: true, phone: true },
+      orderBy: { fullName: "asc" }
+    }),
+    prisma.staffAttendance.findMany({ where: { schoolId, date: { gte: from, lt: to } } }),
+    prisma.leaveRequest.findMany({
+      where: { schoolId, status: LeaveStatus.APPROVED, fromDate: { lte: leaveDay }, toDate: { gte: leaveDay } },
+      select: { userId: true, type: true }
+    }),
+    prisma.holiday.findFirst({ where: { schoolId, date: { gte: from, lt: to } }, select: { reason: true } })
+  ]);
+
+  const punchByUser = new Map(punches.map((row) => [row.userId, row]));
+  const leaveByUser = new Map(leaves.map((row) => [row.userId, row.type]));
+
+  const staff = teachers
+    .map((teacher) => {
+      const punch = punchByUser.get(teacher.id);
+      const leaveType = leaveByUser.get(teacher.id) ?? null;
+      const status: DayStatus = punch ? "PRESENT" : leaveType ? "ON_LEAVE" : "NOT_PUNCHED_IN";
+      const worked = punch ? toStatus(punch, now) : null;
+      return {
+        ...teacher,
+        status,
+        leaveType: status === "ON_LEAVE" ? leaveType : null,
+        punchInAt: worked?.punchInAt ?? null,
+        punchOutAt: worked?.punchOutAt ?? null,
+        // A punch still open on a past day has no end, so its hours are unknown.
+        workedMinutes: worked && (worked.punchOutAt || localDayKey(now) === date) ? worked.workedMinutes : null
+      };
+    })
+    .sort((a, b) => dayStatusOrder[a.status] - dayStatusOrder[b.status]);
+
+  const count = (status: DayStatus) => staff.filter((row) => row.status === status).length;
+  return {
+    date,
+    isSunday: from.getDay() === 0,
+    holiday: holiday?.reason ?? null,
+    total: staff.length,
+    present: count("PRESENT"),
+    onLeave: count("ON_LEAVE"),
+    notPunchedIn: count("NOT_PUNCHED_IN"),
+    staff
   };
 }
