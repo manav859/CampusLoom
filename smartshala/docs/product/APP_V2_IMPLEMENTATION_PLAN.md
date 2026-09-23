@@ -6,7 +6,8 @@
 Transport (item 30), Payroll with teacher Salary Details (item 31) and Timetable in both apps (2026-09-19).
 Phase 8 items 33 and 34 are done too, item 35 is half done — icons, splash, a signing slot and a privacy policy
 draft (2026-09-23) — and the device run's one open decision, who may examine a subject, was settled and fixed on
-2026-09-22 with the same rule carried into homework on 2026-09-23. What is left — push notifications (32) and Play Store prep (35), and with them
+2026-09-22 with the same rule carried into homework on 2026-09-23, when the teacher Home's More tile also stopped
+being a placeholder. What is left — push notifications (32) and Play Store prep (35), and with them
 the principal app's last placeholder, Notifications — is **blocked on a Firebase project, a keystore and a Play
 Console account**, not on code. See Phase 8 for what is needed.
 
@@ -792,6 +793,18 @@ teach and for a teacher with an empty period. It fails on the old code — the s
 `subjectTeacherMarks`, `classSubjects`, `timetable`, `teacherStudentAccess` and `marksExamTerm` still pass, the mobile
 suite passes, and `npm run lint` is clean.
 **Not yet:** not re-checked on a phone.
+
+#### The teacher's More tile opens something (2026-09-23)
+The eighth Home quick action, **More**, still answered "More arrives in a later phase." — the last dead end in the
+teacher app. It now opens [teacher_more_sheet.dart](../../mobile/lib/features/teacher/teacher_more_sheet.dart), styled
+like the principal's Quick Add sheet, with the teacher screens the grid has no tile for: **My Timetable** (until now
+only behind Today's Schedule's *View week* link), **Salary Details** and **Messages**. With the grid that covers every
+item on the web teacher sidebar; the web's *Classes* page is the app's My Students class picker. Like the Calendar and
+My Students tiles, the entries push the screen rather than switch tabs.
+**Verified:** a widget test in [teacher_dashboard_test.dart](../../mobile/test/teacher_dashboard_test.dart) — More lists
+the three entries, and tapping My Timetable closes the sheet and opens the screen. It fails on the old code. The mobile
+suite (207 tests) passes, `flutter analyze` is clean and the teacher APK builds.
+**Not yet:** not opened on a phone.
 
 ### Phase 8 — Polish & release
 32. **Blocked, not started.** Push notifications (`DeviceToken` + FCM) → **verify:** an announcement triggers a device

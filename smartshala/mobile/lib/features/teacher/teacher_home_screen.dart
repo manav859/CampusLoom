@@ -24,6 +24,7 @@ import 'leave/apply_leave_screen.dart';
 import 'marks/marks_screen.dart';
 import 'students/my_students_screen.dart';
 import 'students/students_needing_focus_screen.dart';
+import 'teacher_more_sheet.dart';
 import 'timetable/my_timetable_screen.dart';
 
 /// The teacher dashboard. It reads the same endpoints as the web teacher
@@ -389,19 +390,14 @@ class _QuickActionsGrid extends StatelessWidget {
               icon: action.icon,
               title: action.title,
               color: action.color,
+              // Only More has no screen: it opens a sheet of the rest.
               onTap: action.screen == null
-                  ? () => _showComingSoon(context, action.title)
+                  ? () => TeacherMoreSheet.show(context)
                   : () => _open(context, action.screen!),
             ),
           )
           .toList(),
     );
-  }
-
-  void _showComingSoon(BuildContext context, String title) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('$title arrives in a later phase.')));
   }
 }
 

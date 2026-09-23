@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:smartshala_mobile/core/api/api_exception.dart';
 import 'package:smartshala_mobile/core/auth/app_user.dart';
 import 'package:smartshala_mobile/core/auth/auth_controller.dart';
 import 'package:smartshala_mobile/core/data/messages_models.dart';
 import 'package:smartshala_mobile/core/data/messages_repository.dart';
+import 'package:smartshala_mobile/core/data/timetable_models.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/teacher/data/punch_controller.dart';
 import 'package:smartshala_mobile/features/teacher/data/teacher_models.dart';
 import 'package:smartshala_mobile/features/teacher/data/teacher_repository.dart';
 import 'package:smartshala_mobile/features/teacher/teacher_home_screen.dart';
+import 'package:smartshala_mobile/features/teacher/teacher_more_sheet.dart';
 
 /// A GET /dashboard body for a teacher, shaped exactly as the backend returns it.
 const _dashboardJson = {
@@ -41,6 +44,10 @@ class _FakeRepository extends Fake implements TeacherRepository {
         SchedulePeriod(periodNumber: 1, className: '6-A', subjectName: 'Mathematics', startTime: '08:00', endTime: '08:45'),
         SchedulePeriod(periodNumber: 2, className: '7-B', subjectName: 'Science'),
       ];
+
+  // The More sheet's My Timetable screen asks for this; failing is enough to prove it opened.
+  @override
+  Future<WeekTimetable> weekTimetable() => Future.error(ApiException(message: 'offline', code: 'NETWORK'));
 
   @override
   Future<PunchStatus> punchStatus() async => PunchStatus(
@@ -165,6 +172,22 @@ void main() {
     final scaffold = tester.getRect(find.byType(Scaffold).first);
     expect(scaffold.width, Breakpoints.maxContentWidth);
     expect(scaffold.center.dx, closeTo(600, 1), reason: 'content is centred');
+  });
+
+  testWidgets('More opens the teacher screens the grid has no tile for', (tester) async {
+    await _pumpHome(tester, width: 390);
+
+    await tester.tap(find.text('More'));
+    await tester.pumpAndSettle();
+    for (final title in ['My Timetable', 'Salary Details', 'Messages']) {
+      expect(find.text(title), findsOneWidget, reason: title);
+    }
+    expect(find.textContaining('later phase'), findsNothing);
+
+    await tester.tap(find.text('My Timetable'));
+    await tester.pumpAndSettle();
+    expect(find.byType(TeacherMoreSheet), findsNothing, reason: 'the sheet closes before the screen opens');
+    expect(find.widgetWithText(AppBar, 'My Timetable'), findsOneWidget);
   });
 
   test('adaptiveColumns drops a column on a small phone and widens on a tablet', () {
