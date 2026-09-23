@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../auth/change_password_screen.dart';
 import 'messages/teacher_messages_screen.dart';
 import 'salary/salary_screen.dart';
 import 'timetable/my_timetable_screen.dart';
@@ -41,6 +42,13 @@ class TeacherMoreSheet extends StatelessWidget {
       subtitle: 'Announcements and your leave requests',
       color: AppColors.purple,
       screen: TeacherMessagesScreen.new,
+    ),
+    (
+      icon: Icons.lock_reset_rounded,
+      title: 'Change Password',
+      subtitle: 'Set a new password for your account',
+      color: AppColors.textSecondary,
+      screen: ChangePasswordScreen.new,
     ),
   ];
 

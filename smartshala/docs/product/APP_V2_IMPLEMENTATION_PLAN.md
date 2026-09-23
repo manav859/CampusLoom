@@ -422,7 +422,7 @@ manifest declares the `tel` and `https` intents Android 11+ requires for those l
 
     **Not built, on purpose:**
     - *Import Teachers*, period assignment and Reset Password stay on the web.
-    - *Teacher Attendance* as a school-wide screen isn't built; the profile shows each teacher's month.
+    - ~~*Teacher Attendance* as a school-wide screen isn't built~~ — built 2026-09-23, see *Teacher Attendance and Change Password* below.
     - The blueprint's *Female / Male* tiles, *EMP ID* and *department* have no data in the schema.
 
     **Verified:**
@@ -806,6 +806,46 @@ the three entries, and tapping My Timetable closes the sheet and opens the scree
 suite (207 tests) passes, `flutter analyze` is clean and the teacher APK builds.
 **Not yet:** not opened on a phone.
 
+#### Teacher Attendance and Change Password (2026-09-23)
+Two gaps a daily user would hit, chosen while push notifications wait on Firebase.
+
+**Teacher Attendance (principal).** Teachers swipe to punch every morning, but the principal could only see a punch
+by opening one teacher's profile and reading the month — the blueprint's *Teacher Attendance* quick action was never
+built, on the web or in the app.
+- **Backend:** `GET /staff-attendance/day?date=YYYY-MM-DD`, principal and admin only. Every active teacher of the
+  school with a status — **Present** (punch in, punch out, hours), **On Leave** (approved leave covering the day, with
+  its type) or **Not In** — plus the three counts and whether the day is a Sunday or a school holiday. A punch wins
+  over leave, as in the month summary. Not In comes first, because that is who the principal is looking for. A past
+  day's punch that was never closed reports no hours rather than hours up to now; `toStatus` now takes the clock
+  as an argument so that can be tested.
+- **App:** [teacher_attendance_screen.dart](../../mobile/lib/features/principal/teachers/teacher_attendance_screen.dart),
+  from a new *Teacher Attendance* button beside *Teacher Leave* in Teacher Management. Opens on today; a date bar
+  steps back a day, forward no further than today, or opens a picker; Present / On Leave / Not In tiles; All / Not In /
+  On Leave / Present tabs; a Not In row shows the phone number, a leave row the leave type, a present row its times;
+  tapping a row opens the Teacher Profile. Holidays and Sundays say so above the tiles.
+- **Web:** not built. The web principal has no daily staff view either; say the word and it is one page on the same
+  endpoint.
+
+**Change Password (both apps).** `PATCH /auth/me/password` already existed and the web uses it on /profile, but an
+app user — most of them still on the password the principal typed in — had no way to change it.
+[change_password_screen.dart](../../mobile/lib/features/auth/change_password_screen.dart): current password, new
+password (8–72, as the server requires, and not the same as the current one), confirm. It opens from the teacher's
+More sheet and from the principal's More screen above Sign out. A wrong current password is a 401, which the API
+client answers with one token refresh and a retry before showing the server's *Incorrect current password*; nothing
+signs the user out, because only session restore treats a 401 as the end of a session.
+
+**Verified:**
+- [staffDay.test.ts](../../backend/tests/staffDay.test.ts) (`npm run test:staff-day`) against a real database:
+  counts and order, a punch beating leave, inactive teachers and accountants left out, open and closed punch hours
+  today and a day later, a leave spanning days, holiday and Sunday flags, school isolation — and over HTTP through the
+  real router, a teacher 403, a malformed or missing date 400, and the principal 200 for their own school only. It
+  caught the open-punch clock bug above. `staffAttendance` and `staffMonthSummary` still pass; `npm run lint` is clean.
+- [teacher_attendance_test.dart](../../mobile/test/teacher_attendance_test.dart), 6 tests, and
+  [change_password_test.dart](../../mobile/test/change_password_test.dart), 4 tests. The mobile suite (217 tests)
+  passes, `flutter analyze` is clean and both APKs build.
+
+**Not yet:** neither has been opened on a phone.
+
 ### Phase 8 — Polish & release
 32. **Blocked, not started.** Push notifications (`DeviceToken` + FCM) → **verify:** an announcement triggers a device
     notification. There is no Firebase project and no `google-services.json` anywhere in the repo, and
@@ -932,6 +972,7 @@ What remains open is scoped to later phases:
 | `POST /marks/exams` `results` optional (default empty) | Lets both apps schedule an exam before marks exist. The web still sends marks. |
 | Class subject edits keep existing rows; removing a used subject 409 `SUBJECT_IN_USE` | The old delete-and-recreate set exam, homework and timetable links to null. |
 | `PATCH /classes/:id` wrapped in `asyncHandler` | Its errors were unhandled rejections and the request hung. |
+| `GET /staff-attendance/day?date=` (Principal/Admin) | The principal had no view of who punched in on a day, only one teacher's month. A read over existing rows — no migration. |
 
 None of these change existing web behaviour for principal/admin roles. `npm run lint` (tsc) passes.
 
@@ -971,6 +1012,9 @@ DATABASE_URL=<postgres url> npm --prefix backend run test:payroll
 
 # Staff month summary: working days, leave, join date, school isolation
 DATABASE_URL=<postgres url> npm --prefix backend run test:staff-summary
+
+# Staff day: who is in, on leave or not in; punch beats leave; open punches; roles over HTTP
+DATABASE_URL=<postgres url> npm --prefix backend run test:staff-day
 
 # Every fee route refuses a teacher (no database needed)
 npm --prefix backend run test:fee-access

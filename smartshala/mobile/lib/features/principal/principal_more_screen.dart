@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_cards.dart';
 import '../../core/widgets/placeholder_screen.dart';
 import '../../core/widgets/state_views.dart';
+import '../auth/change_password_screen.dart';
 import 'announcements/create_announcement_screen.dart';
 import 'calendar/academic_calendar_screen.dart';
 import 'classes/classes_screen.dart';
@@ -179,6 +180,14 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
             const SizedBox(height: 12),
           ],
           const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ChangePasswordScreen()),
+            ),
+            icon: const Icon(Icons.lock_reset_rounded, size: 20),
+            label: const Text('Change Password'),
+          ),
+          const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () => context.read<AuthController>().logout(),
             icon: const Icon(Icons.logout_rounded, size: 20),

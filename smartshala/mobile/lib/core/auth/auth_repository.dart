@@ -56,6 +56,11 @@ class AuthRepository {
     }
   }
 
+  Future<void> changePassword({required String currentPassword, required String newPassword}) => api.patch(
+        '/auth/me/password',
+        body: {'currentPassword': currentPassword, 'newPassword': newPassword},
+      );
+
   Future<void> forgotPassword({required String schoolCode, required String identifier}) =>
       api.post(
         '/auth/forgot-password',

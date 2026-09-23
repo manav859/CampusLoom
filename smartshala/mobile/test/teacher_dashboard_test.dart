@@ -179,7 +179,7 @@ void main() {
 
     await tester.tap(find.text('More'));
     await tester.pumpAndSettle();
-    for (final title in ['My Timetable', 'Salary Details', 'Messages']) {
+    for (final title in ['My Timetable', 'Salary Details', 'Messages', 'Change Password']) {
       expect(find.text(title), findsOneWidget, reason: title);
     }
     expect(find.textContaining('later phase'), findsNothing);
