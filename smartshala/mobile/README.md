@@ -93,3 +93,51 @@ flutter test
 `test/swipe_to_punch_test.dart` pins the blueprint rule that punching is a
 swipe and never a tap. `test/app_config_test.dart` pins the deployed backend as
 the default, so a build can never quietly fall back to localhost.
+
+## Brand assets
+
+The launcher icon, the adaptive icon and the launch-screen mark are drawn by
+[`tool/generate_brand_assets.dart`](tool/generate_brand_assets.dart) — the same
+rounded square with an ExtraBold white `Ss` that tops every screen, in the
+portal's colour (blue for the principal, teal for the teacher, so the two apps
+are told apart on a home screen that holds both). It writes every density into
+`android/app/src/<flavor>/res`, plus a 512px store icon into `store/<flavor>/`:
+
+```bash
+flutter test tool/generate_brand_assets.dart
+```
+
+Re-run it after changing a brand colour in `lib/core/theme/app_colors.dart`, and
+commit what it writes. `test/launcher_icons_test.dart` fails if a density goes
+missing or the glyph grows past the adaptive icon's safe zone.
+
+## Release builds
+
+```bash
+flutter build apk --flavor principal -t lib/main_principal.dart --release
+flutter build appbundle --flavor teacher -t lib/main_teacher.dart --release
+```
+
+Without a keystore these are signed with the **debug** key: fine for installing
+on a phone, rejected by the Play Store. To sign for real, create the upload
+keystore once —
+
+```bash
+keytool -genkey -v -keystore <somewhere safe>/smartshala-upload.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+— and write `android/key.properties` beside it:
+
+```properties
+storeFile=<absolute path to smartshala-upload.jks>
+storePassword=...
+keyAlias=upload
+keyPassword=...
+```
+
+Both files are gitignored on purpose. **Back up the keystore somewhere you will
+still have it in five years**: Play ties the published apps to it, and losing it
+means never updating them again. The Gradle config picks it up on its own when
+the file exists and falls back to debug signing when it does not, so a build
+never breaks for want of it.

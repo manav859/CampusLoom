@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AppColors.background, the surface-50 token on the web dashboard. The
+         window the mark sits on while the engine starts, so the launch screen
+         hands over to the app without a flash of a different colour. -->
+    <color name="brand_launch_background">#FFF7F8FB</color>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Android 12 and newer ignore windowBackground for the launch screen and
+         draw the launcher icon on windowSplashScreenBackground instead. Set the
+         colour so that splash matches the one older versions get. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/brand_launch_background</item>
+        <!-- Keep OEM dark modes (e.g. ColorOS) from recolouring the light-only Flutter UI. -->
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+    </style>
+</resources>

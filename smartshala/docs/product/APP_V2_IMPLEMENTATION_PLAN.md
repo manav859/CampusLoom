@@ -4,10 +4,11 @@
 **Created:** 2026-09-05
 **Status:** Phases 0–6 complete, and **Phase 7 is done**: bell timings with Now/Upcoming badges (item 29),
 Transport (item 30), Payroll with teacher Salary Details (item 31) and Timetable in both apps (2026-09-19).
-Phase 8 items 33 and 34 are done too, and the device run's one open decision — who may examine a subject — was
-settled and fixed on 2026-09-22, with the same rule carried into homework on 2026-09-23. What is left — push notifications (32) and Play Store prep (35), and with them
-the principal app's last placeholder, Notifications — is **blocked on a Firebase project and a signing keystore**,
-not on code. See Phase 8 for what is needed.
+Phase 8 items 33 and 34 are done too, item 35 is half done — icons, splash, a signing slot and a privacy policy
+draft (2026-09-23) — and the device run's one open decision, who may examine a subject, was settled and fixed on
+2026-09-22 with the same rule carried into homework on 2026-09-23. What is left — push notifications (32) and Play Store prep (35), and with them
+the principal app's last placeholder, Notifications — is **blocked on a Firebase project, a keystore and a Play
+Console account**, not on code. See Phase 8 for what is needed.
 
 ## Decisions taken (2026-09-05)
 
@@ -829,9 +830,48 @@ suite passes, and `npm run lint` is clean.
     [fee_management_test.dart](../../mobile/test/fee_management_test.dart): Defaulter Follow-up with 400 students
     builds fewer than 200 cards and leaves the last row unbuilt. The whole mobile suite (197 tests) passes, `flutter
     analyze` is clean and both APKs build.
-35. **Blocked, not started.** Play Store release prep: icons, splash, signing, privacy policy, internal testing track.
-    **Needs from the owner:** an upload keystore (and somewhere safe to keep it), a Play Console account with the two
-    listings created, store assets, and a publicly hosted privacy policy URL.
+35. **Half done (2026-09-23).** Play Store release prep. Everything that does not need something only the owner has
+    is in; the rest is listed under **Still needs from the owner** below.
+
+    - **Both apps had the stock Flutter icon** — the blue-and-white beach — and would have gone to the store with it.
+      They now wear the lockup mark they already wear in their own app bar: a rounded square with an ExtraBold white
+      `Ss` in Inter, in the portal's colour. **Blue (#2456E6) for the principal, teal (#0D9488) for the teacher**,
+      both existing web tokens, because the two apps sit next to each other on one phone and the label underneath is
+      otherwise the only thing telling them apart. Say the word and it is one constant per flavor to change.
+    - **Drawn, not hand-exported:** [generate_brand_assets.dart](../../mobile/tool/generate_brand_assets.dart) paints
+      every asset with the app's own bundled Inter and writes them into `android/app/src/<flavor>/res` — the legacy
+      icon and the launch mark at all five densities, the adaptive foreground on its 108dp canvas, the adaptive
+      background colour, the `anydpi-v26` icon, and a 512px store icon into `mobile/store/<flavor>/`. It centres the
+      glyph on the pixels it actually inks rather than on its text box, which otherwise sits the mark visibly high.
+      Run it with `flutter test tool/generate_brand_assets.dart`.
+    - **The adaptive icon names a monochrome layer**, so Android 13's themed icons get the `Ss` and not a flat
+      coloured square.
+    - **The launch screen** was the stock white window — and, in dark mode on Android 11 and older, a black one that
+      flashed into the light-only app. It is now the portal mark on the app's own background colour, with
+      `windowSplashScreenBackground` set in `values-v31` and `values-night-v31` so Android 12+ (which draws its own
+      splash from the launcher icon and ignores `windowBackground`) matches. The night qualifier outranks the version
+      one, which is why both exist.
+    - **A slot for the upload keystore.** `android/key.properties` (gitignored, along with `*.jks`/`*.keystore`) is
+      read before the `android` block; when it is there the release build signs with it, and when it is not the build
+      still works and is signed with the debug key. No build breaks for want of a keystore nobody has yet, and no
+      keystore can be committed by accident. The `keytool` line and the properties file are in the
+      [mobile README](../../mobile/README.md).
+    - **A privacy policy drafted from what the apps actually do**, [PRIVACY_POLICY.md](PRIVACY_POLICY.md): who uses
+      the apps, what staff enter, what is *not* collected (no location — punch is time only — no contacts, no ads, no
+      third-party analytics), what each permission is for, where it is kept, and how to have it deleted. Facts only
+      the owner has are marked `{{ }}`. It carries an appendix mapping the same list onto Play Console's Data safety
+      form, with a note that push notifications will add "Device or other IDs" to it.
+
+    **Verified:** [launcher_icons_test.dart](../../mobile/test/launcher_icons_test.dart), 9 tests — every density
+    exists at exactly the right pixel size for both flavors, the adaptive foreground's inked pixels are centred and
+    fit inside the 66/108 mask, the adaptive icon names all three layers, the background colour is the portal colour,
+    and the launch screen references the mark rather than a bare white window. Both release APKs build. The mobile
+    suite passes.
+
+    **Still needs from the owner:** an upload keystore (and somewhere safe to keep it — losing it means never being
+    able to update the published apps), a Play Console account with the two listings created, the store text and
+    screenshots, and the privacy policy hosted at a public URL.
+    **Not yet:** the new icons have not been seen on a phone.
 
 ---
 

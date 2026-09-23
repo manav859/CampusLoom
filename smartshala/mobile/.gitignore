@@ -46,3 +46,10 @@ app.*.map.json
 
 # Gradle writes reports here when building from the android/ directory
 /android/build/
+
+# The upload keystore and the file naming it. Losing these means never being
+# able to update the published apps again, so keep them somewhere backed up
+# and out of the repository.
+/android/key.properties
+*.jks
+*.keystore
