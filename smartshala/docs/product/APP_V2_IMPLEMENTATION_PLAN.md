@@ -5,7 +5,7 @@
 **Status:** Phases 0–6 complete, and **Phase 7 is done**: bell timings with Now/Upcoming badges (item 29),
 Transport (item 30), Payroll with teacher Salary Details (item 31) and Timetable in both apps (2026-09-19).
 Phase 8 items 33 and 34 are done too, and the device run's one open decision — who may examine a subject — was
-settled and fixed on 2026-09-22. What is left — push notifications (32) and Play Store prep (35), and with them
+settled and fixed on 2026-09-22, with the same rule carried into homework on 2026-09-23. What is left — push notifications (32) and Play Store prep (35), and with them
 the principal app's last placeholder, Notifications — is **blocked on a Firebase project and a signing keystore**,
 not on code. See Phase 8 for what is needed.
 
@@ -762,6 +762,34 @@ period with no subject offers nothing, creating the test succeeds for the subjec
 do not teach and for a teacher with an empty period, and the exam list shows each teacher only their own subjects.
 It fails on the old code — the subject list came back empty. `classSubjects`, `timetable`, `periodTimes`,
 `teacherStudentAccess`, `marksExamTerm`, `studentAttendance` and `calendar` still pass, and `npm run lint` is clean.
+**Not yet:** not re-checked on a phone.
+
+#### And may set homework for it too (2026-09-23)
+The same rule, asked the same way one module over. Homework kept the old test — a teacher could set homework for a
+subject only when they were its `Subject.teacherId` or the class teacher — so a subject teacher opening **Create
+Homework** for a class their timetable gives them found the subject picker empty ("No subjects for this class" in the
+app, "No subjects are assigned for Class 7-A" on the web). Holding a period for a subject in a class now counts here
+as well, in [homework.service.ts](../../backend/src/modules/homework/homework.service.ts):
+
+- `subjectForAssignment`, which guards creating the homework, has the class id to hand and asks the database directly.
+- `homeworkContext`, which fills the pickers, cannot: a nested filter cannot tie a subject's periods back to the class
+  the subject sits in. It now reads every subject in the class and filters in code against `taughtSubjects`, the
+  teacher's distinct class-and-subject pairs — the same shape `marksContext` uses.
+- Which homework a teacher may open is unchanged: it is the homework they set (`assignedById`), not a question about
+  subjects.
+- `homeworkContext`'s trigger for `ensureClassSubjects` still asked the pre-2026-09-22 question — "does any subject
+  belong to someone other than the class teacher?" — which became true of every class the moment a subject teacher was
+  named, so it seeded on every load. It now asks what marks asks: does any subject have no teacher.
+- **No app or web change.** Both read `/homework/context` and show whatever subjects it returns.
+
+**Verified:** [subjectTeacherHomework.test.ts](../../backend/tests/subjectTeacherHomework.test.ts)
+(`npm run test:subject-teacher-homework`) against a real database: a period for Mathematics in 7-A offers Mathematics
+there and not the Science the same teacher takes in 8-A, 8-A offers that Science, the class teacher still gets every
+subject, a period with no subject offers nothing, a subject in a class with no class teacher is left unowned across
+four context loads, and creating the homework succeeds for the subject teacher while 404ing for a subject they do not
+teach and for a teacher with an empty period. It fails on the old code — the subject list came back empty.
+`subjectTeacherMarks`, `classSubjects`, `timetable`, `teacherStudentAccess` and `marksExamTerm` still pass, the mobile
+suite passes, and `npm run lint` is clean.
 **Not yet:** not re-checked on a phone.
 
 ### Phase 8 — Polish & release

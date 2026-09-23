@@ -37,6 +37,23 @@ function teacherOwnershipFilter(user: HomeworkUser) {
   return user.role === UserRole.TEACHER ? { assignedById: user.id } : {};
 }
 
+type TaughtSubject = { classId: string; subjectId: string };
+
+// The class-and-subject pairs a teacher holds periods for. `Subject.teacherId`
+// names one teacher per subject, so a subject teacher who is not that one — and
+// is not the class teacher — has no record of teaching it anywhere but the
+// timetable. Empty for anyone who is not a teacher: they see every subject.
+async function taughtSubjects(user: HomeworkUser): Promise<TaughtSubject[]> {
+  if (user.role !== UserRole.TEACHER) return [];
+
+  const assignments = await prisma.teacherPeriodAssignment.findMany({
+    where: { schoolId: user.schoolId, teacherId: user.id, classId: { not: null }, subjectId: { not: null } },
+    select: { classId: true, subjectId: true },
+    distinct: ["classId", "subjectId"]
+  });
+  return assignments.map((assignment) => ({ classId: assignment.classId!, subjectId: assignment.subjectId! }));
+}
+
 async function assertClassAccess(user: HomeworkUser, classId: string) {
   if (!canManageHomework(user)) {
     throw new AppError(403, "You do not have permission to manage homework", "FORBIDDEN");
@@ -64,7 +81,15 @@ async function subjectForAssignment(user: HomeworkUser, classId: string, subject
       schoolId: user.schoolId,
       AND: [
         { OR: [{ classId }, { classId: null }] },
-        ...(user.role === UserRole.TEACHER ? [{ OR: [{ teacherId: user.id }, { class: { classTeacherId: user.id } }] }] : [])
+        ...(user.role === UserRole.TEACHER
+          ? [{
+              OR: [
+                { teacherId: user.id },
+                { class: { classTeacherId: user.id } },
+                { teacherPeriodAssignments: { some: { teacherId: user.id, classId } } }
+              ]
+            }]
+          : [])
       ]
     },
     select: { id: true, name: true }
@@ -194,8 +219,7 @@ export async function homeworkContext(user: Express.UserContext) {
       classes
         .filter(
           (classRecord) =>
-            classRecord.subjects.length === 0 ||
-            Boolean(classRecord.classTeacherId && classRecord.subjects.some((subject) => subject.teacherId !== classRecord.classTeacherId))
+            classRecord.subjects.length === 0 || classRecord.subjects.some((subject) => subject.teacherId === null)
         )
         .map((classRecord) => ensureClassSubjects(user, classRecord.id, classRecord.classTeacherId))
     );
@@ -208,15 +232,24 @@ export async function homeworkContext(user: Express.UserContext) {
           : {})
       },
       include: {
+        // Filtered below rather than here: which subjects a teacher may set
+        // homework for depends on the class each one sits in, which a nested
+        // where cannot see.
         subjects: {
-          where: user.role === UserRole.TEACHER ? { OR: [{ teacherId: user.id }, { class: { classTeacherId: user.id } }] } : {},
-          select: { id: true, name: true },
+          select: { id: true, name: true, teacherId: true },
           orderBy: { name: "asc" }
         },
         _count: { select: { students: true } }
       },
       orderBy: [{ name: "asc" }, { section: "asc" }]
     });
+
+    const taught = await taughtSubjects(user);
+    const canSetHomework = (classRecord: { id: string; classTeacherId: string | null }, subject: { id: string; teacherId: string | null }) =>
+      user.role !== UserRole.TEACHER ||
+      subject.teacherId === user.id ||
+      classRecord.classTeacherId === user.id ||
+      taught.some((pair) => pair.classId === classRecord.id && pair.subjectId === subject.id);
 
     return {
       classes: hydratedClasses.map((classRecord) => ({
@@ -225,6 +258,8 @@ export async function homeworkContext(user: Express.UserContext) {
         section: classRecord.section,
         studentCount: classRecord._count.students,
         subjects: classRecord.subjects
+          .filter((subject) => canSetHomework(classRecord, subject))
+          .map(({ id, name }) => ({ id, name }))
       }))
     };
   }, { label: "homeworkContext" });

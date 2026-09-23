@@ -37,7 +37,8 @@
     "test:fee-access": "tsx tests/feeRoleAccess.test.ts",
     "test:class-subjects": "tsx tests/classSubjects.test.ts",
     "test:timetable": "tsx tests/timetable.test.ts",
-    "test:subject-teacher": "tsx tests/subjectTeacherMarks.test.ts"
+    "test:subject-teacher": "tsx tests/subjectTeacherMarks.test.ts",
+    "test:subject-teacher-homework": "tsx tests/subjectTeacherHomework.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
