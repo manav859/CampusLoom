@@ -11,10 +11,30 @@ class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.background,
+      // Dropdown menus paint on canvasColor, which base set from its own
+      // lavender-white surface.
+      canvasColor: AppColors.surface,
+      // Only primary, surface and error are ours; the rest of base's scheme is
+      // Material's purple, which pickers and menus read (time picker AM/PM was
+      // pink, its dialog lavender). Map those slots onto the web tokens too.
       colorScheme: base.colorScheme.copyWith(
         primary: AppColors.primary,
         surface: AppColors.surface,
         error: AppColors.danger,
+        surfaceTint: Colors.transparent,
+        primaryContainer: AppColors.primarySoft,
+        onPrimaryContainer: AppColors.primaryDark,
+        secondaryContainer: AppColors.primarySoft,
+        onSecondaryContainer: AppColors.primaryDark,
+        tertiaryContainer: AppColors.primarySoft,
+        onTertiaryContainer: AppColors.primaryDark,
+        surfaceContainerLowest: AppColors.surface,
+        surfaceContainerLow: AppColors.surface,
+        surfaceContainer: AppColors.surface,
+        surfaceContainerHigh: AppColors.surface,
+        surfaceContainerHighest: AppColors.background,
+        onSurfaceVariant: AppColors.textSecondary,
+        outlineVariant: AppColors.border,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.surface,
