@@ -1879,3 +1879,31 @@ export const teacherDayApi = {
   punchStatus: () => apiFetch<PunchStatus>("/staff-attendance/me/today"),
   schedule: () => apiFetch<{ dayOfWeek: string; periods: MySchedulePeriod[] }>("/users/me/schedule")
 };
+
+export type StaffDayStatus = "PRESENT" | "ON_LEAVE" | "NOT_PUNCHED_IN";
+
+/** Every active teacher on one day, not-in first — the principal app's Teacher Attendance. */
+export type StaffDay = {
+  date: string;
+  isSunday: boolean;
+  holiday: string | null;
+  total: number;
+  present: number;
+  onLeave: number;
+  notPunchedIn: number;
+  staff: Array<{
+    id: string;
+    fullName: string;
+    phone: string;
+    status: StaffDayStatus;
+    leaveType: string | null;
+    punchInAt: string | null;
+    punchOutAt: string | null;
+    /** Null for a punch left open on a past day: its hours are unknown. */
+    workedMinutes: number | null;
+  }>;
+};
+
+export const staffAttendanceApi = {
+  day: (date: string) => apiFetch<StaffDay>(`/staff-attendance/day?date=${encodeURIComponent(date)}`)
+};

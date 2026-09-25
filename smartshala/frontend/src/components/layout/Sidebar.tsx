@@ -46,6 +46,7 @@ const adminLinks: NavItem[] = [
     icon: "classManagement",
     children: [
       { label: "Teacher", href: "/teachers", icon: "teachers" },
+      { label: "Teacher Attendance", href: "/teachers/attendance", icon: "attendance" },
       { label: "Classes", href: "/classes", icon: "classes" },
       { label: "Attendance", href: "/attendance", icon: "attendance" },
       { label: "Homework", href: "/teacher/homework", icon: "homework" }
@@ -479,7 +480,10 @@ export function Sidebar({
                     <div className="overflow-hidden">
                       <div className="ml-7 mt-1 space-y-0 border-l-2 border-[#D2D8E0] py-1 pl-6">
                         {item.children.map((child) => {
-                          const childActive = isActiveLink(pathname, child.href);
+                          // /teachers/attendance lights up Teacher Attendance, not Teacher as well.
+                          const childActive = isActiveLink(pathname, child.href) && !item.children.some(
+                            (other) => other.href.startsWith(`${child.href}/`) && isActiveLink(pathname, other.href)
+                          );
                           return (
                             <Link
                               className={`flex min-h-11 items-center rounded-[8px] px-3 text-[13px] font-semibold transition-colors ${

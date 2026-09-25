@@ -379,7 +379,16 @@ export default function TeachersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader hideBreadcrumbs title="Teacher Management" action={isAdmin ? <button onClick={() => setShowCreateModal(true)} className="btn-primary" type="button">Add Teacher</button> : null} />
+      <PageHeader
+        hideBreadcrumbs
+        title="Teacher Management"
+        action={isAdmin ? (
+          <div className="flex flex-wrap gap-2">
+            <Link href="/teachers/attendance" className="btn-secondary text-[#1d1d1f]">Teacher Attendance</Link>
+            <button onClick={() => setShowCreateModal(true)} className="btn-primary" type="button">Add Teacher</button>
+          </div>
+        ) : null}
+      />
 
       <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[1fr_1fr_1fr_auto]">
