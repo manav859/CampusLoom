@@ -33,7 +33,7 @@ const STAGE_LABEL: Record<LeadStage, string> = {
   PROFORMA_SENT: "Proforma sent",
   PAID: "Paid",
   ONBOARDED: "Onboarded",
-  LOST: "Lost"
+  LOST: "Missed Sales"
 };
 
 function assertMaster() {
@@ -406,7 +406,7 @@ export async function updateLead(
       throw new AppError(409, `A deal cannot be moved from ${STAGE_LABEL[lead.stage]} to ${STAGE_LABEL[input.stage]} by hand`, "LEAD_STAGE_LOCKED");
     }
     if (input.stage === LeadStage.LOST && !input.lostReason?.trim()) {
-      throw new AppError(400, "Say why the deal was lost", "LEAD_LOST_REASON_REQUIRED");
+      throw new AppError(400, "Say why the sale was missed", "LEAD_LOST_REASON_REQUIRED");
     }
     data.stage = input.stage;
     data.lostAt = input.stage === LeadStage.LOST ? new Date() : null;

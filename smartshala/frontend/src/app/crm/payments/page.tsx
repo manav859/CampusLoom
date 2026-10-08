@@ -152,9 +152,9 @@ export default function PaymentsPage() {
           </p>
         </div>
         <div className="rounded-lg border border-red-100 bg-red-50 px-5 py-4">
-          <p className="text-xs font-medium text-red-700">Revenue lost</p>
+          <p className="text-xs font-medium text-red-700">Missed sales</p>
           <p className="mt-0.5 text-2xl font-bold tabular-nums text-red-700">{summary ? compactRupees(summary.lostMinor) : "—"}</p>
-          <p className="mt-1 text-xs text-red-700/80">{summary ? `${summary.lostLeads} deal${summary.lostLeads === 1 ? "" : "s"} marked lost` : ""}</p>
+          <p className="mt-1 text-xs text-red-700/80">{summary ? `${summary.lostLeads} deal${summary.lostLeads === 1 ? "" : "s"} marked as missed sales` : ""}</p>
         </div>
       </div>
 

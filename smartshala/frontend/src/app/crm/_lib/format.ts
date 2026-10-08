@@ -8,7 +8,7 @@ export const STAGE: Record<LeadStage, { label: string; tone: Tone }> = {
   PROFORMA_SENT: { label: "Proforma sent", tone: "warn" },
   PAID: { label: "Paid", tone: "good" },
   ONBOARDED: { label: "Onboarded", tone: "good" },
-  LOST: { label: "Lost", tone: "danger" }
+  LOST: { label: "Missed Sales", tone: "danger" }
 };
 
 export const STAGES = (Object.keys(STAGE) as LeadStage[]).map((id) => ({ id, ...STAGE[id] }));

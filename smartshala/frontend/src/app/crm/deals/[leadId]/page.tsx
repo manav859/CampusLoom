@@ -63,7 +63,7 @@ export default function DealPage({ params }: { params: Promise<{ leadId: string 
   const canWork = data.stage !== "PAID" && data.stage !== "ONBOARDED";
   const actions = [
     ...(data.stage !== "ONBOARDED" ? [{ label: "Edit details", onClick: () => setEditing(true) }] : []),
-    ...(canWork && data.stage !== "LOST" ? [{ label: "Mark lost", onClick: () => setLosing(true), danger: true }] : [])
+    ...(canWork && data.stage !== "LOST" ? [{ label: "Mark as missed sale", onClick: () => setLosing(true), danger: true }] : [])
   ];
 
   return (
@@ -271,7 +271,7 @@ function Profile({
               <span className="ml-auto text-[11px] font-normal text-slate-400">set by payment</span>
             </p>
           )}
-          {lead.stage === "LOST" && lead.lostReason ? <p className="mt-1.5 text-xs text-red-700">Lost: {lead.lostReason}</p> : null}
+          {lead.stage === "LOST" && lead.lostReason ? <p className="mt-1.5 text-xs text-red-700">Missed sale: {lead.lostReason}</p> : null}
         </div>
 
         <div>
