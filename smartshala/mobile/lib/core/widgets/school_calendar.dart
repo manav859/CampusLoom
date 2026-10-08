@@ -116,21 +116,23 @@ class _SchoolCalendarScreenState extends State<SchoolCalendarScreen> {
         : visible.where((event) => event.occursOn(selectedDay)).toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      floatingActionButton: widget.onAddEvent == null
-          ? null
-          : FloatingActionButton.extended(
+      // In the app bar, not a floating button: as the principal's Calendar tab
+      // a floating one would sit on the shell's centre +.
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          if (widget.onAddEvent != null)
+            IconButton(
               onPressed: _addEvent,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              tooltip: 'Add New Event',
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Add New Event'),
             ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
-          // Room under the last event for the Add New Event button.
-          padding: EdgeInsets.fromLTRB(16, 8, 16, widget.onAddEvent == null ? 24 : 96),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
             AppCard(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
@@ -492,6 +494,11 @@ class _EventCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   String get _when {
+    final time = event.timeLabel;
+    return time == null ? _days : '$_days • $time';
+  }
+
+  String get _days {
     final start = event.startDate;
     final end = event.endDate;
     if (!event.isMultiDay) return DateFormat('EEE, d MMM').format(start);

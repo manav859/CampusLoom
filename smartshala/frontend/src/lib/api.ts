@@ -1861,10 +1861,12 @@ export const transportApi = {
 /** The same punch the teacher app's Swipe To Punch records. */
 export type PunchStatus = {
   date: string;
-  state: "NOT_PUNCHED_IN" | "PUNCHED_IN" | "PUNCHED_OUT";
+  /** ON_BREAK: punched in earlier, paused, not done for the day. */
+  state: "NOT_PUNCHED_IN" | "PUNCHED_IN" | "ON_BREAK" | "PUNCHED_OUT";
   punchInAt: string | null;
   punchOutAt: string | null;
   workedMinutes: number;
+  breakMinutes: number;
 };
 
 export type MySchedulePeriod = {

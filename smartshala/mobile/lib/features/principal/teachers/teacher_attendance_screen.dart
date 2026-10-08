@@ -237,7 +237,11 @@ String staffDayDetail(StaffDayRow row) {
     StaffDayStatus.onLeave => row.leaveType?.label ?? 'On leave',
     StaffDayStatus.present => [
         'In ${time.format(row.punchInAt!)}',
-        row.punchOutAt == null ? 'not punched out' : 'Out ${time.format(row.punchOutAt!)}',
+        row.onBreak
+            ? 'on a break'
+            : row.punchOutAt == null
+                ? 'not punched out'
+                : 'Out ${time.format(row.punchOutAt!)}',
         if (row.workedMinutes != null) _hours(row.workedMinutes!),
       ].join(' · '),
   };

@@ -4,12 +4,10 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import 'calendar/teacher_calendar_screen.dart';
 import 'data/punch_controller.dart';
-import 'data/teacher_models.dart';
 import 'messages/teacher_messages_screen.dart';
 import 'salary/salary_screen.dart';
 import 'students/my_students_screen.dart';
 import 'teacher_home_screen.dart';
-import 'widgets/swipe_to_punch.dart';
 
 class TeacherShell extends StatefulWidget {
   const TeacherShell({super.key});
@@ -50,7 +48,9 @@ class _TeacherShellState extends State<TeacherShell> {
   }
 }
 
-/// Punch bar + navigation, as one unit fixed to the bottom of every screen.
+/// Navigation fixed to the bottom of every screen. The punch control lives on
+/// Home only, in the punch card at the top: a swipe target on every tab made it
+/// too easy to punch out by accident while scrolling a list.
 class _BottomBar extends StatelessWidget {
   const _BottomBar({required this.index, required this.onChanged});
 
@@ -66,59 +66,10 @@ class _BottomBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: _PunchBar(),
-            ),
-            _NavRow(index: index, onChanged: onChanged),
-          ],
-        ),
+        child: _NavRow(index: index, onChanged: onChanged),
       ),
     );
   }
-}
-
-class _PunchBar extends StatelessWidget {
-  const _PunchBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final punch = context.watch<PunchController>();
-    final state = punch.status.state;
-
-    return SwipeToPunch(
-      action: state == PunchState.notPunchedIn ? PunchAction.punchIn : PunchAction.punchOut,
-      enabled: !punch.isLoading,
-      busy: punch.isSubmitting,
-      completedLabel: state == PunchState.punchedOut ? _completedLabel(punch.status) : null,
-      onConfirmed: () async {
-        final error = await context.read<PunchController>().punch();
-        if (!context.mounted) return;
-
-        final messenger = ScaffoldMessenger.of(context);
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-          SnackBar(
-            backgroundColor: error == null ? AppColors.success : AppColors.danger,
-            content: Text(error ?? _successMessage(context.read<PunchController>().status)),
-          ),
-        );
-      },
-    );
-  }
-
-  String _completedLabel(PunchStatus status) {
-    final hours = status.workedMinutes ~/ 60;
-    final minutes = status.workedMinutes % 60;
-    return "Today's punch complete • ${hours}h ${minutes}m";
-  }
-
-  String _successMessage(PunchStatus status) => status.state == PunchState.punchedIn
-      ? 'Punched in. Have a great day!'
-      : 'Punched out. See you tomorrow!';
 }
 
 class _NavRow extends StatelessWidget {
@@ -131,7 +82,7 @@ class _NavRow extends StatelessWidget {
     (icon: Icons.home_rounded, label: 'Home'),
     (icon: Icons.calendar_month_rounded, label: 'Calendar'),
     (icon: Icons.groups_2_rounded, label: 'Students'),
-    (icon: Icons.receipt_long_rounded, label: 'Salary'),
+    (icon: Icons.receipt_long_rounded, label: 'Pay Slip'),
     (icon: Icons.notifications_none_rounded, label: 'Messages'),
   ];
 

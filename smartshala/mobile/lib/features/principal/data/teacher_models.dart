@@ -163,6 +163,7 @@ class StaffDayRow {
     this.punchInAt,
     this.punchOutAt,
     this.workedMinutes,
+    this.onBreak = false,
   });
 
   final String id;
@@ -175,6 +176,9 @@ class StaffDayRow {
 
   /// Null when a past day's punch was never closed.
   final int? workedMinutes;
+
+  /// Punched in today but paused on a break right now.
+  final bool onBreak;
 
   static DateTime? _time(Object? value) => value is String ? DateTime.tryParse(value)?.toLocal() : null;
 
@@ -191,6 +195,7 @@ class StaffDayRow {
         punchInAt: _time(json['punchInAt']),
         punchOutAt: _time(json['punchOutAt']),
         workedMinutes: _intOrNull(json['workedMinutes']),
+        onBreak: json['onBreak'] == true,
       );
 }
 

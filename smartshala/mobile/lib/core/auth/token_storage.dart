@@ -34,6 +34,10 @@ class TokenStorage {
   Future<void> saveAccessToken(String accessToken) =>
       _storage.write(key: _accessTokenKey, value: accessToken);
 
+  /// The server renews a session that is in use; the new token replaces the old.
+  Future<void> saveRefreshToken(String refreshToken) =>
+      _storage.write(key: _refreshTokenKey, value: refreshToken);
+
   /// The school code survives sign-out so the next login screen can prefill it.
   Future<void> clearSession() async {
     await Future.wait([

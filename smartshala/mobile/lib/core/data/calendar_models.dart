@@ -57,6 +57,8 @@ class CalendarEvent {
     required this.startDate,
     required this.endDate,
     this.description,
+    this.startTime,
+    this.endTime,
   });
 
   final String id;
@@ -68,7 +70,21 @@ class CalendarEvent {
   final DateTime startDate;
   final DateTime endDate;
 
+  /// Wall-clock "HH:mm" on the start and end days; null for an all-day event.
+  final String? startTime;
+  final String? endTime;
+
   bool get isMultiDay => endDate.isAfter(startDate);
+
+  bool get isAllDay => startTime == null;
+
+  /// "10:00 AM – 12:30 PM", "10:00 AM", or null for an all-day event.
+  String? get timeLabel {
+    final start = formatEventTime(startTime);
+    if (start == null) return null;
+    final end = formatEventTime(endTime);
+    return end == null ? start : '$start – $end';
+  }
 
   bool occursOn(DateTime day) {
     final date = DateTime(day.year, day.month, day.day);
@@ -85,8 +101,21 @@ class CalendarEvent {
       description: json['description'] as String?,
       startDate: startDate,
       endDate: json['endDate'] == null ? startDate : _parseDay(json['endDate']),
+      startTime: json['startTime'] as String?,
+      endTime: json['endTime'] as String?,
     );
   }
+}
+
+/// "14:30" → "2:30 PM"; null, or anything that is not a time, stays null.
+String? formatEventTime(String? value) {
+  final parts = value?.split(':');
+  if (parts == null || parts.length != 2) return null;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  final twelve = hour % 12 == 0 ? 12 : hour % 12;
+  return '$twelve:${minute.toString().padLeft(2, '0')} ${hour < 12 ? 'AM' : 'PM'}';
 }
 
 /// The server sends plain "2026-09-10" dates. Without a zone they parse as
@@ -105,6 +134,8 @@ class CalendarEventDraft {
     required this.startDate,
     required this.endDate,
     this.description,
+    this.startTime,
+    this.endTime,
   });
 
   static const editableTypes = [CalendarEventType.exam, CalendarEventType.event, CalendarEventType.meeting];
@@ -114,6 +145,13 @@ class CalendarEventDraft {
   final String? description;
   final DateTime startDate;
   final DateTime endDate;
+
+  /// Both null for an all-day event.
+  final TimeOfDay? startTime;
+  final TimeOfDay? endTime;
+
+  static String? _time(TimeOfDay? time) =>
+      time == null ? null : '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
   static String _day(DateTime date) =>
       '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -128,5 +166,8 @@ class CalendarEventDraft {
         if (description != null && description!.trim().isNotEmpty) 'description': description!.trim(),
         'startDate': _day(startDate),
         'endDate': _day(endDate),
+        // Sent as null too, so editing an event back to all-day clears its time.
+        'startTime': _time(startTime),
+        'endTime': startTime == null ? null : _time(endTime),
       };
 }

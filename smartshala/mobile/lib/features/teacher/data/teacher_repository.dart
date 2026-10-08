@@ -24,6 +24,12 @@ class TeacherRepository {
     return PunchStatus.fromJson(data);
   }
 
+  /// Pauses the day; [punchIn] resumes it.
+  Future<PunchStatus> startBreak() async {
+    final data = await api.post('/staff-attendance/me/break') as Map<String, dynamic>;
+    return PunchStatus.fromJson(data);
+  }
+
   Future<PunchStatus> punchOut() async {
     final data = await api.post('/staff-attendance/me/punch-out') as Map<String, dynamic>;
     return PunchStatus.fromJson(data);

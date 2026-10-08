@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { NotificationKind, NotificationStatus, UserRole, UserStatus } from "@prisma/client";
@@ -52,8 +53,45 @@ function signAccessToken(user: TokenUser) {
   );
 }
 
-function signRefreshToken(user: TokenUser) {
-  const options: jwt.SignOptions = { subject: user.id, expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"] };
+/**
+ * How long a session lasts without being used. The apps get a month, so a
+ * teacher is not signed out over a school break; the web keeps a week. Both
+ * slide: a refresh more than a day after the token was issued renews it.
+ */
+const WEB_SESSION_MS = 7 * 24 * 60 * 60 * 1000;
+const MOBILE_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
+const RENEW_AFTER_MS = 24 * 60 * 60 * 1000;
+/** A renewed token's predecessor keeps working this long, for requests already in flight. */
+const SUPERSEDED_GRACE_MS = 60 * 60 * 1000;
+
+export function sessionLengthMs(mobile: boolean) {
+  return mobile ? MOBILE_SESSION_MS : WEB_SESSION_MS;
+}
+
+/**
+ * Refresh tokens are stored as a SHA-256 of the whole token. They used to be
+ * bcrypt hashes, but bcrypt reads only the first 72 bytes, and every refresh
+ * JWT of one user shares those — so any of their tokens matched any of their
+ * rows, and revoking one session did not reliably revoke it. A signed token is
+ * long and random, so a fast digest is safe where a password would not be.
+ */
+function refreshTokenDigest(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+/** Rows written before the digest are bcrypt ("$2…") and still accepted until they expire. */
+async function refreshTokenMatches(token: string, stored: string) {
+  if (stored.startsWith("$2")) return bcrypt.compare(token, stored);
+  const digest = Buffer.from(refreshTokenDigest(token));
+  const expected = Buffer.from(stored);
+  return digest.length === expected.length && timingSafeEqual(digest, expected);
+}
+
+function signRefreshToken(user: TokenUser, mobile = false) {
+  const options: jwt.SignOptions = {
+    subject: user.id,
+    expiresIn: mobile ? Math.floor(MOBILE_SESSION_MS / 1000) : (env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"])
+  };
   return jwt.sign({ schoolId: user.schoolId }, env.JWT_REFRESH_SECRET, options);
 }
 
@@ -160,7 +198,7 @@ export async function register(data: RegisterInput) {
   await prisma.refreshToken.create({
     data: {
       userId: user.id,
-      tokenHash: await bcrypt.hash(refreshToken, 10),
+      tokenHash: refreshTokenDigest(refreshToken),
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     }
   });
@@ -172,19 +210,19 @@ export async function register(data: RegisterInput) {
   };
 }
 
-export async function login(identifier: string, password: string, requestIp: string = "unknown") {
+export async function login(identifier: string, password: string, requestIp: string = "unknown", mobile = false) {
   const normalizedIdentifier = identifier.trim();
 
   try {
     const tenantContext = getTenantContext();
 
     if (tenantContext) {
-      return await loginWithClient(prisma, normalizedIdentifier, password, tenantContext.schoolId, requestIp);
+      return await loginWithClient(prisma, normalizedIdentifier, password, tenantContext.schoolId, requestIp, mobile);
     }
 
     const tenant = await tenantForPublicLogin(normalizedIdentifier);
     if (tenant) {
-      return await loginWithClient(getTenantPrismaClient(tenant.dbUrl), normalizedIdentifier, password, tenant.schoolId, requestIp);
+      return await loginWithClient(getTenantPrismaClient(tenant.dbUrl), normalizedIdentifier, password, tenant.schoolId, requestIp, mobile);
     }
 
     // Check if the school exists but is inactive (pending approval)
@@ -204,7 +242,7 @@ export async function login(identifier: string, password: string, requestIp: str
       }
     }
 
-    return await loginWithClient(prisma, normalizedIdentifier, password, undefined, requestIp);
+    return await loginWithClient(prisma, normalizedIdentifier, password, undefined, requestIp, mobile);
   } catch (err) {
     logger.warn({
       evt: "auth.login",
@@ -290,7 +328,14 @@ async function tenantForLoginUser(identifier: string) {
   return results.find((s) => s !== null) ?? null;
 }
 
-async function loginWithClient(client: PrismaClient, identifier: string, password: string, tenantSchoolId?: string, requestIp: string = "unknown") {
+async function loginWithClient(
+  client: PrismaClient,
+  identifier: string,
+  password: string,
+  tenantSchoolId?: string,
+  requestIp: string = "unknown",
+  mobile = false
+) {
   const user = await client.user.findFirst({
     where: {
       OR: [{ email: identifier }, { phone: identifier }],
@@ -320,14 +365,14 @@ async function loginWithClient(client: PrismaClient, identifier: string, passwor
     tenantSchoolId: effectiveTenantSchoolId
   };
   const accessToken = signAccessToken(tokenUser);
-  const refreshToken = signRefreshToken(tokenUser);
-  const tokenHash = await bcrypt.hash(refreshToken, 10);
+  const refreshToken = signRefreshToken(tokenUser, mobile);
+  const tokenHash = refreshTokenDigest(refreshToken);
 
   await client.refreshToken.create({
     data: {
       userId: user.id,
       tokenHash,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      expiresAt: new Date(Date.now() + sessionLengthMs(mobile))
     }
   });
 
@@ -486,7 +531,7 @@ export async function getCurrentUser(userId: string) {
   return publicUser(user);
 }
 
-export async function refresh(refreshToken: string) {
+export async function refresh(refreshToken: string, mobile = false) {
   let decoded: jwt.JwtPayload;
   try {
     decoded = jwt.verify(refreshToken, env.JWT_REFRESH_SECRET, { algorithms: ["HS256"] }) as jwt.JwtPayload;
@@ -505,27 +550,56 @@ export async function refresh(refreshToken: string) {
   const stored = await Promise.all(
     user.refreshTokens
       .filter((token) => !token.revokedAt && token.expiresAt > new Date())
-      .map(async (token) => ((await bcrypt.compare(refreshToken, token.tokenHash)) ? token : null))
+      .map(async (token) => ((await refreshTokenMatches(refreshToken, token.tokenHash)) ? token : null))
   );
-  if (!stored.some(Boolean)) throw new AppError(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN");
+  const current = stored.find(Boolean);
+  if (!current) throw new AppError(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN");
 
-  return {
-    accessToken: signAccessToken({
-      id: user.id,
-      schoolId: user.schoolId,
-      role: user.role,
-      fullName: user.fullName,
-      phone: user.phone,
-      email: user.email,
-      schoolName: user.school.name,
-      tenantSchoolId: getTenantContext()?.schoolId ?? legacyTenantSchoolId(user.school)
-    })
+  const tokenUser: TokenUser = {
+    id: user.id,
+    schoolId: user.schoolId,
+    role: user.role,
+    fullName: user.fullName,
+    phone: user.phone,
+    email: user.email,
+    schoolName: user.school.name,
+    tenantSchoolId: getTenantContext()?.schoolId ?? legacyTenantSchoolId(user.school)
   };
+
+  // A session in use is renewed, so it ends only after a stretch of not being
+  // used, not a fixed week after sign-in whatever the person was doing.
+  const issuedAt = typeof decoded.iat === "number" ? decoded.iat * 1000 : 0;
+  let renewed: string | undefined;
+  if (Date.now() - issuedAt > RENEW_AFTER_MS) {
+    const now = Date.now();
+    renewed = signRefreshToken(tokenUser, mobile);
+    await prisma.refreshToken.create({
+      data: { userId: user.id, tokenHash: refreshTokenDigest(renewed), expiresAt: new Date(now + sessionLengthMs(mobile)) }
+    });
+    await prisma.refreshToken.update({
+      where: { id: current.id },
+      data: { expiresAt: new Date(Math.min(current.expiresAt.getTime(), now + SUPERSEDED_GRACE_MS)) }
+    });
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id, expiresAt: { lt: new Date(now) } } });
+  }
+
+  return { accessToken: signAccessToken(tokenUser), refreshToken: renewed };
 }
 
-export async function logout(userId: string, schoolId: string | null = null, requestIp: string = "unknown") {
+/**
+ * Ends the session that asked. Signing out of the web must not sign the same
+ * person out of the app on their phone, so only the presented refresh token is
+ * revoked; without one, every session goes, as before.
+ */
+export async function logout(userId: string, schoolId: string | null = null, requestIp: string = "unknown", refreshToken?: string) {
+  const open = await prisma.refreshToken.findMany({ where: { userId, revokedAt: null } });
+  const matching = refreshToken
+    ? (await Promise.all(open.map(async (token) => ((await refreshTokenMatches(refreshToken, token.tokenHash)) ? token.id : null)))).filter(
+        (id): id is string => id !== null
+      )
+    : [];
   await prisma.refreshToken.updateMany({
-    where: { userId, revokedAt: null },
+    where: matching.length ? { id: { in: matching } } : { userId, revokedAt: null },
     data: { revokedAt: new Date() }
   });
 

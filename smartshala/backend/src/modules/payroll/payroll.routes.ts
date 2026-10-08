@@ -3,7 +3,15 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./payroll.controller.js";
-import { payrollMonthQuerySchema, salarySlipParamsSchema, salarySlipSchema } from "./payroll.schemas.js";
+import {
+  generateSlipsSchema,
+  payProfileParamsSchema,
+  payProfileSchema,
+  payrollMonthQuerySchema,
+  salarySlipParamsSchema,
+  salarySlipSchema,
+  shiftSchema
+} from "./payroll.schemas.js";
 
 export const payrollRouter = Router();
 
@@ -23,3 +31,22 @@ payrollRouter.delete(
   validate({ params: salarySlipParamsSchema }),
   controller.deleteSlip
 );
+
+// Shifts and pay setup, and pay calculated from attendance against them.
+payrollRouter.get("/shifts", requireRole(managerRoles), controller.listShifts);
+payrollRouter.post("/shifts", requireRole(managerRoles), validate({ body: shiftSchema }), controller.createShift);
+payrollRouter.patch(
+  "/shifts/:id",
+  requireRole(managerRoles),
+  validate({ params: salarySlipParamsSchema, body: shiftSchema }),
+  controller.updateShift
+);
+payrollRouter.delete("/shifts/:id", requireRole(managerRoles), validate({ params: salarySlipParamsSchema }), controller.deleteShift);
+payrollRouter.put(
+  "/profiles/:userId",
+  requireRole(managerRoles),
+  validate({ params: payProfileParamsSchema, body: payProfileSchema }),
+  controller.savePayProfile
+);
+payrollRouter.get("/calculate", requireRole(managerRoles), validate({ query: payrollMonthQuerySchema }), controller.calculateMonth);
+payrollRouter.post("/generate", requireRole(managerRoles), validate({ body: generateSlipsSchema }), controller.generateSlips);

@@ -41,6 +41,7 @@ function workedLabel(minutes: number) {
 const punchCopy = {
   NOT_PUNCHED_IN: { label: "Not punched in", tone: "bg-[#FFF0E8] text-[#B95A00]" },
   PUNCHED_IN: { label: "Punched in", tone: "bg-[#E1F5EA] text-[#0F8A4A]" },
+  ON_BREAK: { label: "On a break", tone: "bg-[#FFF6DB] text-[#8A6100]" },
   PUNCHED_OUT: { label: "Day complete", tone: "bg-[#E2F0FB] text-[#1F6FB8]" }
 };
 

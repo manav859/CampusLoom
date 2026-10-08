@@ -166,6 +166,11 @@ class ApiClient {
         }
 
         await _storage.saveAccessToken(accessToken);
+        // A session in use is renewed server-side and comes back with a new
+        // refresh token. Keeping the old one would end the session when it
+        // expires, however often the app is opened in between.
+        final renewedRefreshToken = response.data?['refreshToken'] as String?;
+        if (renewedRefreshToken != null) await _storage.saveRefreshToken(renewedRefreshToken);
         completer.complete(const _RefreshResult.renewed());
       } on DioException catch (failure) {
         // 401/403 is the server's verdict on the refresh token. No response, a
@@ -235,6 +240,8 @@ class ApiClient {
 
   Future<dynamic> patch(String path, {Object? body}) =>
       _send(() => _dio.patch<dynamic>('$_apiRoot$path', data: body));
+  Future<dynamic> put(String path, {Object? body}) =>
+      _send(() => _dio.put<dynamic>('$_apiRoot$path', data: body));
   Future<dynamic> delete(String path) => _send(() => _dio.delete<dynamic>('$_apiRoot$path'));
 
   Future<dynamic> _send(Future<Response<dynamic>> Function() request) async {

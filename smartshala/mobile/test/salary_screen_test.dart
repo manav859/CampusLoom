@@ -112,6 +112,6 @@ void main() {
 
   testWidgets('says so when the school has recorded nothing yet', (tester) async {
     await _pump(tester, const {'items': [], 'summary': {'paidThisYear': 0, 'year': 2026}});
-    expect(find.text('No salary slips yet'), findsOneWidget);
+    expect(find.text('No pay slips yet'), findsOneWidget);
   });
 }

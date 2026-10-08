@@ -15,7 +15,9 @@ staffAttendanceRouter.get(
   validate({ query: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }) }),
   controller.getMyHistory
 );
+// Punch in also resumes from a break and re-opens a day punched out by mistake.
 staffAttendanceRouter.post("/me/punch-in", controller.punchIn);
+staffAttendanceRouter.post("/me/break", controller.startBreak);
 staffAttendanceRouter.post("/me/punch-out", controller.punchOut);
 
 // The principal's view of one staff member's month, for the Teacher Profile.

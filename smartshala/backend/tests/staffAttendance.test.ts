@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../src/core/prisma.js";
 import { AppError } from "../src/core/errors.js";
-import { getTodayStatus, punchIn, punchOut } from "../src/modules/staffAttendance/staffAttendance.service.js";
+import { getTodayStatus, punchIn, punchOut, startBreak } from "../src/modules/staffAttendance/staffAttendance.service.js";
 
 /**
  * Integration test for the teacher "Swipe To Punch" endpoints. Requires a
@@ -70,16 +70,58 @@ async function main() {
     assert.equal(punchedOut.state, "PUNCHED_OUT");
     assert.ok(punchedOut.punchOutAt instanceof Date);
 
-    // Neither punch may be repeated afterwards.
+    // A second punch-out, or a break after the day ended, is rejected.
     await expectAppError(punchOut(user), "ALREADY_PUNCHED_OUT");
-    await expectAppError(punchIn(user), "ALREADY_PUNCHED_OUT");
+    await expectAppError(startBreak(user), "ALREADY_PUNCHED_OUT");
 
-    // Exactly one row exists for the day.
+    // A mistaken punch-out is undone by punching in again: a second session.
+    const reopened = await punchIn(user);
+    assert.equal(reopened.state, "PUNCHED_IN");
+    assert.equal(reopened.punchOutAt, null);
+    assert.equal(reopened.sessions.length, 2);
+    assert.ok(reopened.currentSessionStartedAt instanceof Date);
+    // The day still starts at the first punch-in.
+    assert.equal(reopened.punchInAt!.getTime(), punchedIn.punchInAt!.getTime());
+
+    // A break closes the session without ending the day; the timer stops.
+    const onBreak = await startBreak(user);
+    assert.equal(onBreak.state, "ON_BREAK");
+    assert.equal(onBreak.currentSessionStartedAt, null);
+    assert.ok(onBreak.breakStartedAt instanceof Date);
+    await expectAppError(startBreak(user), "ALREADY_ON_BREAK");
+
+    // Worked time does not grow during the break.
+    const workedAtBreak = onBreak.workedSeconds;
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const stillOnBreak = await getTodayStatus(user);
+    assert.equal(stillOnBreak.workedSeconds, workedAtBreak);
+
+    // Punching in ends the break and opens a third session.
+    const resumed = await punchIn(user);
+    assert.equal(resumed.state, "PUNCHED_IN");
+    assert.equal(resumed.sessions.length, 3);
+
+    // Punching out straight from a break also works.
+    await startBreak(user);
+    const outFromBreak = await punchOut(user);
+    assert.equal(outFromBreak.state, "PUNCHED_OUT");
+    assert.ok(outFromBreak.sessions.every((session) => session.endAt instanceof Date));
+
+    // Two taps at once never leave two sessions open.
+    await punchIn(user);
+    await Promise.allSettled([startBreak(user), startBreak(user)]);
+    await Promise.allSettled([punchIn(user), punchIn(user)]);
+    const open = await prisma.staffAttendanceSession.count({ where: { attendance: { userId: teacher.id }, endAt: null } });
+    assert.equal(open, 1);
+    await punchOut(user);
+
+    // Still exactly one row for the day; the sessions hang off it.
     const rows = await prisma.staffAttendance.count({ where: { userId: teacher.id } });
     assert.equal(rows, 1);
 
     const final = await getTodayStatus(user);
     assert.equal(final.state, "PUNCHED_OUT");
+    assert.ok(final.breakMinutes >= 0);
 
     console.log("staffAttendance: all assertions passed");
   } finally {

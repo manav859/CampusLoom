@@ -39,6 +39,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # The web dashboard's logo; see tool/generate_brand_assets.dart.
+  assets:
+    - assets/brand/logo.png
+
   # Inter, the web dashboard's typeface, bundled so text renders the same
   # offline and on first launch. SIL OFL — see assets/fonts/OFL.txt.
   fonts:

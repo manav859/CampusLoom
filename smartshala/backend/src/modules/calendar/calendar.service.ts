@@ -10,6 +10,8 @@ type CalendarEventInput = {
   description?: string;
   startDate: string;
   endDate?: string;
+  startTime?: string | null;
+  endTime?: string | null;
 };
 
 /** Midnight UTC, so an event day is not shifted by the server timezone. */
@@ -44,13 +46,24 @@ function toData(input: CalendarEventInput) {
   if (endDate < startDate) {
     throw new AppError(400, "The end date cannot be before the start date.", "INVALID_DATE_RANGE");
   }
+  // A time is optional; without a start time the event is all day.
+  const startTime = input.startTime || null;
+  const endTime = startTime ? input.endTime || null : null;
+  if (input.endTime && !startTime) {
+    throw new AppError(400, "Set a start time before an end time.", "END_TIME_WITHOUT_START");
+  }
+  if (startTime && endTime && endDate === startDate && endTime <= startTime) {
+    throw new AppError(400, "The end time must be after the start time.", "INVALID_TIME_RANGE");
+  }
 
   return {
     type: input.type,
     title: input.title,
     description: input.description || null,
     startDate: parseDay(startDate),
-    endDate: parseDay(endDate)
+    endDate: parseDay(endDate),
+    startTime,
+    endTime
   };
 }
 
@@ -62,7 +75,9 @@ function toItem(row: CalendarEvent) {
     title: row.title,
     description: row.description,
     startDate: formatUtcDay(row.startDate),
-    endDate: formatUtcDay(row.endDate)
+    endDate: formatUtcDay(row.endDate),
+    startTime: row.startTime,
+    endTime: row.endTime
   };
 }
 
@@ -109,10 +124,12 @@ export async function listMonth(user: Express.UserContext, month: string) {
         title: holiday.reason,
         description: null,
         startDate: date,
-        endDate: date
+        endDate: date,
+        startTime: null,
+        endTime: null
       };
     })
-  ].sort((a, b) => a.startDate.localeCompare(b.startDate));
+  ].sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.startTime ?? "").localeCompare(b.startTime ?? ""));
 
   return { month, items };
 }

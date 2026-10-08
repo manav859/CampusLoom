@@ -2,7 +2,31 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// The "Ss SmartShala / PRINCIPAL APP" lockup that tops every screen in the
+/// The web dashboard's logo, as the apps show it everywhere: the app bar, the
+/// sign-in screen and the launch screen. Generated from the web's own file by
+/// tool/generate_brand_assets.dart.
+class BrandLogo extends StatelessWidget {
+  const BrandLogo({super.key, this.size = 34});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.28),
+      child: Image.asset(
+        'assets/brand/logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.medium,
+        semanticLabel: 'SmartShala',
+      ),
+    );
+  }
+}
+
+/// The "SmartShala / PRINCIPAL APP" lockup that tops every screen in the
 /// blueprint, with the notification bell and its unread badge.
 class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
   const BrandAppBar({
@@ -50,19 +74,7 @@ class _Lockup extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          alignment: Alignment.center,
-          child: const Text(
-            'Ss',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
-          ),
-        ),
+        const BrandLogo(),
         const SizedBox(width: 10),
         Column(
           mainAxisSize: MainAxisSize.min,

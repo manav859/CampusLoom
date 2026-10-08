@@ -25,6 +25,7 @@ import 'marks/marks_screen.dart';
 import 'students/my_students_screen.dart';
 import 'students/students_needing_focus_screen.dart';
 import 'teacher_more_sheet.dart';
+import 'widgets/swipe_to_punch.dart';
 import 'timetable/my_timetable_screen.dart';
 
 /// The teacher dashboard. It reads the same endpoints as the web teacher
@@ -89,27 +90,32 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         child: FutureBuilder<_HomeData>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const LoadingView(message: 'Loading your day…');
-            }
-
-            if (snapshot.hasError) {
-              final error = snapshot.error;
-              return ListView(
-                children: [
-                  SizedBox(height: MediaQuery.sizeOf(context).height * 0.18),
-                  ErrorView(
-                    message: error is ApiException
-                        ? error.message
-                        : 'Could not load your dashboard.',
-                    onRetry: _refresh,
-                  ),
-                ],
-              );
-            }
-
-            final data = snapshot.data ?? _HomeData.empty;
-            return _HomeBody(data: data);
+            final error = snapshot.error;
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                // First on Home, and outside the dashboard's own loading and
+                // error states: punching must work while the rest is still
+                // loading, or when it could not load at all.
+                const _PunchCard(),
+                const SizedBox(height: 16),
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: LoadingView(message: 'Loading your day…'),
+                  )
+                else if (snapshot.hasError)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    child: ErrorView(
+                      message: error is ApiException ? error.message : 'Could not load your dashboard.',
+                      onRetry: _refresh,
+                    ),
+                  )
+                else
+                  _HomeBody(data: snapshot.data ?? _HomeData.empty),
+              ],
+            );
           },
         ),
       ),
@@ -139,8 +145,8 @@ class _HomeBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final dashboard = data.dashboard;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _GreetingCard(),
         const SizedBox(height: 14),
@@ -158,9 +164,6 @@ class _HomeBody extends StatelessWidget {
         const SizedBox(height: 22),
         const SectionHeader(title: 'Quick Actions'),
         const _QuickActionsGrid(),
-        const SizedBox(height: 22),
-        const SectionHeader(title: "Today's Punch"),
-        const _PunchCard(),
         const SizedBox(height: 22),
         SectionHeader(
           title: "Today's Schedule",
@@ -454,6 +457,10 @@ class _QuickAction extends StatelessWidget {
 /// Today's punch, read from the same controller as the Swipe To Punch bar,
 /// so it changes the moment the teacher swipes. The web dashboard shows the
 /// same three figures.
+/// Today's punch, first thing on Home: a timer of time worked today that runs
+/// while punched in and stops on a break or a punch-out, and the one control
+/// that changes it. The day can be punched into again after a punch-out, so a
+/// mistaken one is undone the same way it was made.
 class _PunchCard extends StatelessWidget {
   const _PunchCard();
 
@@ -465,19 +472,15 @@ class _PunchCard extends StatelessWidget {
 
     final (label, color, tint) = switch (status.state) {
       PunchState.notPunchedIn => ('Not punched in', AppColors.warning, AppColors.warningSoft),
-      PunchState.punchedIn => ('Punched in', AppColors.success, AppColors.successSoft),
-      PunchState.punchedOut => ('Day complete', AppColors.primary, AppColors.primarySoft),
+      PunchState.punchedIn => ('Working', AppColors.success, AppColors.successSoft),
+      PunchState.onBreak => ('On a break', AppColors.warning, AppColors.warningSoft),
+      PunchState.punchedOut => ('Punched out', AppColors.primary, AppColors.primarySoft),
     };
 
     final figures = [
-      ('Punch in', status.punchInAt == null ? '—' : timeFormat.format(status.punchInAt!)),
-      ('Punch out', status.punchOutAt == null ? '—' : timeFormat.format(status.punchOutAt!)),
-      (
-        'Worked',
-        status.state == PunchState.notPunchedIn
-            ? '—'
-            : '${status.workedMinutes ~/ 60}h ${status.workedMinutes % 60}m'
-      ),
+      ('First in', status.punchInAt == null ? '—' : timeFormat.format(status.punchInAt!)),
+      ('Breaks', status.state == PunchState.notPunchedIn ? '—' : _duration(Duration(minutes: status.breakMinutes))),
+      ('Punched out', status.punchOutAt == null ? '—' : timeFormat.format(status.punchOutAt!)),
     ];
 
     return AppCard(
@@ -488,21 +491,23 @@ class _PunchCard extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'Swipe the bar below to punch.',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  "Today's Punch",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
               ),
               if (!punch.isLoading) StatusChip(label: label, color: color, tint: tint),
             ],
           ),
           const SizedBox(height: 12),
+          Center(child: punch.isLoading ? const _TimerText(text: '--:--:--') : _PunchTimer(status: status)),
+          const SizedBox(height: 14),
           Row(
             children: [
               for (var index = 0; index < figures.length; index++) ...[
                 if (index > 0) const SizedBox(width: 8),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                    padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 6),
                     decoration: BoxDecoration(
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(AppRadii.card),
@@ -519,7 +524,7 @@ class _PunchCard extends StatelessWidget {
                           child: Text(
                             punch.isLoading ? '…' : figures[index].$2,
                             style: const TextStyle(
-                              fontSize: 15,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
@@ -532,10 +537,215 @@ class _PunchCard extends StatelessWidget {
               ],
             ],
           ),
+          const SizedBox(height: 14),
+          _PunchActions(punch: punch),
         ],
       ),
     );
   }
+}
+
+String _duration(Duration value) {
+  final hours = value.inHours;
+  final minutes = value.inMinutes % 60;
+  return hours == 0 ? '${minutes}m' : '${hours}h ${minutes}m';
+}
+
+/// Worked time today as HH:MM:SS. It ticks each second only while punched in;
+/// on a break it shows the break's own running time underneath.
+class _PunchTimer extends StatefulWidget {
+  const _PunchTimer({required this.status});
+
+  final PunchStatus status;
+
+  @override
+  State<_PunchTimer> createState() => _PunchTimerState();
+}
+
+class _PunchTimerState extends State<_PunchTimer> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PunchTimer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _sync();
+  }
+
+  /// Ticking costs a rebuild a second, so it runs only while something moves.
+  void _sync() {
+    final moving = widget.status.state == PunchState.punchedIn || widget.status.state == PunchState.onBreak;
+    if (moving && _ticker == null) {
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    } else if (!moving) {
+      _ticker?.cancel();
+      _ticker = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final worked = widget.status.workedAt(now);
+    final onBreak = widget.status.state == PunchState.onBreak;
+    String two(int value) => value.toString().padLeft(2, '0');
+    final text = '${two(worked.inHours)}:${two(worked.inMinutes % 60)}:${two(worked.inSeconds % 60)}';
+
+    return Column(
+      children: [
+        _TimerText(text: text, dimmed: widget.status.state != PunchState.punchedIn),
+        const SizedBox(height: 2),
+        Text(
+          onBreak ? 'On a break for ${_duration(widget.status.breakAt(now))} • timer paused' : 'Worked today',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: onBreak ? AppColors.warning : AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimerText extends StatelessWidget {
+  const _TimerText({required this.text, this.dimmed = false});
+
+  final String text;
+  final bool dimmed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 34,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1,
+        fontFeatures: const [FontFeature.tabularFigures()],
+        color: dimmed ? AppColors.textSecondary : AppColors.textPrimary,
+      ),
+    );
+  }
+}
+
+/// The controls for where the day stands. Punching in and out are swipes, so
+/// a stray tap cannot do either; a break is a tap, because it is undone by the
+/// swipe that ends it.
+class _PunchActions extends StatelessWidget {
+  const _PunchActions({required this.punch});
+
+  final PunchController punch;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = punch.status.state;
+    final enabled = !punch.isLoading;
+
+    Widget swipe(PunchAction action, PunchStep step, {String? label}) => SwipeToPunch(
+          action: action,
+          label: label,
+          enabled: enabled,
+          busy: punch.isSubmitting,
+          onConfirmed: () => _run(context, step),
+        );
+
+    return switch (state) {
+      PunchState.notPunchedIn => swipe(PunchAction.punchIn, PunchStep.punchIn),
+      PunchState.punchedIn => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            swipe(PunchAction.punchOut, PunchStep.punchOut),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: enabled && !punch.isSubmitting ? () => _run(context, PunchStep.takeBreak) : null,
+              icon: const Icon(Icons.free_breakfast_rounded, size: 18),
+              label: const Text('Take a Break'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.warning,
+                side: const BorderSide(color: AppColors.warning),
+                minimumSize: const Size.fromHeight(44),
+              ),
+            ),
+          ],
+        ),
+      PunchState.onBreak => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            swipe(PunchAction.punchIn, PunchStep.punchIn, label: 'Swipe To End Break'),
+            const SizedBox(height: 6),
+            TextButton(
+              onPressed: enabled && !punch.isSubmitting ? () => _confirmPunchOut(context) : null,
+              child: const Text('Punch out for the day'),
+            ),
+          ],
+        ),
+      PunchState.punchedOut => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Punched out by mistake, or back for more work? Punch in again — the timer carries on from where it stopped.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+              ),
+            ),
+            swipe(PunchAction.punchIn, PunchStep.punchIn, label: 'Swipe To Punch In Again'),
+          ],
+        ),
+    };
+  }
+
+  /// From a break, punching out is a tap, so it asks first.
+  Future<void> _confirmPunchOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Punch out for the day?'),
+        content: const Text('Your break ends your working time for today. You can punch in again if you come back.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Punch out')),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) await _run(context, PunchStep.punchOut);
+  }
+
+  Future<void> _run(BuildContext context, PunchStep step) async {
+    final controller = context.read<PunchController>();
+    final error = await controller.run(step);
+    if (!context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        backgroundColor: error == null ? AppColors.success : AppColors.danger,
+        content: Text(error ?? _successMessage(step, controller.status)),
+      ),
+    );
+  }
+
+  String _successMessage(PunchStep step, PunchStatus status) => switch (step) {
+        PunchStep.takeBreak => 'Break started. Your timer is paused.',
+        PunchStep.punchOut => 'Punched out after ${_duration(status.workedAt(DateTime.now()))} of work. See you tomorrow!',
+        PunchStep.punchIn => status.sessions.length > 1 ? 'Welcome back. Your timer is running again.' : 'Punched in. Have a great day!',
+      };
 }
 
 class _ScheduleList extends StatefulWidget {

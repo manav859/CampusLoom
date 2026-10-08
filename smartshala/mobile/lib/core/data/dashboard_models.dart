@@ -167,7 +167,6 @@ enum ActionLevel { critical, high, medium }
 
 /// What an action alert is about, so a screen can decide where a tap goes.
 enum ActionKind {
-  feeDefaulter,
   attendancePending,
   homeworkPending,
   student,
@@ -194,28 +193,13 @@ class ActionAlert {
   bool get isDanger => level == ActionLevel.critical;
 }
 
-/// The web dashboard's `actionAlerts`, in the same order and with the same
-/// caps: two fee defaulters, three dashboard alerts, two low-attendance
-/// classes, six in all.
+/// The web teacher dashboard's `actionAlerts`, in the same order and with
+/// the same caps: three dashboard alerts, then two low-attendance classes.
 List<ActionAlert> buildActionAlerts({
-  List<FeeDefaulter> defaulters = const [],
   required List<DashboardAlert> alerts,
   required List<ClassAttendance> attendance,
 }) {
   final items = <ActionAlert>[
-    for (final item in defaulters.take(2))
-      ActionAlert(
-        label:
-            '${item.name} has ${formatInr(item.balance, compact: false)} pending',
-        detail: '${item.className} - ${item.daysOverdue} days overdue',
-        level: item.daysOverdue >= 30
-            ? ActionLevel.critical
-            : item.daysOverdue > 0
-            ? ActionLevel.high
-            : ActionLevel.medium,
-        kind: ActionKind.feeDefaulter,
-        studentId: item.studentId,
-      ),
     for (final alert in alerts.take(3))
       ActionAlert(
         label:

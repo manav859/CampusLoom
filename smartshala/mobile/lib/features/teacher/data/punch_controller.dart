@@ -4,8 +4,16 @@ import '../../../core/api/api_exception.dart';
 import 'teacher_models.dart';
 import 'teacher_repository.dart';
 
-/// Owns today's punch state. The bar is mounted on every teacher screen, so
-/// this lives above the navigator and is shared by all of them.
+/// What a teacher can do to today's punch from where it stands.
+enum PunchStep {
+  /// Starts the day, ends a break, or re-opens a day punched out by mistake.
+  punchIn,
+  takeBreak,
+  punchOut,
+}
+
+/// Owns today's punch state. It lives above the navigator, so Home's punch
+/// card and anything else reading it share one copy.
 class PunchController extends ChangeNotifier {
   PunchController(this._repository);
 
@@ -31,15 +39,17 @@ class PunchController extends ChangeNotifier {
   }
 
   /// Returns the message to surface to the teacher, or null when it worked.
-  Future<String?> punch() async {
+  Future<String?> run(PunchStep step) async {
     if (isSubmitting) return null;
     isSubmitting = true;
     notifyListeners();
 
     try {
-      status = status.state == PunchState.notPunchedIn
-          ? await _repository.punchIn()
-          : await _repository.punchOut();
+      status = switch (step) {
+        PunchStep.punchIn => await _repository.punchIn(),
+        PunchStep.takeBreak => await _repository.startBreak(),
+        PunchStep.punchOut => await _repository.punchOut(),
+      };
       lastError = null;
       return null;
     } on ApiException catch (error) {

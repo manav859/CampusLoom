@@ -24,3 +24,20 @@ export const salarySlipSchema = z.object({
 });
 
 export const salarySlipParamsSchema = z.object({ id: z.string().uuid() });
+
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a HH:mm time");
+
+export const shiftSchema = z.object({
+  name: z.string().trim().min(1, "Name the shift").max(60),
+  startTime: time,
+  endTime: time
+});
+
+export const payProfileSchema = z.object({
+  monthlySalary: amount,
+  shiftId: z.string().uuid().nullable().optional()
+});
+
+export const payProfileParamsSchema = z.object({ userId: z.string().uuid() });
+
+export const generateSlipsSchema = z.object({ month });

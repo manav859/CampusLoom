@@ -15,7 +15,9 @@ import 'fees/defaulters_screen.dart';
 import 'fees/fee_management_screen.dart';
 import 'leave/leave_approval_screen.dart';
 import 'messages/principal_messages_screen.dart';
+import 'payroll/payroll_screen.dart';
 import 'reports/reports_screen.dart';
+import 'reports/student_report_screen.dart';
 import 'school/school_profile_screen.dart';
 import 'students/student_management_screen.dart';
 import 'subjects/subjects_screen.dart';
@@ -68,9 +70,13 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
         _MoreEntry('Exams', 'Manage exams, schedules and results',
             Icons.assignment_rounded, AppColors.primary, 'Phase 6',
             screen: ExamsScreen.new),
-        _MoreEntry('Reports', 'View detailed reports and analytics',
+        _MoreEntry('Reports', 'View detailed reports',
             Icons.insights_rounded, AppColors.purple, 'Phase 6',
             screen: ReportsScreen.new),
+        // The web Analytics page is the student risk summary this screen reads.
+        _MoreEntry('Analytics', 'Students whose attendance needs attention',
+            Icons.query_stats_rounded, AppColors.danger, 'Phase 6',
+            screen: StudentReportScreen.new),
         _MoreEntry('Academic Calendar', 'View events, holidays and dates',
             Icons.calendar_month_rounded, AppColors.teal, 'Phase 6',
             screen: AcademicCalendarScreen.new),
@@ -85,6 +91,9 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
         _MoreEntry('Fee Reports', 'View fee collection reports',
             Icons.account_balance_wallet_rounded, AppColors.teal, 'Phase 5',
             screen: DefaultersScreen.new),
+        _MoreEntry('Payroll', 'Shifts, salaries and pay slips from attendance',
+            Icons.badge_outlined, AppColors.primary, 'Phase 9',
+            screen: PayrollScreen.new),
       ],
     ),
     _MoreGroup(

@@ -7,8 +7,7 @@ import '../../../core/theme/app_colors.dart';
 
 enum PunchAction { punchIn, punchOut }
 
-/// Horizontal "Swipe To Punch" bar that sits directly above the bottom
-/// navigation on every teacher screen.
+/// Horizontal "Swipe To Punch" bar on the teacher's Home punch card.
 ///
 /// The blueprint is explicit that this is a swipe gesture and must never be
 /// replaced by a circular tap button, so the control exposes no onTap path:
@@ -22,6 +21,7 @@ class SwipeToPunch extends StatefulWidget {
     this.enabled = true,
     this.busy = false,
     this.completedLabel,
+    this.label,
   });
 
   final PunchAction action;
@@ -31,6 +31,9 @@ class SwipeToPunch extends StatefulWidget {
 
   /// When set, the control renders as a finished, non-interactive state.
   final String? completedLabel;
+
+  /// Replaces the default prompt, e.g. "Swipe To End Break".
+  final String? label;
 
   @override
   State<SwipeToPunch> createState() => _SwipeToPunchState();
@@ -182,7 +185,7 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
       );
     }
 
-    final label = widget.action == PunchAction.punchIn ? 'Swipe To Punch In' : 'Swipe To Punch Out';
+    final label = widget.label ?? (widget.action == PunchAction.punchIn ? 'Swipe To Punch In' : 'Swipe To Punch Out');
 
     // Fade the prompt out as the handle covers it.
     return Opacity(

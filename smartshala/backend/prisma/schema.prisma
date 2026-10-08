@@ -50,6 +50,8 @@ model School {
   calendarEvents           CalendarEvent[]
   periodTimes              PeriodTime[]
   salarySlips              SalarySlip[]
+  staffShifts              StaffShift[]
+  staffPayProfiles         StaffPayProfile[]
   transportVehicles        TransportVehicle[]
   transportRoutes          TransportRoute[]
 
@@ -108,6 +110,7 @@ model User {
   calendarEventsCreated    CalendarEvent[]           @relation("CalendarEventCreatedBy")
   salarySlips              SalarySlip[]              @relation("SalarySlipUser")
   salarySlipsRecorded      SalarySlip[]              @relation("SalarySlipRecordedBy")
+  payProfile               StaffPayProfile?          @relation("StaffPayProfileUser")
   school                   School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, email])
@@ -882,11 +885,28 @@ model StaffAttendance {
   updatedAt  DateTime  @updatedAt
   school     School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user       User      @relation("StaffAttendanceUser", fields: [userId], references: [id], onDelete: Cascade)
+  sessions   StaffAttendanceSession[]
 
   @@unique([userId, date])
   @@index([schoolId, date])
   @@index([schoolId, userId, date])
   @@map("staff_attendance")
+}
+
+// One stretch of work inside a day's attendance. Punching in opens one; a
+// break or a punch-out closes it, and punching in again opens the next — so a
+// mistaken punch-out is undone by punching back in. The day row keeps the
+// first punch-in, and punchOutAt is set only while the day is punched out.
+model StaffAttendanceSession {
+  id           String          @id @default(uuid()) @db.Uuid
+  attendanceId String          @db.Uuid
+  startAt      DateTime
+  endAt        DateTime?
+  createdAt    DateTime        @default(now())
+  attendance   StaffAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@index([attendanceId, startAt])
+  @@map("staff_attendance_sessions")
 }
 
 model LeaveRequest {
@@ -980,6 +1000,9 @@ model CalendarEvent {
   description String?
   startDate   DateTime
   endDate     DateTime
+  // Wall-clock "HH:mm" on the start and end days; null for an all-day event.
+  startTime   String?           @db.VarChar(5)
+  endTime     String?           @db.VarChar(5)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -1034,6 +1057,41 @@ model SalarySlip {
   @@unique([userId, month])
   @@index([schoolId, month])
   @@map("salary_slips")
+}
+
+// A working shift: the hours a staff member is expected in. Payroll measures
+// each day's punched time against it. Times are wall-clock "HH:mm".
+model StaffShift {
+  id          String            @id @default(uuid()) @db.Uuid
+  schoolId    String            @db.Uuid
+  name        String
+  startTime   String            @db.VarChar(5)
+  endTime     String            @db.VarChar(5)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  payProfiles StaffPayProfile[]
+
+  @@unique([schoolId, name])
+  @@map("staff_shifts")
+}
+
+// What payroll needs to calculate one staff member's pay: their monthly
+// salary and the shift their days are measured against.
+model StaffPayProfile {
+  id            String      @id @default(uuid()) @db.Uuid
+  schoolId      String      @db.Uuid
+  userId        String      @unique @db.Uuid
+  shiftId       String?     @db.Uuid
+  monthlySalary Decimal     @db.Decimal(12, 2)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  school        School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user          User        @relation("StaffPayProfileUser", fields: [userId], references: [id], onDelete: Cascade)
+  shift         StaffShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId])
+  @@map("staff_pay_profiles")
 }
 
 // Transport records: vehicles with their driver, routes with ordered stops,

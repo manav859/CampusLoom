@@ -71,6 +71,13 @@ class _FakeAuth extends ChangeNotifier implements AuthController {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Home's punch card keeps its swipe hint moving, so it never settles.
+Future<void> _settle(WidgetTester tester) async {
+  for (var frame = 0; frame < 12; frame++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
+
 Future<void> _pumpHome(WidgetTester tester, {required double width, double textScale = 1.0}) async {
   tester.view.physicalSize = Size(width * 2, 9000);
   tester.view.devicePixelRatio = 2.0;
@@ -95,7 +102,7 @@ Future<void> _pumpHome(WidgetTester tester, {required double width, double textS
     ),
   );
   await punch.load();
-  await tester.pumpAndSettle();
+  await _settle(tester);
 }
 
 void main() {
@@ -144,8 +151,10 @@ void main() {
     }
     expect(find.text('96'), findsOneWidget);
     expect(find.text("Today's Punch"), findsOneWidget);
-    expect(find.text('Punched in'), findsOneWidget);
-    expect(find.text('2h 5m'), findsOneWidget);
+    expect(find.text('Working'), findsOneWidget);
+    expect(find.text('02:05:00'), findsOneWidget, reason: 'the punch timer shows time worked today');
+    expect(find.text('Take a Break'), findsOneWidget);
+    expect(find.text('Swipe To Punch Out'), findsOneWidget);
     expect(find.text('Class 6-A'), findsNWidgets(2), reason: 'in the schedule and in class attendance');
     expect(find.text('94%'), findsOneWidget);
     expect(find.text('Not marked'), findsOneWidget);
@@ -178,14 +187,14 @@ void main() {
     await _pumpHome(tester, width: 390);
 
     await tester.tap(find.text('More'));
-    await tester.pumpAndSettle();
-    for (final title in ['My Timetable', 'Salary Details', 'Messages', 'Change Password']) {
+    await _settle(tester);
+    for (final title in ['My Timetable', 'Pay Slip', 'Messages', 'Change Password']) {
       expect(find.text(title), findsOneWidget, reason: title);
     }
     expect(find.textContaining('later phase'), findsNothing);
 
     await tester.tap(find.text('My Timetable'));
-    await tester.pumpAndSettle();
+    await _settle(tester);
     expect(find.byType(TeacherMoreSheet), findsNothing, reason: 'the sheet closes before the screen opens');
     expect(find.widgetWithText(AppBar, 'My Timetable'), findsOneWidget);
   });

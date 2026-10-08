@@ -78,10 +78,15 @@ class ResponsiveGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A small phone is a matter of the screen, not of the padded content: a
+    // 390dp phone leaves 358dp inside the page padding, and judging that as
+    // "small" dropped a column on most phones. Wide still follows the space
+    // the grid actually has.
+    final screenWidth = MediaQuery.sizeOf(context).width;
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = adaptiveColumns(
-          constraints.maxWidth,
+          constraints.maxWidth >= Breakpoints.medium ? constraints.maxWidth : screenWidth.clamp(0, Breakpoints.medium - 1),
           phone: phoneColumns,
           wide: wideColumns,
         );

@@ -47,7 +47,10 @@ class AuthRepository {
 
   Future<void> logout() async {
     try {
-      await api.post('/auth/logout');
+      // Naming the session lets the server end just this device's, not the
+      // same account's sessions on the web or another phone.
+      final refreshToken = await storage.readRefreshToken();
+      await api.post('/auth/logout', body: refreshToken == null ? null : {'refreshToken': refreshToken});
     } on ApiException {
       // A failed server call must not trap the user in a signed-in shell.
     } finally {

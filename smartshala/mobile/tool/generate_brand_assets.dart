@@ -1,28 +1,25 @@
-// Draws the launcher icons and the launch-screen mark for both flavors, so the
-// PNGs in android/app/src/<flavor>/res are reproducible rather than mystery
-// binaries. Nothing imports this: it is run by hand after the brand changes.
+// Builds the launcher icons, the launch-screen mark, the Play Store icon and
+// the in-app logo for both flavors from the web dashboard's logo, so the apps
+// wear exactly the mark the web does. Nothing imports this: it is run by hand
+// after the brand changes.
 //
 //   flutter test tool/generate_brand_assets.dart
 //
-// It paints the same lockup mark the apps wear in their app bar — a rounded
-// square in the portal colour with an ExtraBold white "Ss" — using the bundled
-// Inter, so the icon on the home screen and the "Ss" inside the app are the
-// same drawing. Keep the colours below in step with
-// lib/core/theme/app_colors.dart.
+// The source is frontend/public/logo-latest.png: a white interlocked "SS" on a
+// blue square. The blue becomes the launcher background, and the white mark is
+// lifted off it onto transparency for the adaptive icon's foreground layer.
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// The one glyph the brand is built from.
-const _mark = 'Ss';
+/// Relative to the mobile/ project, where the command is run.
+const _source = '../frontend/public/logo-latest.png';
 
-/// AppColors.primary for the principal, AppColors.teal for the teacher. Two
-/// apps from one codebase sit next to each other on a phone, and the label
-/// under the icon is the only other thing telling them apart.
-const _flavors = <String, Color>{'principal': Color(0xFF2456E6), 'teacher': Color(0xFF0D9488)};
+/// Both apps wear the web's logo. The label under the icon tells them apart.
+const _flavors = ['principal', 'teacher'];
 
 /// Android density buckets, as a multiple of mdpi.
 const _densities = <String, double>{'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4};
@@ -34,57 +31,61 @@ const _legacyDp = 48.0;
 const _adaptiveDp = 108.0;
 const _splashDp = 96.0;
 
-/// How much of each canvas the ink fills. The adaptive figure keeps the glyph
-/// well inside the 61% safe zone; a circular mask cuts the corners off
-/// anything larger.
-const _legacyInkFraction = 0.52;
+/// How much of each canvas the mark fills. The adaptive figure keeps it well
+/// inside the 61% safe zone; a circular mask cuts the corners off anything
+/// larger. The legacy and splash marks sit on their own blue square.
+const _legacyInkFraction = 0.5;
 const _adaptiveInkFraction = 0.42;
 
 /// Corner radius of the rounded square, as a fraction of its side.
 const _cornerFraction = 0.22;
 
+/// The in-app logo, shown at up to 40dp: 4x for the densest screens.
+const _inAppSize = 160;
+
 void main() {
   testWidgets('generate brand assets', (WidgetTester tester) async {
-    // Every line below touches the real world - reading the font, encoding
-    // images, writing files - and the test binding freezes the clock, so an
-    // await outside runAsync never comes back.
+    // Every line below touches the real world - decoding, encoding, writing
+    // files - and the test binding freezes the clock, so an await outside
+    // runAsync never comes back.
     await tester.runAsync(() async {
       final root = Directory.current.path;
-      await _loadInter(root);
+      final logo = await _decode(await File('$root/$_source').readAsBytes());
+      final source = (await logo.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      final ground = _pixel(source, logo.width, 4, 4);
+      final mark = await _liftMark(source, logo.width, logo.height, ground);
 
-      for (final entry in _flavors.entries) {
-        final flavor = entry.key;
-        final color = entry.value;
+      for (final flavor in _flavors) {
         final res = '$root/android/app/src/$flavor/res';
 
         for (final density in _densities.entries) {
           final scale = density.value;
           await _write(
             '$res/mipmap-${density.key}/ic_launcher.png',
-            await _paint((_legacyDp * scale).round(), color: color, ground: true, ink: _legacyInkFraction),
+            await _paint((_legacyDp * scale).round(), mark: mark, ground: ground, ink: _legacyInkFraction),
           );
           await _write(
             '$res/drawable-${density.key}/ic_launcher_foreground.png',
-            await _paint((_adaptiveDp * scale).round(), color: color, ground: false, ink: _adaptiveInkFraction),
+            await _paint((_adaptiveDp * scale).round(), mark: mark, ink: _adaptiveInkFraction),
           );
           await _write(
             '$res/drawable-${density.key}/ic_splash.png',
-            await _paint((_splashDp * scale).round(), color: color, ground: true, ink: _legacyInkFraction),
+            await _paint((_splashDp * scale).round(), mark: mark, ground: ground, ink: _legacyInkFraction),
           );
         }
 
         // The adaptive icon, with the same foreground as the monochrome layer so
-        // Android 13 themed icons get the glyph rather than a filled square.
+        // Android 13 themed icons get the mark rather than a filled square.
         await _writeText('$res/mipmap-anydpi-v26/ic_launcher.xml', _adaptiveIconXml);
-        await _writeText('$res/values/ic_launcher_background.xml', _backgroundColorXml(color));
+        await _writeText('$res/values/ic_launcher_background.xml', _backgroundColorXml(ground));
 
         // What a Play Store listing asks for: 512x512, square, and no rounding of
-        // our own — the store applies its own mask.
-        await _write(
-          '$root/store/$flavor/icon-512.png',
-          await _paint(512, color: color, ground: true, ink: _legacyInkFraction, corners: false),
-        );
+        // our own — the store applies its own mask. It is the web logo as is.
+        await _write('$root/store/$flavor/icon-512.png', await _scaled(logo, 512));
       }
+
+      // The app bar and sign-in screen mark: the web logo itself.
+      await _write('$root/assets/brand/logo.png', await _scaled(logo, _inAppSize));
     });
   });
 }
@@ -108,83 +109,40 @@ String _backgroundColorXml(Color color) {
 ''';
 }
 
-/// The app bundles Inter; the test font is a row of boxes, so load the real one
-/// off disk before painting anything.
-Future<void> _loadInter(String root) async {
-  final bytes = await File('$root/assets/fonts/Inter-ExtraBold.ttf').readAsBytes();
-  final loader = FontLoader('Inter')..addFont(Future.value(ByteData.view(bytes.buffer)));
-  await loader.load();
+Future<ui.Image> _decode(Uint8List bytes) async {
+  final codec = await ui.instantiateImageCodec(bytes);
+  return (await codec.getNextFrame()).image;
 }
 
-/// Paints the mark on a [size] by [size] canvas: the rounded square when
-/// [ground] is set, otherwise the glyph alone on transparency for the adaptive
-/// foreground. [ink] is the fraction of the canvas the glyph fills.
-Future<Uint8List> _paint(
-  int size, {
-  required Color color,
-  required bool ground,
-  required double ink,
-  bool corners = true,
-}) async {
-  final painter = TextPainter(
-    text: TextSpan(
-      text: _mark,
-      style: TextStyle(
-        // Drawn near its final scale, then trimmed to its ink below.
-        fontSize: size * 0.6,
-        fontFamily: 'Inter',
-        fontWeight: FontWeight.w800,
-        color: Colors.white,
-        height: 1,
-      ),
-    ),
-    textDirection: TextDirection.ltr,
-  )..layout();
-
-  // The text box includes the ascent and descent the glyph does not fill, so
-  // centring on it sits the mark visibly high. Centre on the inked pixels.
-  final inked = await _inkBounds(painter);
-
-  final recorder = ui.PictureRecorder();
-  final canvas = Canvas(recorder);
-  final side = size.toDouble();
-
-  if (ground) {
-    final rect = Rect.fromLTWH(0, 0, side, side);
-    final paint = Paint()..color = color;
-    if (corners) {
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(side * _cornerFraction)), paint);
-    } else {
-      canvas.drawRect(rect, paint);
-    }
-  }
-
-  final longest = inked.width > inked.height ? inked.width : inked.height;
-  canvas.save();
-  canvas.translate(side / 2, side / 2);
-  canvas.scale((side * ink) / longest);
-  canvas.translate(-inked.center.dx, -inked.center.dy);
-  painter.paint(canvas, Offset.zero);
-  canvas.restore();
-
-  return _encode(recorder.endRecording(), size);
+Color _pixel(ByteData pixels, int width, int x, int y) {
+  final offset = (y * width + x) * 4;
+  return Color.fromARGB(255, pixels.getUint8(offset), pixels.getUint8(offset + 1), pixels.getUint8(offset + 2));
 }
 
-/// The bounding box of the pixels [painter] actually marks.
-Future<Rect> _inkBounds(TextPainter painter) async {
-  final width = painter.width.ceil();
-  final height = painter.height.ceil();
-  final recorder = ui.PictureRecorder();
-  painter.paint(Canvas(recorder), Offset.zero);
-
-  final image = await recorder.endRecording().toImage(width, height);
-  final pixels = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
-  image.dispose();
-
+/// The white mark on transparency, trimmed to its ink. Each pixel's opacity is
+/// how far it sits from the blue ground towards white, so the anti-aliased
+/// edges of the logo stay smooth.
+Future<({ui.Image image, Rect bounds})> _liftMark(ByteData source, int width, int height, Color ground) async {
+  final out = Uint8List(width * height * 4);
+  final channels = [(ground.r * 255).round(), (ground.g * 255).round(), (ground.b * 255).round()];
   var left = width, top = height, right = 0, bottom = 0;
+
   for (var y = 0; y < height; y++) {
     for (var x = 0; x < width; x++) {
-      if (pixels.getUint8((y * width + x) * 4 + 3) > 8) {
+      final offset = (y * width + x) * 4;
+      var whiteness = 1.0;
+      for (var channel = 0; channel < 3; channel++) {
+        final base = channels[channel];
+        if (base >= 250) continue;
+        final value = (source.getUint8(offset + channel) - base) / (255 - base);
+        if (value < whiteness) whiteness = value;
+      }
+      final alpha = (whiteness.clamp(0.0, 1.0) * 255).round();
+      out[offset] = 255;
+      out[offset + 1] = 255;
+      out[offset + 2] = 255;
+      out[offset + 3] = alpha;
+      if (alpha > 24) {
         if (x < left) left = x;
         if (x > right) right = x;
         if (y < top) top = y;
@@ -192,29 +150,70 @@ Future<Rect> _inkBounds(TextPainter painter) async {
       }
     }
   }
-  if (right < left || bottom < top) throw StateError('The glyph inked nothing — is Inter loaded?');
-  return Rect.fromLTRB(left.toDouble(), top.toDouble(), right + 1.0, bottom + 1.0);
+  if (right < left || bottom < top) throw StateError('No white mark found in $_source');
+
+  final image = await _fromPixels(out, width, height);
+  return (image: image, bounds: Rect.fromLTRB(left.toDouble(), top.toDouble(), right + 1.0, bottom + 1.0));
+}
+
+Future<ui.Image> _fromPixels(Uint8List pixels, int width, int height) async {
+  final buffer = await ui.ImmutableBuffer.fromUint8List(pixels);
+  final descriptor = ui.ImageDescriptor.raw(buffer, width: width, height: height, pixelFormat: ui.PixelFormat.rgba8888);
+  final codec = await descriptor.instantiateCodec();
+  return (await codec.getNextFrame()).image;
+}
+
+/// The mark centred on a [size] by [size] canvas, on a rounded square of
+/// [ground] when given, else on transparency. [ink] is the share of the canvas
+/// the mark's longer side fills.
+Future<Uint8List> _paint(int size, {required ({ui.Image image, Rect bounds}) mark, Color? ground, required double ink}) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  final side = size.toDouble();
+
+  if (ground != null) {
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, side, side), Radius.circular(side * _cornerFraction)),
+      Paint()..color = ground,
+    );
+  }
+
+  final bounds = mark.bounds;
+  final longest = bounds.width > bounds.height ? bounds.width : bounds.height;
+  final scale = (side * ink) / longest;
+  final target = Rect.fromCenter(center: Offset(side / 2, side / 2), width: bounds.width * scale, height: bounds.height * scale);
+  canvas.drawImageRect(mark.image, bounds, target, Paint()..filterQuality = FilterQuality.high);
+
+  return _encode(recorder.endRecording(), size);
+}
+
+/// The whole logo, scaled to [size].
+Future<Uint8List> _scaled(ui.Image logo, int size) async {
+  final recorder = ui.PictureRecorder();
+  Canvas(recorder).drawImageRect(
+    logo,
+    Rect.fromLTWH(0, 0, logo.width.toDouble(), logo.height.toDouble()),
+    Rect.fromLTWH(0, 0, size.toDouble(), size.toDouble()),
+    Paint()..filterQuality = FilterQuality.high,
+  );
+  return _encode(recorder.endRecording(), size);
 }
 
 Future<Uint8List> _encode(ui.Picture picture, int size) async {
   final image = await picture.toImage(size, size);
-  final bytes = (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer.asUint8List();
+  final png = (await image.toByteData(format: ui.ImageByteFormat.png))!;
   image.dispose();
-  return bytes;
+  return png.buffer.asUint8List();
 }
 
 Future<void> _write(String path, Uint8List bytes) async {
   final file = File(path);
   await file.parent.create(recursive: true);
   await file.writeAsBytes(bytes);
-  // ignore: avoid_print
-  print('wrote $path (${bytes.length} bytes)');
 }
 
-Future<void> _writeText(String path, String contents) async {
+Future<void> _writeText(String path, String text) async {
   final file = File(path);
   await file.parent.create(recursive: true);
-  await file.writeAsString(contents);
-  // ignore: avoid_print
-  print('wrote $path');
+  await file.writeAsString(text);
 }

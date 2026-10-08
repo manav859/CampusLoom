@@ -4,7 +4,22 @@ import '../../../core/data/timetable_models.dart';
 export '../../../core/data/dashboard_models.dart';
 export '../../../core/data/timetable_models.dart' show PeriodBadge;
 
-enum PunchState { notPunchedIn, punchedIn, punchedOut }
+/// [onBreak]: punched in earlier, paused, not done for the day. A punched-out
+/// day can be punched into again, which is how a mistaken punch-out is undone.
+enum PunchState { notPunchedIn, punchedIn, onBreak, punchedOut }
+
+/// One stretch of work; a break or a punch-out closes it.
+class PunchSession {
+  const PunchSession({required this.startAt, this.endAt});
+
+  final DateTime startAt;
+  final DateTime? endAt;
+
+  factory PunchSession.fromJson(Map<String, dynamic> json) => PunchSession(
+        startAt: PunchStatus._parseDate(json['startAt'])!,
+        endAt: PunchStatus._parseDate(json['endAt']),
+      );
+}
 
 class PunchStatus {
   const PunchStatus({
@@ -12,6 +27,12 @@ class PunchStatus {
     this.punchInAt,
     this.punchOutAt,
     this.workedMinutes = 0,
+    this.workedSeconds = 0,
+    this.breakMinutes = 0,
+    this.currentSessionStartedAt,
+    this.breakStartedAt,
+    this.sessions = const [],
+    this.clockOffset = Duration.zero,
   });
 
   final PunchState state;
@@ -19,18 +40,67 @@ class PunchStatus {
   final DateTime? punchOutAt;
   final int workedMinutes;
 
+  /// Worked time when the server answered, including the open session so far.
+  final int workedSeconds;
+  final int breakMinutes;
+
+  /// Set while working: the timer counts on from here.
+  final DateTime? currentSessionStartedAt;
+  final DateTime? breakStartedAt;
+  final List<PunchSession> sessions;
+
+  /// Server clock minus this phone's, so the timer does not drift with a phone
+  /// whose clock is a few minutes out.
+  final Duration clockOffset;
+
   static const empty = PunchStatus(state: PunchState.notPunchedIn);
 
-  factory PunchStatus.fromJson(Map<String, dynamic> json) => PunchStatus(
-        state: switch (json['state'] as String?) {
-          'PUNCHED_IN' => PunchState.punchedIn,
-          'PUNCHED_OUT' => PunchState.punchedOut,
-          _ => PunchState.notPunchedIn,
-        },
-        punchInAt: _parseDate(json['punchInAt']),
-        punchOutAt: _parseDate(json['punchOutAt']),
-        workedMinutes: (json['workedMinutes'] as num?)?.toInt() ?? 0,
-      );
+  /// Worked time at [now] on this phone's clock. It grows only while punched
+  /// in; on a break or after punching out it holds still.
+  Duration workedAt(DateTime now) {
+    final completed = sessions
+        .where((session) => session.endAt != null)
+        .fold<Duration>(Duration.zero, (sum, session) => sum + session.endAt!.difference(session.startAt));
+    final open = currentSessionStartedAt;
+    if (state != PunchState.punchedIn || open == null) {
+      // Without sessions (an older server), the total is all there is.
+      return sessions.isEmpty ? Duration(seconds: workedSeconds > 0 ? workedSeconds : workedMinutes * 60) : completed;
+    }
+    final running = now.add(clockOffset).difference(open);
+    return completed + (running.isNegative ? Duration.zero : running);
+  }
+
+  /// How long the current break has run, at [now]; zero when not on a break.
+  Duration breakAt(DateTime now) {
+    final started = breakStartedAt;
+    if (state != PunchState.onBreak || started == null) return Duration.zero;
+    final running = now.add(clockOffset).difference(started);
+    return running.isNegative ? Duration.zero : running;
+  }
+
+  factory PunchStatus.fromJson(Map<String, dynamic> json, {DateTime? receivedAt}) {
+    final serverTime = _parseDate(json['serverTime']);
+    return PunchStatus(
+      state: switch (json['state'] as String?) {
+        'PUNCHED_IN' => PunchState.punchedIn,
+        'ON_BREAK' => PunchState.onBreak,
+        'PUNCHED_OUT' => PunchState.punchedOut,
+        _ => PunchState.notPunchedIn,
+      },
+      punchInAt: _parseDate(json['punchInAt']),
+      punchOutAt: _parseDate(json['punchOutAt']),
+      workedMinutes: (json['workedMinutes'] as num?)?.toInt() ?? 0,
+      workedSeconds: (json['workedSeconds'] as num?)?.toInt() ?? ((json['workedMinutes'] as num?)?.toInt() ?? 0) * 60,
+      breakMinutes: (json['breakMinutes'] as num?)?.toInt() ?? 0,
+      currentSessionStartedAt: _parseDate(json['currentSessionStartedAt']),
+      breakStartedAt: _parseDate(json['breakStartedAt']),
+      sessions: [
+        for (final session in (json['sessions'] as List<dynamic>? ?? const []))
+          PunchSession.fromJson(session as Map<String, dynamic>),
+      ],
+      clockOffset: serverTime == null ? Duration.zero : serverTime.difference(receivedAt ?? DateTime.now()),
+    );
+  }
 
   static DateTime? _parseDate(Object? value) =>
       value is String ? DateTime.tryParse(value)?.toLocal() : null;

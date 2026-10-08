@@ -227,7 +227,38 @@ void main() {
         startDate: DateTime(2026, 9, 28),
         endDate: DateTime(2026, 10, 2),
       );
-      expect(draft.toJson(), {'type': 'EXAM', 'title': 'Unit Test Week', 'startDate': '2026-09-28', 'endDate': '2026-10-02'});
+      expect(draft.toJson(), {
+        'type': 'EXAM',
+        'title': 'Unit Test Week',
+        'startDate': '2026-09-28',
+        'endDate': '2026-10-02',
+        // All day: the times go as null, which clears any on an edited event.
+        'startTime': null,
+        'endTime': null,
+      });
+
+      final timed = CalendarEventDraft(
+        type: CalendarEventType.meeting,
+        title: 'Staff meeting',
+        startDate: DateTime(2026, 9, 28),
+        endDate: DateTime(2026, 9, 28),
+        startTime: const TimeOfDay(hour: 9, minute: 5),
+        endTime: const TimeOfDay(hour: 14, minute: 30),
+      );
+      expect(timed.toJson()['startTime'], '09:05');
+      expect(timed.toJson()['endTime'], '14:30');
+      expect(
+        CalendarEvent.fromJson({
+          'id': 'e1',
+          'type': 'MEETING',
+          'title': 'Staff meeting',
+          'startDate': '2026-09-28',
+          'endDate': '2026-09-28',
+          'startTime': '09:05',
+          'endTime': '14:30',
+        }).timeLabel,
+        '9:05 AM – 2:30 PM',
+      );
       expect(CalendarEventDraft.editableTypes, isNot(contains(CalendarEventType.holiday)));
     });
   });
@@ -319,7 +350,7 @@ void main() {
       await tester.tap(find.byKey(ValueKey('calendar-day-${day.year}-${day.month.toString().padLeft(2, '0')}-15')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Add New Event'));
+      await tester.tap(find.byTooltip('Add New Event'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Exam'));
       await tester.enterText(find.widgetWithText(TextFormField, 'Title *'), 'Unit Test Week');

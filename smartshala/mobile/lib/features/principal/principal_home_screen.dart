@@ -18,20 +18,21 @@ import 'announcements/create_announcement_screen.dart';
 import 'calendar/academic_calendar_screen.dart';
 import 'data/principal_dashboard.dart';
 import 'data/principal_repository.dart';
+import 'exams/exams_screen.dart';
 import 'fees/defaulters_screen.dart';
 import 'fees/fee_management_screen.dart';
-import 'fees/record_payment_screen.dart';
-import 'fees/student_fee_ledger_screen.dart';
 import 'leave/leave_approval_screen.dart';
+import 'payroll/payroll_screen.dart';
 import 'reports/attendance_report_screen.dart';
 import 'reports/student_report_screen.dart';
 import 'students/student_management_screen.dart';
-import 'students/student_profile_screen.dart';
+import 'teachers/teacher_management_screen.dart';
 
-/// The principal command centre. It reads what the web admin dashboard reads
-/// (GET /dashboard and today's GET /activity-logs) and shows the same KPIs,
-/// charts, alerts and activity in the same order. The school card and Quick
-/// Actions are app-only; on the web the page title and sidebar do those jobs.
+/// The principal command centre, kept short on purpose: four overview cards,
+/// Quick Actions, today's attendance in one card, Fee Overview, the three most
+/// important pending items and today's key events. It reads GET /dashboard,
+/// today's GET /activity-logs and the pending leave count; everything else
+/// lives in More.
 class PrincipalHomeScreen extends StatefulWidget {
   const PrincipalHomeScreen({super.key, this.onOpenMessages});
 
@@ -162,33 +163,32 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
                 const SizedBox(height: 14),
                 _KpiGrid(
                   dashboard: dashboard,
-                  // The web Students card links to /students.
+                  pendingActions:
+                      dashboard.pendingActions(pendingLeave: data.pendingLeave),
                   onStudents: () => _openAndRefresh(const StudentManagementScreen()),
-                  onMarkedToday: () => _openAndRefresh(const AttendanceReportScreen()),
-                  onDefaulters: () => _openAndRefresh(const DefaultersScreen()),
+                  onAttendance: () => _openAndRefresh(const AttendanceReportScreen()),
                   onCollected: () => _openAndRefresh(const FeeManagementScreen()),
-                  onAlerts: () => _openAndRefresh(const StudentReportScreen()),
                 ),
                 const SizedBox(height: 22),
                 const SectionHeader(title: 'Quick Actions'),
                 _QuickActions(
                   pendingLeave: data.pendingLeave,
                   onStudents: () => _openAndRefresh(const StudentManagementScreen()),
-                  onRecordPayment: () => _openAndRefresh(const FindStudentForPaymentScreen()),
+                  onTeachers: () => _openAndRefresh(const TeacherManagementScreen()),
+                  onAttendance: () => _openAndRefresh(const AttendanceReportScreen()),
+                  onFees: () => _openAndRefresh(const FeeManagementScreen()),
                   onLeave: () => _openAndRefresh(const LeaveApprovalScreen()),
-                  onAnnouncement: () =>
+                  onNotice: () =>
                       _openAndRefresh(const CreateAnnouncementScreen()),
-                  onMessages: widget.onOpenMessages,
+                  onPayroll: () => _openAndRefresh(const PayrollScreen()),
                   onCalendar: () => _openAndRefresh(const AcademicCalendarScreen()),
+                  onExams: () => _openAndRefresh(const ExamsScreen()),
                 ),
                 const SizedBox(height: 22),
-                const SectionHeader(title: 'Attendance in Marked Classes'),
-                ClassAttendanceCard(
-                  classes: dashboard.attendance,
-                  markedOnly: true,
-                  emptyTitle: 'No classes marked yet today',
-                  emptyMessage:
-                      'Class attendance appears here as teachers submit it.',
+                const SectionHeader(title: 'Attendance Today'),
+                _AttendanceToday(
+                  dashboard: dashboard,
+                  onTap: () => _openAndRefresh(const AttendanceReportScreen()),
                 ),
                 const SizedBox(height: 22),
                 const SectionHeader(title: 'Fee Overview'),
@@ -211,20 +211,18 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
                       'Collection and pending totals appear after fees are assigned.',
                 ),
                 const SizedBox(height: 22),
-                const SectionHeader(title: 'Alerts'),
-                ActionAlertList(
-                  alerts: dashboard.actionAlerts,
-                  // Where the web alert links: a fee alert to the ledger, a
-                  // student alert to the profile, low attendance to the report.
-                  onTap: (alert) => switch (alert) {
-                    ActionAlert(kind: ActionKind.feeDefaulter, studentId: final String id) =>
-                      () => _openAndRefresh(StudentFeeLedgerScreen(studentId: id)),
-                    ActionAlert(kind: ActionKind.student, studentId: final String id) =>
-                      () => _openAndRefresh(PrincipalStudentProfileScreen(studentId: id)),
-                    ActionAlert(kind: ActionKind.lowAttendance) =>
-                      () => _openAndRefresh(const AttendanceReportScreen()),
-                    _ => null,
-                  },
+                const SectionHeader(title: 'Needs Your Attention'),
+                _NeedsAttention(
+                  items: dashboard
+                      .attentionItems(pendingLeave: data.pendingLeave)
+                      .take(3)
+                      .toList(),
+                  onTap: (kind) => _openAndRefresh(switch (kind) {
+                    AttentionKind.leave => const LeaveApprovalScreen(),
+                    AttentionKind.attendance => const AttendanceReportScreen(),
+                    AttentionKind.students => const StudentReportScreen(),
+                    AttentionKind.fees => const DefaultersScreen(),
+                  }),
                 ),
                 const SizedBox(height: 22),
                 const SectionHeader(title: "Today's Activity"),
@@ -303,23 +301,21 @@ class _SchoolCard extends StatelessWidget {
   }
 }
 
-/// The web admin dashboard's five KPI cards, with the same labels, order and colours.
+/// Students, Attendance, Fee Collected and Pending Actions.
 class _KpiGrid extends StatelessWidget {
   const _KpiGrid({
     required this.dashboard,
+    required this.pendingActions,
     this.onStudents,
-    this.onMarkedToday,
-    this.onDefaulters,
+    this.onAttendance,
     this.onCollected,
-    this.onAlerts,
   });
 
   final PrincipalDashboard dashboard;
+  final int pendingActions;
   final VoidCallback? onStudents;
-  final VoidCallback? onMarkedToday;
-  final VoidCallback? onDefaulters;
+  final VoidCallback? onAttendance;
   final VoidCallback? onCollected;
-  final VoidCallback? onAlerts;
 
   @override
   Widget build(BuildContext context) {
@@ -328,79 +324,77 @@ class _KpiGrid extends StatelessWidget {
         label: 'Students',
         value: '${dashboard.totalStudents}',
         icon: Icons.school_rounded,
+        onTap: onStudents,
       ),
       (
-        label: 'Marked Today',
-        value: '${dashboard.markedTodayPercentage}%',
+        label: 'Attendance',
+        value: dashboard.attendanceLabel,
         icon: Icons.fact_check_rounded,
+        onTap: onAttendance,
       ),
       (
-        label: 'Defaulters',
-        value: '${dashboard.defaulterCount}',
-        icon: Icons.groups_rounded,
-      ),
-      (
-        label: 'Collected',
+        label: 'Fee Collected',
         value: formatInr(dashboard.totalCollected),
         icon: Icons.savings_rounded,
+        onTap: onCollected,
       ),
       (
-        label: 'Alerts',
-        value: '${dashboard.alertCount}',
-        icon: Icons.warning_amber_rounded,
+        label: 'Pending Actions',
+        value: '$pendingActions',
+        icon: Icons.pending_actions_rounded,
+        // Needs Your Attention, further down, breaks this number down.
+        onTap: null,
       ),
     ];
 
     return ResponsiveGrid(
       phoneColumns: 2,
-      wideColumns: 5,
+      wideColumns: 4,
       children: [
-        for (var index = 0; index < cards.length; index++)
+        for (final card in cards)
           KpiCard(
-            index: index,
-            label: cards[index].label,
-            value: cards[index].value,
-            icon: cards[index].icon,
-            // The web cards link to /students, the daily attendance report,
-            // /fees/defaulters, /fees and the student risk insights.
-            onTap: switch (index) {
-              0 => onStudents,
-              1 => onMarkedToday,
-              2 => onDefaulters,
-              3 => onCollected,
-              _ => onAlerts,
-            },
+            index: cards.indexOf(card),
+            label: card.label,
+            value: card.value,
+            icon: card.icon,
+            onTap: card.onTap,
           ),
       ],
     );
   }
 }
 
-/// A short list, per the blueprint: only actions the app can complete today.
 class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.pendingLeave,
     required this.onStudents,
-    required this.onRecordPayment,
+    required this.onTeachers,
+    required this.onAttendance,
+    required this.onFees,
     required this.onLeave,
-    required this.onAnnouncement,
-    required this.onMessages,
+    required this.onNotice,
+    required this.onPayroll,
     required this.onCalendar,
+    required this.onExams,
   });
 
   final int pendingLeave;
   final VoidCallback onStudents;
-  final VoidCallback onRecordPayment;
+  final VoidCallback onTeachers;
+  final VoidCallback onAttendance;
+  final VoidCallback onFees;
   final VoidCallback onLeave;
-  final VoidCallback onAnnouncement;
-  final VoidCallback? onMessages;
+  final VoidCallback onNotice;
+  final VoidCallback onPayroll;
   final VoidCallback onCalendar;
+  final VoidCallback onExams;
 
   @override
   Widget build(BuildContext context) {
+    // Nine tiles: three full rows on a phone.
     return ResponsiveGrid(
       phoneColumns: 3,
-      wideColumns: 6,
+      wideColumns: 9,
       children: [
         _ActionTile(
           icon: Icons.school_rounded,
@@ -409,36 +403,173 @@ class _QuickActions extends StatelessWidget {
           onTap: onStudents,
         ),
         _ActionTile(
+          icon: Icons.badge_rounded,
+          title: 'Teachers',
+          color: AppColors.primary,
+          onTap: onTeachers,
+        ),
+        _ActionTile(
+          icon: Icons.fact_check_rounded,
+          title: 'Attendance',
+          color: AppColors.success,
+          onTap: onAttendance,
+        ),
+        _ActionTile(
           icon: Icons.payments_rounded,
-          title: 'Record Payment',
+          title: 'Fees',
           color: AppColors.warning,
-          onTap: onRecordPayment,
+          onTap: onFees,
         ),
         _ActionTile(
           icon: Icons.event_available_rounded,
-          title: 'Leave Approval',
-          color: AppColors.success,
+          title: 'Leave Requests',
+          color: AppColors.danger,
           badge: pendingLeave,
           onTap: onLeave,
         ),
         _ActionTile(
           icon: Icons.campaign_rounded,
-          title: 'Announcement',
+          title: 'Send Notice',
           color: AppColors.purple,
-          onTap: onAnnouncement,
+          onTap: onNotice,
         ),
         _ActionTile(
-          icon: Icons.forum_rounded,
-          title: 'Messages',
-          color: AppColors.primary,
-          onTap: onMessages,
+          icon: Icons.account_balance_wallet_rounded,
+          title: 'Payroll',
+          color: AppColors.success,
+          onTap: onPayroll,
         ),
         _ActionTile(
           icon: Icons.calendar_month_rounded,
           title: 'Calendar',
-          color: AppColors.danger,
+          color: AppColors.teal,
           onTap: onCalendar,
         ),
+        _ActionTile(
+          icon: Icons.assignment_rounded,
+          title: 'Exams',
+          color: AppColors.primary,
+          onTap: onExams,
+        ),
+      ],
+    );
+  }
+}
+
+/// Three numbers: attendance %, classes marked and students present.
+class _AttendanceToday extends StatelessWidget {
+  const _AttendanceToday({required this.dashboard, this.onTap});
+
+  final PrincipalDashboard dashboard;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = [
+      (value: dashboard.attendanceLabel, label: 'Attendance'),
+      (
+        value: '${dashboard.classesMarked}/${dashboard.totalClasses}',
+        label: 'Classes marked',
+      ),
+      (value: '${dashboard.studentsPresent}', label: 'Students present'),
+    ];
+
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        // Keeps the numbers level when one label wraps.
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final stat in stats)
+            Expanded(
+              child: Column(
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      stat.value,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    stat.label,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Up to three pending items, each opening the screen that clears it.
+class _NeedsAttention extends StatelessWidget {
+  const _NeedsAttention({required this.items, required this.onTap});
+
+  final List<AttentionItem> items;
+  final ValueChanged<AttentionKind> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const AppCard(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: EmptyView(
+          icon: Icons.verified_rounded,
+          title: 'All caught up',
+          message: 'Nothing is waiting on you right now.',
+        ),
+      );
+    }
+
+    String plural(int count, String one, String many) =>
+        '$count ${count == 1 ? one : many}';
+
+    return Column(
+      children: [
+        for (final item in items) ...[
+          if (item != items.first) const SizedBox(height: 8),
+          switch (item.kind) {
+            AttentionKind.leave => ListRowCard(
+              icon: Icons.event_available_rounded,
+              title: plural(item.count, 'leave request', 'leave requests'),
+              subtitle: 'Awaiting your approval',
+              color: AppColors.danger,
+              onTap: () => onTap(item.kind),
+            ),
+            AttentionKind.attendance => ListRowCard(
+              icon: Icons.fact_check_rounded,
+              title: plural(item.count, 'class', 'classes'),
+              subtitle: 'Attendance not marked yet today',
+              color: AppColors.warning,
+              onTap: () => onTap(item.kind),
+            ),
+            AttentionKind.students => ListRowCard(
+              icon: Icons.warning_amber_rounded,
+              title: plural(item.count, 'student flagged', 'students flagged'),
+              subtitle: 'Low attendance, repeat absences or high risk',
+              color: AppColors.purple,
+              onTap: () => onTap(item.kind),
+            ),
+            AttentionKind.fees => ListRowCard(
+              icon: Icons.currency_rupee_rounded,
+              title: plural(item.count, 'fee defaulter', 'fee defaulters'),
+              subtitle: 'Fees pending follow-up',
+              color: AppColors.teal,
+              onTap: () => onTap(item.kind),
+            ),
+          },
+        ],
       ],
     );
   }

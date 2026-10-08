@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/brand_header.dart';
 
 /// Requests are routed on `/{schoolCode}/api/v1/...` and the server rejects
 /// anything that is not eight uppercase letters or digits, so a malformed code
@@ -225,19 +226,7 @@ class _Logo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          alignment: Alignment.center,
-          child: const Text(
-            'Ss',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 26),
-          ),
-        ),
+        const BrandLogo(size: 64),
         const SizedBox(height: 14),
         const Text(
           'SmartShala',

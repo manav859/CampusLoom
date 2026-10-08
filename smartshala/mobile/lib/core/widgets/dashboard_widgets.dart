@@ -176,7 +176,10 @@ class SegmentBarCard extends StatelessWidget {
                               flex: ((segment.value / total) * 1000)
                                   .round()
                                   .clamp(1, 1000),
-                              child: ColoredBox(color: segment.color),
+                              child: ColoredBox(
+                                color: segment.color,
+                                child: const SizedBox.expand(),
+                              ),
                             ),
                       ],
                     ),

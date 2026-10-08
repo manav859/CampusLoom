@@ -6,6 +6,7 @@ import '../../../core/data/dashboard_models.dart';
 import '../../../core/data/exam_models.dart';
 import '../../../core/data/timetable_models.dart';
 import 'fee_models.dart';
+import 'payroll_models.dart';
 import 'principal_dashboard.dart';
 import 'report_models.dart';
 import 'school_models.dart';
@@ -24,7 +25,8 @@ class PrincipalRepository {
     return PrincipalDashboard.fromJson(data);
   }
 
-  /// Today's activity feed, with the query the web dashboard sends.
+  /// Today's key events for Home (see [keyActivity]), newest first. A full
+  /// page of the day's log is read because most entries are not key events.
   Future<List<ActivityEntry>> activity(DateTime day) async {
     final date = DateFormat('yyyy-MM-dd').format(day);
     final data =
@@ -34,18 +36,16 @@ class PrincipalRepository {
                 'dateFrom': date,
                 'dateTo': date,
                 'excludeEntityType': 'CHATBOT',
-                'limit': 12,
+                'limit': 100,
                 'page': 1,
               },
             )
             as Map<String, dynamic>;
 
     return ((data['items'] as List?) ?? const [])
-        .take(12)
-        .map(
-          (item) =>
-              ActivityEntry.fromJson((item as Map).cast<String, dynamic>()),
-        )
+        .map((item) => keyActivity((item as Map).cast<String, dynamic>()))
+        .whereType<ActivityEntry>()
+        .take(5)
         .toList();
   }
 
@@ -406,4 +406,33 @@ class PrincipalRepository {
       api.post('/transport/assignments', body: {'studentIds': studentIds, 'routeId': routeId, 'stopId': stopId});
 
   Future<void> removeFromRoute(String studentId) => api.delete('/transport/assignments/$studentId');
+
+  // --- Payroll ---------------------------------------------------------------
+
+  /// Every staff member's pay for [month] ("2026-10"), calculated from punches
+  /// against their shift.
+  Future<PayrollMonth> payrollMonth(String month) async {
+    final data = await api.get('/payroll/calculate', query: {'month': month}) as Map<String, dynamic>;
+    return PayrollMonth.fromJson(data);
+  }
+
+  /// Writes the calculated pay into the month's pay slips; paid slips are kept.
+  Future<GenerateResult> generatePayslips(String month) async {
+    final data = await api.post('/payroll/generate', body: {'month': month}) as Map<String, dynamic>;
+    return GenerateResult.fromJson(data);
+  }
+
+  Future<void> savePayProfile(String userId, {required double monthlySalary, String? shiftId}) =>
+      api.put('/payroll/profiles/$userId', body: {'monthlySalary': monthlySalary, 'shiftId': shiftId});
+
+  Future<List<StaffShift>> shifts() async {
+    final data = await api.get('/payroll/shifts') as List<dynamic>;
+    return [for (final shift in data) StaffShift.fromJson(shift as Map<String, dynamic>)];
+  }
+
+  Future<void> createShift(ShiftDraft draft) => api.post('/payroll/shifts', body: draft.toJson());
+
+  Future<void> updateShift(String id, ShiftDraft draft) => api.patch('/payroll/shifts/$id', body: draft.toJson());
+
+  Future<void> deleteShift(String id) => api.delete('/payroll/shifts/$id');
 }

@@ -9,8 +9,8 @@ import '../auth/auth_repository.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
 import '../data/messages_repository.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/brand_header.dart';
 import '../widgets/responsive.dart';
 import '../widgets/state_views.dart';
 
@@ -152,18 +152,6 @@ class _SplashLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        'Ss',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 30),
-      ),
-    );
+    return const BrandLogo(size: 72);
   }
 }

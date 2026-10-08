@@ -8,15 +8,17 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(result);
 });
 
+const isMobile = (req: Request) => String(req.headers["x-client-type"] ?? "").toLowerCase() === "mobile";
+
 export const login = asyncHandler(async (req: Request, res: Response) => {
-  const result = await authService.login(req.body.identifier, req.body.password, req.ip ?? "unknown");
+  const isMobileClient = isMobile(req);
+  const result = await authService.login(req.body.identifier, req.body.password, req.ip ?? "unknown", isMobileClient);
 
   // Refresh token goes into an httpOnly cookie; only the access token is returned in the body.
-  setRefreshCookie(res, result.refreshToken);
+  setRefreshCookie(res, result.refreshToken, authService.sessionLengthMs(isMobileClient));
 
   // Native mobile clients cannot read that cookie, so they also get the refresh
   // token in the body and keep it in the device's secure storage.
-  const isMobileClient = String(req.headers["x-client-type"] ?? "").toLowerCase() === "mobile";
 
   res.json({
     accessToken: result.accessToken,
@@ -38,9 +40,12 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  // authService.refresh does not rotate the refresh token, so the existing cookie stays in place.
-  const result = await authService.refresh(refreshToken);
-  res.json({ accessToken: result.accessToken });
+  // A renewed session comes back with a new refresh token: the cookie is
+  // replaced, and the apps also get it in the body for secure storage.
+  const mobile = isMobile(req);
+  const result = await authService.refresh(refreshToken, mobile);
+  if (result.refreshToken) setRefreshCookie(res, result.refreshToken, authService.sessionLengthMs(mobile));
+  res.json({ accessToken: result.accessToken, ...(mobile && result.refreshToken ? { refreshToken: result.refreshToken } : {}) });
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
@@ -49,7 +54,7 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-  await authService.logout(req.user!.id, req.user!.schoolId ?? null, req.ip ?? "unknown");
+  await authService.logout(req.user!.id, req.user!.schoolId ?? null, req.ip ?? "unknown", getRefreshToken(req));
   clearRefreshCookie(res);
   res.status(204).send();
 });

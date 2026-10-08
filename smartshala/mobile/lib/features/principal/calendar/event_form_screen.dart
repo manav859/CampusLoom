@@ -8,7 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../data/principal_repository.dart';
 
 /// Add or edit an academic calendar event: an exam week, a school event or a
-/// meeting, over one day or several. Editing also offers Delete. Pops `true`
+/// meeting, over one day or several, all day or at a time. Editing also offers Delete. Pops `true`
 /// when the calendar changed. Teachers see the result in their Calendar tab.
 class EventFormScreen extends StatefulWidget {
   const EventFormScreen({super.key, this.event, this.initialDate});
@@ -31,6 +31,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
   late CalendarEventType _type = widget.event?.type ?? CalendarEventType.event;
   late DateTime _start = _dateOnly(widget.event?.startDate ?? widget.initialDate ?? DateTime.now());
   late DateTime _end = _dateOnly(widget.event?.endDate ?? _start);
+  // An event is all day unless it was given a time.
+  late bool _allDay = widget.event?.isAllDay ?? true;
+  late TimeOfDay? _startTime = _parseTime(widget.event?.startTime);
+  late TimeOfDay? _endTime = _parseTime(widget.event?.endTime);
   bool _saving = false;
   String? _error;
 
@@ -39,6 +43,36 @@ class _EventFormScreenState extends State<EventFormScreen> {
   bool get _editing => widget.event != null;
 
   static DateTime _dateOnly(DateTime date) => DateTime(date.year, date.month, date.day);
+
+  static TimeOfDay? _parseTime(String? value) {
+    final parts = value?.split(':');
+    if (parts == null || parts.length != 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    return hour == null || minute == null ? null : TimeOfDay(hour: hour, minute: minute);
+  }
+
+  static int _minutes(TimeOfDay time) => time.hour * 60 + time.minute;
+
+  Future<void> _pickTime({required bool start}) async {
+    final fallback = start ? const TimeOfDay(hour: 10, minute: 0) : _startTime?.replacing(hour: (_startTime!.hour + 1) % 24);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: (start ? _startTime : _endTime) ?? fallback ?? const TimeOfDay(hour: 11, minute: 0),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (start) {
+        _startTime = picked;
+        // A new start pulls a now-earlier end along, an hour after it.
+        if (_endTime != null && !_end.isAfter(_start) && _minutes(_endTime!) <= _minutes(picked)) {
+          _endTime = picked.replacing(hour: (picked.hour + 1) % 24);
+        }
+      } else {
+        _endTime = picked;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -75,6 +109,14 @@ class _EventFormScreenState extends State<EventFormScreen> {
       setState(() => _error = 'The end date cannot be before the start date.');
       return;
     }
+    if (!_allDay && _startTime == null) {
+      setState(() => _error = 'Pick a start time, or make the event all day.');
+      return;
+    }
+    if (!_allDay && _endTime != null && !_end.isAfter(_start) && _minutes(_endTime!) <= _minutes(_startTime!)) {
+      setState(() => _error = 'The end time must be after the start time.');
+      return;
+    }
 
     final draft = CalendarEventDraft(
       type: _type,
@@ -82,6 +124,8 @@ class _EventFormScreenState extends State<EventFormScreen> {
       description: _description.text,
       startDate: _start,
       endDate: _end,
+      startTime: _allDay ? null : _startTime,
+      endTime: _allDay ? null : _endTime,
     );
     await _run(() {
       final repository = context.read<PrincipalRepository>();
@@ -177,6 +221,42 @@ class _EventFormScreenState extends State<EventFormScreen> {
                 Expanded(child: _DateField(label: 'Ends *', value: _format.format(_end), onTap: () => _pick(start: false))),
               ],
             ),
+            const SizedBox(height: 4),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('All day', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                _allDay ? 'Turn off to set a start and end time.' : 'Starts and ends at a set time.',
+                style: const TextStyle(fontSize: 12),
+              ),
+              value: _allDay,
+              onChanged: (value) => setState(() {
+                _allDay = value;
+                if (!value) _startTime ??= const TimeOfDay(hour: 10, minute: 0);
+              }),
+            ),
+            if (!_allDay) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DateField(
+                      label: 'Start time *',
+                      value: _startTime == null ? 'Pick a time' : _startTime!.format(context),
+                      onTap: () => _pickTime(start: true),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _DateField(
+                      label: 'End time',
+                      value: _endTime == null ? 'Optional' : _endTime!.format(context),
+                      onTap: () => _pickTime(start: false),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             TextFormField(
               controller: _description,

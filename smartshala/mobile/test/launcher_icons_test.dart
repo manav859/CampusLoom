@@ -17,7 +17,8 @@ const _densities = <String, double>{'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi'
 /// Only the middle 66 of the adaptive icon's 108dp survives every launcher mask.
 const _safeZone = 66 / 108;
 
-const _flavors = <String, String>{'principal': '#2456E6', 'teacher': '#0D9488'};
+/// Both apps wear the web dashboard's logo, so both grounds are its blue.
+const _flavors = <String, String>{'principal': '#003DE5', 'teacher': '#003DE5'};
 
 String _res(String flavor) => 'android/app/src/$flavor/res';
 

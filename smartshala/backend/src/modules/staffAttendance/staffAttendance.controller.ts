@@ -10,6 +10,10 @@ export const punchIn = asyncHandler(async (req: Request, res: Response) => {
   res.status(201).json(await staffAttendanceService.punchIn(req.user!));
 });
 
+export const startBreak = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await staffAttendanceService.startBreak(req.user!));
+});
+
 export const punchOut = asyncHandler(async (req: Request, res: Response) => {
   res.json(await staffAttendanceService.punchOut(req.user!));
 });

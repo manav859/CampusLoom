@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import 'calendar/academic_calendar_screen.dart';
 import 'messages/principal_messages_screen.dart';
 import 'principal_home_screen.dart';
 import 'principal_more_screen.dart';
 import 'quick_add_sheet.dart';
-import 'reports/reports_screen.dart';
 
 class PrincipalShell extends StatefulWidget {
   const PrincipalShell({super.key});
@@ -23,9 +23,9 @@ class _PrincipalShellState extends State<PrincipalShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          PrincipalHomeScreen(onOpenMessages: () => setState(() => _index = 2)),
-          const ReportsScreen(),
+          PrincipalHomeScreen(onOpenMessages: () => setState(() => _index = 1)),
           const PrincipalMessagesScreen(),
+          const AcademicCalendarScreen(),
           const PrincipalMoreScreen(),
         ],
       ),
@@ -45,8 +45,8 @@ class _PrincipalShellState extends State<PrincipalShell> {
   }
 }
 
-/// Home · Reports · (+) · Messages · More — the + sits in the notch, so the
-/// row leaves a gap in the middle.
+/// Home · Messages · (+) · Calendar · More — the + sits in the notch, so the
+/// row leaves a gap in the middle. Reports and Analytics live in More.
 class _BottomBar extends StatelessWidget {
   const _BottomBar({required this.index, required this.onChanged});
 
@@ -71,15 +71,15 @@ class _BottomBar extends StatelessWidget {
             onTap: () => onChanged(0),
           ),
           _NavItem(
-            icon: Icons.bar_chart_rounded,
-            label: 'Reports',
+            icon: Icons.forum_rounded,
+            label: 'Messages',
             selected: index == 1,
             onTap: () => onChanged(1),
           ),
           const SizedBox(width: 64),
           _NavItem(
-            icon: Icons.forum_rounded,
-            label: 'Messages',
+            icon: Icons.calendar_month_rounded,
+            label: 'Calendar',
             selected: index == 2,
             onTap: () => onChanged(2),
           ),

@@ -43,14 +43,14 @@ class _SalaryScreenState extends State<SalaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Salary Details')),
+      appBar: AppBar(title: const Text('Pay Slip')),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<MySalary>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const LoadingView(message: 'Loading your salary…');
+              return const LoadingView(message: 'Loading your pay slips…');
             }
 
             if (snapshot.hasError) {
@@ -59,7 +59,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
                 children: [
                   SizedBox(height: MediaQuery.sizeOf(context).height * 0.18),
                   ErrorView(
-                    message: error is ApiException ? error.message : 'Could not load your salary.',
+                    message: error is ApiException ? error.message : 'Could not load your pay slips.',
                     onRetry: _refresh,
                   ),
                 ],
@@ -74,7 +74,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
                   SizedBox(height: MediaQuery.sizeOf(context).height * 0.14),
                   const EmptyView(
                     icon: Icons.receipt_long_rounded,
-                    title: 'No salary slips yet',
+                    title: 'No pay slips yet',
                     message: 'Your slips appear here once the school records them.',
                   ),
                 ],
@@ -94,7 +94,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
                 ),
                 const SizedBox(height: 22),
                 SectionHeader(
-                  title: 'Salary Slips',
+                  title: 'Pay Slips',
                   action: Text(
                     '${salary.slips.length}',
                     style: const TextStyle(

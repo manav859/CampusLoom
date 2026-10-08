@@ -31,8 +31,8 @@ class TeacherMoreSheet extends StatelessWidget {
     ),
     (
       icon: Icons.receipt_long_rounded,
-      title: 'Salary Details',
-      subtitle: 'Your pay and salary slips',
+      title: 'Pay Slip',
+      subtitle: 'Your monthly pay slips',
       color: AppColors.success,
       screen: SalaryScreen.new,
     ),
