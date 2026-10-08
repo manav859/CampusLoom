@@ -13,6 +13,7 @@ import {
   setCrmCookie
 } from "./crm.auth.js";
 import { issueLoginDetails } from "./crm.conversion.js";
+import { connectMeta, disconnectMeta, getMetaStatus, listMetaForms, setMetaForms, syncMetaLeads } from "./crm.meta.js";
 import {
   crmLoginSchema,
   createLeadSchema,
@@ -21,6 +22,8 @@ import {
   leadIdParamSchema,
   leadListQuerySchema,
   linkIdParamSchema,
+  metaConnectSchema,
+  metaFormsSchema,
   noteSchema,
   paymentLinkSchema,
   paymentsQuerySchema,
@@ -264,5 +267,58 @@ crmRouter.get(
   asyncHandler(async (req, res) => {
     const { buffer, number } = await renderLeadInvoicePdf(crmActor(res), req.params.invoiceId);
     sendPdf(res, buffer, `invoice-${number}.pdf`);
+  })
+);
+
+// --- Meta lead ads (admins) ----------------------------------------------------------
+
+crmRouter.get(
+  "/integrations/meta",
+  requireCrmAdmin,
+  asyncHandler(async (_req, res) => {
+    res.json(await getMetaStatus());
+  })
+);
+
+crmRouter.put(
+  "/integrations/meta",
+  requireCrmAdmin,
+  validate({ body: metaConnectSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await connectMeta(crmActor(res), req.body));
+  })
+);
+
+crmRouter.delete(
+  "/integrations/meta",
+  requireCrmAdmin,
+  asyncHandler(async (_req, res) => {
+    await disconnectMeta();
+    res.status(204).send();
+  })
+);
+
+crmRouter.get(
+  "/integrations/meta/forms",
+  requireCrmAdmin,
+  asyncHandler(async (_req, res) => {
+    res.json(await listMetaForms());
+  })
+);
+
+crmRouter.put(
+  "/integrations/meta/forms",
+  requireCrmAdmin,
+  validate({ body: metaFormsSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await setMetaForms(req.body.formIds));
+  })
+);
+
+crmRouter.post(
+  "/integrations/meta/sync",
+  requireCrmAdmin,
+  asyncHandler(async (_req, res) => {
+    res.json(await syncMetaLeads());
   })
 );

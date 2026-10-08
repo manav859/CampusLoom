@@ -301,7 +301,7 @@ function Profile({
             <Row label="Address">{lead.address}</Row>
             <Row label="GSTIN">{lead.gstin ?? "Unregistered"}</Row>
             <Row label="State">{lead.stateName ? `${lead.stateName} (${lead.stateCode})` : null}</Row>
-            <Row label="Source">{lead.source === "WEBSITE" ? "Website enquiry" : "Added in CRM"}</Row>
+            <Row label="Source">{lead.source === "WEBSITE" ? "Website enquiry" : lead.source === "META" ? "Meta lead form" : "Added in CRM"}</Row>
             <Row label="Created">{`${fmtDateTime(lead.createdAt)} by ${lead.createdBy}`}</Row>
           </dl>
         </div>
@@ -337,6 +337,7 @@ const ACTIVITY_TITLE: Record<string, string> = {
   NOTE: "Note",
   CREATED: "Deal created",
   ENQUIRY: "Website enquiry",
+  META_LEAD: "Meta lead form",
   PROFORMA_ISSUED: "Proforma issued",
   PROFORMA_CANCELLED: "Proforma cancelled",
   LINK_CREATED: "Payment link created",

@@ -174,10 +174,13 @@ function cleanLeadInput<T extends Partial<LeadInput>>(input: T): T {
 
 /** An open lead with this phone or email — the same school asked twice, or two salespeople chasing it. */
 async function findOpenDuplicate(input: { phone: string; email: string }, exceptId?: string) {
+  // A Meta form may leave one of them out; a blank never matches another blank.
+  const match = [input.phone ? { phone: input.phone } : null, input.email ? { email: input.email } : null].filter((m) => m !== null);
+  if (match.length === 0) return null;
   return masterPrisma.lead.findFirst({
     where: {
       stage: { notIn: [LeadStage.LOST, LeadStage.ONBOARDED] },
-      OR: [{ phone: input.phone }, { email: input.email }],
+      OR: match,
       ...(exceptId ? { id: { not: exceptId } } : {})
     },
     include: { assignedTo: { select: { name: true } } }
@@ -284,6 +287,28 @@ export async function createWebsiteLead(raw: LeadInput) {
   });
   await addActivity(lead.id, "CREATED", "Enquiry received from the website", SYSTEM_NAME);
   return { code: leadCode(lead.number) };
+}
+
+/**
+ * A lead from a Meta lead form. Like the website form, a repeat lands on the
+ * deal that already exists instead of failing; `details` is what the form said.
+ */
+export async function createMetaLead(raw: LeadInput, details: string, assignedToId: string | null) {
+  assertMaster();
+  const input = cleanLeadInput(raw);
+
+  const duplicate = await findOpenDuplicate(input);
+  if (duplicate) {
+    await addActivity(duplicate.id, "META_LEAD", `Filled a Meta lead form again\n${details}`, SYSTEM_NAME);
+    return { leadId: duplicate.id, created: false };
+  }
+
+  const lead = await masterPrisma.lead.create({
+    data: { ...input, assignedToId, source: LeadSource.META, createdBy: "Meta" }
+  });
+  await addActivity(lead.id, "CREATED", "Lead received from a Meta lead form", SYSTEM_NAME);
+  await addActivity(lead.id, "META_LEAD", details, SYSTEM_NAME);
+  return { leadId: lead.id, created: true };
 }
 
 export async function getLead(actor: CrmActor, leadId: string) {

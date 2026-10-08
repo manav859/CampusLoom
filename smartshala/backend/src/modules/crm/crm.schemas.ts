@@ -93,3 +93,12 @@ export const proformaIdParamSchema = z.object({ proformaId: z.string().uuid() })
 export const linkIdParamSchema = z.object({ linkId: z.string().uuid() });
 export const userIdParamSchema = z.object({ userId: z.string().uuid() });
 export const invoiceIdParamSchema = z.object({ invoiceId: z.string().uuid() });
+
+export const metaConnectSchema = z.object({
+  pageId: z.string().trim().regex(/^\d{5,25}$/, "Enter the numeric Page ID"),
+  accessToken: z.string().trim().min(20).max(1000)
+});
+
+export const metaFormsSchema = z.object({
+  formIds: z.array(z.string().trim().regex(/^\d{5,25}$/)).max(200)
+});

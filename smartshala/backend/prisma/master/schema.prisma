@@ -526,6 +526,37 @@ model Proforma {
   @@map("proformas")
 }
 
+// The Facebook Page whose lead forms the CRM pulls from. One row at most
+// (id "meta"); the Page token is stored encrypted.
+model MetaIntegration {
+  id                 String    @id @default("meta")
+  pageId             String
+  pageName           String
+  accessTokenEnc     String
+  // Forms to import from; empty means every form on the Page.
+  formIds            String[]  @default([])
+  // Round-robin cursor: the salesperson who got the last imported lead.
+  lastAssignedUserId String?   @db.Uuid
+  lastSyncedAt       DateTime?
+  lastSyncError      String?
+  connectedBy        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @default(now()) @updatedAt
+
+  @@map("meta_integrations")
+}
+
+// Every Meta lead seen, imported or folded into an existing deal, so a sync
+// never handles the same one twice.
+model MetaLeadImport {
+  metaLeadId String   @id
+  formId     String
+  leadId     String?  @db.Uuid
+  createdAt  DateTime @default(now())
+
+  @@map("meta_lead_imports")
+}
+
 enum CrmRole {
   ADMIN
   SALES
@@ -543,6 +574,7 @@ enum LeadStage {
 enum LeadSource {
   CRM
   WEBSITE
+  META
 }
 
 enum OnboardingStatus {

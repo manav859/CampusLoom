@@ -91,7 +91,7 @@ export default function DealsPage() {
           </div>
           <p className="truncate text-xs text-slate-500">
             {deal.ownerName}
-            {deal.source === "WEBSITE" ? " · from website" : ""}
+            {deal.source === "WEBSITE" ? " · from website" : deal.source === "META" ? " · from Meta" : ""}
           </p>
         </div>
       )

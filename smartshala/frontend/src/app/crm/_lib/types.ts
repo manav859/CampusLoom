@@ -26,7 +26,7 @@ export type LeadRow = LeadContact & {
   number: number;
   code: string;
   stage: LeadStage;
-  source: "CRM" | "WEBSITE";
+  source: "CRM" | "WEBSITE" | "META";
   assignedToId: string | null;
   assignedTo: { id: string; name: string } | null;
   schoolId: string | null;
@@ -167,3 +167,22 @@ export type PaymentsPage = {
   summary: { collectedMinor: number; paymentsCount: number; lostMinor: number; lostLeads: number };
   payments: CrmPayment[];
 };
+
+export type MetaStatus =
+  | { connected: false }
+  | {
+      connected: true;
+      pageId: string;
+      pageName: string;
+      formIds: string[];
+      lastSyncedAt: string | null;
+      lastSyncError: string | null;
+      connectedBy: string;
+      createdAt: string;
+      imported: number;
+      autoSync: boolean;
+    };
+
+export type MetaForm = { id: string; name: string; status: string; leadsCount: number | null };
+
+export type MetaSyncResult = { created: number; merged: number; failed: number };
