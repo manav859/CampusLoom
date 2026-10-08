@@ -30,7 +30,7 @@ function toDraft(lead?: LeadDetail): Draft {
 const STATE_OPTIONS = [{ value: "", label: "Not set" }, ...GST_STATES.map((state) => ({ value: state.code, label: `${state.name} (${state.code})` }))];
 
 /**
- * Add a lead, or edit one. The same principal contacts the old manual school
+ * Add a deal, or edit one. The same principal contacts the old manual school
  * form took — they become the school and its principal login once it pays.
  */
 export function LeadFormModal({ lead, onClose, onCreated }: { lead?: LeadDetail; onClose: () => void; onCreated?: (lead: LeadRow) => void }) {
@@ -74,7 +74,7 @@ export function LeadFormModal({ lead, onClose, onCreated }: { lead?: LeadDetail;
         invalidate("/leads");
         return created;
       },
-      lead ? "Lead updated." : (created) => `${created?.code} created.`
+      lead ? "Deal updated." : (created) => `${created?.code} created.`
     );
     if (done === undefined) return;
     if (done) onCreated?.(done);
@@ -88,9 +88,9 @@ export function LeadFormModal({ lead, onClose, onCreated }: { lead?: LeadDetail;
       open
       size="lg"
       submitDisabled={!valid}
-      submitLabel={lead ? "Save changes" : "Create lead"}
+      submitLabel={lead ? "Save changes" : "Create deal"}
       submitting={isPending("lead-form")}
-      title={lead ? `Edit ${lead.code}` : "Add a lead"}
+      title={lead ? `Edit ${lead.code}` : "Create a deal"}
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="School name">
@@ -134,8 +134,8 @@ export function LeadFormModal({ lead, onClose, onCreated }: { lead?: LeadDetail;
           />
         </Field>
         {isAdmin ? (
-          <Field label="Lead owner">
-            <Select ariaLabel="Lead owner" onChange={(assignedToId) => set({ assignedToId })} options={ownerOptions} value={draft.assignedToId} />
+          <Field label="Deal owner">
+            <Select ariaLabel="Deal owner" onChange={(assignedToId) => set({ assignedToId })} options={ownerOptions} value={draft.assignedToId} />
           </Field>
         ) : null}
       </div>

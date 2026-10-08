@@ -16,7 +16,7 @@ const PROFORMA_STATUS: Record<Proforma["status"], { label: string; tone: Tone }>
 };
 
 /**
- * Everything money on a lead: the proforma, the link that pays it, and — once
+ * Everything money on a deal: the proforma, the link that pays it, and — once
  * paid — the school it became. Each action refreshes this lead and the list.
  */
 export function BillingPanel({ lead }: { lead: LeadDetail }) {
@@ -36,7 +36,7 @@ export function BillingPanel({ lead }: { lead: LeadDetail }) {
           <CardHeader title="Proforma invoice" />
           <div className="p-4 text-sm text-slate-600">
             {lead.stage === "LOST" ? (
-              "Reopen the lead to send it a proforma."
+              "Reopen the deal to send it a proforma."
             ) : (
               <>
                 <p>Quote a plan and price. The proforma goes to the principal with a link to pay it.</p>
@@ -270,6 +270,7 @@ function LinkBox({ lead, proforma }: { lead: LeadDetail; proforma: Proforma }) {
         >
           Share on WhatsApp
         </a>
+        <CopyButton label="Copy link" text={link.url} />
         <CopyButton label="Copy message" text={link.shareText ?? link.url} />
         <Btn
           loading={isPending("revoke")}

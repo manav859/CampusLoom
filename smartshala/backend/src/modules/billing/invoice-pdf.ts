@@ -361,7 +361,7 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
         characterSpacing: 0.5
       });
       const subRows: [string, string][] = [
-        [proforma ? "Lead ID" : "School ID", data.school.schoolId],
+        [proforma ? "Deal ID" : "School ID", data.school.schoolId],
         ["Plan Code", data.invoice.planCode],
         ["Billing Period", period],
         ["Paid On", data.invoice.paidAt ? formatDate(data.invoice.paidAt) : "-"]

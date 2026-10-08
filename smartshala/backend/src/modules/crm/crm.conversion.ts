@@ -269,7 +269,7 @@ async function runOnboarding(leadId: string) {
   const proforma = lead.proformas[0];
 
   try {
-    if (!proforma) throw new Error("This lead has no paid proforma");
+    if (!proforma) throw new Error("This deal has no paid proforma");
     await addActivity(lead.id, "ONBOARDING", `Setting up school ${schoolId}`, SYSTEM_NAME);
 
     if (!(await masterPrisma.school.findUnique({ where: { schoolId }, select: { id: true } }))) {
@@ -339,10 +339,10 @@ async function runOnboarding(leadId: string) {
       schoolId,
       actor: { kind: "SYSTEM", label: "crm" },
       action: "subscription.created",
-      message: `Onboarded from lead ${leadCode(lead.number)} on ${proforma.planName}`
+      message: `Onboarded from deal ${leadCode(lead.number)} on ${proforma.planName}`
     });
     await masterPrisma.onboardingLog
-      .create({ data: { schoolId, status: "ACTIVE", message: `Onboarded from lead ${leadCode(lead.number)}` } })
+      .create({ data: { schoolId, status: "ACTIVE", message: `Onboarded from deal ${leadCode(lead.number)}` } })
       .catch(() => undefined);
     logger.info({ schoolId, leadId }, "Lead onboarded");
     return true;
@@ -366,7 +366,7 @@ async function runOnboarding(leadId: string) {
  */
 export async function issueLoginDetails(leadId: string, actor: CrmActor) {
   const lead = await masterPrisma.lead.findUnique({ where: { id: leadId } });
-  if (!lead) throw new AppError(404, "Lead not found", "LEAD_NOT_FOUND");
+  if (!lead) throw new AppError(404, "Deal not found", "LEAD_NOT_FOUND");
   if (!lead.schoolId || lead.onboardingStatus !== OnboardingStatus.DONE) {
     throw new AppError(409, "This school is not set up yet", "LEAD_NOT_ONBOARDED");
   }

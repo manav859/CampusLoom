@@ -10,7 +10,7 @@ import { useCrmUser } from "../_lib/session";
 import type { CrmRole, TeamMember } from "../_lib/types";
 
 const ROLE_OPTIONS: Array<{ value: CrmRole; label: string }> = [
-  { value: "SALES", label: "Sales — sees own leads" },
+  { value: "SALES", label: "Sales — sees own deals" },
   { value: "ADMIN", label: "Sales admin — sees all, manages team" }
 ];
 
@@ -40,7 +40,7 @@ export default function TeamPage() {
     },
     { key: "role", header: "Role", cell: (member) => <Badge tone={member.role === "ADMIN" ? "info" : "neutral"}>{member.role === "ADMIN" ? "Sales admin" : "Sales"}</Badge> },
     { key: "status", header: "Status", cell: (member) => <Badge tone={member.isActive ? "good" : "danger"}>{member.isActive ? "Active" : "Deactivated"}</Badge> },
-    { key: "leads", header: "Leads", align: "right", cell: (member) => <span className="tabular-nums">{member.leadCount}</span> },
+    { key: "leads", header: "Deals", align: "right", cell: (member) => <span className="tabular-nums">{member.leadCount}</span> },
     { key: "login", header: "Last sign-in", cell: (member) => <span className="text-xs text-slate-500">{member.lastLoginAt ? timeAgo(member.lastLoginAt) : "Never"}</span> },
     {
       key: "actions",
@@ -64,7 +64,7 @@ export default function TeamPage() {
             + Add member
           </Btn>
         }
-        description="Who can sign in to the CRM. A deactivated member keeps their leads until you reassign them."
+        description="Who can sign in to the CRM. A deactivated member keeps their deals until you reassign them."
         title="Team"
       />
       {team.error ? <ErrorBanner message={team.error} onRetry={() => void team.reload()} /> : null}

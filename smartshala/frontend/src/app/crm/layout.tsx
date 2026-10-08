@@ -19,13 +19,13 @@ const ICONS = {
 } as const;
 
 const NAV: Array<{ href: string; label: string; icon: keyof typeof ICONS; adminOnly?: boolean }> = [
-  { href: "/crm", label: "Leads", icon: "leads" },
+  { href: "/crm", label: "Deals", icon: "leads" },
   { href: "/crm/payments", label: "Payments", icon: "payments" },
   { href: "/crm/team", label: "Team", icon: "team", adminOnly: true }
 ];
 
 function isActive(pathname: string, href: string) {
-  return href === "/crm" ? pathname === href || pathname.startsWith("/crm/leads") : pathname.startsWith(href);
+  return href === "/crm" ? pathname === href || pathname.startsWith("/crm/deals") : pathname.startsWith(href);
 }
 
 /**

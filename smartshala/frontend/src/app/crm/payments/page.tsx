@@ -64,13 +64,13 @@ export default function PaymentsPage() {
   const columns: Array<Column<CrmPayment>> = [
     {
       key: "lead",
-      header: "Lead info",
+      header: "Deal info",
       cell: (payment) => (
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Link
               className="truncate font-semibold text-slate-900 hover:text-blue-700"
-              href={`/crm/leads/${payment.lead.id}`}
+              href={`/crm/deals/${payment.lead.id}`}
               onClick={(event) => event.stopPropagation()}
             >
               {payment.lead.schoolName} ↗
@@ -83,7 +83,7 @@ export default function PaymentsPage() {
     },
     {
       key: "owner",
-      header: "Lead owner",
+      header: "Deal owner",
       cell: (payment) => <span className="text-sm">{payment.lead.assignedTo?.name ?? "Unassigned"}</span>
     },
     {
@@ -133,7 +133,7 @@ export default function PaymentsPage() {
             ))}
           </div>
         }
-        description={user.role === "ADMIN" ? "What new schools paid on their proformas." : "What your leads paid on their proformas."}
+        description={user.role === "ADMIN" ? "What new schools paid on their proformas." : "What your deals paid on their proformas."}
         title="Payments"
       />
 
@@ -154,7 +154,7 @@ export default function PaymentsPage() {
         <div className="rounded-lg border border-red-100 bg-red-50 px-5 py-4">
           <p className="text-xs font-medium text-red-700">Revenue lost</p>
           <p className="mt-0.5 text-2xl font-bold tabular-nums text-red-700">{summary ? compactRupees(summary.lostMinor) : "—"}</p>
-          <p className="mt-1 text-xs text-red-700/80">{summary ? `${summary.lostLeads} lead${summary.lostLeads === 1 ? "" : "s"} marked lost` : ""}</p>
+          <p className="mt-1 text-xs text-red-700/80">{summary ? `${summary.lostLeads} deal${summary.lostLeads === 1 ? "" : "s"} marked lost` : ""}</p>
         </div>
       </div>
 
@@ -223,7 +223,7 @@ function PaymentDrawer({ payment, onClose }: { payment: CrmPayment; onClose: () 
       <div className="space-y-5">
         <Section title="Order details">
           <Line label="School">{lead.schoolName}</Line>
-          <Line label="Lead ID">{lead.code}</Line>
+          <Line label="Deal ID">{lead.code}</Line>
           <Line label="Principal">{lead.ownerName}</Line>
           <Line label="Mobile">{lead.phone}</Line>
           <Line label="Email">{lead.email}</Line>
@@ -261,7 +261,7 @@ function PaymentDrawer({ payment, onClose }: { payment: CrmPayment; onClose: () 
           <Line label="Paid amount">{money(payment.amountMinor, payment.currency)}</Line>
           {payment.refundedMinor > 0 ? <Line label="Refunded">{money(payment.refundedMinor, payment.currency)}</Line> : null}
           <Line label="Created by">{proforma.createdBy}</Line>
-          <Line label="Lead owner">{lead.assignedTo?.name ?? "Unassigned"}</Line>
+          <Line label="Deal owner">{lead.assignedTo?.name ?? "Unassigned"}</Line>
           <Line label="Payment type">
             <span className="capitalize">{payment.method ?? "—"}</span>
           </Line>

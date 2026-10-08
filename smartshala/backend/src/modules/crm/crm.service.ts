@@ -50,7 +50,7 @@ function leadScope(actor: CrmActor): Prisma.LeadWhereInput {
 async function leadForActor(actor: CrmActor, leadId: string) {
   assertMaster();
   const lead = await masterPrisma.lead.findFirst({ where: { id: leadId, ...leadScope(actor) } });
-  if (!lead) throw new AppError(404, "Lead not found", "LEAD_NOT_FOUND");
+  if (!lead) throw new AppError(404, "Deal not found", "LEAD_NOT_FOUND");
   return lead;
 }
 
@@ -261,7 +261,7 @@ export async function createLead(actor: CrmActor, raw: LeadInput & { assignedToI
   const lead = await masterPrisma.lead.create({
     data: { ...details, assignedToId, source: LeadSource.CRM, createdBy: actor.name }
   });
-  await addActivity(lead.id, "CREATED", "Lead created", actor.name);
+  await addActivity(lead.id, "CREATED", "Deal created", actor.name);
   return { ...lead, code: leadCode(lead.number) };
 }
 
@@ -365,7 +365,7 @@ export async function updateLead(
   const changed = CONTACT_FIELDS.filter((field) => input[field] !== undefined && input[field] !== lead[field]);
   if (changed.length) {
     if (lead.stage === LeadStage.ONBOARDED) {
-      throw new AppError(409, "This lead is a school now — change its details from the super admin panel", "LEAD_ONBOARDED");
+      throw new AppError(409, "This deal is a school now — change its details from the super admin panel", "LEAD_ONBOARDED");
     }
     const next = { phone: input.phone ?? lead.phone, email: input.email ?? lead.email };
     if (input.phone !== undefined || input.email !== undefined) {
@@ -378,10 +378,10 @@ export async function updateLead(
 
   if (input.stage && input.stage !== lead.stage) {
     if (!MANUAL_STAGES.includes(input.stage) || !(MANUAL_STAGES.includes(lead.stage) || lead.stage === LeadStage.PROFORMA_SENT)) {
-      throw new AppError(409, `A lead cannot be moved from ${STAGE_LABEL[lead.stage]} to ${STAGE_LABEL[input.stage]} by hand`, "LEAD_STAGE_LOCKED");
+      throw new AppError(409, `A deal cannot be moved from ${STAGE_LABEL[lead.stage]} to ${STAGE_LABEL[input.stage]} by hand`, "LEAD_STAGE_LOCKED");
     }
     if (input.stage === LeadStage.LOST && !input.lostReason?.trim()) {
-      throw new AppError(400, "Say why the lead was lost", "LEAD_LOST_REASON_REQUIRED");
+      throw new AppError(400, "Say why the deal was lost", "LEAD_LOST_REASON_REQUIRED");
     }
     data.stage = input.stage;
     data.lostAt = input.stage === LeadStage.LOST ? new Date() : null;
@@ -392,7 +392,7 @@ export async function updateLead(
   }
 
   if (input.assignedToId !== undefined && input.assignedToId !== lead.assignedToId) {
-    if (actor.role !== CrmRole.ADMIN) throw new AppError(403, "Only a sales admin can reassign a lead", "CRM_ADMIN_REQUIRED");
+    if (actor.role !== CrmRole.ADMIN) throw new AppError(403, "Only a sales admin can reassign a deal", "CRM_ADMIN_REQUIRED");
     const user = input.assignedToId ? await assertAssignable(input.assignedToId) : null;
     data.assignedToId = input.assignedToId;
     notes.push(user ? `Assigned to ${user.name}` : "Unassigned");
@@ -416,7 +416,7 @@ export async function retryOnboarding(actor: CrmActor, leadId: string) {
   const lead = await leadForActor(actor, leadId);
   if (lead.onboardingStatus === OnboardingStatus.DONE) throw new AppError(409, "This school is already set up", "LEAD_ALREADY_ONBOARDED");
   const started = await startOnboarding(lead.id);
-  if (!started) throw new AppError(409, "Setup is already running for this school, or the lead has not paid", "ONBOARDING_NOT_STARTED");
+  if (!started) throw new AppError(409, "Setup is already running for this school, or the deal has not paid", "ONBOARDING_NOT_STARTED");
   await addActivity(lead.id, "ONBOARDING", "Setup retried", actor.name);
   return getLead(actor, leadId);
 }
@@ -435,9 +435,9 @@ export async function issueProforma(
 ) {
   const lead = await leadForActor(actor, leadId);
   if (lead.stage === LeadStage.PAID || lead.stage === LeadStage.ONBOARDED) {
-    throw new AppError(409, "This lead has already paid", "LEAD_ALREADY_PAID");
+    throw new AppError(409, "This deal has already paid", "LEAD_ALREADY_PAID");
   }
-  if (lead.stage === LeadStage.LOST) throw new AppError(409, "Reopen the lead before sending it a proforma", "LEAD_LOST");
+  if (lead.stage === LeadStage.LOST) throw new AppError(409, "Reopen the deal before sending it a proforma", "LEAD_LOST");
 
   const plan = await getPlanByCodeOrThrow(input.planCode);
   if (!plan.isActive) throw new AppError(409, "That plan is no longer available", "PLAN_INACTIVE");

@@ -13,6 +13,25 @@ export const STAGE: Record<LeadStage, { label: string; tone: Tone }> = {
 
 export const STAGES = (Object.keys(STAGE) as LeadStage[]).map((id) => ({ id, ...STAGE[id] }));
 
+/** The coloured dot beside a stage name — on board columns and the deal header. */
+export const STAGE_DOT: Record<Tone, string> = {
+  info: "bg-blue-500",
+  neutral: "bg-slate-400",
+  warn: "bg-amber-500",
+  good: "bg-green-500",
+  danger: "bg-red-500"
+};
+
+const MANUAL_STAGES: LeadStage[] = ["NEW", "CONTACTED", "LOST"];
+
+/**
+ * Mirrors updateLead on the server: people move a deal between New, Contacted
+ * and Lost (also out of Proforma sent); payment moves it everywhere else.
+ */
+export function canMoveTo(from: LeadStage, to: LeadStage) {
+  return from !== to && MANUAL_STAGES.includes(to) && (MANUAL_STAGES.includes(from) || from === "PROFORMA_SENT");
+}
+
 export const ONBOARDING: Record<OnboardingStatus, { label: string; tone: Tone }> = {
   NOT_STARTED: { label: "Waiting for payment", tone: "neutral" },
   RUNNING: { label: "Setting up the school…", tone: "info" },
