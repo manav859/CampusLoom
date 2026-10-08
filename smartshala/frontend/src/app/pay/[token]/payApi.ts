@@ -22,11 +22,13 @@ async function payFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 export type LinkState = "PAYABLE" | "PAID" | "VOID" | "EXPIRED";
 
 export type PaymentLinkView = {
+  /** A school's invoice, or a new school's proforma — it has no school ID until it pays. */
+  kind: "INVOICE" | "PROFORMA";
   state: LinkState;
   expiresAt: string;
   note: string | null;
   seller: { name: string; supportEmail: string | null };
-  school: { schoolId: string; schoolName: string };
+  school: { schoolId: string | null; schoolName: string };
   invoice: {
     number: string;
     planName: string;
@@ -37,8 +39,8 @@ export type PaymentLinkView = {
     totalMinor: number;
     amountPaidMinor: number;
     amountDueMinor: number;
-    periodStart: string;
-    periodEnd: string;
+    periodStart: string | null;
+    periodEnd: string | null;
     issuedAt: string;
     dueAt: string;
   };

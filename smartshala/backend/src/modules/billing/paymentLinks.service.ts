@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { InvoiceStatus, PaymentLinkStatus } from "../../../node_modules/@smartshala/master-client/index.js";
+import { InvoiceStatus, PaymentLinkStatus, ProformaStatus } from "../../../node_modules/@smartshala/master-client/index.js";
 import type { Prisma } from "../../../node_modules/@smartshala/master-client/index.js";
 import { env } from "../../config/env.js";
 import { AppError } from "../../core/errors.js";
@@ -9,10 +9,12 @@ import { addDays } from "./billing.pricing.js";
 import {
   confirmCheckout,
   ensureGatewayOrder,
+  ensureProformaGatewayOrder,
   mockGatewayPay,
   recordBillingEvent,
   type BillingActor
 } from "./billing.service.js";
+import { confirmProformaPayment } from "../crm/crm.conversion.js";
 import type { CheckoutSignature } from "../../services/razorpay/index.js";
 
 /** 32 bytes of entropy — the token is the link's only credential. */
@@ -31,7 +33,18 @@ export function paymentLinkUrl(token: string) {
 
 const linkShape = {
   invoice: { select: { id: true, number: true, status: true, totalMinor: true, amountPaidMinor: true, planName: true } },
-  school: { select: { schoolId: true, schoolName: true, email: true } }
+  school: { select: { schoolId: true, schoolName: true, email: true } },
+  proforma: {
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      totalMinor: true,
+      amountPaidMinor: true,
+      planName: true,
+      lead: { select: { id: true, number: true, schoolName: true } }
+    }
+  }
 } as const;
 
 type LinkWithRelations = Prisma.PaymentLinkGetPayload<{ include: typeof linkShape }>;
@@ -52,7 +65,8 @@ function toAdminLink(link: LinkWithRelations) {
     paidAt: link.paidAt,
     revokedAt: link.revokedAt,
     invoice: link.invoice,
-    school: link.school
+    school: link.school,
+    proforma: link.proforma
   };
 }
 
@@ -114,12 +128,56 @@ export async function createPaymentLink(input: {
   return toAdminLink(link);
 }
 
+/**
+ * The CRM's version: a link that pays a lead's proforma. Same rule — issuing a
+ * new one revokes the old, so a lead forwarded two messages pays once.
+ */
+export async function createProformaPaymentLink(input: {
+  proformaId: string;
+  note?: string | null;
+  expiresInDays?: number;
+  createdBy: string;
+}) {
+  assertMaster();
+  const proforma = await masterPrisma.proforma.findUnique({ where: { id: input.proformaId } });
+  if (!proforma) throw new AppError(404, "Proforma not found", "PROFORMA_NOT_FOUND");
+  if (proforma.status === ProformaStatus.CANCELLED) throw new AppError(409, "This proforma was cancelled", "PROFORMA_CANCELLED");
+
+  const amountMinor = proforma.totalMinor - proforma.amountPaidMinor;
+  if (amountMinor <= 0) throw new AppError(409, "This proforma is already paid", "PROFORMA_ALREADY_PAID");
+
+  const token = crypto.randomBytes(TOKEN_BYTES).toString("hex");
+  const expiresAt = addDays(new Date(), input.expiresInDays ?? env.BILLING_PAYMENT_LINK_DAYS);
+
+  const link = await masterPrisma.$transaction(async (tx) => {
+    await tx.paymentLink.updateMany({
+      where: { proformaId: proforma.id, status: PaymentLinkStatus.ACTIVE },
+      data: { status: PaymentLinkStatus.REVOKED, revokedAt: new Date() }
+    });
+    return tx.paymentLink.create({
+      data: {
+        token,
+        proformaId: proforma.id,
+        amountMinor,
+        currency: proforma.currency,
+        note: input.note ?? null,
+        createdBy: input.createdBy,
+        expiresAt
+      },
+      include: linkShape
+    });
+  });
+
+  return toAdminLink(link);
+}
+
+/** The super admin's list: links on school invoices. A lead's links live in the CRM. */
 export async function listPaymentLinks(filters: { schoolId?: string; invoiceId?: string; take?: number } = {}) {
   assertMaster();
   const links = await masterPrisma.paymentLink.findMany({
     where: {
-      ...(filters.schoolId ? { schoolId: filters.schoolId } : {}),
-      ...(filters.invoiceId ? { invoiceId: filters.invoiceId } : {})
+      invoiceId: filters.invoiceId ?? { not: null },
+      ...(filters.schoolId ? { schoolId: filters.schoolId } : {})
     },
     orderBy: { createdAt: "desc" },
     take: filters.take ?? 100,
@@ -144,8 +202,8 @@ export async function revokePaymentLink(linkId: string, actor: BillingActor) {
     schoolId: link.schoolId,
     actor,
     action: "payment_link.revoked",
-    message: `Payment link for ${link.invoice.number} was revoked`,
-    metadata: { invoiceId: link.invoiceId, linkId }
+    message: `Payment link for ${(link.invoice ?? link.proforma)?.number} was revoked`,
+    metadata: { invoiceId: link.invoiceId, proformaId: link.proformaId, linkId }
   });
 
   return toAdminLink(updated);
@@ -163,7 +221,8 @@ async function loadLink(token: string) {
   const link = await masterPrisma.paymentLink.findUnique({
     where: { token },
     include: {
-      invoice: { include: { school: true } }
+      invoice: { include: { school: true } },
+      proforma: { include: { lead: true } }
     }
   });
   if (!link) throw new AppError(404, "This payment link is not valid", "PAYMENT_LINK_NOT_FOUND");
@@ -173,9 +232,42 @@ async function loadLink(token: string) {
   return link;
 }
 
-function linkState(link: Awaited<ReturnType<typeof loadLink>>) {
-  if (link.invoice.status === InvoiceStatus.VOID) return "VOID" as const;
-  if (link.invoice.amountPaidMinor >= link.invoice.totalMinor) return "PAID" as const;
+type LoadedLink = Awaited<ReturnType<typeof loadLink>>;
+
+/**
+ * What the link asks to be paid, in one shape: a school's invoice, or a lead's
+ * proforma (no school yet — the school ID appears once the lead has paid).
+ */
+function billOf(link: LoadedLink) {
+  if (link.invoice) {
+    const { invoice } = link;
+    return {
+      kind: "INVOICE" as const,
+      ...invoice,
+      voided: invoice.status === InvoiceStatus.VOID,
+      dueAt: invoice.dueAt,
+      buyer: invoice.school
+    };
+  }
+  if (link.proforma) {
+    const { proforma } = link;
+    return {
+      kind: "PROFORMA" as const,
+      ...proforma,
+      voided: proforma.status === ProformaStatus.CANCELLED,
+      dueAt: proforma.validUntil,
+      periodStart: null,
+      periodEnd: null,
+      buyer: { ...proforma.lead, schoolId: proforma.lead.schoolId }
+    };
+  }
+  throw new AppError(404, "This payment link is not valid", "PAYMENT_LINK_NOT_FOUND");
+}
+
+function linkState(link: LoadedLink) {
+  const bill = billOf(link);
+  if (bill.voided) return "VOID" as const;
+  if (bill.amountPaidMinor >= bill.totalMinor) return "PAID" as const;
   if (link.expiresAt.getTime() < Date.now()) return "EXPIRED" as const;
   return "PAYABLE" as const;
 }
@@ -187,34 +279,47 @@ export async function getPaymentLinkView(token: string) {
 
   if (!link.firstViewedAt) {
     await masterPrisma.paymentLink.update({ where: { id: link.id }, data: { firstViewedAt: new Date() } });
+    if (link.proforma) {
+      await masterPrisma.leadActivity
+        .create({
+          data: {
+            leadId: link.proforma.leadId,
+            type: "LINK_OPENED",
+            message: `Payment link for ${link.proforma.number} was opened`,
+            actor: "System"
+          }
+        })
+        .catch(() => undefined);
+    }
   }
 
-  const { invoice } = link;
+  const bill = billOf(link);
   return {
+    kind: bill.kind,
     state: linkState(link),
     expiresAt: link.expiresAt,
     note: link.note,
     seller: { name: env.BILLING_SELLER_NAME, supportEmail: env.BILLING_SUPPORT_EMAIL ?? null },
-    school: { schoolId: invoice.school.schoolId, schoolName: invoice.school.schoolName },
+    school: { schoolId: bill.buyer.schoolId, schoolName: bill.buyer.schoolName },
     invoice: {
-      number: invoice.number,
-      planName: invoice.planName,
-      currency: invoice.currency,
-      subtotalMinor: invoice.subtotalMinor,
-      discountMinor: invoice.discountMinor,
-      taxMinor: invoice.taxMinor,
-      totalMinor: invoice.totalMinor,
-      amountPaidMinor: invoice.amountPaidMinor,
-      amountDueMinor: Math.max(0, invoice.totalMinor - invoice.amountPaidMinor),
-      periodStart: invoice.periodStart,
-      periodEnd: invoice.periodEnd,
-      issuedAt: invoice.issuedAt,
-      dueAt: invoice.dueAt
+      number: bill.number,
+      planName: bill.planName,
+      currency: bill.currency,
+      subtotalMinor: bill.subtotalMinor,
+      discountMinor: bill.discountMinor,
+      taxMinor: bill.taxMinor,
+      totalMinor: bill.totalMinor,
+      amountPaidMinor: bill.amountPaidMinor,
+      amountDueMinor: Math.max(0, bill.totalMinor - bill.amountPaidMinor),
+      periodStart: bill.periodStart,
+      periodEnd: bill.periodEnd,
+      issuedAt: bill.issuedAt,
+      dueAt: bill.dueAt
     }
   };
 }
 
-function assertPayable(link: Awaited<ReturnType<typeof loadLink>>) {
+function assertPayable(link: LoadedLink) {
   const state = linkState(link);
   if (state === "PAID") throw new AppError(409, "This invoice is already settled", "INVOICE_ALREADY_PAID");
   if (state === "VOID") throw new AppError(409, "This invoice was voided", "INVOICE_VOID");
@@ -224,16 +329,18 @@ function assertPayable(link: Awaited<ReturnType<typeof loadLink>>) {
 export async function startPaymentLinkCheckout(token: string) {
   const link = await loadLink(token);
   assertPayable(link);
+  const bill = billOf(link);
 
-  const { invoice } = link;
-  const { order, amountDue } = await ensureGatewayOrder(invoice);
+  const { order, amountDue } = link.proforma
+    ? await ensureProformaGatewayOrder(link.proforma)
+    : await ensureGatewayOrder(link.invoice!);
 
   await recordBillingEvent({
-    schoolId: invoice.schoolId,
+    schoolId: link.schoolId,
     actor: { kind: "SYSTEM", label: "payment-link" },
     action: "payment_link.checkout",
-    message: `Payment link checkout opened for ${invoice.number}`,
-    metadata: { invoiceId: invoice.id, linkId: link.id, orderId: order.id }
+    message: `Payment link checkout opened for ${bill.number}`,
+    metadata: { invoiceId: link.invoiceId, proformaId: link.proformaId, linkId: link.id, orderId: order.id }
   });
 
   return {
@@ -241,27 +348,38 @@ export async function startPaymentLinkCheckout(token: string) {
     keyId: razorpay.keyId,
     orderId: order.id,
     amountMinor: amountDue,
-    currency: invoice.currency,
-    invoice: { number: invoice.number, planName: invoice.planName },
-    school: { schoolId: invoice.school.schoolId, schoolName: invoice.school.schoolName, email: invoice.school.email, phone: invoice.school.phone },
+    currency: bill.currency,
+    invoice: { number: bill.number, planName: bill.planName },
+    school: {
+      schoolId: bill.buyer.schoolId ?? "",
+      schoolName: bill.buyer.schoolName,
+      email: bill.buyer.email,
+      phone: bill.buyer.phone
+    },
     seller: { name: env.BILLING_SELLER_NAME }
   };
 }
 
 export async function confirmPaymentLinkPayment(token: string, payload: CheckoutSignature) {
   const link = await loadLink(token);
+
+  if (link.proforma) {
+    const result = await confirmProformaPayment({ proformaId: link.proforma.id, payload });
+    return { status: "PAID" as const, invoiceNumber: link.proforma.number, alreadyCaptured: result.alreadyCaptured };
+  }
+
   const actor: BillingActor = { kind: "SYSTEM", label: "payment-link" };
 
   // confirmCheckout owns signature verification and settlement; the link only
   // decides which school the callback is allowed to settle for.
-  const result = await confirmCheckout({ schoolId: link.schoolId, payload, actor });
+  const result = await confirmCheckout({ schoolId: link.schoolId!, payload, actor });
 
   await masterPrisma.paymentLink.update({
     where: { id: link.id },
     data: { status: PaymentLinkStatus.PAID, paidAt: new Date() }
   });
 
-  return { status: result.status, invoiceNumber: result.invoice.number, alreadyCaptured: result.alreadyCaptured };
+  return { status: result.status, invoiceNumber: link.invoice!.number, alreadyCaptured: result.alreadyCaptured };
 }
 
 /** Mock-gateway only, exactly as the signed-in checkout does it. */
@@ -275,7 +393,10 @@ export async function payPaymentLinkViaMockGateway(input: {
   assertPayable(link);
 
   const payment = await masterPrisma.payment.findUnique({ where: { providerOrderId: input.orderId } });
-  if (!payment || payment.schoolId !== link.schoolId || payment.invoiceId !== link.invoiceId) {
+  const belongs = link.proformaId
+    ? payment?.proformaId === link.proformaId
+    : payment?.schoolId === link.schoolId && payment?.invoiceId === link.invoiceId;
+  if (!payment || !belongs) {
     throw new AppError(404, "Order not found", "PAYMENT_ORDER_NOT_FOUND");
   }
 

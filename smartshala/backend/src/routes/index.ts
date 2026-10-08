@@ -9,6 +9,7 @@ import { calendarRouter } from "../modules/calendar/calendar.routes.js";
 import { classesRouter } from "../modules/classes/classes.routes.js";
 import chatbotRouter from "../modules/chatbot/chatbot.routes.js";
 import { communicationRouter } from "../modules/communication/communication.routes.js";
+import { crmRouter } from "../modules/crm/crm.routes.js";
 import { dashboardRouter } from "../modules/dashboard/dashboard.routes.js";
 import { demoRouter } from "../modules/demo/demo.routes.js";
 import { feesRouter } from "../modules/fees/fees.routes.js";
@@ -38,6 +39,7 @@ apiRouter.get("/health", apiHealthHandler);
 apiRouter.get("/health/db", dbHealthHandler);
 apiRouter.use("/onboarding", onboardingRouter);
 apiRouter.use("/super-admin", superAdminRouter);
+apiRouter.use("/crm", crmRouter);
 apiRouter.use("/tenant-setup", tenantSetupRouter);
 // Token-authenticated, so it sits with the other unauthenticated routers.
 apiRouter.use("/pay", paymentLinkRouter);

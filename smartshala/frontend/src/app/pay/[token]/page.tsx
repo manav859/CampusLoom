@@ -123,7 +123,11 @@ export default function PaymentLinkPage({ params }: { params: Promise<{ token: s
     setBusy(true);
     setError("");
     try {
-      setSession(await payApi.checkout(token));
+      const next = await payApi.checkout(token);
+      setSession(next);
+      // Razorpay's own window takes over in live mode; the test-mode panel
+      // is ours, and its Pay button must not stay disabled.
+      if (next.mode === "MOCK") setBusy(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to open the payment window");
       setBusy(false);
@@ -171,19 +175,31 @@ export default function PaymentLinkPage({ params }: { params: Promise<{ token: s
   }
 
   const settled = paid || view.state === "PAID";
+  const proforma = view.kind === "PROFORMA";
 
   return (
     <main className={shell}>
       <div className="mx-auto mb-4 w-full max-w-lg">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#64748b]">{view.seller.name}</p>
-        <h1 className="mt-1 text-2xl font-semibold">Pay invoice {view.invoice.number}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">
+          Pay {proforma ? "proforma" : "invoice"} {view.invoice.number}
+        </h1>
         <p className="mt-1 text-sm text-[#64748b]">
-          {view.school.schoolName} · {view.school.schoolId}
+          {view.school.schoolName}
+          {view.school.schoolId ? ` · ${view.school.schoolId}` : ""}
         </p>
       </div>
 
       <div className={cardClass}>
-        {settled ? (
+        {settled && proforma ? (
+          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+            <p className="text-sm font-bold text-green-800">Payment received — thank you.</p>
+            <p className="mt-1 text-sm text-green-700">
+              Your school is being set up now. Your {view.seller.name} contact will share the principal&apos;s login details on
+              WhatsApp, along with the GST tax invoice.
+            </p>
+          </div>
+        ) : settled ? (
           <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
             <p className="text-sm font-bold text-green-800">This invoice is settled.</p>
             <p className="mt-1 text-sm text-green-700">
@@ -207,7 +223,9 @@ export default function PaymentLinkPage({ params }: { params: Promise<{ token: s
         <div className="mt-4 rounded-xl border border-[#dce3ef] p-4">
           <p className="text-sm font-semibold">{view.invoice.planName}</p>
           <p className="mt-0.5 text-xs text-[#64748b]">
-            {fmtDate(view.invoice.periodStart)} — {fmtDate(view.invoice.periodEnd)} · due {fmtDate(view.invoice.dueAt)}
+            {view.invoice.periodStart && view.invoice.periodEnd
+              ? `${fmtDate(view.invoice.periodStart)} — ${fmtDate(view.invoice.periodEnd)} · due ${fmtDate(view.invoice.dueAt)}`
+              : `Starts on the day you pay · valid until ${fmtDate(view.invoice.dueAt)}`}
           </p>
 
           <dl className="mt-4 space-y-2 border-t border-[#eef2f7] pt-3 text-sm">

@@ -6,11 +6,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { env } from "@/lib/env";
 
-type PlanType = "TRIAL" | "STANDARD";
-
+/**
+ * The public enquiry form. It no longer creates a school: it becomes a lead in
+ * the sales CRM, and the school is set up once it has paid its proforma.
+ */
 export default function OnboardPage() {
   const router = useRouter();
-  const planType: PlanType = "TRIAL";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -19,8 +20,6 @@ export default function OnboardPage() {
     ownerName: "",
     email: "",
     phone: "",
-    adminPassword: "",
-    confirmPassword: "",
     address: "",
     numberOfStudents: "",
     numberOfStaff: "",
@@ -74,20 +73,6 @@ export default function OnboardPage() {
       newErrors.phone = "Phone number must be at least 10 characters";
     } else if (phone.length > 20) {
       newErrors.phone = "Phone number cannot exceed 20 characters";
-    }
-
-    if (!form.adminPassword) {
-      newErrors.adminPassword = "Password is required";
-    } else if (form.adminPassword.length < 8) {
-      newErrors.adminPassword = "Password must be at least 8 characters";
-    } else if (form.adminPassword.length > 72) {
-      newErrors.adminPassword = "Password cannot exceed 72 characters";
-    }
-
-    if (!form.confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (form.adminPassword !== form.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
     }
 
     const studentsVal = Number(form.numberOfStudents);
@@ -144,11 +129,9 @@ export default function OnboardPage() {
           ownerName: form.ownerName,
           email: form.email,
           phone: form.phone,
-          adminPassword: form.adminPassword,
           address: form.address,
           numberOfStudents: Number(form.numberOfStudents),
           numberOfStaff: Number(form.numberOfStaff),
-          planType,
           termsAccepted: form.termsAccepted
         })
       });
@@ -172,18 +155,18 @@ export default function OnboardPage() {
         }
         throw new Error(
           payload?.error?.message ??
-            `Onboarding failed (${response.status} ${response.statusText})`
+            `Enquiry failed (${response.status} ${response.statusText})`
         );
       }
-      if (!payload?.schoolId) {
+      if (!payload?.leadCode) {
         throw new Error("Unexpected response from server. Please try again.");
       }
-      router.replace(`/onboarding-success?schoolId=${payload.schoolId}`);
+      router.replace(`/onboarding-success?lead=${payload.leadCode}`);
     } catch (err) {
       if (err instanceof TypeError && err.message === "Failed to fetch") {
         setError("Network error — please check your internet connection and try again.");
       } else {
-        setError(err instanceof Error ? err.message : "Onboarding failed. Please try again.");
+        setError(err instanceof Error ? err.message : "Enquiry failed. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -217,9 +200,9 @@ export default function OnboardPage() {
               Run your entire campus on one platform.
             </h1>
             <p className="mt-5 max-w-md text-[16px] leading-7 text-white/70">
-              Provision a fully isolated workspace for your school — dedicated database,
-              secure tenant routing, and a ready-to-use principal account. Live in minutes,
-              no infrastructure to manage.
+              Tell us about your school and our team will call you with a plan and a
+              proforma invoice. Your workspace — dedicated database and principal
+              account — is set up the moment your payment arrives.
             </p>
 
             <ul className="mt-9 space-y-4">
@@ -229,8 +212,8 @@ export default function OnboardPage() {
                   body: "Your students, staff, and records never share storage with another school."
                 },
                 {
-                  title: "Principal account, provisioned instantly",
-                  body: "Secure admin credentials are created the moment your workspace goes live."
+                  title: "Principal account, ready on payment",
+                  body: "Your login details are shared on WhatsApp as soon as your workspace goes live."
                 },
                 {
                   title: "Attendance, fees & analytics built in",
@@ -262,11 +245,7 @@ export default function OnboardPage() {
             </span>
             <span className="inline-flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-[#34c759]" />
-              30-day free trial
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#34c759]" />
-              No credit card required
+              GST invoice with every payment
             </span>
           </div>
         </motion.section>
@@ -279,22 +258,16 @@ export default function OnboardPage() {
           transition={{ delay: 0.08, duration: 0.55 }}
         >
           <div className="w-full rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_40px_120px_-40px_rgba(8,18,48,0.7)] backdrop-blur-2xl sm:p-8">
-            <div className="flex flex-wrap items-end justify-between gap-4 border-b border-black/[0.06] pb-5">
-              <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#2456E6]">
-                  Create your workspace
-                </p>
-                <h2 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
-                  Tell us about your school
-                </h2>
-                <p className="mt-1 text-[13.5px] text-[#6e6e73]">
-                  Takes about 2 minutes. You can refine details later.
-                </p>
-              </div>
-              <div className="rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#1B45BD] px-4 py-2.5 text-right text-white shadow-lg shadow-[#2456E6]/25">
-                <p className="text-[11px] font-medium text-white/70">Your plan</p>
-                <p className="text-[15px] font-semibold">30 days free</p>
-              </div>
+            <div className="border-b border-black/[0.06] pb-5">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#2456E6]">
+                Get SmartShala for your school
+              </p>
+              <h2 className="mt-1.5 text-[26px] font-semibold leading-tight tracking-tight text-[#1d1d1f]">
+                Tell us about your school
+              </h2>
+              <p className="mt-1 text-[13.5px] text-[#6e6e73]">
+                Takes about 2 minutes. Our team will get in touch with you.
+              </p>
             </div>
 
             <form className="mt-6 grid gap-5" onSubmit={submit} noValidate>
@@ -347,7 +320,7 @@ export default function OnboardPage() {
                 </div>
               </Fieldset>
 
-              <Fieldset label="Administrator account">
+              <Fieldset label="Principal's contact">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input
                     label="Work email"
@@ -364,22 +337,6 @@ export default function OnboardPage() {
                     value={form.phone}
                     error={errors.phone}
                   />
-                  <Input
-                    label="Create password"
-                    placeholder="At least 8 characters"
-                    onChange={(value) => updateField("adminPassword", value)}
-                    type="password"
-                    value={form.adminPassword}
-                    error={errors.adminPassword}
-                  />
-                  <Input
-                    label="Confirm password"
-                    placeholder="Re-enter password"
-                    onChange={(value) => updateField("confirmPassword", value)}
-                    type="password"
-                    value={form.confirmPassword}
-                    error={errors.confirmPassword}
-                  />
                 </div>
               </Fieldset>
 
@@ -390,8 +347,10 @@ export default function OnboardPage() {
                   </svg>
                 </span>
                 <div>
-                  <p className="text-[14px] font-semibold text-[#1B45BD]">30-day free trial included</p>
-                  <p className="text-[12.5px] text-[#5566a0]">Full access from day one. No card needed to start.</p>
+                  <p className="text-[14px] font-semibold text-[#1B45BD]">What happens next</p>
+                  <p className="text-[12.5px] text-[#5566a0]">
+                    We call you, share a proforma invoice and a secure payment link, and set up your school once you pay.
+                  </p>
                 </div>
               </div>
 
@@ -403,7 +362,7 @@ export default function OnboardPage() {
                     onChange={(event) => updateField("termsAccepted", event.target.checked)}
                     type="checkbox"
                   />
-                  I agree to activate this school workspace and receive secure login credentials by email.
+                  I agree to be contacted by SmartShala about a subscription for this school.
                 </label>
                 {errors.termsAccepted && <FieldError>{errors.termsAccepted}</FieldError>}
               </div>
@@ -425,10 +384,10 @@ export default function OnboardPage() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Creating your workspace…
+                    Sending…
                   </>
                 ) : (
-                  "Create workspace & start free trial"
+                  "Send enquiry"
                 )}
               </button>
 

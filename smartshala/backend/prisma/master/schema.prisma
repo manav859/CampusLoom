@@ -158,6 +158,7 @@ model Plan {
 
   subscriptions Subscription[]
   invoices      Invoice[]
+  proformas     Proforma[]
 
   @@index([isActive, sortOrder])
   @@map("plans")
@@ -221,16 +222,22 @@ model Invoice {
   plan         Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
   payments     Payment[]
   paymentLinks PaymentLink[]
+  // Set when this tax invoice was raised for a lead who paid a proforma.
+  proforma     Proforma?
 
   @@index([schoolId, issuedAt])
   @@index([status, dueAt])
   @@map("invoices")
 }
 
+// A lead pays its proforma before it has a school or a tax invoice, so such a
+// payment starts with proformaId only. Onboarding fills in schoolId and
+// invoiceId once the school exists; every other payment has them from the start.
 model Payment {
   id                String       @id @default(uuid()) @db.Uuid
-  invoiceId         String       @db.Uuid
-  schoolId          String       @db.VarChar(8)
+  invoiceId         String?      @db.Uuid
+  schoolId          String?      @db.VarChar(8)
+  proformaId        String?      @db.Uuid
   provider          String       @default("razorpay")
   gatewayMode       GatewayMode  @default(MOCK)
   providerOrderId   String?      @unique
@@ -248,21 +255,25 @@ model Payment {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @default(now()) @updatedAt
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice  Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  proforma Proforma? @relation(fields: [proformaId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, createdAt])
   @@index([status])
+  @@index([proformaId])
   @@map("payments")
 }
 
 // A shareable "pay this invoice" URL the super admin hands to a school. The
 // token is the only credential, so it is single-invoice, expires, and can be
 // revoked — everything a signed-in checkout would have given us.
+// A link pays either a school's invoice or a lead's proforma, never both.
 model PaymentLink {
   id          String            @id @default(uuid()) @db.Uuid
   token       String            @unique
-  invoiceId   String            @db.Uuid
-  schoolId    String            @db.VarChar(8)
+  invoiceId   String?           @db.Uuid
+  schoolId    String?           @db.VarChar(8)
+  proformaId  String?           @db.Uuid
   amountMinor Int
   currency    String            @default("INR")
   status      PaymentLinkStatus @default(ACTIVE)
@@ -275,11 +286,13 @@ model PaymentLink {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @default(now()) @updatedAt
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  school  School  @relation(fields: [schoolId], references: [schoolId], onDelete: Cascade)
+  invoice  Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  school   School?   @relation(fields: [schoolId], references: [schoolId], onDelete: Cascade)
+  proforma Proforma? @relation(fields: [proformaId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, createdAt])
   @@index([invoiceId, status])
+  @@index([proformaId, status])
   @@map("payment_links")
 }
 
@@ -390,4 +403,157 @@ enum PaymentLinkStatus {
   ACTIVE
   PAID
   REVOKED
+}
+
+// ---------------------------------------------------------------------------
+// Sales CRM: a school starts life as a lead, is sent a proforma and a link to
+// pay it, and only becomes a school (ID, database, login) once it has paid.
+// ---------------------------------------------------------------------------
+
+// A salesperson or sales admin. The platform super admin also signs in to the
+// CRM, as an admin, without a row here.
+model CrmUser {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String
+  email        String    @unique
+  phone        String?
+  passwordHash String
+  role         CrmRole   @default(SALES)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  leads Lead[]
+
+  @@map("crm_users")
+}
+
+model Lead {
+  id               String           @id @default(uuid()) @db.Uuid
+  // Shown as LD-000123: short enough to read out on a call.
+  number           Int              @unique @default(autoincrement())
+  schoolName       String
+  // The principal or owner — the same person School.ownerName holds later,
+  // and the one whose email becomes the principal login.
+  ownerName        String
+  email            String
+  phone            String
+  address          String?
+  gstin            String?          @db.VarChar(15)
+  stateName        String?
+  stateCode        String?          @db.VarChar(2)
+  numberOfStudents Int?
+  numberOfStaff    Int?
+  stage            LeadStage        @default(NEW)
+  source           LeadSource       @default(CRM)
+  lostReason       String?
+  lostAt           DateTime?
+  assignedToId     String?          @db.Uuid
+  createdBy        String
+  // Reserved the moment the lead pays, before the school database exists, so
+  // a failed onboarding retries under the same ID.
+  schoolId         String?          @unique @db.VarChar(8)
+  paidAt           DateTime?
+  onboardingStatus OnboardingStatus @default(NOT_STARTED)
+  onboardingError  String?
+  onboardedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @default(now()) @updatedAt
+
+  assignedTo CrmUser?       @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  activities LeadActivity[]
+  proformas  Proforma[]
+
+  @@index([assignedToId, stage])
+  @@index([stage, updatedAt])
+  @@index([phone])
+  @@index([email])
+  @@map("leads")
+}
+
+// The lead's timeline: notes people write, and everything the system did.
+model LeadActivity {
+  id        String   @id @default(uuid()) @db.Uuid
+  leadId    String   @db.Uuid
+  type      String
+  message   String
+  actor     String
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@map("lead_activities")
+}
+
+// A request for payment, not a GST document. The tax invoice is raised from it
+// once the lead pays (invoiceId).
+model Proforma {
+  id              String         @id @default(uuid()) @db.Uuid
+  number          String         @unique
+  leadId          String         @db.Uuid
+  planId          String?        @db.Uuid
+  planCode        String
+  planName        String
+  status          ProformaStatus @default(ISSUED)
+  currency        String         @default("INR")
+  listPriceMinor  Int
+  subtotalMinor   Int
+  discountMinor   Int            @default(0)
+  taxMinor        Int            @default(0)
+  totalMinor      Int
+  amountPaidMinor Int            @default(0)
+  couponCode      String?
+  notes           String?
+  issuedAt        DateTime       @default(now())
+  validUntil      DateTime
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  invoiceId       String?        @unique @db.Uuid
+  createdBy       String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @default(now()) @updatedAt
+
+  lead         Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  plan         Plan?         @relation(fields: [planId], references: [id], onDelete: SetNull)
+  invoice      Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  payments     Payment[]
+  paymentLinks PaymentLink[]
+
+  @@index([leadId, issuedAt])
+  @@index([status])
+  @@map("proformas")
+}
+
+enum CrmRole {
+  ADMIN
+  SALES
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  PROFORMA_SENT
+  PAID
+  ONBOARDED
+  LOST
+}
+
+enum LeadSource {
+  CRM
+  WEBSITE
+}
+
+enum OnboardingStatus {
+  NOT_STARTED
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum ProformaStatus {
+  ISSUED
+  PAID
+  CANCELLED
 }

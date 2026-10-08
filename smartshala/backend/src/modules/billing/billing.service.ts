@@ -27,7 +27,7 @@ import {
   notifySuspended
 } from "./billing.notifications.js";
 
-export type BillingActor = { kind: "PRINCIPAL" | "SUPER_ADMIN" | "SYSTEM" | "WEBHOOK"; label: string };
+export type BillingActor = { kind: "PRINCIPAL" | "SUPER_ADMIN" | "SYSTEM" | "WEBHOOK" | "CRM"; label: string };
 
 export const SYSTEM_ACTOR: BillingActor = { kind: "SYSTEM", label: "system" };
 
@@ -169,7 +169,7 @@ export async function syncSchoolFromSubscription(subscription: SubscriptionWithP
 
 // --- Invoices ----------------------------------------------------------------
 
-async function nextInvoiceNumber() {
+export async function nextInvoiceNumber() {
   const [row] = await masterPrisma.$queryRaw<{ nextval: bigint }[]>`SELECT nextval('invoice_number_seq')`;
   const year = new Date().getFullYear();
   return `INV-${year}-${String(row.nextval).padStart(6, "0")}`;
@@ -235,6 +235,20 @@ export async function getInvoice(schoolId: string, invoiceId: string) {
   return invoice;
 }
 
+/** Our side of every invoice and proforma: who is supplying, and their GST identity. */
+export function sellerForPdf() {
+  return {
+    name: env.BILLING_SELLER_NAME,
+    address: env.BILLING_SELLER_ADDRESS ?? null,
+    email: env.BILLING_SUPPORT_EMAIL ?? null,
+    phone: env.BILLING_SELLER_PHONE ?? null,
+    gstin: env.BILLING_SELLER_GSTIN ?? null,
+    pan: env.BILLING_SELLER_PAN ?? null,
+    stateName: env.BILLING_SELLER_STATE ?? null,
+    stateCode: env.BILLING_SELLER_STATE_CODE ?? null
+  };
+}
+
 /**
  * The invoice as a document the school can file, print or forward to their
  * accountant. `schoolId` scopes it to one school for the principal; the super
@@ -249,16 +263,7 @@ export async function renderInvoicePdf(invoiceId: string, schoolId?: string) {
   if (!invoice) throw new AppError(404, "Invoice not found", "INVOICE_NOT_FOUND");
 
   const buffer = await generateInvoicePdf({
-    seller: {
-      name: env.BILLING_SELLER_NAME,
-      address: env.BILLING_SELLER_ADDRESS ?? null,
-      email: env.BILLING_SUPPORT_EMAIL ?? null,
-      phone: env.BILLING_SELLER_PHONE ?? null,
-      gstin: env.BILLING_SELLER_GSTIN ?? null,
-      pan: env.BILLING_SELLER_PAN ?? null,
-      stateName: env.BILLING_SELLER_STATE ?? null,
-      stateCode: env.BILLING_SELLER_STATE_CODE ?? null
-    },
+    seller: sellerForPdf(),
     school: {
       schoolId: invoice.school.schoolId,
       schoolName: invoice.school.schoolName,
@@ -417,12 +422,41 @@ export async function ensureGatewayOrder(invoice: {
   totalMinor: number;
   amountPaidMinor: number;
 }) {
-  const amountDue = invoice.totalMinor - invoice.amountPaidMinor;
+  return ensureOrderFor(
+    { invoiceId: invoice.id, schoolId: invoice.schoolId },
+    invoice,
+    { schoolId: invoice.schoolId, invoiceId: invoice.id, planCode: invoice.planCode }
+  );
+}
+
+/** The same, for a lead paying its proforma — there is no school or invoice yet. */
+export async function ensureProformaGatewayOrder(proforma: {
+  id: string;
+  leadId: string;
+  number: string;
+  currency: string;
+  planCode: string;
+  totalMinor: number;
+  amountPaidMinor: number;
+}) {
+  return ensureOrderFor(
+    { proformaId: proforma.id },
+    proforma,
+    { leadId: proforma.leadId, proformaId: proforma.id, planCode: proforma.planCode }
+  );
+}
+
+async function ensureOrderFor(
+  target: { invoiceId: string; schoolId: string } | { proformaId: string },
+  bill: { number: string; currency: string; planCode: string; totalMinor: number; amountPaidMinor: number },
+  orderNotes: Record<string, string>
+) {
+  const amountDue = bill.totalMinor - bill.amountPaidMinor;
   if (amountDue <= 0) throw new AppError(409, "This invoice is already settled", "INVOICE_ALREADY_PAID");
 
   const openPayment = await masterPrisma.payment.findFirst({
     where: {
-      invoiceId: invoice.id,
+      ...("invoiceId" in target ? { invoiceId: target.invoiceId } : { proformaId: target.proformaId }),
       status: PaymentState.CREATED,
       amountMinor: amountDue,
       createdAt: { gt: new Date(Date.now() - CHECKOUT_ORDER_TTL_MS) }
@@ -437,9 +471,9 @@ export async function ensureGatewayOrder(invoice: {
     ? reusable
     : await razorpay.createOrder({
         amountMinor: amountDue,
-        currency: invoice.currency,
-        receipt: invoice.number,
-        notes: { schoolId: invoice.schoolId, invoiceId: invoice.id, planCode: invoice.planCode }
+        currency: bill.currency,
+        receipt: bill.number,
+        notes: orderNotes
       });
 
   const payment =
@@ -447,14 +481,13 @@ export async function ensureGatewayOrder(invoice: {
       ? openPayment
       : await masterPrisma.payment.create({
           data: {
-            invoiceId: invoice.id,
-            schoolId: invoice.schoolId,
+            ...target,
             gatewayMode: isMockGateway() ? GatewayMode.MOCK : GatewayMode.LIVE,
             providerOrderId: order.id,
             status: PaymentState.CREATED,
             amountMinor: amountDue,
-            currency: invoice.currency,
-            notes: { planCode: invoice.planCode, invoiceNumber: invoice.number }
+            currency: bill.currency,
+            notes: { planCode: bill.planCode, invoiceNumber: bill.number }
           }
         });
 
@@ -478,11 +511,20 @@ async function applySuccessfulPayment(input: {
   });
   if (!payment) throw new AppError(404, "Payment order not found", "PAYMENT_ORDER_NOT_FOUND");
 
+  // A lead paying its proforma has no school yet: the CRM settles it and turns
+  // the lead into a school. The webhook, the callback and the reconciliation
+  // sweep all arrive here, so this is the one place that needs to know.
+  if (payment.proformaId) {
+    const { settleProformaPayment } = await import("../crm/crm.conversion.js");
+    return settleProformaPayment({ paymentId: payment.id, ...input });
+  }
+
   if (payment.status === PaymentState.CAPTURED) {
     return { payment, invoice: payment.invoice, alreadyCaptured: true as const };
   }
 
   const invoice = payment.invoice;
+  if (!invoice) throw new AppError(409, "This payment is not attached to an invoice", "PAYMENT_WITHOUT_INVOICE");
   if (invoice.status === InvoiceStatus.VOID) {
     throw new AppError(409, "This invoice was voided", "INVOICE_VOID");
   }
@@ -559,7 +601,7 @@ async function applySuccessfulPayment(input: {
   });
   // Only once the invoice is actually settled — a part payment has not bought
   // the term the receipt message promises.
-  if (fresh.invoice.status === InvoiceStatus.PAID) {
+  if (fresh.invoice?.status === InvoiceStatus.PAID) {
     await notifyPaymentReceived(fresh.invoice, payment.amountMinor);
   }
   return { payment: fresh, invoice: fresh.invoice, alreadyCaptured: false as const };
@@ -627,6 +669,15 @@ export async function markPaymentFailed(input: { providerOrderId: string; reason
     action: "payment.failed",
     message: `Payment failed for order ${input.providerOrderId}: ${input.reason}`
   });
+
+  // A lead has no school to message yet; the failure goes on its CRM timeline.
+  if (!payment.invoice || !payment.schoolId) {
+    if (payment.proformaId) {
+      const { recordProformaPaymentFailure } = await import("../crm/crm.conversion.js");
+      await recordProformaPaymentFailure(payment.proformaId, input.reason);
+    }
+    return updated;
+  }
 
   await notifyPaymentFailed({
     schoolId: payment.schoolId,

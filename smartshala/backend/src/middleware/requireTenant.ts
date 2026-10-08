@@ -6,6 +6,8 @@ import { env } from "../config/env.js";
 /** Routes that legitimately work without a tenant context. */
 const TENANT_AGNOSTIC_PREFIXES = [
   "/auth/",
+  // The sales CRM works on leads, which belong to no school yet.
+  "/crm/",
   "/health",
   "/onboarding/",
   // Payment links carry their own credential in the URL and are opened by

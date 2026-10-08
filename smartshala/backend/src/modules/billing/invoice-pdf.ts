@@ -1,6 +1,8 @@
 import PDFDocument from "pdfkit";
 
 export type InvoicePdfData = {
+  /** A proforma asks for payment and is not a GST document; the default is the tax invoice. */
+  kind?: "TAX_INVOICE" | "PROFORMA";
   seller: {
     name: string;
     address?: string | null;
@@ -12,6 +14,7 @@ export type InvoicePdfData = {
     stateCode?: string | null;
   };
   school: {
+    /** The school ID on a tax invoice; the lead ID on a proforma. */
     schoolId: string;
     schoolName: string;
     ownerName?: string | null;
@@ -35,8 +38,10 @@ export type InvoicePdfData = {
     totalMinor: number;
     amountPaidMinor: number;
     couponCode?: string | null;
-    periodStart: Date;
-    periodEnd: Date;
+    periodStart?: Date | null;
+    periodEnd?: Date | null;
+    /** Overrides the period dates, e.g. a proforma's "1 year from the date of payment". */
+    periodText?: string | null;
     issuedAt: Date;
     dueAt: Date;
     paidAt?: Date | null;
@@ -228,13 +233,14 @@ function drawParty(
 export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
+      const proforma = data.kind === "PROFORMA";
       const doc = new PDFDocument({
         size: "A4",
         margin: MARGIN,
         info: {
-          Title: `Tax Invoice ${data.invoice.number}`,
+          Title: `${proforma ? "Proforma Invoice" : "Tax Invoice"} ${data.invoice.number}`,
           Author: data.seller.name,
-          Subject: `Subscription tax invoice for ${data.school.schoolName}`
+          Subject: `Subscription ${proforma ? "proforma" : "tax"} invoice for ${data.school.schoolName}`
         }
       });
 
@@ -247,19 +253,30 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       const width = doc.page.width - MARGIN * 2;
       const half = width / 2;
       const currency = data.invoice.currency;
+      const { periodStart, periodEnd } = data.invoice;
+      const period =
+        data.invoice.periodText ?? (periodStart && periodEnd ? `${formatDate(periodStart)} to ${formatDate(periodEnd)}` : "-");
       let y = MARGIN;
 
       // --- Title -------------------------------------------------------------
-      doc.font("Helvetica-Bold").fontSize(15).fillColor(INK).text("TAX INVOICE", left, y, {
+      doc.font("Helvetica-Bold").fontSize(15).fillColor(INK).text(proforma ? "PROFORMA INVOICE" : "TAX INVOICE", left, y, {
         width,
         align: "center",
         characterSpacing: 1.2
       });
       y += 20;
-      doc.font("Helvetica").fontSize(7.5).fillColor(MUTED).text("(Issued under Rule 46 of the CGST Rules, 2017)", left, y, {
-        width,
-        align: "center"
-      });
+      doc
+        .font("Helvetica")
+        .fontSize(7.5)
+        .fillColor(MUTED)
+        .text(
+          proforma
+            ? "(Not a tax invoice. A GST tax invoice will be issued on receipt of payment.)"
+            : "(Issued under Rule 46 of the CGST Rules, 2017)",
+          left,
+          y,
+          { width, align: "center" }
+        );
       y += 16;
 
       // --- Seller | Invoice meta --------------------------------------------
@@ -289,15 +306,15 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       box(doc, metaX, y, half, partyHeight);
       doc.rect(metaX, y, half, 15).fillColor("#EFEFEF").fill();
       box(doc, metaX, y, half, 15);
-      doc.font("Helvetica-Bold").fontSize(7.5).fillColor(INK).text("INVOICE DETAILS", metaX + 8, y + 4.5, {
+      doc.font("Helvetica-Bold").fontSize(7.5).fillColor(INK).text(proforma ? "PROFORMA DETAILS" : "INVOICE DETAILS", metaX + 8, y + 4.5, {
         width: half - 16,
         characterSpacing: 0.5
       });
 
       const metaRows: [string, string][] = [
-        ["Invoice No.", data.invoice.number],
-        ["Invoice Date", formatDate(data.invoice.issuedAt)],
-        ["Due Date", formatDate(data.invoice.dueAt)],
+        [proforma ? "Proforma No." : "Invoice No.", data.invoice.number],
+        [proforma ? "Proforma Date" : "Invoice Date", formatDate(data.invoice.issuedAt)],
+        [proforma ? "Valid Until" : "Due Date", formatDate(data.invoice.dueAt)],
         ["Place of Supply", data.school.stateName ? `${data.school.stateName} (${data.school.stateCode ?? "-"})` : "-"],
         ["Reverse Charge", "No"],
         ["Status", data.invoice.status]
@@ -344,9 +361,9 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
         characterSpacing: 0.5
       });
       const subRows: [string, string][] = [
-        ["School ID", data.school.schoolId],
+        [proforma ? "Lead ID" : "School ID", data.school.schoolId],
         ["Plan Code", data.invoice.planCode],
-        ["Billing Period", `${formatDate(data.invoice.periodStart)} to ${formatDate(data.invoice.periodEnd)}`],
+        ["Billing Period", period],
         ["Paid On", data.invoice.paidAt ? formatDate(data.invoice.paidAt) : "-"]
       ];
       const subRowHeight = (partyHeight - 15) / 2;
@@ -409,7 +426,7 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
             .fontSize(7.5)
             .fillColor(MUTED)
             .text(
-              `SmartShala school ERP subscription\nPeriod: ${formatDate(data.invoice.periodStart)} to ${formatDate(data.invoice.periodEnd)}`,
+              `SmartShala school ERP subscription\nPeriod: ${period}`,
               columnX + 6,
               y + 21,
               { width: column.width - 12 }
@@ -438,13 +455,17 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
         summaryRows.push(["Net Taxable Value", money(taxableMinor, currency), false]);
       }
       split.rows.forEach((row) => summaryRows.push([row.label, money(row.amountMinor, currency), false]));
-      summaryRows.push(["Total Invoice Value", money(data.invoice.totalMinor, currency), true]);
-      summaryRows.push(["Amount Paid", money(data.invoice.amountPaidMinor, currency), false]);
-      summaryRows.push([
-        "Balance Due",
-        money(Math.max(0, data.invoice.totalMinor - data.invoice.amountPaidMinor), currency),
-        true
-      ]);
+      if (proforma) {
+        summaryRows.push(["Total Amount Payable", money(data.invoice.totalMinor, currency), true]);
+      } else {
+        summaryRows.push(["Total Invoice Value", money(data.invoice.totalMinor, currency), true]);
+        summaryRows.push(["Amount Paid", money(data.invoice.amountPaidMinor, currency), false]);
+        summaryRows.push([
+          "Balance Due",
+          money(Math.max(0, data.invoice.totalMinor - data.invoice.amountPaidMinor), currency),
+          true
+        ]);
+      }
 
       const summaryWidth = 244;
       const wordsWidth = width - summaryWidth;
@@ -452,7 +473,7 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       const summaryHeight = summaryRows.length * summaryRowHeight;
 
       box(doc, left, y, wordsWidth, summaryHeight);
-      label(doc, "Total invoice value (in words)", left + 8, y + 8, wordsWidth - 16);
+      label(doc, proforma ? "Amount payable (in words)" : "Total invoice value (in words)", left + 8, y + 8, wordsWidth - 16);
       doc
         .font("Helvetica-Bold")
         .fontSize(8.5)
@@ -537,7 +558,9 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
         .fontSize(7.5)
         .fillColor(MUTED)
         .text(
-          "We declare that this invoice shows the actual price of the service described and that all particulars are true and correct. This is a computer-generated invoice and does not require a physical signature.",
+          proforma
+            ? "This proforma invoice is a request for payment and is not a tax invoice under the CGST Act, 2017; no input tax credit can be claimed on it. A tax invoice will be issued on receipt of payment. This is a computer-generated document and does not require a physical signature."
+            : "We declare that this invoice shows the actual price of the service described and that all particulars are true and correct. This is a computer-generated invoice and does not require a physical signature.",
           left + 8,
           y + 19,
           { width: declWidth - 16 }
@@ -568,7 +591,7 @@ export function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
         .fontSize(7)
         .fillColor(MUTED)
         .text(
-          `Subject to jurisdiction of ${data.seller.stateName || "the supplier's state"}. Invoice ${data.invoice.number} generated on ${formatDate(new Date())}.`,
+          `Subject to jurisdiction of ${data.seller.stateName || "the supplier's state"}. ${proforma ? "Proforma" : "Invoice"} ${data.invoice.number} generated on ${formatDate(new Date())}.`,
           left,
           y + 8,
           { width, align: "center" }

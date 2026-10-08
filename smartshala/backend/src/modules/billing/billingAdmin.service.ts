@@ -748,6 +748,12 @@ export async function refundPayment(input: { paymentId: string; amountRupees?: n
   if (payment.status !== PaymentState.CAPTURED) {
     throw new AppError(409, "Only a captured payment can be refunded", "PAYMENT_NOT_CAPTURED");
   }
+  // A lead's payment joins its school's tax invoice during onboarding; until
+  // then there is no invoice or subscription for the refund to unwind.
+  const { invoice, schoolId, invoiceId } = payment;
+  if (!invoice || !schoolId || !invoiceId) {
+    throw new AppError(409, "This payment can be refunded once the school is onboarded", "PAYMENT_NOT_ONBOARDED");
+  }
 
   const refundable = payment.amountMinor - payment.refundedMinor;
   const amountMinor = input.amountRupees !== undefined ? Math.round(input.amountRupees * 100) : refundable;
@@ -770,14 +776,14 @@ export async function refundPayment(input: { paymentId: string; amountRupees?: n
       }
     });
 
-    const invoicePaid = payment.invoice.amountPaidMinor - amountMinor;
+    const invoicePaid = invoice.amountPaidMinor - amountMinor;
     const fullyRefunded = invoicePaid <= 0;
 
     await tx.invoice.update({
-      where: { id: payment.invoiceId },
+      where: { id: invoiceId },
       data: {
         amountPaidMinor: Math.max(0, invoicePaid),
-        status: fullyRefunded ? InvoiceStatus.REFUNDED : payment.invoice.status
+        status: fullyRefunded ? InvoiceStatus.REFUNDED : invoice.status
       }
     });
 
@@ -786,7 +792,7 @@ export async function refundPayment(input: { paymentId: string; amountRupees?: n
       // the school keeps the term it no longer paid for. Drop to PAST_DUE with
       // the standard grace window rather than cutting access off mid-lesson.
       await tx.subscription.updateMany({
-        where: { schoolId: payment.schoolId, status: SubscriptionStatus.ACTIVE },
+        where: { schoolId, status: SubscriptionStatus.ACTIVE },
         data: {
           status: SubscriptionStatus.PAST_DUE,
           gracePeriodEndsAt: addDays(new Date(), env.BILLING_GRACE_DAYS)
@@ -794,23 +800,23 @@ export async function refundPayment(input: { paymentId: string; amountRupees?: n
       });
 
       // A refunded order never really consumed its coupon.
-      if (payment.invoice.couponCode) {
+      if (invoice.couponCode) {
         await tx.coupon.updateMany({
-          where: { code: payment.invoice.couponCode, redeemedCount: { gt: 0 } },
+          where: { code: invoice.couponCode, redeemedCount: { gt: 0 } },
           data: { redeemedCount: { decrement: 1 } }
         });
       }
     }
   });
 
-  const subscription = await findSubscription(payment.schoolId);
+  const subscription = await findSubscription(schoolId);
   if (subscription) await syncSchoolFromSubscription(subscription);
 
   await recordBillingEvent({
-    schoolId: payment.schoolId,
+    schoolId,
     actor: SUPER_ADMIN_ACTOR,
     action: "payment.refunded",
-    message: `Refunded INR ${rupeesFromMinor(amountMinor)} on ${payment.invoice.number}: ${input.reason}`,
+    message: `Refunded INR ${rupeesFromMinor(amountMinor)} on ${invoice.number}: ${input.reason}`,
     metadata: { refundReference: refund.id }
   });
 
