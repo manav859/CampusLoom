@@ -51,6 +51,38 @@ export const createLeadSchema = z.object({
   assignedToId: z.preprocess(blankToNull, z.string().uuid().nullable().optional())
 });
 
+/**
+ * What the marketing site posts for a demo request. The site validates it too;
+ * this is the second pair of eyes. The role is kept as free text rather than an
+ * enum, so a new option on the form never costs a real lead.
+ */
+export const websiteLeadSchema = z.object({
+  source: z.literal("website").optional(),
+  name: z.string().trim().min(2).max(80),
+  schoolName: z.string().trim().min(2).max(120),
+  numberOfStudents: z.coerce.number().int().min(1).max(10000).nullable().optional(),
+  role: optionalText(40),
+  phone: z.string().trim().min(10).max(20),
+  email: z.preprocess(blankToNull, z.string().trim().email().nullable().optional()),
+  page: optionalText(200),
+  utm: z
+    .object({
+      utm_source: optionalText(200),
+      utm_medium: optionalText(200),
+      utm_campaign: optionalText(200),
+      utm_term: optionalText(200),
+      utm_content: optionalText(200),
+      gclid: optionalText(200),
+      fbclid: optionalText(200)
+    })
+    .partial()
+    .nullable()
+    .optional(),
+  submittedAt: z.string().datetime().optional()
+});
+
+export type WebsiteLeadInput = z.infer<typeof websiteLeadSchema>;
+
 /** One CSV row. The same fields as the deal form, with blanks allowed where the form allows them. */
 export const csvLeadRowSchema = z.object(leadFields);
 

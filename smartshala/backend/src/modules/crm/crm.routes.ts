@@ -14,6 +14,7 @@ import {
 } from "./crm.auth.js";
 import { issueLoginDetails } from "./crm.conversion.js";
 import { importLeadsFromCsv } from "./crm.import.js";
+import { receiveWebsiteLead, requireWebsiteToken } from "./crm.website.js";
 import { connectMeta, disconnectMeta, getMetaStatus, listMetaForms, setMetaForms, syncMetaLeads } from "./crm.meta.js";
 import {
   crmLoginSchema,
@@ -35,7 +36,8 @@ import {
   stageIdParamSchema,
   updateLeadSchema,
   updateTeamMemberSchema,
-  userIdParamSchema
+  userIdParamSchema,
+  websiteLeadSchema
 } from "./crm.schemas.js";
 import {
   addNote,
@@ -99,6 +101,19 @@ crmRouter.post(
   asyncHandler(async (_req, res) => {
     clearCrmCookie(res);
     res.status(204).send();
+  })
+);
+
+// The marketing site posts its demo requests here with a shared token, so it
+// sits with the other routes that run before a CRM sign-in.
+crmRouter.post(
+  "/leads/website",
+  rateLimit({ windowMs: 60 * 1000, max: 60, keyPrefix: "crm-website-lead" }),
+  requireWebsiteToken,
+  validate({ body: websiteLeadSchema }),
+  asyncHandler(async (req, res) => {
+    const result = await receiveWebsiteLead(req.body);
+    res.status(201).json({ leadCode: result.code, created: result.created });
   })
 );
 

@@ -338,24 +338,29 @@ export async function createLead(actor: CrmActor, raw: LeadInput & { assignedToI
 }
 
 /**
- * The public enquiry form. It never fails on a repeat — the school just asked
- * again, which the salesperson should see on the lead they already have.
+ * The public enquiry form, and the marketing site posting a demo request. It
+ * never fails on a repeat — the school just asked again, which the salesperson
+ * should see on the lead they already have. `details` is what the form said,
+ * and goes on the timeline either way.
  */
-export async function createWebsiteLead(raw: LeadInput) {
+export async function createWebsiteLead(raw: LeadInput, extra?: { details?: string; assignedToId?: string | null }) {
   assertMaster();
   const input = cleanLeadInput(raw);
+  const details = extra?.details?.trim();
 
   const duplicate = await findOpenDuplicate(input);
   if (duplicate) {
-    await addActivity(duplicate.id, "ENQUIRY", "Sent the website enquiry form again", SYSTEM_NAME);
-    return { code: leadCode(duplicate.number) };
+    const message = details ? `Sent the website enquiry form again\n${details}` : "Sent the website enquiry form again";
+    await addActivity(duplicate.id, "ENQUIRY", message, SYSTEM_NAME);
+    return { code: leadCode(duplicate.number), created: false };
   }
 
   const lead = await masterPrisma.lead.create({
-    data: { ...input, source: LeadSource.WEBSITE, createdBy: "Website" }
+    data: { ...input, assignedToId: extra?.assignedToId ?? null, source: LeadSource.WEBSITE, createdBy: "Website" }
   });
   await addActivity(lead.id, "CREATED", "Enquiry received from the website", SYSTEM_NAME);
-  return { code: leadCode(lead.number) };
+  if (details) await addActivity(lead.id, "WEBSITE_LEAD", details, SYSTEM_NAME);
+  return { code: leadCode(lead.number), created: true };
 }
 
 /**

@@ -69,6 +69,9 @@ const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().default("rzp_test_mock0000000000"),
   RAZORPAY_KEY_SECRET: z.string().default("mock_key_secret_change_me"),
   RAZORPAY_WEBHOOK_SECRET: z.string().default("mock_webhook_secret_change_me"),
+  // The shared secret the marketing site sends with every demo request it
+  // posts to the CRM. Unset means the endpoint turns every caller away.
+  WEBSITE_LEAD_TOKEN: z.string().min(16).optional(),
   BILLING_CURRENCY: z.string().default("INR"),
   BILLING_TAX_PERCENT: z.coerce.number().min(0).max(100).default(18),
   BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(90).default(7),

@@ -31,6 +31,7 @@
     "test:crm": "tsx tests/crm.test.ts",
     "test:crm-meta": "tsx tests/crmMeta.test.ts",
     "test:crm-import": "tsx tests/crmImport.test.ts",
+    "test:crm-website": "tsx tests/crmWebsiteLead.test.ts",
     "test:leave": "tsx tests/leaveAndAnnouncements.test.ts",
     "test:calendar": "tsx tests/calendar.test.ts",
     "test:period-times": "tsx tests/periodTimes.test.ts",
