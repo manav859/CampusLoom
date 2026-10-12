@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/config/feature_flags.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_cards.dart';
 import '../../core/widgets/placeholder_screen.dart';
@@ -61,7 +62,7 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
             screen: TimetableScreen.new),
         _MoreEntry('Transport', 'Manage routes, vehicles and drivers',
             Icons.directions_bus_rounded, AppColors.danger, 'Phase 7',
-            screen: TransportScreen.new),
+            screen: TransportScreen.new, hidden: !kTransportEnabled),
       ],
     ),
     _MoreGroup(
@@ -93,7 +94,7 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
             screen: DefaultersScreen.new),
         _MoreEntry('Payroll', 'Shifts, salaries and pay slips from attendance',
             Icons.badge_outlined, AppColors.primary, 'Phase 9',
-            screen: PayrollScreen.new),
+            screen: PayrollScreen.new, hidden: !kPayrollEnabled),
       ],
     ),
     _MoreGroup(
@@ -114,16 +115,19 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
     ),
   ];
 
+  /// Hidden modules are left out whether or not there is a search, so they
+  /// cannot be reached by searching for them either.
   List<_MoreGroup> get _filteredGroups {
     final query = _query.trim().toLowerCase();
-    if (query.isEmpty) return _groups;
 
     return _groups
         .map(
           (group) => _MoreGroup(
             title: group.title,
             entries: group.entries
+                .where((entry) => !entry.hidden)
                 .where((entry) =>
+                    query.isEmpty ||
                     entry.title.toLowerCase().contains(query) ||
                     entry.subtitle.toLowerCase().contains(query))
                 .toList(),
@@ -216,7 +220,7 @@ class _MoreGroup {
 }
 
 class _MoreEntry {
-  const _MoreEntry(this.title, this.subtitle, this.icon, this.color, this.phase, {this.screen});
+  const _MoreEntry(this.title, this.subtitle, this.icon, this.color, this.phase, {this.screen, this.hidden = false});
 
   final String title;
   final String subtitle;
@@ -227,4 +231,7 @@ class _MoreEntry {
   /// Built modules point at their screen; the rest still open the labelled
   /// placeholder that names the phase they arrive in.
   final Widget Function()? screen;
+
+  /// Modules turned off in feature_flags.dart: kept here, never listed.
+  final bool hidden;
 }

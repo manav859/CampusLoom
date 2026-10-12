@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import type { Role } from "@/types";
+import { isHiddenPath } from "@/lib/hiddenFeatures";
 import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
 
 type NavIconName =
@@ -108,16 +109,23 @@ const parentLinks: NavItem[] = [
   { label: "Student", href: "/students", icon: "students" }
 ];
 
+/** Drops the links to hidden modules, and any group left with no children. */
+function withoutHidden(items: NavItem[]): NavItem[] {
+  return items
+    .map((item) => (hasChildren(item) ? { ...item, children: item.children.filter((child) => !isHiddenPath(child.href)) } : item))
+    .filter((item) => (hasChildren(item) ? item.children.length > 0 : !isHiddenPath(item.href)));
+}
+
 function isAdminRole(role: Role) {
   return role === "PRINCIPAL" || role === "ADMIN";
 }
 
 function linksForRole(role: Role) {
-  if (role === "PRINCIPAL") return principalLinks;
-  if (isAdminRole(role)) return adminLinks;
-  if (role === "ACCOUNTANT") return accountantLinks;
-  if (role === "PARENT") return parentLinks;
-  return teacherLinks;
+  if (role === "PRINCIPAL") return withoutHidden(principalLinks);
+  if (isAdminRole(role)) return withoutHidden(adminLinks);
+  if (role === "ACCOUNTANT") return withoutHidden(accountantLinks);
+  if (role === "PARENT") return withoutHidden(parentLinks);
+  return withoutHidden(teacherLinks);
 }
 
 function isActiveLink(pathname: string, href: string) {

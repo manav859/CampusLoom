@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { isHiddenPath } from "@/lib/hiddenFeatures";
 
 const reports = [
   {
@@ -45,7 +46,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <PageHeader hideBreadcrumbs title="Printable and Exportable Reports" />
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {reports.map((report) => (
+        {reports.filter((report) => !isHiddenPath(report.href)).map((report) => (
           <article className="rounded-2xl border border-[#DCE1E8] bg-white p-5 shadow-apple" key={report.href}>
             <h2 className="text-[17px] font-semibold text-[#0F1419]">{report.title}</h2>
             <p className="mt-2 min-h-[66px] text-[13px] leading-6 text-[#5A6573]">{report.copy}</p>

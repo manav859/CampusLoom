@@ -2,6 +2,7 @@ import { Router } from "express";
 import { academicYearsRouter } from "../modules/academicYears/academicYears.routes.js";
 import { activityRouter } from "../modules/activity/activity.routes.js";
 import { apiHealthHandler, dbHealthHandler } from "./health.js";
+import { notFoundHandler } from "../middleware/notFound.js";
 import { authRouter } from "../modules/auth/auth.routes.js";
 import { attendanceRouter } from "../modules/attendance/attendance.routes.js";
 import { billingRouter } from "../modules/billing/billing.routes.js";
@@ -59,8 +60,11 @@ apiRouter.use("/staff-attendance", staffAttendanceRouter);
 apiRouter.use("/leave", leaveRouter);
 apiRouter.use("/announcements", announcementsRouter);
 apiRouter.use("/calendar", calendarRouter);
-apiRouter.use("/payroll", payrollRouter);
-apiRouter.use("/transport", transportRouter);
+// Payroll and Transport are hidden for now. Both routers stay mounted behind
+// notFoundHandler, so every request 404s while the modules themselves are left
+// untouched; drop the guard to turn them back on.
+apiRouter.use("/payroll", notFoundHandler, payrollRouter);
+apiRouter.use("/transport", notFoundHandler, transportRouter);
 apiRouter.use("/homework", homeworkRouter);
 apiRouter.use("/marks", marksRouter);
 apiRouter.use("/fees", feesRouter);

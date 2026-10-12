@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/feature_flags.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/responsive.dart';
@@ -49,13 +50,14 @@ class ReportsScreen extends StatefulWidget {
       color: AppColors.warning,
       screen: ExamsScreen.new,
     ),
-    (
-      title: 'Transport Report',
-      subtitle: 'Students and seats per route',
-      icon: Icons.directions_bus_rounded,
-      color: AppColors.danger,
-      screen: TransportReportScreen.new,
-    ),
+    if (kTransportEnabled)
+      (
+        title: 'Transport Report',
+        subtitle: 'Students and seats per route',
+        icon: Icons.directions_bus_rounded,
+        color: AppColors.danger,
+        screen: TransportReportScreen.new,
+      ),
   ];
 
   /// Listed below the tiles, per the blueprint's Detailed Reports.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/config/feature_flags.dart';
 import '../../core/theme/app_colors.dart';
 import 'calendar/teacher_calendar_screen.dart';
 import 'data/punch_controller.dart';
@@ -8,6 +9,9 @@ import 'messages/teacher_messages_screen.dart';
 import 'salary/salary_screen.dart';
 import 'students/my_students_screen.dart';
 import 'teacher_home_screen.dart';
+
+/// Messages is the last tab, so its index shifts when Pay Slip is hidden.
+const int _messagesIndex = kPayrollEnabled ? 4 : 3;
 
 class TeacherShell extends StatefulWidget {
   const TeacherShell({super.key});
@@ -33,10 +37,10 @@ class _TeacherShellState extends State<TeacherShell> {
       body: IndexedStack(
         index: _index,
         children: [
-          TeacherHomeScreen(onOpenMessages: () => setState(() => _index = 4)),
+          TeacherHomeScreen(onOpenMessages: () => setState(() => _index = _messagesIndex)),
           const TeacherCalendarScreen(),
           const MyStudentsScreen(),
-          const SalaryScreen(),
+          if (kPayrollEnabled) const SalaryScreen(),
           const TeacherMessagesScreen(),
         ],
       ),
@@ -82,7 +86,7 @@ class _NavRow extends StatelessWidget {
     (icon: Icons.home_rounded, label: 'Home'),
     (icon: Icons.calendar_month_rounded, label: 'Calendar'),
     (icon: Icons.groups_2_rounded, label: 'Students'),
-    (icon: Icons.receipt_long_rounded, label: 'Pay Slip'),
+    if (kPayrollEnabled) (icon: Icons.receipt_long_rounded, label: 'Pay Slip'),
     (icon: Icons.notifications_none_rounded, label: 'Messages'),
   ];
 

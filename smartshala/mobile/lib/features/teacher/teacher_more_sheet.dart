@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/config/feature_flags.dart';
 import '../../core/theme/app_colors.dart';
 import '../auth/change_password_screen.dart';
 import 'messages/teacher_messages_screen.dart';
@@ -29,13 +30,14 @@ class TeacherMoreSheet extends StatelessWidget {
       color: AppColors.primary,
       screen: MyTimetableScreen.new,
     ),
-    (
-      icon: Icons.receipt_long_rounded,
-      title: 'Pay Slip',
-      subtitle: 'Your monthly pay slips',
-      color: AppColors.success,
-      screen: SalaryScreen.new,
-    ),
+    if (kPayrollEnabled)
+      (
+        icon: Icons.receipt_long_rounded,
+        title: 'Pay Slip',
+        subtitle: 'Your monthly pay slips',
+        color: AppColors.success,
+        screen: SalaryScreen.new,
+      ),
     (
       icon: Icons.forum_rounded,
       title: 'Messages',

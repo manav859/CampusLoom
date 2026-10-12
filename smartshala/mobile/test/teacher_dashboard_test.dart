@@ -188,9 +188,10 @@ void main() {
 
     await tester.tap(find.text('More'));
     await _settle(tester);
-    for (final title in ['My Timetable', 'Pay Slip', 'Messages', 'Change Password']) {
+    for (final title in ['My Timetable', 'Messages', 'Change Password']) {
       expect(find.text(title), findsOneWidget, reason: title);
     }
+    expect(find.text('Pay Slip'), findsNothing, reason: 'payroll is hidden');
     expect(find.textContaining('later phase'), findsNothing);
 
     await tester.tap(find.text('My Timetable'));

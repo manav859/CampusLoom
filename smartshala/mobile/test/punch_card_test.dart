@@ -229,13 +229,13 @@ void main() {
     expect(find.text('Working'), findsOneWidget);
   });
 
-  testWidgets('the swipe lives on Home only, and the tab is called Pay Slip', (tester) async {
+  testWidgets('the swipe lives on Home only, and Pay Slip is hidden', (tester) async {
     await _pump(tester, PunchState.notPunchedIn, home: const TeacherShell());
     expect(find.byType(SwipeToPunch), findsOneWidget, reason: 'Home');
-    expect(find.text('Pay Slip'), findsOneWidget);
+    expect(find.text('Pay Slip'), findsNothing, reason: 'payroll is hidden');
     expect(find.text('Salary'), findsNothing);
 
-    for (final tab in ['Calendar', 'Students', 'Pay Slip', 'Messages']) {
+    for (final tab in ['Calendar', 'Students', 'Messages']) {
       await tester.tap(find.text(tab).last);
       await _frames(tester);
       expect(

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/app_user.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/config/feature_flags.dart';
 import '../../core/data/dashboard_models.dart';
 import '../../core/data/messages_models.dart';
 import '../../core/data/messages_repository.dart';
@@ -391,7 +392,7 @@ class _QuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Nine tiles: three full rows on a phone.
+    // Nine tiles: three full rows on a phone, one short while Payroll is hidden.
     return ResponsiveGrid(
       phoneColumns: 3,
       wideColumns: 9,
@@ -433,12 +434,13 @@ class _QuickActions extends StatelessWidget {
           color: AppColors.purple,
           onTap: onNotice,
         ),
-        _ActionTile(
-          icon: Icons.account_balance_wallet_rounded,
-          title: 'Payroll',
-          color: AppColors.success,
-          onTap: onPayroll,
-        ),
+        if (kPayrollEnabled)
+          _ActionTile(
+            icon: Icons.account_balance_wallet_rounded,
+            title: 'Payroll',
+            color: AppColors.success,
+            onTap: onPayroll,
+          ),
         _ActionTile(
           icon: Icons.calendar_month_rounded,
           title: 'Calendar',
