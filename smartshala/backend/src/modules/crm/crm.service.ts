@@ -25,16 +25,39 @@ import { addActivity, leadCode, rupees, shortDate, SYSTEM_NAME, type CrmActor } 
 const PROFORMA_VALID_DAYS = 15;
 
 /** Stages a person moves a lead between. The rest are set by what happens to it. */
-const MANUAL_STAGES: LeadStage[] = [LeadStage.NEW, LeadStage.CONTACTED, LeadStage.LOST];
+const MANUAL_STAGES: LeadStage[] = [
+  LeadStage.NEW,
+  LeadStage.CALL_NOT_CONNECTED,
+  LeadStage.CALLBACK_REQUESTED,
+  LeadStage.DEMO_ARRANGED,
+  LeadStage.DEMO_SHOWN,
+  LeadStage.CUSTOM,
+  LeadStage.COLD,
+  LeadStage.IRRELEVANT,
+  LeadStage.LOST
+];
 
 const STAGE_LABEL: Record<LeadStage, string> = {
-  NEW: "New",
-  CONTACTED: "Contacted",
+  NEW: "Inbound",
+  CALL_NOT_CONNECTED: "Call not connected",
+  CALLBACK_REQUESTED: "Call back Requested",
+  DEMO_ARRANGED: "Demo Arranged",
+  DEMO_SHOWN: "Demo shown",
+  CUSTOM: "Custom",
   PROFORMA_SENT: "Proforma sent",
-  PAID: "Paid",
+  PAID: "Deal closed",
   ONBOARDED: "Onboarded",
+  COLD: "Cold Lead (without Demo)",
+  IRRELEVANT: "Irrelevant Lead",
   LOST: "Missed Sales"
 };
+
+/** A custom stage reads as its own name. */
+async function stageLabel(stage: LeadStage, customStageId: string | null) {
+  if (stage !== LeadStage.CUSTOM || !customStageId) return STAGE_LABEL[stage];
+  const custom = await masterPrisma.crmStage.findUnique({ where: { id: customStageId }, select: { name: true } });
+  return custom?.name ?? STAGE_LABEL[stage];
+}
 
 function assertMaster() {
   if (!isMasterDbConfigured()) {
@@ -142,6 +165,40 @@ export async function updateTeamMember(
   return { ...user, leadCount: _count.leads };
 }
 
+// --- Custom stages -----------------------------------------------------------
+
+export async function listStages() {
+  assertMaster();
+  const stages = await masterPrisma.crmStage.findMany({
+    orderBy: { createdAt: "asc" },
+    include: { _count: { select: { leads: { where: { stage: LeadStage.CUSTOM } } } } }
+  });
+  return stages.map(({ _count, ...stage }) => ({ ...stage, dealCount: _count.leads }));
+}
+
+export async function createStage(actor: CrmActor, rawName: string) {
+  assertMaster();
+  const name = rawName.trim().replace(/\s+/g, " ");
+  const taken =
+    Object.values(STAGE_LABEL).some((label) => label.toLowerCase() === name.toLowerCase()) ||
+    (await masterPrisma.crmStage.findFirst({ where: { name: { equals: name, mode: "insensitive" } } }));
+  if (taken) throw new AppError(409, `There is already a stage called ${name}`, "CRM_STAGE_TAKEN");
+  const stage = await masterPrisma.crmStage.create({ data: { name, createdBy: actor.name } });
+  return { ...stage, dealCount: 0 };
+}
+
+/** Only an empty stage goes, so no deal is left without one. */
+export async function deleteStage(stageId: string) {
+  assertMaster();
+  const stage = await masterPrisma.crmStage.findUnique({ where: { id: stageId } });
+  if (!stage) throw new AppError(404, "That stage no longer exists", "CRM_STAGE_NOT_FOUND");
+  const deals = await masterPrisma.lead.count({ where: { stage: LeadStage.CUSTOM, customStageId: stageId } });
+  if (deals) {
+    throw new AppError(409, `Move the ${deals === 1 ? "deal" : `${deals} deals`} in ${stage.name} to another stage first`, "CRM_STAGE_IN_USE");
+  }
+  await masterPrisma.crmStage.delete({ where: { id: stageId } });
+}
+
 // --- Leads -------------------------------------------------------------------
 
 export type LeadInput = {
@@ -192,7 +249,7 @@ function duplicateMessage(lead: Lead & { assignedTo: { name: string } | null }) 
   return `${leadCode(lead.number)} (${lead.schoolName}${owner}) already has this phone or email`;
 }
 
-export async function listLeads(actor: CrmActor, filters: { stage?: LeadStage; q?: string; assignedTo?: string }) {
+export async function listLeads(actor: CrmActor, filters: { stage?: LeadStage; customStageId?: string; q?: string; assignedTo?: string }) {
   assertMaster();
   const scope = leadScope(actor);
   const text = filters.q?.trim();
@@ -219,11 +276,16 @@ export async function listLeads(actor: CrmActor, filters: { stage?: LeadStage; q
 
   const [leads, byStage] = await Promise.all([
     masterPrisma.lead.findMany({
-      where: { ...where, ...(filters.stage ? { stage: filters.stage } : {}) },
+      where: {
+        ...where,
+        ...(filters.stage ? { stage: filters.stage } : {}),
+        ...(filters.stage === LeadStage.CUSTOM && filters.customStageId ? { customStageId: filters.customStageId } : {})
+      },
       orderBy: { updatedAt: "desc" },
       take: 500,
       include: {
         assignedTo: { select: { id: true, name: true } },
+        customStage: { select: { id: true, name: true } },
         proformas: {
           where: { status: { not: ProformaStatus.CANCELLED } },
           orderBy: { issuedAt: "desc" },
@@ -232,11 +294,18 @@ export async function listLeads(actor: CrmActor, filters: { stage?: LeadStage; q
         }
       }
     }),
-    masterPrisma.lead.groupBy({ by: ["stage"], where, _count: { _all: true } })
+    masterPrisma.lead.groupBy({ by: ["stage", "customStageId"], where, _count: { _all: true } })
   ]);
 
+  // Keyed by stage, or by the custom stage's id for a deal in one.
+  const counts: Record<string, number> = {};
+  for (const row of byStage) {
+    const key = row.stage === LeadStage.CUSTOM && row.customStageId ? row.customStageId : row.stage;
+    counts[key] = (counts[key] ?? 0) + row._count._all;
+  }
+
   return {
-    counts: Object.fromEntries(byStage.map((row) => [row.stage, row._count._all])) as Partial<Record<LeadStage, number>>,
+    counts,
     leads: leads.map(({ proformas, ...lead }) => ({ ...lead, code: leadCode(lead.number), proforma: proformas[0] ?? null }))
   };
 }
@@ -317,6 +386,7 @@ export async function getLead(actor: CrmActor, leadId: string) {
     where: { id: leadId },
     include: {
       assignedTo: { select: { id: true, name: true } },
+      customStage: { select: { id: true, name: true } },
       activities: { orderBy: { createdAt: "desc" }, take: 300 },
       proformas: {
         orderBy: { issuedAt: "desc" },
@@ -380,7 +450,7 @@ const FIELD_LABEL: Record<(typeof CONTACT_FIELDS)[number], string> = {
 export async function updateLead(
   actor: CrmActor,
   leadId: string,
-  raw: Partial<LeadInput> & { stage?: LeadStage; lostReason?: string | null; assignedToId?: string | null }
+  raw: Partial<LeadInput> & { stage?: LeadStage; customStageId?: string; lostReason?: string | null; assignedToId?: string | null }
 ) {
   const lead = await leadForActor(actor, leadId);
   const input = cleanLeadInput(raw);
@@ -401,19 +471,27 @@ export async function updateLead(
     notes.push(`Updated ${[...new Set(changed.map((field) => FIELD_LABEL[field]))].join(", ")}`);
   }
 
-  if (input.stage && input.stage !== lead.stage) {
+  const toCustom = input.stage === LeadStage.CUSTOM;
+  if (input.stage && (input.stage !== lead.stage || (toCustom && input.customStageId !== lead.customStageId))) {
+    const from = await stageLabel(lead.stage, lead.customStageId);
+    let to = STAGE_LABEL[input.stage];
+    if (toCustom) {
+      if (!input.customStageId) throw new AppError(400, "Pick which custom stage", "CRM_STAGE_REQUIRED");
+      const custom = await masterPrisma.crmStage.findUnique({ where: { id: input.customStageId } });
+      if (!custom) throw new AppError(404, "That stage no longer exists", "CRM_STAGE_NOT_FOUND");
+      to = custom.name;
+    }
     if (!MANUAL_STAGES.includes(input.stage) || !(MANUAL_STAGES.includes(lead.stage) || lead.stage === LeadStage.PROFORMA_SENT)) {
-      throw new AppError(409, `A deal cannot be moved from ${STAGE_LABEL[lead.stage]} to ${STAGE_LABEL[input.stage]} by hand`, "LEAD_STAGE_LOCKED");
+      throw new AppError(409, `A deal cannot be moved from ${from} to ${to} by hand`, "LEAD_STAGE_LOCKED");
     }
     if (input.stage === LeadStage.LOST && !input.lostReason?.trim()) {
       throw new AppError(400, "Say why the sale was missed", "LEAD_LOST_REASON_REQUIRED");
     }
     data.stage = input.stage;
+    data.customStageId = toCustom ? input.customStageId : null;
     data.lostAt = input.stage === LeadStage.LOST ? new Date() : null;
     data.lostReason = input.stage === LeadStage.LOST ? input.lostReason!.trim() : null;
-    notes.push(
-      `Stage: ${STAGE_LABEL[lead.stage]} → ${STAGE_LABEL[input.stage]}${input.stage === LeadStage.LOST ? ` (${input.lostReason!.trim()})` : ""}`
-    );
+    notes.push(`Stage: ${from} → ${to}${input.stage === LeadStage.LOST ? ` (${input.lostReason!.trim()})` : ""}`);
   }
 
   if (input.assignedToId !== undefined && input.assignedToId !== lead.assignedToId) {
@@ -629,8 +707,8 @@ export async function createLeadPaymentLink(actor: CrmActor, proformaId: string,
   });
 
   const { lead } = proforma;
-  if (lead.stage === LeadStage.NEW || lead.stage === LeadStage.CONTACTED) {
-    await masterPrisma.lead.update({ where: { id: lead.id }, data: { stage: LeadStage.PROFORMA_SENT } });
+  if (MANUAL_STAGES.includes(lead.stage) && lead.stage !== LeadStage.LOST) {
+    await masterPrisma.lead.update({ where: { id: lead.id }, data: { stage: LeadStage.PROFORMA_SENT, customStageId: null } });
   }
   await addActivity(lead.id, "LINK_CREATED", `Payment link for ${proforma.number} created, valid until ${shortDate(link.expiresAt)}`, actor.name);
 

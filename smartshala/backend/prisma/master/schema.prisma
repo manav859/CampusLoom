@@ -429,6 +429,18 @@ model CrmUser {
   @@map("crm_users")
 }
 
+/// A deal stage a sales admin added on top of the built-in ones.
+model CrmStage {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  createdBy String
+  createdAt DateTime @default(now())
+
+  leads Lead[]
+
+  @@map("crm_stages")
+}
+
 model Lead {
   id               String           @id @default(uuid()) @db.Uuid
   // Shown as LD-000123: short enough to read out on a call.
@@ -446,6 +458,8 @@ model Lead {
   numberOfStudents Int?
   numberOfStaff    Int?
   stage            LeadStage        @default(NEW)
+  // Which admin-defined stage, when stage is CUSTOM.
+  customStageId    String?          @db.Uuid
   source           LeadSource       @default(CRM)
   lostReason       String?
   lostAt           DateTime?
@@ -461,12 +475,14 @@ model Lead {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @default(now()) @updatedAt
 
-  assignedTo CrmUser?       @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
-  activities LeadActivity[]
-  proformas  Proforma[]
+  assignedTo  CrmUser?       @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+  customStage CrmStage?      @relation(fields: [customStageId], references: [id], onDelete: SetNull)
+  activities  LeadActivity[]
+  proformas   Proforma[]
 
   @@index([assignedToId, stage])
   @@index([stage, updatedAt])
+  @@index([customStageId])
   @@index([phone])
   @@index([email])
   @@map("leads")
@@ -562,12 +578,19 @@ enum CrmRole {
   SALES
 }
 
+// In pipeline order. NEW reads "Inbound", PAID "Deal closed" and LOST "Missed Sales".
 enum LeadStage {
   NEW
-  CONTACTED
+  CALL_NOT_CONNECTED
+  CALLBACK_REQUESTED
+  DEMO_ARRANGED
+  DEMO_SHOWN
+  CUSTOM
   PROFORMA_SENT
   PAID
   ONBOARDED
+  COLD
+  IRRELEVANT
   LOST
 }
 

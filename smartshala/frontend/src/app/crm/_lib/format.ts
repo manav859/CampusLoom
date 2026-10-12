@@ -1,17 +1,47 @@
 import type { Tone } from "../../super-admin/_lib/format";
-import type { LeadPayment, LeadStage, OnboardingStatus } from "./types";
+import type { CustomStage, LeadPayment, LeadStage, OnboardingStatus } from "./types";
 
-/** In pipeline order — the order the stage filters are shown in. */
+/** In pipeline order — the order the stage filters are shown in. Custom stages take CUSTOM's place. */
 export const STAGE: Record<LeadStage, { label: string; tone: Tone }> = {
-  NEW: { label: "New", tone: "info" },
-  CONTACTED: { label: "Contacted", tone: "neutral" },
+  NEW: { label: "Inbound", tone: "info" },
+  CALL_NOT_CONNECTED: { label: "Call not connected", tone: "neutral" },
+  CALLBACK_REQUESTED: { label: "Call back Requested", tone: "info" },
+  DEMO_ARRANGED: { label: "Demo Arranged", tone: "info" },
+  DEMO_SHOWN: { label: "Demo shown", tone: "info" },
+  CUSTOM: { label: "Custom", tone: "neutral" },
   PROFORMA_SENT: { label: "Proforma sent", tone: "warn" },
-  PAID: { label: "Paid", tone: "good" },
+  PAID: { label: "Deal closed", tone: "good" },
   ONBOARDED: { label: "Onboarded", tone: "good" },
+  COLD: { label: "Cold Lead (without Demo)", tone: "neutral" },
+  IRRELEVANT: { label: "Irrelevant Lead", tone: "neutral" },
   LOST: { label: "Missed Sales", tone: "danger" }
 };
 
-export const STAGES = (Object.keys(STAGE) as LeadStage[]).map((id) => ({ id, ...STAGE[id] }));
+/**
+ * A board column or stage choice. Its id is a built-in stage, or a custom
+ * stage's own id.
+ */
+export type StageOption = { id: string; label: string; tone: Tone };
+
+export function stageOptions(custom: CustomStage[] = []): StageOption[] {
+  return (Object.keys(STAGE) as LeadStage[]).flatMap((id) =>
+    id === "CUSTOM" ? custom.map((stage) => ({ id: stage.id, label: stage.name, tone: STAGE.CUSTOM.tone })) : [{ id, ...STAGE[id] }]
+  );
+}
+
+/** The column a deal sits in. */
+export function stageOf(deal: { stage: LeadStage; customStageId: string | null }) {
+  return deal.stage === "CUSTOM" && deal.customStageId ? deal.customStageId : deal.stage;
+}
+
+export function stageLabel(deal: { stage: LeadStage; customStage: { name: string } | null }) {
+  return deal.stage === "CUSTOM" && deal.customStage ? deal.customStage.name : STAGE[deal.stage].label;
+}
+
+/** What to send to move a deal to a column. */
+export function stageBody(id: string) {
+  return id in STAGE ? { stage: id } : { stage: "CUSTOM", customStageId: id };
+}
 
 /** The coloured dot beside a stage name — on board columns and the deal header. */
 export const STAGE_DOT: Record<Tone, string> = {
@@ -22,14 +52,16 @@ export const STAGE_DOT: Record<Tone, string> = {
   danger: "bg-red-500"
 };
 
-const MANUAL_STAGES: LeadStage[] = ["NEW", "CONTACTED", "LOST"];
+const AUTOMATIC_STAGES: string[] = ["PROFORMA_SENT", "PAID", "ONBOARDED"];
 
 /**
- * Mirrors updateLead on the server: people move a deal between New, Contacted
- * and Lost (also out of Proforma sent); payment moves it everywhere else.
+ * Mirrors updateLead on the server: people move a deal between every stage
+ * but Proforma sent, Deal closed and Onboarded (and out of Proforma sent);
+ * payment links and payment move it into those. Takes stageOf ids.
  */
-export function canMoveTo(from: LeadStage, to: LeadStage) {
-  return from !== to && MANUAL_STAGES.includes(to) && (MANUAL_STAGES.includes(from) || from === "PROFORMA_SENT");
+export function canMoveTo(from: string, to: string) {
+  const manual = (id: string) => !AUTOMATIC_STAGES.includes(id);
+  return from !== to && manual(to) && (manual(from) || from === "PROFORMA_SENT");
 }
 
 export const ONBOARDING: Record<OnboardingStatus, { label: string; tone: Tone }> = {

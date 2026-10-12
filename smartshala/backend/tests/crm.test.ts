@@ -15,8 +15,10 @@ import {
   addNote,
   createLead,
   createLeadPaymentLink,
+  createStage,
   createTeamMember,
   createWebsiteLead,
+  deleteStage,
   getLead,
   issueProforma,
   listCrmPayments,
@@ -39,6 +41,7 @@ import type { CrmActor } from "../src/modules/crm/crm.shared.js";
  */
 const PLAN_CODE = "CRMTEST";
 const EMAIL_DOMAIN = "@crm-test.example";
+const CUSTOM_STAGE = "CRM test visit";
 const TENANT_URL = process.env.DATABASE_URL!;
 
 assert.match(process.env.MASTER_DATABASE_URL ?? "", /localhost|127\.0\.0\.1/, "point MASTER_DATABASE_URL at a local database");
@@ -54,6 +57,7 @@ async function cleanup() {
   await masterPrisma.school.deleteMany({ where: { schoolId: { in: schoolIds } } });
   await masterPrisma.lead.deleteMany({ where: { id: { in: leads.map((lead) => lead.id) } } });
   await masterPrisma.crmUser.deleteMany({ where: { email: { endsWith: EMAIL_DOMAIN } } });
+  await masterPrisma.crmStage.deleteMany({ where: { name: CUSTOM_STAGE } });
   await masterPrisma.plan.deleteMany({ where: { code: PLAN_CODE } });
 }
 
@@ -110,8 +114,23 @@ async function main() {
   assert.equal((await listLeads(asRavi, { q: created.code })).leads.length, 1);
 
   await addNote(asRavi, created.id, "Called the principal, wants the annual plan");
-  await updateLead(asRavi, created.id, { stage: "CONTACTED" });
+  await updateLead(asRavi, created.id, { stage: "DEMO_ARRANGED" });
   await rejects(updateLead(asRavi, created.id, { stage: "PAID" }), "LEAD_STAGE_LOCKED");
+
+  // A stage the sales admin added.
+  const visit = await createStage(ADMIN, `  ${CUSTOM_STAGE} `);
+  assert.equal(visit.name, CUSTOM_STAGE);
+  await rejects(createStage(ADMIN, CUSTOM_STAGE.toUpperCase()), "CRM_STAGE_TAKEN");
+  await rejects(createStage(ADMIN, "demo shown"), "CRM_STAGE_TAKEN");
+  await rejects(updateLead(asRavi, created.id, { stage: "CUSTOM" }), "CRM_STAGE_REQUIRED");
+  await updateLead(asRavi, created.id, { stage: "CUSTOM", customStageId: visit.id });
+  const inVisit = await listLeads(asRavi, { stage: "CUSTOM", customStageId: visit.id });
+  assert.equal(inVisit.leads.length, 1);
+  assert.equal(inVisit.leads[0].customStage?.name, CUSTOM_STAGE);
+  assert.equal(inVisit.counts[visit.id], 1);
+  const moved = await getLead(asRavi, created.id);
+  assert.ok(moved.activities.some((activity) => activity.message === `Stage: Demo Arranged → ${CUSTOM_STAGE}`));
+  await rejects(deleteStage(visit.id), "CRM_STAGE_IN_USE");
   await rejects(updateLead(asRavi, created.id, { assignedToId: meena.id }), "CRM_ADMIN_REQUIRED");
 
   // --- Proforma -------------------------------------------------------------
@@ -135,7 +154,10 @@ async function main() {
   const link = await createLeadPaymentLink(asRavi, proforma.id, { note: "Annual plan for 2026-27" });
   assert.ok(link.shareText.includes(link.url));
   assert.ok(link.shareText.includes("₹23,600.00"));
-  assert.equal((await masterPrisma.lead.findUniqueOrThrow({ where: { id: created.id } })).stage, "PROFORMA_SENT");
+  const sent = await masterPrisma.lead.findUniqueOrThrow({ where: { id: created.id } });
+  assert.equal(sent.stage, "PROFORMA_SENT");
+  assert.equal(sent.customStageId, null, "a payment link moves the deal out of its custom stage");
+  await deleteStage(visit.id);
 
   // --- The school pays --------------------------------------------------------
   const view = await getPaymentLinkView(link.token);

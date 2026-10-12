@@ -9,10 +9,10 @@ import { crmFetch } from "../../crmFetch";
 import { LeadFormModal } from "../../_components/LeadFormModal";
 import { LostModal } from "../../_components/LostModal";
 import { Glyph, Initials, type GLYPHS } from "../../_components/visual";
-import { STAGE, STAGE_DOT, STAGES, canMoveTo, whatsappUrl } from "../../_lib/format";
+import { STAGE, STAGE_DOT, canMoveTo, stageBody, stageLabel, stageOf, stageOptions, whatsappUrl } from "../../_lib/format";
 import { invalidate, setResource, useResource } from "../../_lib/resource";
 import { useCrmUser } from "../../_lib/session";
-import type { Activity, LeadDetail, LeadStage, TeamMember } from "../../_lib/types";
+import type { Activity, CustomStage, LeadDetail, TeamMember } from "../../_lib/types";
 import { BillingPanel } from "./BillingPanel";
 
 /** How often to look again while the school is being set up. */
@@ -79,7 +79,7 @@ export default function DealPage({ params }: { params: Promise<{ leadId: string 
             lead={data}
             onNote={() => setNoting(true)}
             onOwner={(assignedToId) => void update({ assignedToId }, "Deal owner changed.")}
-            onStage={(stage) => (stage === "LOST" ? setLosing(true) : void update({ stage }, `Moved to ${STAGE[stage].label}.`))}
+            onStage={(stage, label) => (stage === "LOST" ? setLosing(true) : void update(stageBody(stage), `Moved to ${label}.`))}
           />
         </aside>
 
@@ -92,7 +92,7 @@ export default function DealPage({ params }: { params: Promise<{ leadId: string 
               value={
                 <span className="flex items-center gap-1.5">
                   <span className={cx("h-2 w-2 rounded-full", STAGE_DOT[STAGE[data.stage].tone])} />
-                  {STAGE[data.stage].label}
+                  {stageLabel(data)}
                 </span>
               }
             />
@@ -224,13 +224,15 @@ function Profile({
   lead: LeadDetail;
   busy: boolean;
   onNote: () => void;
-  onStage: (stage: LeadStage) => void;
+  onStage: (stage: string, label: string) => void;
   onOwner: (assignedToId: string) => void;
 }) {
   const user = useCrmUser();
   const isAdmin = user.role === "ADMIN";
   const team = useResource<TeamMember[]>(isAdmin ? "/team" : null);
-  const stageOptions = STAGES.filter((stage) => stage.id === lead.stage || canMoveTo(lead.stage, stage.id)).map((stage) => ({ value: stage.id, label: stage.label }));
+  const current = stageOf(lead);
+  const stages = stageOptions(useResource<CustomStage[]>("/stages").data).filter((stage) => stage.id === current || canMoveTo(current, stage.id));
+  const stageChoices = stages.map((stage) => ({ value: stage.id, label: stage.label }));
   const ownerOptions = [
     { value: "", label: "Unassigned" },
     ...(team.data ?? []).filter((member) => member.isActive || member.id === lead.assignedToId).map((member) => ({ value: member.id, label: member.name }))
@@ -260,14 +262,19 @@ function Profile({
       <div className="mt-4 space-y-4">
         <div>
           <SectionLabel>Deal stage</SectionLabel>
-          {stageOptions.length > 1 ? (
+          {stageChoices.length > 1 ? (
             <div className={cx(busy && "pointer-events-none opacity-60")}>
-              <Select ariaLabel="Deal stage" onChange={onStage} options={stageOptions} value={lead.stage} />
+              <Select
+                ariaLabel="Deal stage"
+                onChange={(id) => onStage(id, stages.find((stage) => stage.id === id)?.label ?? "the new stage")}
+                options={stageChoices}
+                value={current}
+              />
             </div>
           ) : (
             <p className="flex h-9 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-700">
               <span className={cx("h-2 w-2 rounded-full", STAGE_DOT[STAGE[lead.stage].tone])} />
-              {STAGE[lead.stage].label}
+              {stageLabel(lead)}
               <span className="ml-auto text-[11px] font-normal text-slate-400">set by payment</span>
             </p>
           )}

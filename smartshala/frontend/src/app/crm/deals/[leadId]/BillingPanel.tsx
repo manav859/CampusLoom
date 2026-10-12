@@ -433,13 +433,31 @@ function IssueProformaModal({ lead, revising, onClose }: { lead: LeadDetail; rev
   const { run, isPending } = useAction();
   const [planCode, setPlanCode] = useState("");
   const [price, setPrice] = useState("");
+  const [discount, setDiscount] = useState("");
+  const [discountMode, setDiscountMode] = useState<"percent" | "amount">("percent");
   const [couponCode, setCouponCode] = useState("");
   const [validDays, setValidDays] = useState("15");
   const [notes, setNotes] = useState("");
 
   const plan = plans.data?.find((entry) => entry.code === planCode) ?? null;
+  const listRupees = plan ? plan.priceMinor / 100 : 0;
   const priceRupees = Number(price);
   const valid = Boolean(plan) && (price === "" || priceRupees > 0) && Number(validDays) >= 1;
+
+  // Discount and agreed price are two views of the same number: editing either
+  // one rewrites the other, both measured off the plan's list price.
+  const round2 = (value: number) => Math.round(value * 100) / 100;
+  const discountFor = (agreed: string, mode: "percent" | "amount") => {
+    if (agreed === "" || !listRupees) return "";
+    const off = listRupees - Number(agreed);
+    if (off === 0) return "";
+    return String(round2(mode === "percent" ? (off / listRupees) * 100 : off));
+  };
+  const changeDiscount = (value: string) => {
+    setDiscount(value);
+    const off = Number(value) || 0;
+    setPrice(String(round2(listRupees - (discountMode === "percent" ? (listRupees * off) / 100 : off))));
+  };
 
   return (
     <FormModal
@@ -481,6 +499,7 @@ function IssueProformaModal({ lead, revising, onClose }: { lead: LeadDetail; rev
             setPlanCode(code);
             const picked = plans.data?.find((entry) => entry.code === code);
             setPrice(picked ? String(picked.priceMinor / 100) : "");
+            setDiscount("");
           }}
           options={[
             { value: "", label: plans.isLoading ? "Loading plans…" : "Choose a plan" },
@@ -490,8 +509,53 @@ function IssueProformaModal({ lead, revising, onClose }: { lead: LeadDetail; rev
         />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Discount (optional)">
+          <div className="flex gap-2">
+            <Input
+              className="min-w-0 flex-1"
+              disabled={!plan}
+              inputMode="decimal"
+              max={discountMode === "percent" ? 100 : listRupees}
+              min={0}
+              onChange={(event) => changeDiscount(event.target.value)}
+              step="0.01"
+              type="number"
+              value={discount}
+            />
+            <div className="inline-flex shrink-0 rounded-md border border-slate-300 p-0.5">
+              {(["percent", "amount"] as const).map((mode) => (
+                <button
+                  className={cx(
+                    "rounded px-3 text-sm font-semibold disabled:opacity-50",
+                    discountMode === mode ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                  )}
+                  disabled={!plan}
+                  key={mode}
+                  onClick={() => {
+                    setDiscountMode(mode);
+                    setDiscount(discountFor(price, mode));
+                  }}
+                  type="button"
+                >
+                  {mode === "percent" ? "%" : "₹"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Field>
         <Field hint={plan ? `List price ${money(plan.priceMinor, plan.currency)}` : undefined} label="Agreed price (₹, before GST)">
-          <Input disabled={!plan} inputMode="decimal" min={1} onChange={(event) => setPrice(event.target.value)} step="0.01" type="number" value={price} />
+          <Input
+            disabled={!plan}
+            inputMode="decimal"
+            min={1}
+            onChange={(event) => {
+              setPrice(event.target.value);
+              setDiscount(discountFor(event.target.value, discountMode));
+            }}
+            step="0.01"
+            type="number"
+            value={price}
+          />
         </Field>
         <Field label="Coupon (optional)">
           <Input onChange={(event) => setCouponCode(event.target.value.toUpperCase())} value={couponCode} />

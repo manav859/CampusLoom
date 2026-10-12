@@ -2,7 +2,22 @@ export type CrmRole = "ADMIN" | "SALES";
 
 export type CrmUser = { id: string | null; name: string; role: CrmRole };
 
-export type LeadStage = "NEW" | "CONTACTED" | "PROFORMA_SENT" | "PAID" | "ONBOARDED" | "LOST";
+export type LeadStage =
+  | "NEW"
+  | "CALL_NOT_CONNECTED"
+  | "CALLBACK_REQUESTED"
+  | "DEMO_ARRANGED"
+  | "DEMO_SHOWN"
+  | "CUSTOM"
+  | "PROFORMA_SENT"
+  | "PAID"
+  | "ONBOARDED"
+  | "COLD"
+  | "IRRELEVANT"
+  | "LOST";
+
+/** A stage a sales admin added. */
+export type CustomStage = { id: string; name: string; createdBy: string; createdAt: string; dealCount: number };
 
 export type OnboardingStatus = "NOT_STARTED" | "RUNNING" | "DONE" | "FAILED";
 
@@ -26,6 +41,8 @@ export type LeadRow = LeadContact & {
   number: number;
   code: string;
   stage: LeadStage;
+  customStageId: string | null;
+  customStage: { id: string; name: string } | null;
   source: "CRM" | "WEBSITE" | "META";
   assignedToId: string | null;
   assignedTo: { id: string; name: string } | null;
@@ -37,7 +54,8 @@ export type LeadRow = LeadContact & {
   proforma: { number: string; totalMinor: number; status: ProformaStatus } | null;
 };
 
-export type LeadList = { counts: Partial<Record<LeadStage, number>>; leads: LeadRow[] };
+/** Counts are keyed by stage, or by the custom stage's id. */
+export type LeadList = { counts: Record<string, number>; leads: LeadRow[] };
 
 export type Activity = { id: string; type: string; message: string; actor: string; createdAt: string };
 
