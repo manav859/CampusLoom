@@ -74,17 +74,18 @@ const envSchema = z.object({
   BILLING_GRACE_DAYS: z.coerce.number().int().min(0).max(90).default(7),
   BILLING_INVOICE_DUE_DAYS: z.coerce.number().int().min(0).max(90).default(7),
   BILLING_RENEWAL_LEAD_DAYS: z.coerce.number().int().min(0).max(90).default(7),
-  // Who the invoice document is issued by. Left blank rather than guessed, so a
-  // wrong address never goes out on a document a school files.
-  BILLING_SELLER_NAME: z.string().default("SmartShala"),
+  // Who the invoice document is issued by: the company behind SmartShala. The
+  // address is left blank rather than guessed, so a wrong one never goes out on
+  // a document a school files.
+  BILLING_SELLER_NAME: z.string().default("Hybrid Monks LLP"),
   BILLING_SELLER_ADDRESS: z.string().optional(),
   BILLING_SUPPORT_EMAIL: z.string().optional(),
   // GST identity of the seller. The state code is what decides whether an
-  // invoice carries CGST+SGST or IGST, so it has no sensible default.
-  BILLING_SELLER_GSTIN: z.string().optional(),
+  // invoice carries CGST+SGST (a Rajasthan school) or IGST (anywhere else).
+  BILLING_SELLER_GSTIN: z.string().default("08AATFH7649R1Z2"),
   BILLING_SELLER_PAN: z.string().optional(),
-  BILLING_SELLER_STATE: z.string().optional(),
-  BILLING_SELLER_STATE_CODE: z.string().regex(/^\d{2}$/).optional(),
+  BILLING_SELLER_STATE: z.string().default("Rajasthan"),
+  BILLING_SELLER_STATE_CODE: z.string().regex(/^\d{2}$/).default("08"),
   BILLING_SELLER_PHONE: z.string().optional(),
   // SAC 998434 — "on-line software services". Override if your CA says otherwise.
   BILLING_SAC_CODE: z.string().default("998434"),

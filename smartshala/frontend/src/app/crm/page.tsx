@@ -6,13 +6,14 @@ import { Badge, Btn, DataTable, ErrorBanner, Input, PageHeader, Select, cx, type
 import { useAction } from "../super-admin/_lib/action";
 import { fmtDate, money, timeAgo } from "../super-admin/_lib/format";
 import { crmFetch } from "./crmFetch";
+import { ImportLeadsModal } from "./_components/ImportLeadsModal";
 import { LeadFormModal } from "./_components/LeadFormModal";
 import { LostModal } from "./_components/LostModal";
 import { Glyph, Initials } from "./_components/visual";
-import { STAGE, STAGE_DOT, STAGES, canMoveTo } from "./_lib/format";
+import { STAGE, STAGE_DOT, canMoveTo, stageBody, stageLabel, stageOf, stageOptions, type StageOption } from "./_lib/format";
 import { invalidate, setResource, useResource } from "./_lib/resource";
 import { useCrmUser } from "./_lib/session";
-import type { LeadList, LeadRow, LeadStage, TeamMember } from "./_lib/types";
+import type { CustomStage, LeadList, LeadRow, LeadStage, TeamMember } from "./_lib/types";
 
 type View = "board" | "table";
 
@@ -25,24 +26,30 @@ export default function DealsPage() {
   const user = useCrmUser();
   const isAdmin = user.role === "ADMIN";
   const [view, setView] = useState<View>("board");
-  const [stage, setStage] = useState<LeadStage | "">("");
+  const [stage, setStage] = useState("");
   const [owner, setOwner] = useState("");
   const [text, setText] = useState("");
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [losing, setLosing] = useState<LeadRow | null>(null);
   const { run, isPending } = useAction();
 
   // The board shows every stage as a column, so only the table filters by stage.
   const stageFilter = view === "table" ? stage : "";
   const params = new URLSearchParams();
-  if (stageFilter) params.set("stage", stageFilter);
+  if (stageFilter) {
+    const body = stageBody(stageFilter);
+    params.set("stage", body.stage);
+    if (body.customStageId) params.set("customStageId", body.customStageId);
+  }
   if (query) params.set("q", query);
   if (owner) params.set("assignedTo", owner);
   const key = `/leads${params.size ? `?${params}` : ""}`;
 
   const list = useResource<LeadList>(key);
   const team = useResource<TeamMember[]>(isAdmin ? "/team" : null);
+  const stages = stageOptions(useResource<CustomStage[]>("/stages").data);
   const total = Object.values(list.data?.counts ?? {}).reduce((sum, count) => sum + (count ?? 0), 0);
   const filtered = Boolean(query || owner || stageFilter);
 
@@ -51,31 +58,37 @@ export default function DealsPage() {
     { value: "unassigned", label: "Unassigned" },
     ...(team.data ?? []).map((member) => ({ value: member.id, label: member.name }))
   ];
-  const stageOptions = [
-    { value: "" as const, label: `All stages (${total})` },
-    ...STAGES.map((entry) => ({ value: entry.id, label: `${entry.label} (${list.data?.counts[entry.id] ?? 0})` }))
+  const stageFilterOptions = [
+    { value: "", label: `All stages (${total})` },
+    ...stages.map((entry) => ({ value: entry.id, label: `${entry.label} (${list.data?.counts[entry.id] ?? 0})` }))
   ];
 
   function open(deal: LeadRow) {
     router.push(`/crm/deals/${deal.id}`);
   }
 
-  async function move(deal: LeadRow, to: LeadStage, lostReason?: string) {
+  async function move(deal: LeadRow, to: string, lostReason?: string) {
     const current = list.data;
     if (!current) return undefined;
+    const body = stageBody(to);
     // Move the card now; the refetch puts it back if the server says no.
-    setResource<LeadList>(key, () => ({ ...current, leads: current.leads.map((row) => (row.id === deal.id ? { ...row, stage: to } : row)) }));
+    setResource<LeadList>(key, () => ({
+      ...current,
+      leads: current.leads.map((row) =>
+        row.id === deal.id ? { ...row, stage: body.stage as LeadStage, customStageId: body.customStageId ?? null } : row
+      )
+    }));
     return run(
       "move",
       async () => {
         try {
-          await crmFetch(`/leads/${deal.id}`, { method: "PATCH", body: JSON.stringify({ stage: to, lostReason }) });
+          await crmFetch(`/leads/${deal.id}`, { method: "PATCH", body: JSON.stringify({ ...body, lostReason }) });
         } finally {
           invalidate("/leads");
         }
         return true;
       },
-      `${deal.schoolName} moved to ${STAGE[to].label}.`
+      `${deal.schoolName} moved to ${stages.find((entry) => entry.id === to)?.label ?? "the new stage"}.`
     );
   }
 
@@ -111,7 +124,7 @@ export default function DealsPage() {
       header: "Deal stage",
       cell: (deal) => (
         <div className="flex flex-col items-start gap-1">
-          <Badge tone={STAGE[deal.stage].tone}>{STAGE[deal.stage].label}</Badge>
+          <Badge tone={STAGE[deal.stage].tone}>{stageLabel(deal)}</Badge>
           {deal.stage === "PAID" && deal.onboardingStatus === "FAILED" ? <span className="text-[11px] font-semibold text-red-700">Setup failed</span> : null}
           {deal.schoolId ? <span className="text-[11px] font-semibold text-slate-500">{deal.schoolId}</span> : null}
         </div>
@@ -156,9 +169,12 @@ export default function DealsPage() {
     <>
       <PageHeader
         actions={
-          <Btn onClick={() => setAdding(true)} variant="primary">
-            + Create deal
-          </Btn>
+          <>
+            <Btn onClick={() => setImporting(true)}>Import CSV</Btn>
+            <Btn onClick={() => setAdding(true)} variant="primary">
+              + Create deal
+            </Btn>
+          </>
         }
         description={isAdmin ? "Every deal, from first call to onboarded school." : "Your deals, from first call to onboarded school."}
         title="Deals"
@@ -207,7 +223,7 @@ export default function DealsPage() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {view === "table" ? (
           <div className="w-52">
-            <Select ariaLabel="Filter by deal stage" onChange={setStage} options={stageOptions} value={stage} />
+            <Select ariaLabel="Filter by deal stage" onChange={setStage} options={stageFilterOptions} value={stage} />
           </div>
         ) : null}
         {isAdmin ? (
@@ -237,6 +253,7 @@ export default function DealsPage() {
         <Board
           deals={list.data?.leads ?? []}
           loading={list.isLoading}
+          stages={stages}
           onMove={(deal, to) => (to === "LOST" ? setLosing(deal) : void move(deal, to))}
           onOpen={open}
         />
@@ -253,6 +270,7 @@ export default function DealsPage() {
       )}
 
       {adding ? <LeadFormModal onClose={() => setAdding(false)} onCreated={open} /> : null}
+      {importing ? <ImportLeadsModal onClose={() => setImporting(false)} /> : null}
       {losing ? (
         <LostModal
           busy={isPending("move")}
@@ -269,16 +287,18 @@ export default function DealsPage() {
 function Board({
   deals,
   loading,
+  stages,
   onOpen,
   onMove
 }: {
   deals: LeadRow[];
   loading: boolean;
+  stages: StageOption[];
   onOpen: (deal: LeadRow) => void;
-  onMove: (deal: LeadRow, to: LeadStage) => void;
+  onMove: (deal: LeadRow, to: string) => void;
 }) {
   const [dragging, setDragging] = useState<LeadRow | null>(null);
-  const [over, setOver] = useState<LeadStage | null>(null);
+  const [over, setOver] = useState<string | null>(null);
 
   function endDrag() {
     setDragging(null);
@@ -288,15 +308,15 @@ function Board({
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-2 lg:-mx-6 lg:px-6">
       <div className="flex min-w-max gap-3">
-        {STAGES.map((column) => {
-          const cards = deals.filter((deal) => deal.stage === column.id);
-          const droppable = dragging ? canMoveTo(dragging.stage, column.id) : false;
+        {stages.map((column) => {
+          const cards = deals.filter((deal) => stageOf(deal) === column.id);
+          const droppable = dragging ? canMoveTo(stageOf(dragging), column.id) : false;
           return (
             <section
               className={cx(
                 "flex w-72 shrink-0 flex-col rounded-lg border transition-colors",
                 over === column.id && droppable ? "border-blue-400 bg-blue-50/70" : "border-slate-200 bg-slate-100/60",
-                dragging && !droppable && dragging.stage !== column.id && "opacity-50"
+                dragging && !droppable && stageOf(dragging) !== column.id && "opacity-50"
               )}
               key={column.id}
               onDragLeave={() => setOver((current) => (current === column.id ? null : current))}
@@ -322,7 +342,7 @@ function Board({
                 {cards.map((deal) => (
                   <DealCard
                     deal={deal}
-                    draggable={STAGES.some((target) => canMoveTo(deal.stage, target.id))}
+                    draggable={stages.some((target) => canMoveTo(stageOf(deal), target.id))}
                     key={deal.id}
                     onDragEnd={endDrag}
                     onDragStart={() => setDragging(deal)}
@@ -331,7 +351,7 @@ function Board({
                 ))}
                 {!cards.length ? (
                   <div className="flex h-24 items-center justify-center rounded-md border border-dashed border-slate-300 text-xs text-slate-400">
-                    {loading ? "Loading…" : STAGES.some((source) => canMoveTo(source.id, column.id)) ? "Drop deals here" : "No deals"}
+                    {loading ? "Loading…" : stages.some((source) => canMoveTo(source.id, column.id)) ? "Drop deals here" : "No deals"}
                   </div>
                 ) : null}
               </div>

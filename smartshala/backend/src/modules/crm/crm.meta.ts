@@ -178,6 +178,26 @@ function questionLabel(name: string) {
 }
 
 /**
+ * Meta's Lead Ads Testing Tool answers every question with
+ * "<test lead: dummy data for full_name>". Those placeholders are not text
+ * anybody wants to read in the CRM, so a name becomes "Test Lead", a school
+ * "Test School", and everything else is dropped as if the question was
+ * unanswered. Real answers are returned untouched.
+ */
+const TEST_PLACEHOLDER = /^<\s*test lead:.*>$/i;
+
+function isTestPlaceholder(value: string) {
+  return TEST_PLACEHOLDER.test(value);
+}
+
+function cleanAnswer(key: string, value: string) {
+  if (!isTestPlaceholder(value)) return value;
+  if (/school|institut|college|academy|company|organi[sz]ation/.test(key)) return "Test School";
+  if (key.includes("name")) return "Test Lead";
+  return "";
+}
+
+/**
  * Meta forms have a few standard keys (full_name, email, phone_number, city…)
  * and whatever custom questions the form asks; the custom ones are matched by
  * the words in their keys. Every answer also goes on the deal's timeline.
@@ -186,11 +206,15 @@ export function leadFromMeta(answers: MetaAnswer[]): LeadInput {
   const lead: LeadInput = { schoolName: "", ownerName: "", email: "", phone: "" };
   let firstName = "";
   let lastName = "";
+  let isTestLead = false;
   const address: string[] = [];
 
   for (const answer of answers) {
     const key = answer.name.toLowerCase();
-    const value = (answer.values ?? []).join(", ").trim();
+    const raw = (answer.values ?? []).join(", ").trim();
+    if (!raw) continue;
+    if (isTestPlaceholder(raw)) isTestLead = true;
+    const value = cleanAnswer(key, raw);
     if (!value) continue;
 
     if (key.includes("email")) lead.email ||= value;
@@ -207,15 +231,18 @@ export function leadFromMeta(answers: MetaAnswer[]): LeadInput {
     } else if (/street|address|city|zip|post_code|postal|country/.test(key)) address.push(value);
   }
 
-  lead.ownerName ||= [firstName, lastName].filter(Boolean).join(" ") || "Meta lead";
-  lead.schoolName ||= `${lead.ownerName} (school name not given)`;
+  lead.ownerName ||= [firstName, lastName].filter(Boolean).join(" ") || (isTestLead ? "Test Lead" : "Meta lead");
+  lead.schoolName ||= isTestLead ? "Test School" : `${lead.ownerName} (school name not given)`;
   if (address.length) lead.address = address.join(", ");
   return lead;
 }
 
 function leadDetails(lead: MetaLead, formName: string) {
   const source = [`Form: ${formName}`, lead.campaign_name ? `Campaign: ${lead.campaign_name}` : null, lead.ad_name ? `Ad: ${lead.ad_name}` : null];
-  const answers = (lead.field_data ?? []).map((answer) => `${questionLabel(answer.name)}: ${(answer.values ?? []).join(", ")}`);
+  const answers = (lead.field_data ?? []).map((answer) => {
+    const value = cleanAnswer(answer.name.toLowerCase(), (answer.values ?? []).join(", ").trim());
+    return `${questionLabel(answer.name)}: ${value || "—"}`;
+  });
   return [...source.filter(Boolean), ...answers].join("\n");
 }
 

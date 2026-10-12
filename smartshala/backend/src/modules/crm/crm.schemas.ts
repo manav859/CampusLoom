@@ -24,7 +24,20 @@ const leadFields = {
   numberOfStaff: optionalCount
 };
 
-const stage = z.enum(["NEW", "CONTACTED", "PROFORMA_SENT", "PAID", "ONBOARDED", "LOST"]);
+const stage = z.enum([
+  "NEW",
+  "CALL_NOT_CONNECTED",
+  "CALLBACK_REQUESTED",
+  "DEMO_ARRANGED",
+  "DEMO_SHOWN",
+  "CUSTOM",
+  "PROFORMA_SENT",
+  "PAID",
+  "ONBOARDED",
+  "COLD",
+  "IRRELEVANT",
+  "LOST"
+]);
 const role = z.enum(["ADMIN", "SALES"]);
 const password = z.string().min(8).max(72);
 
@@ -38,18 +51,33 @@ export const createLeadSchema = z.object({
   assignedToId: z.preprocess(blankToNull, z.string().uuid().nullable().optional())
 });
 
+/** One CSV row. The same fields as the deal form, with blanks allowed where the form allows them. */
+export const csvLeadRowSchema = z.object(leadFields);
+
+/** The whole file, plus the one owner every deal in it goes to. */
+export const importLeadsSchema = z.object({
+  csv: z.string().min(1).max(512_000),
+  assignedToId: z.preprocess(blankToNull, z.string().uuid().nullable().optional())
+});
+
 export const updateLeadSchema = z.object({
   ...Object.fromEntries(Object.entries(leadFields).map(([key, schema]) => [key, schema.optional()])),
   stage: stage.optional(),
+  customStageId: z.string().uuid().optional(),
   lostReason: optionalText(300),
   assignedToId: z.preprocess(blankToNull, z.string().uuid().nullable().optional())
-}) as z.ZodType<Partial<z.infer<typeof createLeadSchema>> & { stage?: z.infer<typeof stage>; lostReason?: string | null }>;
+}) as z.ZodType<
+  Partial<z.infer<typeof createLeadSchema>> & { stage?: z.infer<typeof stage>; customStageId?: string; lostReason?: string | null }
+>;
 
 export const leadListQuerySchema = z.object({
   stage: stage.optional(),
+  customStageId: z.string().uuid().optional(),
   q: z.string().trim().max(100).optional(),
   assignedTo: z.string().trim().max(40).optional()
 });
+
+export const crmStageSchema = z.object({ name: z.string().trim().min(2).max(40) });
 
 export const noteSchema = z.object({ text: z.string().trim().min(1).max(4000) });
 
@@ -92,6 +120,7 @@ export const leadIdParamSchema = z.object({ leadId: z.string().uuid() });
 export const proformaIdParamSchema = z.object({ proformaId: z.string().uuid() });
 export const linkIdParamSchema = z.object({ linkId: z.string().uuid() });
 export const userIdParamSchema = z.object({ userId: z.string().uuid() });
+export const stageIdParamSchema = z.object({ stageId: z.string().uuid() });
 export const invoiceIdParamSchema = z.object({ invoiceId: z.string().uuid() });
 
 export const metaConnectSchema = z.object({

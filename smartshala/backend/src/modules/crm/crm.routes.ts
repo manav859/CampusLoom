@@ -13,11 +13,14 @@ import {
   setCrmCookie
 } from "./crm.auth.js";
 import { issueLoginDetails } from "./crm.conversion.js";
+import { importLeadsFromCsv } from "./crm.import.js";
 import { connectMeta, disconnectMeta, getMetaStatus, listMetaForms, setMetaForms, syncMetaLeads } from "./crm.meta.js";
 import {
   crmLoginSchema,
   createLeadSchema,
   createTeamMemberSchema,
+  crmStageSchema,
+  importLeadsSchema,
   invoiceIdParamSchema,
   leadIdParamSchema,
   leadListQuerySchema,
@@ -29,6 +32,7 @@ import {
   paymentsQuerySchema,
   proformaIdParamSchema,
   proformaSchema,
+  stageIdParamSchema,
   updateLeadSchema,
   updateTeamMemberSchema,
   userIdParamSchema
@@ -38,12 +42,15 @@ import {
   cancelProforma,
   createLead,
   createLeadPaymentLink,
+  createStage,
   createTeamMember,
+  deleteStage,
   getLead,
   issueProforma,
   listCrmPayments,
   listLeads,
   listSellablePlans,
+  listStages,
   listTeam,
   recordLinkShared,
   renderLeadInvoicePdf,
@@ -136,6 +143,34 @@ crmRouter.patch(
   })
 );
 
+// --- Custom stages (anyone sees them, admins change them) -------------------------
+
+crmRouter.get(
+  "/stages",
+  asyncHandler(async (_req, res) => {
+    res.json(await listStages());
+  })
+);
+
+crmRouter.post(
+  "/stages",
+  requireCrmAdmin,
+  validate({ body: crmStageSchema }),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await createStage(crmActor(res), req.body.name));
+  })
+);
+
+crmRouter.delete(
+  "/stages/:stageId",
+  requireCrmAdmin,
+  validate({ params: stageIdParamSchema }),
+  asyncHandler(async (req, res) => {
+    await deleteStage(req.params.stageId);
+    res.status(204).send();
+  })
+);
+
 // --- Leads ---------------------------------------------------------------------
 
 crmRouter.get(
@@ -151,6 +186,15 @@ crmRouter.post(
   validate({ body: createLeadSchema }),
   asyncHandler(async (req, res) => {
     res.status(201).json(await createLead(crmActor(res), req.body));
+  })
+);
+
+// Bulk import. Each row is created one at a time, so a bad row never stops the file.
+crmRouter.post(
+  "/leads/import",
+  validate({ body: importLeadsSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await importLeadsFromCsv(crmActor(res), req.body));
   })
 );
 
