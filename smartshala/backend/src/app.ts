@@ -68,8 +68,11 @@ export function createApp() {
   app.get("/health/db", dbHealthHandler);
   app.use("/:schoolId/api", tenantMiddleware, apiRouter);
   app.use("/:schoolId/api/v1", tenantMiddleware, apiRouter);
-  app.use("/api", requireTenantInMultiTenantMode, apiRouter);
+  // The longer prefix is mounted first on purpose: Express would otherwise
+  // hand /api/v1/... to the /api mount, where the path still reads
+  // "/v1/crm/..." and the tenant guard turns away routes that need no tenant.
   app.use("/api/v1", requireTenantInMultiTenantMode, apiRouter);
+  app.use("/api", requireTenantInMultiTenantMode, apiRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
   startDatabaseDeletionWorker();
