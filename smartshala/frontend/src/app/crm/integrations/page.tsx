@@ -7,7 +7,7 @@ import { timeAgo } from "../../super-admin/_lib/format";
 import { crmFetch } from "../crmFetch";
 import { invalidate, setResource, useResource } from "../_lib/resource";
 import { useCrmUser } from "../_lib/session";
-import type { MetaForm, MetaStatus, MetaSyncResult } from "../_lib/types";
+import type { MetaForm, MetaStatus } from "../_lib/types";
 
 const STATUS_KEY = "/integrations/meta";
 const FORMS_KEY = "/integrations/meta/forms";
@@ -29,31 +29,10 @@ export default function IntegrationsPage() {
   );
 }
 
-function syncMessage(result: MetaSyncResult) {
-  const parts = [`${result.created} new deal${result.created === 1 ? "" : "s"}`];
-  if (result.merged) parts.push(`${result.merged} added to existing deals`);
-  if (result.failed) parts.push(`${result.failed} failed — they will be retried`);
-  return `Meta sync done: ${parts.join(", ")}.`;
-}
-
 function MetaCard({ status }: { status: MetaStatus }) {
   const { run, isPending } = useAction();
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-
-  async function syncNow() {
-    await run(
-      "sync",
-      async () => {
-        const result = await crmFetch<MetaSyncResult>("/integrations/meta/sync", { method: "POST" });
-        invalidate("/leads");
-        return result;
-      },
-      syncMessage
-    );
-    // A failed sync records its error on the integration; show it either way.
-    invalidate(STATUS_KEY);
-  }
 
   return (
     <Card>
@@ -61,9 +40,6 @@ function MetaCard({ status }: { status: MetaStatus }) {
         actions={
           status.connected ? (
             <>
-              <Btn loading={isPending("sync")} onClick={() => void syncNow()} size="sm" variant="primary">
-                Sync now
-              </Btn>
               <Btn onClick={() => setConnecting(true)} size="sm">
                 Change token
               </Btn>
@@ -104,10 +80,8 @@ function MetaCard({ status }: { status: MetaStatus }) {
               ]}
             />
             <p className="text-xs text-slate-500">
-              {status.autoSync
-                ? "New leads are checked for every 10 minutes."
-                : "Automatic checks are off on this server, so leads come in only when you press Sync now."}{" "}
-              A lead whose phone or email matches an open deal is added to that deal&apos;s timeline instead of creating a new one.
+              New leads are checked for every 10 minutes and become deals on their own. A lead whose phone or email matches an open deal is
+              added to that deal&apos;s timeline instead of creating a new one.
             </p>
             <FormPicker status={status} />
           </>

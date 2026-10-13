@@ -198,9 +198,6 @@ export type MetaStatus =
       connectedBy: string;
       createdAt: string;
       imported: number;
-      autoSync: boolean;
     };
 
 export type MetaForm = { id: string; name: string; status: string; leadsCount: number | null };
-
-export type MetaSyncResult = { created: number; merged: number; failed: number };

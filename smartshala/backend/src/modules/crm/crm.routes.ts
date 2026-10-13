@@ -344,7 +344,11 @@ crmRouter.put(
   requireCrmAdmin,
   validate({ body: metaConnectSchema }),
   asyncHandler(async (req, res) => {
-    res.json(await connectMeta(crmActor(res), req.body));
+    const status = await connectMeta(crmActor(res), req.body);
+    // Nothing to press, so pull the Page's leads now instead of leaving the
+    // admin looking at an empty integration until the next tick.
+    void syncMetaLeads().catch(() => undefined);
+    res.json(status);
   })
 );
 
@@ -370,14 +374,8 @@ crmRouter.put(
   requireCrmAdmin,
   validate({ body: metaFormsSchema }),
   asyncHandler(async (req, res) => {
-    res.json(await setMetaForms(req.body.formIds));
-  })
-);
-
-crmRouter.post(
-  "/integrations/meta/sync",
-  requireCrmAdmin,
-  asyncHandler(async (_req, res) => {
-    res.json(await syncMetaLeads());
+    const status = await setMetaForms(req.body.formIds);
+    void syncMetaLeads().catch(() => undefined);
+    res.json(status);
   })
 );

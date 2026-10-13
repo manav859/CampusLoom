@@ -105,8 +105,7 @@ export async function getMetaStatus() {
   if (!row) return { connected: false as const };
   const imported = await masterPrisma.lead.count({ where: { source: "META" } });
   const { accessTokenEnc: _secret, lastAssignedUserId: _cursor, ...rest } = row;
-  // Without background workers on this server, only "Sync now" brings leads in.
-  return { connected: true as const, ...rest, imported, autoSync: env.BACKGROUND_WORKERS_ENABLED };
+  return { connected: true as const, ...rest, imported };
 }
 
 /**
@@ -341,8 +340,13 @@ async function runSync(): Promise<MetaSyncResult> {
   }
 }
 
+/**
+ * Leads have to arrive on their own, so this runs wherever the CRM runs rather
+ * than behind BACKGROUND_WORKERS_ENABLED like the trial and deletion workers.
+ * A tick with no Page connected is one small query.
+ */
 export function startMetaLeadWorker() {
-  if (env.NODE_ENV === "test" || !env.MASTER_DATABASE_URL || !env.BACKGROUND_WORKERS_ENABLED) return;
+  if (env.NODE_ENV === "test" || !env.MASTER_DATABASE_URL) return;
 
   const tick = () =>
     void integration()
