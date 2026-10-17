@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
+
 /// Which portal this binary is. The two apps share everything in `core/` and
 /// differ only in the feature tree they mount after login.
 enum AppFlavor { principal, teacher }
@@ -9,16 +11,20 @@ class AppConfig {
   final String apiBaseUrl;
 
   /// The production backend on the VPS, the same origin the web dashboard is
-  /// served from. Defaulting to it means an installed app works on any device
-  /// without a dev server running; point at a local one only when you are
-  /// actually changing the API:
-  ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000
+  /// served from.
   static const productionBaseUrl = 'https://app.letssmartshala.com';
 
-  static const _defaultBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: productionBaseUrl,
-  );
+  static const _override = String.fromEnvironment('API_BASE_URL');
+
+  /// A shipped app always talks to production. The override exists so the API
+  /// can be worked on against a local server:
+  ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000
+  /// and it is honoured in debug builds only — a release APK that one rebuild
+  /// flag could aim at somebody's laptop is not something to hand to a school.
+  /// Both are const, so in a release build the override is not even compiled
+  /// in. Profile builds are locked too; only a debug build can be redirected.
+  static const _defaultBaseUrl =
+      kDebugMode && _override != '' ? _override : productionBaseUrl;
 
   /// True when the app is talking to something other than the deployed
   /// backend — surfaced on the login screen so a local build is never mistaken

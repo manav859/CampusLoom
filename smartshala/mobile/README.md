@@ -38,9 +38,12 @@ flutter run --flavor teacher -t lib/main_teacher.dart \
   --dart-define=API_BASE_URL=http://192.168.1.x:4000
 ```
 
-Any override shows a "Custom backend" badge on the login screen, so a local
-build is never mistaken for the real one. Debug builds allow cleartext HTTP for
-these local URLs; release builds are HTTPS-only, which the deployed default is.
+The override is honoured in debug builds only. A release or profile build
+ignores it and talks to the VPS whatever is passed, so a shipped APK cannot be
+aimed anywhere else; in release the override is not even compiled in. Any
+override that does apply shows a "Custom backend" badge on the login screen, so
+a local build is never mistaken for the real one. Debug builds allow cleartext
+HTTP for these local URLs; release builds are HTTPS-only, which the VPS is.
 
 The base URL is a single constant, `AppConfig.productionBaseUrl` in
 [`lib/core/config/app_config.dart`](lib/core/config/app_config.dart); change it
