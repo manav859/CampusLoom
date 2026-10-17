@@ -100,6 +100,37 @@ async function createNeonDatabase(dbName: string) {
   }
 }
 
+/**
+ * Self-hosted production has no Neon API, so the database is created straight
+ * on the server DATABASE_URL already points at. CREATE DATABASE cannot run in
+ * a transaction and cannot take the name as a bind parameter, hence the
+ * identifier guard and $executeRawUnsafe.
+ */
+async function createPostgresDatabase(dbName: string) {
+  if (!/^[a-z_][a-z0-9_]*$/.test(dbName)) {
+    throw new AppError(400, `Invalid tenant database name "${dbName}".`, "TENANT_DATABASE_NAME_INVALID");
+  }
+
+  const admin = new PrismaClient({ datasources: { db: { url: env.DIRECT_URL ?? env.DATABASE_URL } } });
+  try {
+    await admin.$executeRawUnsafe(`CREATE DATABASE "${dbName}"`);
+  } catch (error) {
+    // 42P04 = duplicate_database. Onboarding is retried after a partial
+    // failure, so an existing database is the expected second-run state.
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes("42P04") && !message.includes("already exists")) {
+      logger.error({ dbName, err: message }, "CREATE DATABASE failed");
+      throw new AppError(
+        502,
+        "Could not create the tenant database on the Postgres server.",
+        "TENANT_DATABASE_CREATE_FAILED"
+      );
+    }
+  } finally {
+    await admin.$disconnect();
+  }
+}
+
 async function migrateTenantDatabase(databaseUrl: string, directUrl: string) {
   const npx = process.platform === "win32" ? "npx.cmd" : "npx";
   await run(npx, ["prisma", "migrate", "deploy", "--schema", "prisma/schema.prisma"], {
@@ -165,8 +196,13 @@ export async function createSchoolDatabase(input: CreateSchoolDatabaseInput) {
   const databaseUrl = databaseUrlFromTemplate(env.NEON_DATABASE_URL_TEMPLATE, input.dbName, env.DATABASE_URL);
   const directUrl = databaseUrlFromTemplate(env.NEON_DIRECT_URL_TEMPLATE, input.dbName, env.DIRECT_URL);
 
-  logger.info({ schoolId: input.schoolId, dbName: input.dbName }, "Creating Neon tenant database");
-  await createNeonDatabase(input.dbName);
+  const provider = env.TENANT_DB_PROVIDER;
+  logger.info({ schoolId: input.schoolId, dbName: input.dbName, provider }, "Creating tenant database");
+  if (provider === "postgres") {
+    await createPostgresDatabase(input.dbName);
+  } else {
+    await createNeonDatabase(input.dbName);
+  }
 
   logger.info({ schoolId: input.schoolId, dbName: input.dbName }, "Running tenant migrations");
   await migrateTenantDatabase(databaseUrl, directUrl);

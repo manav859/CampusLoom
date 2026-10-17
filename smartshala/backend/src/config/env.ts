@@ -17,6 +17,13 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   DIRECT_URL: z.string().url().optional(),
   MASTER_DATABASE_URL: z.string().url().optional(),
+  // How a new school's database gets created. "neon" calls the Neon API
+  // (staging); "postgres" runs CREATE DATABASE on the server we already point
+  // DATABASE_URL at (the self-hosted production VPS).
+  TENANT_DB_PROVIDER: z.enum(["neon", "postgres"]).default("neon"),
+  // Per-tenant Prisma pool size. 0 leaves Prisma's default (cpus * 2 + 1),
+  // which overruns a self-hosted `max_connections` once a few schools are warm.
+  TENANT_DB_CONNECTION_LIMIT: z.coerce.number().int().min(0).default(3),
   NEON_API_KEY: z.string().optional(),
   NEON_PROJECT_ID: z.string().optional(),
   NEON_BRANCH_ID: z.string().optional(),

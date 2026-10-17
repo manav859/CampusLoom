@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { env } from "../config/env.js";
 
 type CachedClient = {
   client: PrismaClient;
@@ -16,6 +17,26 @@ function evictOldestClient() {
   void oldest[1].client.$disconnect();
 }
 
+/**
+ * Prisma defaults each client to a pool of (cpus * 2 + 1) connections. With up
+ * to MAX_CLIENTS tenants cached that overruns a self-hosted Postgres
+ * `max_connections` long before the cache is full, so cap every tenant pool.
+ * A URL that already states a limit is left alone.
+ */
+function withConnectionLimit(dbUrl: string) {
+  const limit = env.TENANT_DB_CONNECTION_LIMIT;
+  if (limit <= 0) return dbUrl;
+
+  try {
+    const url = new URL(dbUrl);
+    if (url.searchParams.has("connection_limit")) return dbUrl;
+    url.searchParams.set("connection_limit", String(limit));
+    return url.toString();
+  } catch {
+    return dbUrl;
+  }
+}
+
 export function getTenantPrismaClient(dbUrl: string) {
   const current = clients.get(dbUrl);
   if (current) {
@@ -28,7 +49,7 @@ export function getTenantPrismaClient(dbUrl: string) {
   const client = new PrismaClient({
     datasources: {
       db: {
-        url: dbUrl
+        url: withConnectionLimit(dbUrl)
       }
     },
     log: ["error", "warn"]
