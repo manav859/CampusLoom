@@ -66,12 +66,16 @@ git --no-pager log -1 --oneline
 
 log "Building backend"
 cd "$APP_DIR/backend"
-npm ci
+# --include=dev because backend.env was sourced above and sets
+# NODE_ENV=production, under which npm omits devDependencies — and the build
+# is `prisma generate && tsc`, with typescript sitting in devDependencies.
+npm ci --include=dev
 npm run build
 
 log "Building frontend (NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL is baked in here)"
 cd "$APP_DIR/frontend"
-npm ci
+# Same reason: `next build` type-checks, so it needs typescript too.
+npm ci --include=dev
 npm run build
 
 log "Migrating master database"
