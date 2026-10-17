@@ -1879,6 +1879,10 @@ export type MySchedulePeriod = {
 
 export const teacherDayApi = {
   punchStatus: () => apiFetch<PunchStatus>("/staff-attendance/me/today"),
+  // Punch in also resumes from a break and re-opens a day punched out by mistake.
+  punchIn: () => apiFetch<PunchStatus>("/staff-attendance/me/punch-in", { method: "POST" }),
+  startBreak: () => apiFetch<PunchStatus>("/staff-attendance/me/break", { method: "POST" }),
+  punchOut: () => apiFetch<PunchStatus>("/staff-attendance/me/punch-out", { method: "POST" }),
   schedule: () => apiFetch<{ dayOfWeek: string; periods: MySchedulePeriod[] }>("/users/me/schedule")
 };
 
@@ -1901,11 +1905,131 @@ export type StaffDay = {
     leaveType: string | null;
     punchInAt: string | null;
     punchOutAt: string | null;
+    onBreak: boolean;
     /** Null for a punch left open on a past day: its hours are unknown. */
     workedMinutes: number | null;
   }>;
 };
 
+/** One staff member's month of working days — the app's Teacher Profile tiles. */
+export type StaffMonthSummary = {
+  month: string;
+  workingDays: number;
+  presentDays: number;
+  leaveDays: number;
+  absentDays: number;
+  /** Null when the month has no working days yet, so there is nothing to divide by. */
+  percentage: number | null;
+};
+
 export const staffAttendanceApi = {
-  day: (date: string) => apiFetch<StaffDay>(`/staff-attendance/day?date=${encodeURIComponent(date)}`)
+  day: (date: string) => apiFetch<StaffDay>(`/staff-attendance/day?date=${encodeURIComponent(date)}`),
+  userSummary: (userId: string, month: string) =>
+    apiFetch<StaffMonthSummary>(`/staff-attendance/users/${userId}/summary?month=${encodeURIComponent(month)}`)
+};
+
+export const leaveTypes = ["CASUAL", "SICK", "EARNED", "MATERNITY", "UNPAID", "OTHER"] as const;
+export type LeaveType = (typeof leaveTypes)[number];
+export type LeaveStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+/** One leave request, the same row both apps render. */
+export type LeaveRequest = {
+  id: string;
+  type: LeaveType;
+  status: LeaveStatus;
+  fromDate: string;
+  toDate: string;
+  /** Inclusive, so a single-day leave is 1. */
+  days: number;
+  reason: string;
+  attachmentName: string | null;
+  hasAttachment: boolean;
+  appliedOn: string;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  applicant: { id: string; fullName: string; role: Role; phone: string };
+  decidedBy: { id: string; fullName: string } | null;
+};
+
+/** School-wide counts, so the tiles cannot drift out of step with the list. */
+export type LeaveSummary = {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  cancelled: number;
+};
+
+export type LeavePage = {
+  items: LeaveRequest[];
+  total: number;
+  hasMore: boolean;
+  summary: LeaveSummary;
+};
+
+export type LeaveListQuery = {
+  status?: LeaveStatus;
+  search?: string;
+  limit?: number;
+  offset?: number;
+};
+
+function leaveQuery({ status, search, limit = 20, offset = 0 }: LeaveListQuery) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (status) params.set("status", status);
+  if (search) params.set("search", search);
+  return params.toString();
+}
+
+export const leaveApi = {
+  /** Every request in the school — the principal's Leave Approval queue. */
+  schoolRequests: (query: LeaveListQuery = {}) => apiFetch<LeavePage>(`/leave/requests?${leaveQuery(query)}`),
+  myRequests: (query: LeaveListQuery = {}) => apiFetch<LeavePage>(`/leave/requests/me?${leaveQuery(query)}`),
+  apply: (payload: { type: LeaveType; fromDate: string; toDate: string; reason: string; attachment?: File | null }) => {
+    const formData = new FormData();
+    formData.append("type", payload.type);
+    formData.append("fromDate", payload.fromDate);
+    formData.append("toDate", payload.toDate);
+    formData.append("reason", payload.reason);
+    if (payload.attachment) formData.append("attachment", payload.attachment);
+    return apiFormFetch<LeaveRequest>("/leave/requests", formData);
+  },
+  decide: (id: string, payload: { status: "APPROVED" | "REJECTED"; note?: string }) =>
+    apiFetch<LeaveRequest>(`/leave/requests/${id}/decision`, { method: "PATCH", body: JSON.stringify(payload) }),
+  cancel: (id: string) => apiFetch<LeaveRequest>(`/leave/requests/${id}/cancel`, { method: "PATCH" }),
+  /**
+   * Same split as student documents: S3 answers with a presigned URL to open,
+   * the local dev fallback streams the bytes.
+   */
+  downloadAttachment: async (id: string, fileName: string) => {
+    const token = tokenStore.get();
+    const path = `/leave/requests/${id}/attachment`;
+    const response = await fetch(`${tenantApiBase(env.apiBaseUrl, path)}${path}`, {
+      credentials: "include",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    });
+    if (!response.ok) throw new Error("Failed to download attachment");
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const { downloadUrl } = (await response.json()) as { downloadUrl: string };
+      const anchor = document.createElement("a");
+      anchor.href = downloadUrl;
+      anchor.rel = "noopener";
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      return;
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
 };

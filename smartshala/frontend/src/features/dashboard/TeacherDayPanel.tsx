@@ -45,12 +45,51 @@ const punchCopy = {
   PUNCHED_OUT: { label: "Day complete", tone: "bg-[#E2F0FB] text-[#1F6FB8]" }
 };
 
+type PunchStep = "punchIn" | "takeBreak" | "punchOut";
+
+/**
+ * What the state allows next, as the teacher app's punch card offers it. Punch
+ * in doubles as "end break" and as re-opening a day punched out by mistake.
+ */
+function punchActions(state: PunchStatus["state"]): Array<{ step: PunchStep; label: string; primary: boolean }> {
+  if (state === "NOT_PUNCHED_IN") return [{ step: "punchIn", label: "Punch In", primary: true }];
+  if (state === "PUNCHED_IN") {
+    return [
+      { step: "punchOut", label: "Punch Out", primary: true },
+      { step: "takeBreak", label: "Take a Break", primary: false }
+    ];
+  }
+  if (state === "ON_BREAK") {
+    return [
+      { step: "punchIn", label: "End Break", primary: true },
+      { step: "punchOut", label: "Punch Out", primary: false }
+    ];
+  }
+  return [{ step: "punchIn", label: "Punch In Again", primary: false }];
+}
+
 /** Today's punch and timetable — the same data the teacher app shows on Home. */
 export function TeacherDayPanel() {
   const [punch, setPunch] = useState<PunchStatus | null>(null);
   const [periods, setPeriods] = useState<MySchedulePeriod[]>([]);
   const [loading, setLoading] = useState(true);
+  // The step in flight, so only the button that was pressed says "Saving…".
+  const [punching, setPunching] = useState<PunchStep | null>(null);
+  const [punchError, setPunchError] = useState("");
   const [, setTick] = useState(0);
+
+  async function run(step: PunchStep) {
+    setPunching(step);
+    setPunchError("");
+    try {
+      const next = step === "punchIn" ? await teacherDayApi.punchIn() : step === "takeBreak" ? await teacherDayApi.startBreak() : await teacherDayApi.punchOut();
+      setPunch(next);
+    } catch (error) {
+      setPunchError(error instanceof Error ? error.message : "Unable to record the punch");
+    } finally {
+      setPunching(null);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -90,7 +129,23 @@ export function TeacherDayPanel() {
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-[12px] text-[#86868b]">Punch in and out with Swipe To Punch in the SmartShala Teacher app.</p>
+        {loading ? null : (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {punchActions(punch?.state ?? "NOT_PUNCHED_IN").map((action) => (
+              <button
+                className={`inline-flex min-h-10 flex-1 items-center justify-center rounded-[6px] px-4 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${action.primary ? "bg-[#2456E6] text-white hover:bg-[#1C45BC]" : "border border-[#C2C9D4] bg-white text-[#2A3340] hover:bg-[#F7F8FB]"}`}
+                disabled={punching !== null}
+                key={action.step}
+                onClick={() => run(action.step)}
+                type="button"
+              >
+                {punching === action.step ? "Saving…" : action.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {punchError ? <p className="mt-2 text-[12px] font-semibold text-[#C8242C]">{punchError}</p> : null}
+        <p className="mt-3 text-[12px] text-[#86868b]">Punch here, or with Swipe To Punch in the SmartShala Teacher app.</p>
       </div>
 
       <div className="min-w-0 rounded-[8px] border border-[#DCE1E8] bg-white p-5">

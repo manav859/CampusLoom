@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SideModal } from "@/components/ui/SideModal";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { staffAttendanceApi, type StaffDay, type StaffDayStatus } from "@/lib/api";
+import { staffAttendanceApi, type StaffDay, type StaffDayStatus, type StaffMonthSummary } from "@/lib/api";
 import { humanizeConstant } from "@/lib/formatters";
 
 type Row = StaffDay["staff"][number];
@@ -34,6 +35,22 @@ function hours(minutes: number) {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
+/** YYYY-MM for the month the given day falls in. */
+function monthValue(value: string) {
+  return value.slice(0, 7);
+}
+
+function shiftMonth(value: string, delta: number) {
+  const [year, month] = value.split("-").map(Number);
+  const date = new Date(year, month - 1 + delta, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(value: string) {
+  const [year, month] = value.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+}
+
 const statusView: Record<StaffDayStatus, { label: string; tone: "good" | "warn" | "danger" }> = {
   PRESENT: { label: "Present", tone: "good" },
   ON_LEAVE: { label: "On Leave", tone: "warn" },
@@ -54,6 +71,7 @@ export default function TeacherAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<StaffDayStatus | null>(null);
+  const [selected, setSelected] = useState<Row | null>(null);
 
   const load = useCallback(async (target: string) => {
     setLoading(true);
@@ -107,6 +125,7 @@ export default function TeacherAttendancePage() {
 
       <p className="-mt-2 text-[13px] text-[#5A6573]">
         {date === today ? `Today · ${dayLabel(date)}` : dayLabel(date)} — who has punched in with Swipe To Punch, who is on approved leave, and who is neither.
+        Open a teacher for their month.
       </p>
 
       {error ? <div className="rounded-[8px] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
@@ -165,9 +184,9 @@ export default function TeacherAttendancePage() {
                 </thead>
                 <tbody className="divide-y divide-[#EEF1F5]">
                   {rows.map((row) => (
-                    <tr className="hover:bg-[#FAFBFC]" key={row.id}>
+                    <tr className="cursor-pointer hover:bg-[#FAFBFC]" key={row.id} onClick={() => setSelected(row)}>
                       <td className="px-4 py-3">
-                        <p className="font-semibold text-[#0F1419]">{row.fullName}</p>
+                        <p className="font-semibold text-[#2456E6]">{row.fullName}</p>
                         <p className="text-[12px] text-[#5A6573]">{row.phone}</p>
                       </td>
                       <td className="px-4 py-3">
@@ -177,7 +196,7 @@ export default function TeacherAttendancePage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 [font-variant-numeric:tabular-nums]">{row.punchInAt ? time(row.punchInAt) : "—"}</td>
-                      <td className="px-4 py-3 [font-variant-numeric:tabular-nums]">{row.punchOutAt ? time(row.punchOutAt) : row.punchInAt ? <span className="text-[#86868b]">Not punched out</span> : "—"}</td>
+                      <td className="px-4 py-3 [font-variant-numeric:tabular-nums]">{row.punchOutAt ? time(row.punchOutAt) : row.punchInAt ? <span className="text-[#86868b]">{row.onBreak ? "On break" : "Not punched out"}</span> : "—"}</td>
                       <td className="px-4 py-3 text-right font-semibold text-[#0F1419] [font-variant-numeric:tabular-nums]">{row.workedMinutes != null ? hours(row.workedMinutes) : "—"}</td>
                     </tr>
                   ))}
@@ -188,19 +207,94 @@ export default function TeacherAttendancePage() {
             {/* Phone: cards */}
             <div className="divide-y divide-[#EEF1F5] md:hidden">
               {rows.map((row) => (
-                <div className="flex items-center justify-between gap-3 px-4 py-3" key={row.id}>
-                  <div className="min-w-0">
-                    <p className="truncate text-[14px] font-semibold text-[#0F1419]">{row.fullName}</p>
-                    <p className="text-[12px] text-[#5A6573]">{detail(row)}</p>
-                  </div>
+                <button className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" key={row.id} onClick={() => setSelected(row)} type="button">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold text-[#2456E6]">{row.fullName}</span>
+                    <span className="block text-[12px] text-[#5A6573]">{detail(row)}</span>
+                  </span>
                   <StatusPill label={statusView[row.status].label} tone={statusView[row.status].tone} />
-                </div>
+                </button>
               ))}
             </div>
           </>
         )}
       </section>
+
+      {selected ? <TeacherMonthPanel key={selected.id} onClose={() => setSelected(null)} startMonth={monthValue(date)} teacher={selected} /> : null}
     </div>
+  );
+}
+
+/**
+ * One teacher's month of working days — the same four tiles the principal app
+ * shows on a Teacher Profile. Working days run from the month start (or the day
+ * they joined) to today, minus Sundays and school holidays.
+ */
+function TeacherMonthPanel({ onClose, startMonth, teacher }: { onClose: () => void; startMonth: string; teacher: Row }) {
+  const [thisMonth] = useState(() => monthValue(dayValue(new Date())));
+  const [month, setMonth] = useState(startMonth);
+  const [summary, setSummary] = useState<StaffMonthSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    staffAttendanceApi
+      .userSummary(teacher.id, month)
+      .then((result) => {
+        if (active) setSummary(result);
+      })
+      .catch((err: unknown) => {
+        if (active) setError(err instanceof Error ? err.message : "Unable to load this month");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [month, teacher.id]);
+
+  const tiles = [
+    { label: "Present", value: summary?.presentDays, bg: "bg-[#EAF9EB]" },
+    { label: "Absent", value: summary?.absentDays, bg: "bg-[#FFF0E8]" },
+    { label: "Leave", value: summary?.leaveDays, bg: "bg-[#E5F7FF]" },
+    { label: "Attendance", value: summary?.percentage == null ? "—" : `${summary.percentage}%`, bg: "bg-[#E2EAFD]" }
+  ];
+
+  return (
+    <SideModal eyebrow={teacher.phone} onClose={onClose} title={teacher.fullName}>
+      <div className="flex items-center justify-between gap-2">
+        <button aria-label="Previous month" className="inline-flex h-10 w-10 items-center justify-center rounded-[6px] border border-[#C2C9D4] bg-white text-[#2A3340] hover:bg-[#F7F8FB]" onClick={() => setMonth((current) => shiftMonth(current, -1))} type="button">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <p className="text-[14px] font-semibold text-[#0F1419]">{monthLabel(month)}</p>
+        <button aria-label="Next month" className="inline-flex h-10 w-10 items-center justify-center rounded-[6px] border border-[#C2C9D4] bg-white text-[#2A3340] hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-40" disabled={month >= thisMonth} onClick={() => setMonth((current) => shiftMonth(current, 1))} type="button">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </div>
+
+      {error ? <div className="mt-4 rounded-[8px] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        {tiles.map((tile) => (
+          <div className={`rounded-[8px] px-4 py-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] ${tile.bg}`} key={tile.label}>
+            <p className="truncate text-[13px] font-medium text-[#6F7480]">{tile.label}</p>
+            <p className="mt-1.5 truncate text-[22px] font-bold text-[#111827] [font-variant-numeric:tabular-nums]">
+              {loading || summary == null ? "—" : tile.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-4 text-[12px] text-[#86868b]">
+        {loading || summary == null
+          ? "Loading this month…"
+          : `${summary.workingDays} ${summary.workingDays === 1 ? "working day" : "working days"} so far — Sundays and school holidays are not counted. Today only counts once it is present or leave.`}
+      </p>
+    </SideModal>
   );
 }
 

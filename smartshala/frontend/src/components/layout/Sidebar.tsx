@@ -25,6 +25,7 @@ type NavIconName =
   | "exams"
   | "billing"
   | "payroll"
+  | "leave"
   | "transport";
 
 type NavLink = {
@@ -48,6 +49,7 @@ const adminLinks: NavItem[] = [
     children: [
       { label: "Teacher", href: "/teachers", icon: "teachers" },
       { label: "Teacher Attendance", href: "/teachers/attendance", icon: "attendance" },
+      { label: "Leave Approval", href: "/leave", icon: "leave" },
       { label: "Classes", href: "/classes", icon: "classes" },
       { label: "Attendance", href: "/attendance", icon: "attendance" },
       { label: "Homework", href: "/teacher/homework", icon: "homework" }
@@ -96,6 +98,7 @@ const teacherLinks: NavItem[] = [
   { label: "Marks", href: "/teacher/marks", icon: "analytics" },
   { label: "Comms Hub", href: "/teacher/communication", icon: "communication" },
   { label: "Mark Attendance", href: "/attendance", icon: "attendance" },
+  { label: "My Leave", href: "/teacher/leave", icon: "leave" },
   { label: "Students", href: "/students", icon: "students" },
   { label: "My Salary", href: "/teacher/salary", icon: "payroll" }
 ];
@@ -322,6 +325,16 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
         <path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3" />
         <path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3" />
         <path d="M17 12h4v4h-4a2 2 0 0 1 0-4Z" />
+      </svg>
+    );
+  }
+
+  if (icon === "leave") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h7" />
+        <path d="M8 2v4M16 2v4M3 10h18" />
+        <path d="m16 19 2 2 4-4" />
       </svg>
     );
   }
