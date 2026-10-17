@@ -22,9 +22,9 @@ flutter run --flavor principal -t lib/main_principal.dart
 
 ## Backend
 
-`API_BASE_URL` defaults to `https://smartshala-backend.onrender.com` — the same
-deployed API the web dashboard uses. Nothing has to be running locally, on an
-emulator or on a real phone.
+`API_BASE_URL` defaults to `https://app.letssmartshala.com` — the production
+VPS, the same origin the web dashboard is served from. Nothing has to be
+running locally, on an emulator or on a real phone.
 
 Point at a local backend only when you are changing the API itself:
 
@@ -41,9 +41,6 @@ flutter run --flavor teacher -t lib/main_teacher.dart \
 Any override shows a "Custom backend" badge on the login screen, so a local
 build is never mistaken for the real one. Debug builds allow cleartext HTTP for
 these local URLs; release builds are HTTPS-only, which the deployed default is.
-
-The hosted instance sleeps when idle, so the first request after a quiet spell
-can take tens of seconds — the client's receive timeout is set to outlast it.
 
 The base URL is a single constant, `AppConfig.productionBaseUrl` in
 [`lib/core/config/app_config.dart`](lib/core/config/app_config.dart); change it

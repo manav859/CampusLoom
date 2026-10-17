@@ -28,9 +28,9 @@ class ApiClient {
         _storage = storage {
     _dio = Dio(
       BaseOptions(
-        // The hosted backend sleeps when idle and can take the better part of a
-        // minute to answer the first request, so the receive budget has to
-        // outlast a cold start or the app reports itself offline instead.
+        // The budget is deliberately generous: the VPS runs on one vCPU and
+        // phones drop onto slow mobile data, and a request that times out is
+        // reported to the user as being offline.
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 60),
         headers: {'x-client-type': 'mobile'},

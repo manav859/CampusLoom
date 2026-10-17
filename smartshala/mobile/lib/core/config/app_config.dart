@@ -8,11 +8,12 @@ class AppConfig {
   final AppFlavor flavor;
   final String apiBaseUrl;
 
-  /// The deployed backend the web dashboard also talks to. Defaulting to it
-  /// means an installed app works on any device without a dev server running;
-  /// point at a local one only when you are actually changing the API:
+  /// The production backend on the VPS, the same origin the web dashboard is
+  /// served from. Defaulting to it means an installed app works on any device
+  /// without a dev server running; point at a local one only when you are
+  /// actually changing the API:
   ///   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:4000
-  static const productionBaseUrl = 'https://smartshala-backend.onrender.com';
+  static const productionBaseUrl = 'https://app.letssmartshala.com';
 
   static const _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
