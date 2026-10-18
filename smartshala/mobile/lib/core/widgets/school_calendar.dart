@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../api/api_exception.dart';
 import '../data/calendar_models.dart';
 import '../theme/app_colors.dart';
+import 'app_back_button.dart';
 import 'app_cards.dart';
 import 'app_chips.dart';
 import 'state_views.dart';
@@ -119,6 +120,7 @@ class _SchoolCalendarScreenState extends State<SchoolCalendarScreen> {
       // In the app bar, not a floating button: as the principal's Calendar tab
       // a floating one would sit on the shell's centre +.
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: Text(widget.title),
         actions: [
           if (widget.onAddEvent != null)

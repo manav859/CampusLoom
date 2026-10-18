@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_back_button.dart';
 import 'calendar/academic_calendar_screen.dart';
 import 'messages/principal_messages_screen.dart';
 import 'principal_home_screen.dart';
@@ -20,14 +21,17 @@ class _PrincipalShellState extends State<PrincipalShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: [
-          PrincipalHomeScreen(onOpenMessages: () => setState(() => _index = 1)),
-          const PrincipalMessagesScreen(),
-          const AcademicCalendarScreen(),
-          const PrincipalMoreScreen(),
-        ],
+      body: HomeTabScope(
+        goHome: () => setState(() => _index = 0),
+        child: IndexedStack(
+          index: _index,
+          children: [
+            PrincipalHomeScreen(onOpenMessages: () => setState(() => _index = 1)),
+            const PrincipalMessagesScreen(),
+            const AcademicCalendarScreen(),
+            const PrincipalMoreScreen(),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => QuickAddSheet.show(context),

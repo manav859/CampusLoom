@@ -7,7 +7,7 @@ import '../../../core/theme/app_colors.dart';
 
 enum PunchAction { punchIn, punchOut }
 
-/// Horizontal "Swipe To Punch" bar on the teacher's Home punch card.
+/// Horizontal swipe bar on the teacher's Home punch card.
 ///
 /// The blueprint is explicit that this is a swipe gesture and must never be
 /// replaced by a circular tap button, so the control exposes no onTap path:
@@ -32,7 +32,7 @@ class SwipeToPunch extends StatefulWidget {
   /// When set, the control renders as a finished, non-interactive state.
   final String? completedLabel;
 
-  /// Replaces the default prompt, e.g. "Swipe To End Break".
+  /// Replaces the default prompt, e.g. "End Break".
   final String? label;
 
   @override
@@ -70,6 +70,16 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
 
   bool get _interactive =>
       widget.enabled && !widget.busy && widget.completedLabel == null;
+
+  /// Punch In is the brand blue and Punch Out the danger red, so the two can
+  /// never be taken for one another at a glance. The dark end of the red track
+  /// is the same step toward black that primaryDark is from primary.
+  Color get _accent =>
+      widget.action == PunchAction.punchOut ? AppColors.danger : AppColors.primary;
+
+  List<Color> get _trackColors => widget.action == PunchAction.punchOut
+      ? [Color.lerp(AppColors.danger, Colors.black, 0.2)!, AppColors.danger]
+      : const [AppColors.primaryDark, AppColors.primary];
 
   void _onDragUpdate(DragUpdateDetails details, double maxTravel) {
     if (!_interactive || maxTravel <= 0) return;
@@ -121,8 +131,8 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
           decoration: BoxDecoration(
             gradient: completed || !widget.enabled
                 ? null
-                : const LinearGradient(
-                    colors: [AppColors.primaryDark, AppColors.primary],
+                : LinearGradient(
+                    colors: _trackColors,
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
@@ -134,7 +144,7 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
                 ? null
                 : [
                     BoxShadow(
-                      color: AppColors.primary.withValues(alpha: 0.28),
+                      color: _accent.withValues(alpha: 0.28),
                       blurRadius: 16,
                       offset: const Offset(0, 6),
                     ),
@@ -152,7 +162,7 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
                     onHorizontalDragUpdate: (details) => _onDragUpdate(details, maxTravel),
                     onHorizontalDragEnd: (_) => _onDragEnd(),
                     onHorizontalDragCancel: _springBack,
-                    child: _Handle(size: _handleSize, busy: widget.busy),
+                    child: _Handle(size: _handleSize, busy: widget.busy, accent: _accent),
                   ),
                 ),
             ],
@@ -185,7 +195,7 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
       );
     }
 
-    final label = widget.label ?? (widget.action == PunchAction.punchIn ? 'Swipe To Punch In' : 'Swipe To Punch Out');
+    final label = widget.label ?? (widget.action == PunchAction.punchIn ? 'Punch In' : 'Punch Out');
 
     // Fade the prompt out as the handle covers it.
     return Opacity(
@@ -217,10 +227,11 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
 }
 
 class _Handle extends StatelessWidget {
-  const _Handle({required this.size, required this.busy});
+  const _Handle({required this.size, required this.busy, required this.accent});
 
   final double size;
   final bool busy;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -230,13 +241,12 @@ class _Handle extends StatelessWidget {
       decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
       alignment: Alignment.center,
       child: busy
-          ? const SizedBox(
+          ? SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.primary),
+              child: CircularProgressIndicator(strokeWidth: 2.4, color: accent),
             )
-          : const Icon(Icons.keyboard_double_arrow_right_rounded,
-              color: AppColors.primary, size: 24),
+          : Icon(Icons.keyboard_double_arrow_right_rounded, color: accent, size: 24),
     );
   }
 }

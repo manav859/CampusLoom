@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -5,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/app_user.dart';
 import '../../core/auth/auth_controller.dart';
-import '../../core/config/feature_flags.dart';
 import '../../core/data/dashboard_models.dart';
 import '../../core/data/messages_models.dart';
 import '../../core/data/messages_repository.dart';
@@ -18,12 +19,14 @@ import '../../core/widgets/state_views.dart';
 import 'announcements/create_announcement_screen.dart';
 import 'calendar/academic_calendar_screen.dart';
 import 'data/principal_dashboard.dart';
+import 'data/quick_actions_store.dart';
 import 'data/principal_repository.dart';
 import 'exams/exams_screen.dart';
 import 'fees/defaulters_screen.dart';
 import 'fees/fee_management_screen.dart';
 import 'leave/leave_approval_screen.dart';
 import 'payroll/payroll_screen.dart';
+import 'quick_actions_sheet.dart';
 import 'reports/attendance_report_screen.dart';
 import 'reports/student_report_screen.dart';
 import 'students/student_management_screen.dart';
@@ -60,10 +63,39 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
   late Future<_HomeData> _future;
   int _unreadCount = 0;
 
+  final _quickActionsStore = QuickActionsStore();
+  List<QuickActionKey> _quickActions = QuickActionsStore.defaults;
+
   @override
   void initState() {
     super.initState();
     _future = _load();
+    _loadQuickActions();
+  }
+
+  Future<void> _loadQuickActions() async {
+    final keys = await _quickActionsStore.read();
+    if (mounted) setState(() => _quickActions = keys);
+  }
+
+  Future<void> _editQuickActions() async {
+    final chosen = await QuickActionsSheet.show(context, selected: _quickActions);
+    if (chosen == null || !mounted) return;
+    setState(() => _quickActions = chosen);
+
+    try {
+      await _quickActionsStore.write(chosen);
+    } on Exception {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            backgroundColor: AppColors.danger,
+            content: Text('Quick Actions updated for now, but could not be saved.'),
+          ),
+        );
+    }
   }
 
   Future<_HomeData> _load() async {
@@ -171,8 +203,19 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
                   onCollected: () => _openAndRefresh(const FeeManagementScreen()),
                 ),
                 const SizedBox(height: 22),
-                const SectionHeader(title: 'Quick Actions'),
+                SectionHeader(
+                  title: 'Quick Actions',
+                  action: TextButton(
+                    onPressed: _editQuickActions,
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Text('Edit', style: TextStyle(fontSize: 13)),
+                  ),
+                ),
                 _QuickActions(
+                  keys: _quickActions,
                   pendingLeave: data.pendingLeave,
                   onStudents: () => _openAndRefresh(const StudentManagementScreen()),
                   onTeachers: () => _openAndRefresh(const TeacherManagementScreen()),
@@ -186,7 +229,25 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
                   onExams: () => _openAndRefresh(const ExamsScreen()),
                 ),
                 const SizedBox(height: 22),
-                const SectionHeader(title: 'Attendance Today'),
+                SectionHeader(
+                  title: 'Attendance Today',
+                  action: TextButton(
+                    onPressed: () =>
+                        _openAndRefresh(const AttendanceReportScreen()),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('View All', style: TextStyle(fontSize: 13)),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_rounded, size: 15),
+                      ],
+                    ),
+                  ),
+                ),
                 _AttendanceToday(
                   dashboard: dashboard,
                   onTap: () => _openAndRefresh(const AttendanceReportScreen()),
@@ -367,6 +428,7 @@ class _KpiGrid extends StatelessWidget {
 
 class _QuickActions extends StatelessWidget {
   const _QuickActions({
+    required this.keys,
     required this.pendingLeave,
     required this.onStudents,
     required this.onTeachers,
@@ -379,6 +441,7 @@ class _QuickActions extends StatelessWidget {
     required this.onExams,
   });
 
+  final List<QuickActionKey> keys;
   final int pendingLeave;
   final VoidCallback onStudents;
   final VoidCallback onTeachers;
@@ -390,75 +453,98 @@ class _QuickActions extends StatelessWidget {
   final VoidCallback onCalendar;
   final VoidCallback onExams;
 
+  /// Every tile the principal can choose from, in grid order. The six of the
+  /// blueprint come first, so the default selection is two neat rows.
+  ({IconData icon, String title, Color color, int badge, VoidCallback onTap})
+      _spec(QuickActionKey key) => switch (key) {
+            QuickActionKey.students => (
+                icon: Icons.school_rounded,
+                title: 'Students',
+                color: AppColors.teal,
+                badge: 0,
+                onTap: onStudents,
+              ),
+            QuickActionKey.teachers => (
+                icon: Icons.badge_rounded,
+                title: 'Teachers',
+                color: AppColors.primary,
+                badge: 0,
+                onTap: onTeachers,
+              ),
+            QuickActionKey.attendance => (
+                icon: Icons.fact_check_rounded,
+                title: 'Attendance',
+                color: AppColors.success,
+                badge: 0,
+                onTap: onAttendance,
+              ),
+            QuickActionKey.fees => (
+                icon: Icons.payments_rounded,
+                title: 'Fees',
+                color: AppColors.warning,
+                badge: 0,
+                onTap: onFees,
+              ),
+            QuickActionKey.leave => (
+                icon: Icons.event_available_rounded,
+                title: 'Leave Requests',
+                color: AppColors.danger,
+                badge: pendingLeave,
+                onTap: onLeave,
+              ),
+            QuickActionKey.notice => (
+                icon: Icons.campaign_rounded,
+                title: 'Send Notice',
+                color: AppColors.purple,
+                badge: 0,
+                onTap: onNotice,
+              ),
+            QuickActionKey.payroll => (
+                icon: Icons.account_balance_wallet_rounded,
+                title: 'Payroll',
+                color: AppColors.success,
+                badge: 0,
+                onTap: onPayroll,
+              ),
+            QuickActionKey.calendar => (
+                icon: Icons.calendar_month_rounded,
+                title: 'Calendar',
+                color: AppColors.teal,
+                badge: 0,
+                onTap: onCalendar,
+              ),
+            QuickActionKey.exams => (
+                icon: Icons.assignment_rounded,
+                title: 'Exams',
+                color: AppColors.primary,
+                badge: 0,
+                onTap: onExams,
+              ),
+          };
+
   @override
   Widget build(BuildContext context) {
-    // Nine tiles: three full rows on a phone, one short while Payroll is hidden.
+    // Three to a row: the default six are two rows, and Edit can grow it.
     return ResponsiveGrid(
       phoneColumns: 3,
       wideColumns: 9,
       children: [
-        _ActionTile(
-          icon: Icons.school_rounded,
-          title: 'Students',
-          color: AppColors.teal,
-          onTap: onStudents,
-        ),
-        _ActionTile(
-          icon: Icons.badge_rounded,
-          title: 'Teachers',
-          color: AppColors.primary,
-          onTap: onTeachers,
-        ),
-        _ActionTile(
-          icon: Icons.fact_check_rounded,
-          title: 'Attendance',
-          color: AppColors.success,
-          onTap: onAttendance,
-        ),
-        _ActionTile(
-          icon: Icons.payments_rounded,
-          title: 'Fees',
-          color: AppColors.warning,
-          onTap: onFees,
-        ),
-        _ActionTile(
-          icon: Icons.event_available_rounded,
-          title: 'Leave Requests',
-          color: AppColors.danger,
-          badge: pendingLeave,
-          onTap: onLeave,
-        ),
-        _ActionTile(
-          icon: Icons.campaign_rounded,
-          title: 'Send Notice',
-          color: AppColors.purple,
-          onTap: onNotice,
-        ),
-        if (kPayrollEnabled)
-          _ActionTile(
-            icon: Icons.account_balance_wallet_rounded,
-            title: 'Payroll',
-            color: AppColors.success,
-            onTap: onPayroll,
-          ),
-        _ActionTile(
-          icon: Icons.calendar_month_rounded,
-          title: 'Calendar',
-          color: AppColors.teal,
-          onTap: onCalendar,
-        ),
-        _ActionTile(
-          icon: Icons.assignment_rounded,
-          title: 'Exams',
-          color: AppColors.primary,
-          onTap: onExams,
-        ),
+        for (final key in keys)
+          if (key.available)
+            _ActionTile(
+              icon: _spec(key).icon,
+              title: _spec(key).title,
+              color: _spec(key).color,
+              badge: _spec(key).badge,
+              onTap: _spec(key).onTap,
+            ),
       ],
     );
   }
 }
 
-/// Three numbers: attendance %, classes marked and students present.
+/// The share of students present as a ring, beside the two counts that
+/// explain it: classes marked, and students present out of the roll.
 class _AttendanceToday extends StatelessWidget {
   const _AttendanceToday({required this.dashboard, this.onTap});
 
@@ -467,49 +553,163 @@ class _AttendanceToday extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stats = [
-      (value: dashboard.attendanceLabel, label: 'Attendance'),
-      (
-        value: '${dashboard.classesMarked}/${dashboard.totalClasses}',
-        label: 'Classes marked',
-      ),
-      (value: '${dashboard.studentsPresent}', label: 'Students present'),
-    ];
-
     return AppCard(
       onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       child: Row(
-        // Keeps the numbers level when one label wraps.
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final stat in stats)
-            Expanded(
-              child: Column(
-                children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      stat.value,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    stat.label,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
+          _AttendanceDonut(
+            // attendanceLabel reads "—" until the first class is marked, so
+            // the ring is empty rather than showing a 0% nobody measured.
+            label: dashboard.attendanceLabel,
+            fraction: dashboard.classesMarked == 0
+                ? 0
+                : dashboard.attendancePercentage / 100,
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _AttendanceFact(
+                  icon: Icons.menu_book_rounded,
+                  value: '${dashboard.classesMarked} / ${dashboard.totalClasses}',
+                  caption: 'classes marked',
+                ),
+                const SizedBox(height: 16),
+                _AttendanceFact(
+                  icon: Icons.groups_rounded,
+                  value: '${dashboard.studentsPresent} students present',
+                  caption: 'out of ${dashboard.totalStudents}',
+                ),
+              ],
             ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// A ring with the percentage in the middle.
+class _AttendanceDonut extends StatelessWidget {
+  const _AttendanceDonut({required this.label, required this.fraction});
+
+  final String label;
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 98,
+      height: 98,
+      child: CustomPaint(
+        painter: _DonutPainter(fraction: fraction.clamp(0.0, 1.0)),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const Text(
+                'Overall',
+                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DonutPainter extends CustomPainter {
+  const _DonutPainter({required this.fraction});
+
+  final double fraction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = 11.0;
+    final box = Offset(stroke / 2, stroke / 2) &
+        Size(size.width - stroke, size.height - stroke);
+
+    final ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+
+    canvas.drawArc(box, 0, math.pi * 2, false, ring..color = AppColors.border);
+    if (fraction <= 0) return;
+
+    canvas.drawArc(
+      box,
+      // Twelve o'clock, so the arc reads like a dial rather than starting
+      // from the right-hand edge.
+      -math.pi / 2,
+      math.pi * 2 * fraction,
+      false,
+      ring
+        ..color = AppColors.primary
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DonutPainter oldDelegate) => oldDelegate.fraction != fraction;
+}
+
+/// One tinted icon, a bold number and the caption under it.
+class _AttendanceFact extends StatelessWidget {
+  const _AttendanceFact({
+    required this.icon,
+    required this.value,
+    required this.caption,
+  });
+
+  final IconData icon;
+  final String value;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.primarySoft,
+            borderRadius: BorderRadius.circular(AppRadii.card),
+          ),
+          child: Icon(icon, size: 20, color: AppColors.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+              ),
+              Text(
+                caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

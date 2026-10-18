@@ -6,6 +6,7 @@ import '../../../core/data/messages_models.dart';
 import '../../../core/data/messages_repository.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/announcement_card.dart';
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/state_views.dart';
 import '../announcements/create_announcement_screen.dart';
@@ -84,7 +85,7 @@ class _PrincipalMessagesScreenState extends State<PrincipalMessagesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Messages')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('Messages')),
       body: _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openCreate,

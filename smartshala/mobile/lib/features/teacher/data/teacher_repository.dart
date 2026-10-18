@@ -60,9 +60,18 @@ class TeacherRepository {
   }
 
   /// Only the classes this teacher is assigned to — the server scopes
-  /// GET /classes by role.
-  Future<List<ClassOption>> myClasses() async {
-    final data = await api.get('/classes');
+  /// GET /classes by role. By default that means every class they are tied to,
+  /// class teacher or subject teacher alike.
+  ///
+  /// [classTeacherOnly] narrows it to the classes they are class teacher of.
+  /// Attendance is the class teacher's to mark, so the marking screen has to
+  /// ask for that scope: a class the teacher only takes periods in is in the
+  /// default list, but its roster answers 404 "Class not found".
+  Future<List<ClassOption>> myClasses({bool classTeacherOnly = false}) async {
+    final data = await api.get(
+      '/classes',
+      query: classTeacherOnly ? const {'scope': 'classTeacher'} : null,
+    );
     final items = data is List ? data : (data as Map<String, dynamic>)['items'] as List? ?? const [];
     return items
         .map((item) => ClassOption.fromJson((item as Map).cast<String, dynamic>()))

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/config/feature_flags.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/app_back_button.dart';
 import 'calendar/teacher_calendar_screen.dart';
 import 'data/punch_controller.dart';
 import 'messages/teacher_messages_screen.dart';
@@ -34,15 +35,18 @@ class _TeacherShellState extends State<TeacherShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: [
-          TeacherHomeScreen(onOpenMessages: () => setState(() => _index = _messagesIndex)),
-          const TeacherCalendarScreen(),
-          const MyStudentsScreen(),
-          if (kPayrollEnabled) const SalaryScreen(),
-          const TeacherMessagesScreen(),
-        ],
+      body: HomeTabScope(
+        goHome: () => setState(() => _index = 0),
+        child: IndexedStack(
+          index: _index,
+          children: [
+            TeacherHomeScreen(onOpenMessages: () => setState(() => _index = _messagesIndex)),
+            const TeacherCalendarScreen(),
+            const MyStudentsScreen(),
+            if (kPayrollEnabled) const SalaryScreen(),
+            const TeacherMessagesScreen(),
+          ],
+        ),
       ),
       bottomNavigationBar: _BottomBar(
         index: _index,

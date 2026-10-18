@@ -154,7 +154,7 @@ void main() {
     expect(find.text('Working'), findsOneWidget);
     expect(find.text('02:05:00'), findsOneWidget, reason: 'the punch timer shows time worked today');
     expect(find.text('Take a Break'), findsOneWidget);
-    expect(find.text('Swipe To Punch Out'), findsOneWidget);
+    expect(find.text('Punch Out'), findsOneWidget);
     expect(find.text('Class 6-A'), findsNWidgets(2), reason: 'in the schedule and in class attendance');
     expect(find.text('94%'), findsOneWidget);
     expect(find.text('Not marked'), findsOneWidget);

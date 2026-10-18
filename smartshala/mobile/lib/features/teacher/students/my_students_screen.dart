@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
@@ -91,7 +92,7 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Students')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('My Students')),
       body: _loadingClasses
           ? const LoadingView(message: 'Loading your classes…')
           : _error != null && _students.isEmpty

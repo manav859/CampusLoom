@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/data/dashboard_models.dart';
 import '../../../core/theme/app_colors.dart';
@@ -43,7 +44,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pay Slip')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('Pay Slip')),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<MySalary>(

@@ -44,7 +44,7 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
     });
 
     try {
-      final classes = await _repository.myClasses();
+      final classes = await _repository.myClasses(classTeacherOnly: true);
       if (!mounted) return;
       setState(() {
         _classes = classes;
@@ -163,9 +163,10 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
               : _classes.isEmpty
                   ? const EmptyView(
                       icon: Icons.class_outlined,
-                      title: 'No classes assigned',
-                      message: 'You are not assigned to any class yet. '
-                          'Ask your principal to add you to a class.',
+                      title: 'No classes to mark',
+                      message: 'Attendance is marked by the class teacher, and '
+                          'you are not class teacher of any class. Taking '
+                          'periods in a class does not include its attendance.',
                     )
                   : Column(
                       children: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:smartshala_mobile/core/theme/app_colors.dart';
 import 'package:smartshala_mobile/features/teacher/widgets/swipe_to_punch.dart';
 
 /// The blueprint is explicit: punching is a swipe, never a tap circle. These
@@ -88,8 +89,34 @@ void main() {
     await pumpBar(tester, onConfirmed: () async {}, action: PunchAction.punchOut);
     await tester.pump();
 
-    expect(find.text('Swipe To Punch Out'), findsOneWidget);
-    expect(find.text('Swipe To Punch In'), findsNothing);
+    expect(find.text('Punch Out'), findsOneWidget);
+    expect(find.text('Punch In'), findsNothing);
+  });
+
+  testWidgets('punch out is red where punch in is blue', (tester) async {
+    List<Color> trackColors() {
+      final track = tester.widget<Container>(
+        find.descendant(
+          of: find.byType(SwipeToPunch),
+          matching: find.byType(Container),
+        ).first,
+      );
+      final decoration = track.decoration! as BoxDecoration;
+      return (decoration.gradient! as LinearGradient).colors;
+    }
+
+    await pumpBar(tester, onConfirmed: () async {});
+    await tester.pump();
+    final punchIn = trackColors();
+
+    await pumpBar(tester, onConfirmed: () async {}, action: PunchAction.punchOut);
+    await tester.pump();
+    final punchOut = trackColors();
+
+    expect(punchIn.last, AppColors.primary);
+    expect(punchOut.last, AppColors.danger);
+    expect(punchOut.first.r, greaterThan(punchOut.first.b),
+        reason: 'the dark end of the punch-out track is red, not blue');
   });
 
   testWidgets('a completed day is inert', (tester) async {

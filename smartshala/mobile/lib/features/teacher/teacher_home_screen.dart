@@ -685,7 +685,7 @@ class _PunchActions extends StatelessWidget {
       PunchState.onBreak => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            swipe(PunchAction.punchIn, PunchStep.punchIn, label: 'Swipe To End Break'),
+            swipe(PunchAction.punchIn, PunchStep.punchIn, label: 'End Break'),
             const SizedBox(height: 6),
             TextButton(
               onPressed: enabled && !punch.isSubmitting ? () => _confirmPunchOut(context) : null,
@@ -704,7 +704,7 @@ class _PunchActions extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
               ),
             ),
-            swipe(PunchAction.punchIn, PunchStep.punchIn, label: 'Swipe To Punch In Again'),
+            swipe(PunchAction.punchIn, PunchStep.punchIn, label: 'Punch In Again'),
           ],
         ),
     };

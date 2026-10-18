@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/widgets/app_back_button.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/data/messages_models.dart';
 import '../../../core/data/messages_repository.dart';
@@ -135,6 +136,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const AppBackButton(),
         title: const Text('Messages'),
         actions: [
           if (_announcements.unreadCount > 0)

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/widgets/app_back_button.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/theme/app_colors.dart';
@@ -142,7 +143,7 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
     final groups = _filteredGroups;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('More')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('More')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [

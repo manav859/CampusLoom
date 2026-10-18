@@ -282,8 +282,8 @@ void main() {
     }
     expect(find.text('3'), findsOneWidget, reason: 'pending leave badge on Leave Requests');
 
-    expect(find.text('9/12'), findsOneWidget);
-    expect(find.text('54'), findsOneWidget, reason: 'students present');
+    expect(find.text('9 / 12'), findsOneWidget, reason: 'classes marked, in the ring card');
+    expect(find.text('54 students present'), findsOneWidget);
     expect(find.text('Class 7-B'), findsNothing, reason: 'no per-class list any more');
 
     expect(find.text('3 leave requests'), findsOneWidget);
