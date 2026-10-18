@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { Role } from "@/types";
 import { isHiddenPath } from "@/lib/hiddenFeatures";
 import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
@@ -377,7 +377,9 @@ export function Sidebar({
   onOpenTutorial?: () => void;
 }) {
   const pathname = usePathname();
-  const links = linksForRole(role);
+  // Memoised because it is an effect dependency below: a fresh array on every
+  // render re-ran that effect on every render.
+  const links = useMemo(() => linksForRole(role), [role]);
   const initials = fullName
     .split(" ")
     .map((part) => part[0])
@@ -414,16 +416,28 @@ export function Sidebar({
     }
   }, [isExpanded]);
 
+  // Opens the group that holds the current page, once, when the rail expands.
+  //
+  // The updater has to return `current` when it changes nothing. Returning a
+  // fresh object unconditionally re-rendered the sidebar, which re-ran this
+  // effect, which set state again: an endless render loop for as long as the
+  // pointer sat on the sidebar. Navigation is a React transition and
+  // transitions are lower priority than this loop's updates, so a click on a
+  // link never got to commit — until the pointer left, isExpanded went false
+  // and the loop stopped. That read as "the page only changes once I move the
+  // mouse into the content".
   useEffect(() => {
     if (!isExpanded) return;
     setOpenGroups((current) => {
+      let changed = false;
       const next = { ...current };
       for (const item of links) {
         if (hasChildren(item) && next[item.label] === undefined && item.children.some((child) => isActiveLink(pathname, child.href))) {
           next[item.label] = true;
+          changed = true;
         }
       }
-      return next;
+      return changed ? next : current;
     });
   }, [isExpanded, links, pathname]);
 
