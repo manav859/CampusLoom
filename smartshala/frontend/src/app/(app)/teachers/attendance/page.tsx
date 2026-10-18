@@ -212,13 +212,20 @@ export default function TeacherAttendancePage() {
             {/* Phone: cards */}
             <div className="divide-y divide-[#EEF1F5] md:hidden">
               {rows.map((row) => (
-                <button className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" key={row.id} onClick={() => setSelected(row)} type="button">
-                  <span className="min-w-0">
-                    <span className="block truncate text-[14px] font-semibold text-[#2456E6]">{row.fullName}</span>
-                    <span className="block text-[12px] text-[#5A6573]">{detail(row)}</span>
-                  </span>
-                  <StatusPill label={statusView[row.status].label} tone={statusView[row.status].tone} />
-                </button>
+                <div className="px-4 py-3" key={row.id}>
+                  <div className="flex w-full items-center justify-between gap-3">
+                    <button className="min-w-0 flex-1 text-left" onClick={() => setSelected(row)} type="button">
+                      <span className="block truncate text-[14px] font-semibold text-[#2456E6]">{row.fullName}</span>
+                      <span className="block text-[12px] text-[#5A6573]">{detail(row)}</span>
+                    </button>
+                    <StatusPill label={statusView[row.status].label} tone={statusView[row.status].tone} />
+                  </div>
+                  {row.punchInAt ? (
+                    <div className="mt-2">
+                      <SelfieCell date={date} onOpen={setSelfie} row={row} />
+                    </div>
+                  ) : null}
+                </div>
               ))}
             </div>
           </>
