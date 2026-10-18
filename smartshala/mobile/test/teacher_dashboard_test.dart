@@ -6,6 +6,7 @@ import 'package:smartshala_mobile/core/auth/app_user.dart';
 import 'package:smartshala_mobile/core/auth/auth_controller.dart';
 import 'package:smartshala_mobile/core/data/messages_models.dart';
 import 'package:smartshala_mobile/core/data/messages_repository.dart';
+import 'package:smartshala_mobile/core/data/unread_controller.dart';
 import 'package:smartshala_mobile/core/data/timetable_models.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/teacher/data/punch_controller.dart';
@@ -91,6 +92,7 @@ Future<void> _pumpHome(WidgetTester tester, {required double width, double textS
     MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthController>.value(value: _FakeAuth()),
+        ChangeNotifierProvider<UnreadController>(create: (_) => UnreadController()),
         Provider<TeacherRepository>.value(value: repository),
         Provider<MessagesRepository>.value(value: _FakeMessages()),
         ChangeNotifierProvider<PunchController>.value(value: punch),
@@ -145,7 +147,6 @@ void main() {
   testWidgets('home shows the web dashboard sections with the same labels', (tester) async {
     await _pumpHome(tester, width: 390);
 
-    expect(find.text('1 attendance actions and 7 homework submissions pending for your students.'), findsOneWidget);
     for (final label in ['Assigned Students', 'Pending Attendance', 'Pending Homework', 'Assigned Classes']) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
@@ -154,7 +155,6 @@ void main() {
     expect(find.text('Working'), findsOneWidget);
     expect(find.text('02:05:00'), findsOneWidget, reason: 'the punch timer shows time worked today');
     expect(find.text('Take a Break'), findsOneWidget);
-    expect(find.text('Punch Out'), findsOneWidget);
     expect(find.text('Class 6-A'), findsNWidgets(2), reason: 'in the schedule and in class attendance');
     expect(find.text('94%'), findsOneWidget);
     expect(find.text('Not marked'), findsOneWidget);

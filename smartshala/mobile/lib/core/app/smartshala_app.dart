@@ -9,6 +9,7 @@ import '../auth/auth_repository.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
 import '../data/messages_repository.dart';
+import '../data/unread_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/brand_header.dart';
 import '../widgets/responsive.dart';
@@ -66,7 +67,10 @@ class SmartShalaApp extends StatelessWidget {
         builder: (context, child) => AppViewport(
           child: MultiProvider(
             key: ValueKey(context.select<AuthController, String?>((auth) => auth.user?.id)),
-            providers: sessionProviders,
+            providers: [
+              ChangeNotifierProvider<UnreadController>(create: (_) => UnreadController()),
+              ...sessionProviders,
+            ],
             child: child,
           ),
         ),

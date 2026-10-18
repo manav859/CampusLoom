@@ -6,6 +6,7 @@ import 'package:smartshala_mobile/core/auth/app_user.dart';
 import 'package:smartshala_mobile/core/auth/auth_controller.dart';
 import 'package:smartshala_mobile/core/data/messages_models.dart';
 import 'package:smartshala_mobile/core/data/messages_repository.dart';
+import 'package:smartshala_mobile/core/data/unread_controller.dart';
 import 'package:smartshala_mobile/features/teacher/data/punch_controller.dart';
 import 'package:smartshala_mobile/features/teacher/data/teacher_models.dart';
 import 'package:smartshala_mobile/features/teacher/data/teacher_repository.dart';
@@ -39,9 +40,13 @@ class _PunchServer extends Fake implements TeacherRepository {
   @override
   Future<PunchStatus> punchStatus() async => _status;
 
+  /// The selfie path handed to each punch-in, in order — null when none.
+  final List<String?> selfies = [];
+
   @override
-  Future<PunchStatus> punchIn() async {
+  Future<PunchStatus> punchIn({String? selfiePath}) async {
     calls.add('punchIn');
+    selfies.add(selfiePath);
     state = PunchState.punchedIn;
     return _status;
   }
@@ -106,6 +111,7 @@ Future<_PunchServer> _pump(WidgetTester tester, PunchState state, {Widget home =
     MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthController>.value(value: _FakeAuth()),
+        ChangeNotifierProvider<UnreadController>(create: (_) => UnreadController()),
         Provider<TeacherRepository>.value(value: server),
         Provider<MessagesRepository>.value(value: _FakeMessages()),
         ChangeNotifierProvider<PunchController>.value(value: punch),
@@ -124,6 +130,8 @@ Future<void> _swipe(WidgetTester tester) async {
   await tester.dragFrom(Offset(track.left + 28, track.center.dy), Offset(track.width, 0));
   await _frames(tester);
 }
+
+final _realCapture = capturePunchSelfie;
 
 void main() {
   group('PunchStatus.workedAt', () {
@@ -178,7 +186,7 @@ void main() {
   });
 
   testWidgets('punched in: the timer ticks, and a break is one tap away', (tester) async {
-    final server = await _pump(tester, PunchState.punchedIn);
+    final server = await _pump(tester, PunchState.punchedIn, home: const TeacherShell());
     expect(find.text('Working'), findsOneWidget);
     expect(find.text('Punch Out'), findsOneWidget);
 
@@ -204,7 +212,7 @@ void main() {
   });
 
   testWidgets('on a break: swiping ends it; punching out from it asks first', (tester) async {
-    final server = await _pump(tester, PunchState.onBreak);
+    final server = await _pump(tester, PunchState.onBreak, home: const TeacherShell());
     expect(find.text('End Break'), findsOneWidget);
 
     await tester.tap(find.text('Punch out for the day'));
@@ -220,13 +228,49 @@ void main() {
   });
 
   testWidgets('punched out by mistake: the day can be punched into again', (tester) async {
-    final server = await _pump(tester, PunchState.punchedOut);
+    final server = await _pump(tester, PunchState.punchedOut, home: const TeacherShell());
     expect(find.text('Punched out'), findsWidgets);
     expect(find.text('Punch In Again'), findsOneWidget);
 
     await _swipe(tester);
     expect(server.calls, ['punchIn']);
     expect(find.text('Working'), findsOneWidget);
+  });
+
+  testWidgets('the first punch-in of the day sends the selfie', (tester) async {
+    capturePunchSelfie = () async => '/tmp/selfie.jpg';
+    addTearDown(() => capturePunchSelfie = _realCapture);
+
+    final server = await _pump(tester, PunchState.notPunchedIn, home: const TeacherShell());
+    await _swipe(tester);
+
+    expect(server.calls, ['punchIn']);
+    expect(server.selfies, ['/tmp/selfie.jpg']);
+  });
+
+  // A camera must never cost someone their attendance: the punch goes through
+  // and the record is simply stored as having no selfie.
+  testWidgets('a refused camera still punches the teacher in', (tester) async {
+    capturePunchSelfie = () async => null;
+    addTearDown(() => capturePunchSelfie = _realCapture);
+
+    final server = await _pump(tester, PunchState.notPunchedIn, home: const TeacherShell());
+    await _swipe(tester);
+
+    expect(server.calls, ['punchIn'], reason: 'a refused camera must not block the punch');
+    expect(server.selfies, [null], reason: 'and it is stored without a selfie');
+    expect(find.text('Working'), findsOneWidget);
+  });
+
+  // Ending a break is a punchIn too, but it is not the day's first.
+  testWidgets('ending a break carries no selfie', (tester) async {
+    capturePunchSelfie = () async => '/tmp/selfie.jpg';
+    addTearDown(() => capturePunchSelfie = _realCapture);
+
+    final server = await _pump(tester, PunchState.onBreak, home: const TeacherShell());
+    await _swipe(tester);
+
+    expect(server.selfies, [null], reason: 'only the first punch-in of the day carries one');
   });
 
   testWidgets('the swipe lives on Home only, and Pay Slip is hidden', (tester) async {

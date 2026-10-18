@@ -4,6 +4,7 @@ import { asyncHandler } from "../../core/asyncHandler.js";
 import { prisma } from "../../core/prisma.js";
 import { askSchema } from "./chatbot.schemas.js";
 import { streamChat } from "./chatbot.service.js";
+import { sortClassRecords } from "../../utils/sortClasses.js";
 
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -99,7 +100,7 @@ async function buildErpContext(
       return [
         "Student enrollment summary (active students):",
         `- Total: ${total}`,
-        ...classes.map((c) => `- Class ${c.name}-${c.section}: ${countByClass.get(c.id) ?? 0}`)
+        ...sortClassRecords(classes).map((c) => `- Class ${c.name}-${c.section}: ${countByClass.get(c.id) ?? 0}`)
       ].join("\n");
     }
 

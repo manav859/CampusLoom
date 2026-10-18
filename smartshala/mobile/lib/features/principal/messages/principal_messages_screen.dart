@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/data/messages_models.dart';
 import '../../../core/data/messages_repository.dart';
+import '../../../core/data/unread_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/announcement_card.dart';
+import '../../../core/widgets/announcement_detail_screen.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/state_views.dart';
@@ -25,7 +27,6 @@ class PrincipalMessagesScreen extends StatefulWidget {
 class _PrincipalMessagesScreenState extends State<PrincipalMessagesScreen> {
   AnnouncementPage _page = AnnouncementPage.empty;
   LeaveSummary _leaveSummary = LeaveSummary.empty;
-  final Set<String> _expanded = <String>{};
 
   bool _loading = true;
   String? _error;
@@ -53,6 +54,7 @@ class _PrincipalMessagesScreenState extends State<PrincipalMessagesScreen> {
         _loading = false;
         _error = null;
       });
+      context.read<UnreadController>().setCount(_page.unreadCount);
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -76,10 +78,25 @@ class _PrincipalMessagesScreenState extends State<PrincipalMessagesScreen> {
     await _load();
   }
 
-  void _toggle(Announcement announcement) {
-    setState(() {
-      if (!_expanded.remove(announcement.id)) _expanded.add(announcement.id);
-    });
+  /// Opening an announcement is what "reading" it means. The list, the header
+  /// chip and the bell all drop by one straight away; the server call trails
+  /// behind, so the tap never waits on the network.
+  Future<void> _open(Announcement announcement) async {
+    if (!announcement.isRead) {
+      setState(() => _page = _page.markRead(announcement.id));
+      context.read<UnreadController>().markOneRead();
+      context
+          .read<MessagesRepository>()
+          .markAnnouncementRead(announcement.id)
+          .catchError((Object _) {
+        // A missed read receipt is not worth interrupting the principal for;
+        // the next refresh reconciles it.
+      });
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => AnnouncementDetailScreen(announcement: announcement)),
+    );
   }
 
   @override
@@ -165,8 +182,7 @@ class _PrincipalMessagesScreenState extends State<PrincipalMessagesScreen> {
             for (final announcement in _page.items) ...[
               AnnouncementCard(
                 announcement: announcement,
-                expanded: _expanded.contains(announcement.id),
-                onTap: () => _toggle(announcement),
+                onTap: () => _open(announcement),
               ),
               const SizedBox(height: 10),
             ],

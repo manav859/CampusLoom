@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/data/messages_repository.dart';
+import '../../core/data/unread_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_cards.dart';
 import '../../core/widgets/app_chips.dart';
@@ -45,7 +47,6 @@ class TeacherHomeScreen extends StatefulWidget {
 
 class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   late Future<_HomeData> _future;
-  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -63,7 +64,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       messages.announcements(limit: 1).then((page) => page.unreadCount, onError: (Object _) => 0),
     ]);
 
-    if (mounted) setState(() => _unreadCount = results[2] as int);
+    if (mounted) context.read<UnreadController>().setCount(results[2] as int);
     return _HomeData(
       dashboard: results[0] as TeacherDashboard,
       schedule: results[1] as List<SchedulePeriod>,
@@ -81,8 +82,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: BrandAppBar(
-        portalLabel: 'TEACHER PORTAL',
-        notificationCount: _unreadCount,
+        fallbackName: 'Teacher',
+        notificationCount: context.watch<UnreadController>().count,
         onNotificationsTap: widget.onOpenMessages,
       ),
       body: RefreshIndicator(
@@ -148,18 +149,6 @@ class _HomeBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _GreetingCard(),
-        const SizedBox(height: 14),
-        Text(
-          dashboard.pulse,
-          style: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
-            height: 1.5,
-          ),
-        ),
-        const SizedBox(height: 14),
         _KpiGrid(overview: dashboard.overview),
         const SizedBox(height: 22),
         const SectionHeader(title: 'Quick Actions'),
@@ -214,68 +203,6 @@ class _HomeBody extends StatelessWidget {
           label: const Text('Sign out'),
         ),
       ],
-    );
-  }
-}
-
-class _GreetingCard extends StatelessWidget {
-  const _GreetingCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final user = context.select<AuthController, dynamic>((auth) => auth.user);
-    final now = DateTime.now();
-    final greeting = switch (now.hour) {
-      < 12 => 'Good Morning,',
-      < 17 => 'Good Afternoon,',
-      _ => 'Good Evening,',
-    };
-
-    return AppCard(
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppColors.primarySoft,
-            child: Text(
-              user?.initials ?? '?',
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  greeting,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                ),
-                Text(
-                  user?.fullName ?? 'Teacher',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                    height: 1.3,
-                  ),
-                ),
-                Text(
-                  DateFormat('EEEE, d MMMM yyyy').format(now),
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -489,10 +416,21 @@ class _PunchCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Expanded(
-                child: Text(
-                  "Today's Punch",
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Today's Punch",
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      DateFormat('EEEE, d MMMM yyyy').format(DateTime.now()),
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ],
                 ),
               ),
               if (!punch.isLoading) StatusChip(label: label, color: color, tint: tint),
@@ -537,7 +475,6 @@ class _PunchCard extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 14),
           _PunchActions(punch: punch),
         ],
       ),
@@ -645,6 +582,41 @@ class _TimerText extends StatelessWidget {
 /// The controls for where the day stands. Punching in and out are swipes, so
 /// a stray tap cannot do either; a break is a tap, because it is undone by the
 /// swipe that ends it.
+/// The punch swipe, docked above the bottom navigation on Home rather than
+/// sitting in the card. It stays within thumb reach however far the dashboard
+/// is scrolled, and the shell shows it on Home only — a swipe target on every
+/// tab made it too easy to punch out by accident while scrolling a list.
+class TeacherPunchSwipeBar extends StatelessWidget {
+  const TeacherPunchSwipeBar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final punch = context.watch<PunchController>();
+
+    final (action, step, label) = switch (punch.status.state) {
+      PunchState.notPunchedIn => (PunchAction.punchIn, PunchStep.punchIn, null),
+      PunchState.punchedIn => (PunchAction.punchOut, PunchStep.punchOut, null),
+      PunchState.onBreak => (PunchAction.punchIn, PunchStep.punchIn, 'End Break'),
+      PunchState.punchedOut => (PunchAction.punchIn, PunchStep.punchIn, 'Punch In Again'),
+    };
+
+    return Padding(
+      // No panel behind it: the swipe is the only thing that should read as a
+      // control down here, so it floats straight over the page.
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: SwipeToPunch(
+        action: action,
+        label: label,
+        enabled: !punch.isLoading,
+        busy: punch.isSubmitting,
+        onConfirmed: () => _run(context, step),
+      ),
+    );
+  }
+}
+
+/// What is left in the card once the swipe has moved out: the one secondary
+/// control each state offers, or nothing at all.
 class _PunchActions extends StatelessWidget {
   const _PunchActions({required this.punch});
 
@@ -652,66 +624,37 @@ class _PunchActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = punch.status.state;
-    final enabled = !punch.isLoading;
+    final ready = !punch.isLoading && !punch.isSubmitting;
 
-    Widget swipe(PunchAction action, PunchStep step, {String? label}) => SwipeToPunch(
-          action: action,
-          label: label,
-          enabled: enabled,
-          busy: punch.isSubmitting,
-          onConfirmed: () => _run(context, step),
-        );
-
-    return switch (state) {
-      PunchState.notPunchedIn => swipe(PunchAction.punchIn, PunchStep.punchIn),
-      PunchState.punchedIn => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            swipe(PunchAction.punchOut, PunchStep.punchOut),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: enabled && !punch.isSubmitting ? () => _run(context, PunchStep.takeBreak) : null,
-              icon: const Icon(Icons.free_breakfast_rounded, size: 18),
-              label: const Text('Take a Break'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.warning,
-                side: const BorderSide(color: AppColors.warning),
-                minimumSize: const Size.fromHeight(44),
-              ),
-            ),
-          ],
+    final button = switch (punch.status.state) {
+      PunchState.punchedIn => OutlinedButton.icon(
+          onPressed: ready ? () => _run(context, PunchStep.takeBreak) : null,
+          icon: const Icon(Icons.free_breakfast_rounded, size: 18),
+          label: const Text('Take a Break'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.warning,
+            side: const BorderSide(color: AppColors.warning),
+            minimumSize: const Size.fromHeight(44),
+          ),
         ),
-      PunchState.onBreak => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            swipe(PunchAction.punchIn, PunchStep.punchIn, label: 'End Break'),
-            const SizedBox(height: 6),
-            TextButton(
-              onPressed: enabled && !punch.isSubmitting ? () => _confirmPunchOut(context) : null,
-              child: const Text('Punch out for the day'),
-            ),
-          ],
+      PunchState.onBreak => TextButton(
+          onPressed: ready ? () => _confirmPunchOut(context) : null,
+          child: const Text('Punch out for the day'),
         ),
-      PunchState.punchedOut => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 10),
-              child: Text(
-                'Punched out by mistake, or back for more work? Punch in again — the timer carries on from where it stopped.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
-              ),
-            ),
-            swipe(PunchAction.punchIn, PunchStep.punchIn, label: 'Punch In Again'),
-          ],
-        ),
+      _ => null,
     };
-  }
 
-  /// From a break, punching out is a tap, so it asks first.
-  Future<void> _confirmPunchOut(BuildContext context) async {
+    if (button == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: SizedBox(width: double.infinity, child: button),
+    );
+  }
+}
+
+/// From a break, punching out is a tap, so it asks first.
+Future<void> _confirmPunchOut(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -726,27 +669,59 @@ class _PunchActions extends StatelessWidget {
     if (confirmed == true && context.mounted) await _run(context, PunchStep.punchOut);
   }
 
-  Future<void> _run(BuildContext context, PunchStep step) async {
-    final controller = context.read<PunchController>();
-    final error = await controller.run(step);
-    if (!context.mounted) return;
+/// How the day's first punch-in gets its selfie. A test has no camera, and a
+/// platform channel never answers one, so this is the seam they replace.
+@visibleForTesting
+Future<String?> Function() capturePunchSelfie = _captureSelfieFromCamera;
 
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        backgroundColor: error == null ? AppColors.success : AppColors.danger,
-        content: Text(error ?? _successMessage(step, controller.status)),
-      ),
+/// A cancelled, denied or broken camera still punches the teacher in — the
+/// record is simply stored without a selfie, and the principal's dashboard
+/// shows it as having none. Locking someone out of their own attendance over
+/// a camera is the worse failure.
+Future<String?> _captureSelfieFromCamera() async {
+  try {
+    final shot = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      // A punch selfie is looked at on a dashboard, never printed.
+      maxWidth: 1080,
+      imageQuality: 70,
     );
+    return shot?.path;
+  } catch (_) {
+    return null;
   }
-
-  String _successMessage(PunchStep step, PunchStatus status) => switch (step) {
-        PunchStep.takeBreak => 'Break started. Your timer is paused.',
-        PunchStep.punchOut => 'Punched out after ${_duration(status.workedAt(DateTime.now()))} of work. See you tomorrow!',
-        PunchStep.punchIn => status.sessions.length > 1 ? 'Welcome back. Your timer is running again.' : 'Punched in. Have a great day!',
-      };
 }
+
+Future<void> _run(BuildContext context, PunchStep step) async {
+  final controller = context.read<PunchController>();
+
+  // Only the day's first punch-in carries a selfie. Ending a break and
+  // re-opening a day punched out by mistake are both punchIn too, and the
+  // server ignores a selfie on either, so there is no point asking.
+  final selfiePath = step == PunchStep.punchIn && controller.status.state == PunchState.notPunchedIn
+      ? await capturePunchSelfie()
+      : null;
+  if (!context.mounted) return;
+
+  final error = await controller.run(step, selfiePath: selfiePath);
+  if (!context.mounted) return;
+
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.hideCurrentSnackBar();
+  messenger.showSnackBar(
+    SnackBar(
+      backgroundColor: error == null ? AppColors.success : AppColors.danger,
+      content: Text(error ?? _successMessage(step, controller.status)),
+    ),
+  );
+}
+
+String _successMessage(PunchStep step, PunchStatus status) => switch (step) {
+      PunchStep.takeBreak => 'Break started. Your timer is paused.',
+      PunchStep.punchOut => 'Punched out after ${_duration(status.workedAt(DateTime.now()))} of work. See you tomorrow!',
+      PunchStep.punchIn => status.sessions.length > 1 ? 'Welcome back. Your timer is running again.' : 'Punched in. Have a great day!',
+    };
 
 class _ScheduleList extends StatefulWidget {
   const _ScheduleList({required this.periods});

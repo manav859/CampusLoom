@@ -6,18 +6,17 @@ import '../theme/app_colors.dart';
 import 'app_cards.dart';
 import 'app_chips.dart';
 
-/// One announcement. Collapsed to three lines until tapped, so a long notice
-/// cannot push the rest of the feed off the screen.
+/// One announcement, as the Messages feed lists it: the first three lines of
+/// the notice, and a tap to open the whole thing. The feed stays scannable
+/// however long a notice runs.
 class AnnouncementCard extends StatelessWidget {
   const AnnouncementCard({
     super.key,
     required this.announcement,
-    required this.expanded,
     required this.onTap,
   });
 
   final Announcement announcement;
-  final bool expanded;
   final VoidCallback onTap;
 
   static final _dateFormat = DateFormat('d MMM yyyy, h:mm a');
@@ -82,22 +81,19 @@ class AnnouncementCard extends StatelessWidget {
                   ),
                 ),
               ],
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.textMuted),
             ],
           ),
           const SizedBox(height: 11),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 160),
-            alignment: Alignment.topCenter,
-            curve: Curves.easeOut,
-            child: Text(
-              announcement.body,
-              maxLines: expanded ? null : 3,
-              overflow: expanded ? null : TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                height: 1.45,
-              ),
+          Text(
+            announcement.body,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppColors.textSecondary,
+              height: 1.45,
             ),
           ),
           const SizedBox(height: 12),

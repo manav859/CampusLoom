@@ -39,14 +39,17 @@ class PunchController extends ChangeNotifier {
   }
 
   /// Returns the message to surface to the teacher, or null when it worked.
-  Future<String?> run(PunchStep step) async {
+  ///
+  /// [selfiePath] is carried only by the day's first punch-in; see
+  /// TeacherRepository.punchIn.
+  Future<String?> run(PunchStep step, {String? selfiePath}) async {
     if (isSubmitting) return null;
     isSubmitting = true;
     notifyListeners();
 
     try {
       status = switch (step) {
-        PunchStep.punchIn => await _repository.punchIn(),
+        PunchStep.punchIn => await _repository.punchIn(selfiePath: selfiePath),
         PunchStep.takeBreak => await _repository.startBreak(),
         PunchStep.punchOut => await _repository.punchOut(),
       };

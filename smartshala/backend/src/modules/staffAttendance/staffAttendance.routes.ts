@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { UserRole } from "@prisma/client";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
@@ -8,6 +9,13 @@ import * as controller from "./staffAttendance.controller.js";
 export const staffAttendanceRouter = Router();
 const staffRoles = [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.TEACHER] as const;
 
+// A punch selfie is one camera frame. The cap sits well above a phone JPEG
+// and well below anything worth storing by accident.
+const uploadSelfie = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024, files: 1 }
+});
+
 staffAttendanceRouter.use(requireAuth, requireRole(staffRoles));
 staffAttendanceRouter.get("/me/today", controller.getTodayStatus);
 staffAttendanceRouter.get(
@@ -16,7 +24,7 @@ staffAttendanceRouter.get(
   controller.getMyHistory
 );
 // Punch in also resumes from a break and re-opens a day punched out by mistake.
-staffAttendanceRouter.post("/me/punch-in", controller.punchIn);
+staffAttendanceRouter.post("/me/punch-in", uploadSelfie.single("selfie"), controller.punchIn);
 staffAttendanceRouter.post("/me/break", controller.startBreak);
 staffAttendanceRouter.post("/me/punch-out", controller.punchOut);
 
@@ -29,6 +37,17 @@ staffAttendanceRouter.get(
     query: z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) })
   }),
   controller.getStaffMonthSummary
+);
+
+// The selfie behind one teacher's punch on one day. Fetched on demand rather
+// than signed into every row of the day list.
+staffAttendanceRouter.get(
+  "/users/:id/selfie",
+  validate({
+    params: z.object({ id: z.string().uuid() }),
+    query: z.object({ date: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/) })
+  }),
+  controller.getPunchSelfie
 );
 
 // The principal's view of every teacher's punch on one day.

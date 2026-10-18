@@ -5,8 +5,10 @@ import '../../../core/widgets/app_back_button.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/data/messages_models.dart';
 import '../../../core/data/messages_repository.dart';
+import '../../../core/data/unread_controller.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/announcement_card.dart';
+import '../../../core/widgets/announcement_detail_screen.dart';
 import '../../../core/widgets/app_chips.dart';
 import '../../../core/widgets/leave_card.dart';
 import '../../../core/widgets/state_views.dart';
@@ -29,7 +31,6 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
 
   AnnouncementPage _announcements = AnnouncementPage.empty;
   LeavePage _leave = LeavePage.empty;
-  final Set<String> _expanded = <String>{};
 
   bool _loading = true;
   String? _error;
@@ -56,6 +57,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
         _loading = false;
         _error = null;
       });
+      context.read<UnreadController>().setCount(_announcements.unreadCount);
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -67,33 +69,13 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
 
   Future<void> _refresh() => _load();
 
-  /// Expanding an announcement is what "reading" it means. The badge updates
-  /// straight away and the server call trails behind, so the tap never waits
-  /// on the network.
-  void _toggle(Announcement announcement) {
-    final wasExpanded = _expanded.contains(announcement.id);
-
-    setState(() {
-      if (wasExpanded) {
-        _expanded.remove(announcement.id);
-        return;
-      }
-      _expanded.add(announcement.id);
-
-      if (!announcement.isRead) {
-        _announcements = AnnouncementPage(
-          items: _announcements.items
-              .map((item) => item.id == announcement.id ? item.asRead() : item)
-              .toList(),
-          total: _announcements.total,
-          unreadCount:
-              _announcements.unreadCount > 0 ? _announcements.unreadCount - 1 : 0,
-          hasMore: _announcements.hasMore,
-        );
-      }
-    });
-
-    if (!wasExpanded && !announcement.isRead) {
+  /// Opening an announcement is what "reading" it means. The list, the header
+  /// chip and the bell all drop by one straight away; the server call trails
+  /// behind, so the tap never waits on the network.
+  Future<void> _open(Announcement announcement) async {
+    if (!announcement.isRead) {
+      setState(() => _announcements = _announcements.markRead(announcement.id));
+      context.read<UnreadController>().markOneRead();
       context
           .read<MessagesRepository>()
           .markAnnouncementRead(announcement.id)
@@ -102,6 +84,10 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
         // next refresh reconciles it.
       });
     }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => AnnouncementDetailScreen(announcement: announcement)),
+    );
   }
 
   Future<void> _withdraw(LeaveRequest request) async {
@@ -245,8 +231,7 @@ class _TeacherMessagesScreenState extends State<TeacherMessagesScreen> {
           final announcement = announcements[index - leave.length];
           return AnnouncementCard(
             announcement: announcement,
-            expanded: _expanded.contains(announcement.id),
-            onTap: () => _toggle(announcement),
+            onTap: () => _open(announcement),
           );
         },
       ),

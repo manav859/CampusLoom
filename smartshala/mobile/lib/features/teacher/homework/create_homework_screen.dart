@@ -68,11 +68,13 @@ class _CreateHomeworkScreenState extends State<CreateHomeworkScreen> {
   }
 
   Future<void> _pickDueDate() async {
+    // Homework cannot fall due before it is set, so the calendar opens on today.
+    final today = DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: _dueDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      firstDate: DateTime(today.year, today.month, today.day),
+      lastDate: today.add(const Duration(days: 365)),
     );
     if (picked != null) setState(() => _dueDate = picked);
   }

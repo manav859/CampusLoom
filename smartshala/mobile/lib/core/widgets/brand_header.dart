@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../auth/app_user.dart';
+import '../auth/auth_controller.dart';
 import '../theme/app_colors.dart';
 
 /// The web dashboard's logo, as the apps show it everywhere: the app bar, the
@@ -26,18 +29,21 @@ class BrandLogo extends StatelessWidget {
   }
 }
 
-/// The "SmartShala / PRINCIPAL APP" lockup that tops every screen in the
-/// blueprint, with the notification bell and its unread badge.
+/// Tops every screen in both apps: who is signed in, greeted by time of day,
+/// with the notification bell and its unread badge. The signed-in name is the
+/// only title — the product already knows which app it is, so the branding it
+/// used to carry here said nothing the user needed.
 class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
   const BrandAppBar({
     super.key,
-    required this.portalLabel,
+    required this.fallbackName,
     this.leading,
     this.notificationCount = 0,
     this.onNotificationsTap,
   });
 
-  final String portalLabel;
+  /// Shown in place of the name until the profile has loaded.
+  final String fallbackName;
   final Widget? leading;
   final int notificationCount;
   final VoidCallback? onNotificationsTap;
@@ -50,8 +56,10 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       toolbarHeight: 64,
       leading: leading,
-      // Scales down rather than overflowing on a small phone with large text.
-      title: FittedBox(fit: BoxFit.scaleDown, child: _Lockup(portalLabel: portalLabel)),
+      // The theme centres titles; a greeting reads as an address to the person,
+      // so it starts at the margin like the content below it.
+      centerTitle: false,
+      title: _Greeting(fallbackName: fallbackName),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 12),
@@ -63,42 +71,43 @@ class BrandAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-class _Lockup extends StatelessWidget {
-  const _Lockup({required this.portalLabel});
+class _Greeting extends StatelessWidget {
+  const _Greeting({required this.fallbackName});
 
-  final String portalLabel;
+  final String fallbackName;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    final user = context.select<AuthController, AppUser?>((auth) => auth.user);
+    final greeting = switch (DateTime.now().hour) {
+      < 12 => 'Good Morning,',
+      < 17 => 'Good Afternoon,',
+      _ => 'Good Evening,',
+    };
+
+    return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const BrandLogo(),
-        const SizedBox(width: 10),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'SmartShala',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-                height: 1.1,
-              ),
-            ),
-            Text(
-              portalLabel,
-              style: const TextStyle(
-                fontSize: 9,
-                letterSpacing: 1.4,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ],
+        Text(
+          greeting,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+            height: 1.2,
+          ),
+        ),
+        Text(
+          user?.fullName ?? fallbackName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            height: 1.25,
+          ),
         ),
       ],
     );

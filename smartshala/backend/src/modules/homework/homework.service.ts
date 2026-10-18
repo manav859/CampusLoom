@@ -1,6 +1,7 @@
 import { HomeworkSubmissionStatus, Prisma, UserRole } from "@prisma/client";
 import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { sortClassRecords } from "../../utils/sortClasses.js";
 
 type HomeworkUser = Pick<Express.UserContext, "id" | "schoolId" | "role">;
 const defaultClassSubjects = ["English", "Hindi", "Mathematics", "Science", "Social Studies"];
@@ -252,7 +253,7 @@ export async function homeworkContext(user: Express.UserContext) {
       taught.some((pair) => pair.classId === classRecord.id && pair.subjectId === subject.id);
 
     return {
-      classes: hydratedClasses.map((classRecord) => ({
+      classes: sortClassRecords(hydratedClasses).map((classRecord) => ({
         id: classRecord.id,
         name: classRecord.name,
         section: classRecord.section,

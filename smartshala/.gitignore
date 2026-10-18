@@ -11,3 +11,9 @@ backend/src/generated/
 frontend/.next/
 tmp-backups/
 19-5.md
+
+# Play Store publishing. The service account key can upload releases as you —
+# it never belongs in the repository.
+tools/play-publish/node_modules/
+play-service-account*.json
+*-play-service-account.json

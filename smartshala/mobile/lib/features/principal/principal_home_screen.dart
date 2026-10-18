@@ -10,6 +10,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/data/dashboard_models.dart';
 import '../../core/data/messages_models.dart';
 import '../../core/data/messages_repository.dart';
+import '../../core/data/unread_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_cards.dart';
 import '../../core/widgets/brand_header.dart';
@@ -61,7 +62,6 @@ class _HomeData {
 
 class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
   late Future<_HomeData> _future;
-  int _unreadCount = 0;
 
   final _quickActionsStore = QuickActionsStore();
   List<QuickActionKey> _quickActions = QuickActionsStore.defaults;
@@ -123,7 +123,7 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
           .then<Object>((page) => page.unreadCount, onError: (Object _) => 0),
     ]);
 
-    if (mounted) setState(() => _unreadCount = results[3] as int);
+    if (mounted) context.read<UnreadController>().setCount(results[3] as int);
     return _HomeData(
       dashboard: results[0] as PrincipalDashboard,
       activity: results[1] as List<ActivityEntry>,
@@ -148,8 +148,8 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: BrandAppBar(
-        portalLabel: 'PRINCIPAL APP',
-        notificationCount: _unreadCount,
+        fallbackName: 'Principal',
+        notificationCount: context.watch<UnreadController>().count,
         onNotificationsTap: widget.onOpenMessages,
       ),
       body: RefreshIndicator(
@@ -336,15 +336,6 @@ class _SchoolCard extends StatelessWidget {
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     height: 1.3,
-                  ),
-                ),
-                Text(
-                  'Welcome, ${user?.fullName ?? 'Principal'}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppColors.textSecondary,
                   ),
                 ),
                 Text(

@@ -4,3 +4,8 @@
 *.key
 *.p12
 *.pfx
+# Android signing. Losing these means never being able to update the published
+# apps; committing them means anyone can ship an update to your users.
+*.jks
+*.keystore
+key.properties

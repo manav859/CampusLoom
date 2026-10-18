@@ -3,17 +3,9 @@ import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { ensureAcademicYear, getCurrentAcademicYear } from "../academicYears/academicYears.service.js";
 import { getTimetablePeriodCount, timetableDayLabels, timetableDays } from "../users/users.service.js";
+import { sortClassRecords } from "../../utils/sortClasses.js";
 
 const defaultClassSubjects = ["English", "Hindi", "Mathematics", "Science", "Social Studies"];
-
-function sortClassRecords<T extends { name: string; section: string }>(classes: T[]) {
-  return [...classes].sort((a, b) => {
-    const numA = parseInt(a.name, 10);
-    const numB = parseInt(b.name, 10);
-    if (!isNaN(numA) && !isNaN(numB) && numA !== numB) return numA - numB;
-    return a.name.localeCompare(b.name) || a.section.localeCompare(b.section);
-  });
-}
 
 async function ensureClassSubjects(schoolId: string, classId: string, teacherId?: string | null) {
   const existing = await prisma.subject.findMany({

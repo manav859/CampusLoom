@@ -1,6 +1,30 @@
 import { LeaveStatus, Prisma, UserRole } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { env } from "../../config/env.js";
+import { getDownloadUrl, uploadFile } from "../../services/storageService.js";
+
+const selfieMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const principalRoles = new Set<UserRole>([UserRole.PRINCIPAL, UserRole.ADMIN]);
+
+/** Uploads the selfie and returns the columns to store with the day row. */
+async function storeSelfie(schoolId: string, userId: string, file: Express.Multer.File) {
+  if (!selfieMimeTypes.has(file.mimetype)) {
+    throw new AppError(400, "A punch selfie must be a JPEG, PNG or WebP image.", "UNSUPPORTED_SELFIE_TYPE", {
+      mimeType: file.mimetype
+    });
+  }
+
+  const { storageKey, storageProvider } = await uploadFile({
+    buffer: file.buffer,
+    key: `${env.S3_KEY_PREFIX}/${schoolId}/punch-selfies/${userId}/${randomUUID()}.jpg`,
+    mimeType: file.mimetype,
+    originalName: "punch-selfie.jpg"
+  });
+
+  return { selfieKey: storageKey, selfieMime: file.mimetype, selfieProvider: storageProvider };
+}
 
 function startOfToday() {
   const date = new Date();
@@ -98,16 +122,28 @@ export async function getTodayStatus(user: Express.UserContext) {
  * Starts work: the first punch of the day, coming back from a break, or
  * punching in again after a punch-out that was a mistake.
  */
-export async function punchIn(user: Express.UserContext) {
+export async function punchIn(user: Express.UserContext, selfie?: Express.Multer.File) {
   const date = startOfToday();
   const now = new Date();
+
+  // Uploaded before the transaction opens: holding the day's row lock across a
+  // call to object storage would queue every other punch behind the slowest
+  // network. Only the first punch-in of a day carries one.
+  const selfieColumns = selfie ? await storeSelfie(user.schoolId, user.id, selfie) : {};
 
   try {
     await prisma.$transaction(async (tx) => {
       const existing = await lockToday(tx, user.id, date);
       if (!existing) {
         await tx.staffAttendance.create({
-          data: { schoolId: user.schoolId, userId: user.id, date, punchInAt: now, sessions: { create: { startAt: now } } }
+          data: {
+            schoolId: user.schoolId,
+            userId: user.id,
+            date,
+            punchInAt: now,
+            ...selfieColumns,
+            sessions: { create: { startAt: now } }
+          }
         });
         return;
       }
@@ -301,6 +337,7 @@ export async function getStaffDay(schoolId: string, date: string, now = new Date
         punchInAt: worked?.punchInAt ?? null,
         punchOutAt: worked?.punchOutAt ?? null,
         onBreak: worked?.state === "ON_BREAK",
+        hasSelfie: Boolean(punch?.selfieKey),
         // A punch still open on a past day has no end, so its hours are unknown.
         workedMinutes: worked && (worked.punchOutAt || localDayKey(now) === date) ? worked.workedMinutes : null
       };
@@ -318,4 +355,25 @@ export async function getStaffDay(schoolId: string, date: string, now = new Date
     notPunchedIn: count("NOT_PUNCHED_IN"),
     staff
   };
+}
+
+/** The selfie from one teacher's punch on one day. Principals and admins see
+ * any teacher's; everyone else only their own. */
+export async function getPunchSelfie(user: Express.UserContext, userId: string, date: string) {
+  if (!principalRoles.has(user.role as UserRole) && user.id !== userId) {
+    throw new AppError(403, "You can only open your own punch selfie.", "FORBIDDEN");
+  }
+
+  const [year, monthIndex, dayOfMonth] = date.split("-").map(Number);
+  const from = new Date(year, monthIndex - 1, dayOfMonth);
+  const to = new Date(year, monthIndex - 1, dayOfMonth + 1);
+
+  const punch = await prisma.staffAttendance.findFirst({
+    where: { schoolId: user.schoolId, userId, date: { gte: from, lt: to } },
+    select: { selfieKey: true }
+  });
+
+  if (!punch?.selfieKey) throw notFound("Punch selfie");
+
+  return { url: await getDownloadUrl(punch.selfieKey) };
 }

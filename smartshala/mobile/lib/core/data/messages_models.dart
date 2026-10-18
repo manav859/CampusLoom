@@ -352,6 +352,15 @@ class AnnouncementPage {
         unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
         hasMore: json['hasMore'] as bool? ?? false,
       );
+
+  /// The same page with one announcement marked read and the unread count
+  /// dropped to match, so the list and its badge never disagree.
+  AnnouncementPage markRead(String id) => AnnouncementPage(
+        items: items.map((item) => item.id == id ? item.asRead() : item).toList(),
+        total: total,
+        unreadCount: unreadCount > 0 ? unreadCount - 1 : 0,
+        hasMore: hasMore,
+      );
 }
 
 DateTime? _parseLocal(Object? value) =>

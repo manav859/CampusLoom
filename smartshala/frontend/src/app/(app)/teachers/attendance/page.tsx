@@ -72,6 +72,7 @@ export default function TeacherAttendancePage() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<StaffDayStatus | null>(null);
   const [selected, setSelected] = useState<Row | null>(null);
+  const [selfie, setSelfie] = useState<{ name: string; url: string } | null>(null);
 
   const load = useCallback(async (target: string) => {
     setLoading(true);
@@ -179,6 +180,7 @@ export default function TeacherAttendancePage() {
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Punch in</th>
                     <th className="px-4 py-3">Punch out</th>
+                    <th className="px-4 py-3">Selfie</th>
                     <th className="px-4 py-3 text-right">Worked</th>
                   </tr>
                 </thead>
@@ -197,6 +199,9 @@ export default function TeacherAttendancePage() {
                       </td>
                       <td className="px-4 py-3 [font-variant-numeric:tabular-nums]">{row.punchInAt ? time(row.punchInAt) : "—"}</td>
                       <td className="px-4 py-3 [font-variant-numeric:tabular-nums]">{row.punchOutAt ? time(row.punchOutAt) : row.punchInAt ? <span className="text-[#86868b]">{row.onBreak ? "On break" : "Not punched out"}</span> : "—"}</td>
+                      <td className="px-4 py-3">
+                        <SelfieCell date={date} onOpen={setSelfie} row={row} />
+                      </td>
                       <td className="px-4 py-3 text-right font-semibold text-[#0F1419] [font-variant-numeric:tabular-nums]">{row.workedMinutes != null ? hours(row.workedMinutes) : "—"}</td>
                     </tr>
                   ))}
@@ -221,6 +226,7 @@ export default function TeacherAttendancePage() {
       </section>
 
       {selected ? <TeacherMonthPanel key={selected.id} onClose={() => setSelected(null)} startMonth={monthValue(date)} teacher={selected} /> : null}
+      {selfie ? <SelfieViewer onClose={() => setSelfie(null)} selfie={selfie} /> : null}
     </div>
   );
 }
@@ -230,6 +236,68 @@ export default function TeacherAttendancePage() {
  * shows on a Teacher Profile. Working days run from the month start (or the day
  * they joined) to today, minus Sundays and school holidays.
  */
+/** The punch selfie for one teacher on the day being viewed. The image is
+ * fetched only when the principal asks for it, so opening the day costs no
+ * signed URLs. The row behind this cell opens the month panel, hence the
+ * stopPropagation. */
+function SelfieCell({
+  date,
+  onOpen,
+  row
+}: {
+  date: string;
+  onOpen: (selfie: { name: string; url: string }) => void;
+  row: Row;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!row.hasSelfie) {
+    return <span className="text-[#86868b]">{row.punchInAt ? "No selfie" : "—"}</span>;
+  }
+
+  return (
+    <button
+      className="rounded-full border border-[#D8DEE7] px-3 py-1 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F2F6FF] disabled:opacity-60"
+      disabled={loading}
+      onClick={(event) => {
+        event.stopPropagation();
+        setLoading(true);
+        setError("");
+        staffAttendanceApi
+          .punchSelfie(row.id, date)
+          .then((result) => onOpen({ name: row.fullName, url: result.url }))
+          .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not open it"))
+          .finally(() => setLoading(false));
+      }}
+      title={error || undefined}
+      type="button"
+    >
+      {loading ? "Opening…" : error ? "Try again" : "View"}
+    </button>
+  );
+}
+
+function SelfieViewer({ onClose, selfie }: { onClose: () => void; selfie: { name: string; url: string } }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div className="max-w-sm rounded-2xl bg-white p-4" onClick={(event) => event.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between gap-6">
+          <p className="font-semibold text-[#0F1419]">{selfie.name}</p>
+          <button className="text-[13px] font-semibold text-[#5A6573]" onClick={onClose} type="button">
+            Close
+          </button>
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- a signed, short-lived storage URL, not a static asset */}
+        <img alt={`Punch selfie for ${selfie.name}`} className="w-full rounded-xl" src={selfie.url} />
+      </div>
+    </div>
+  );
+}
+
 function TeacherMonthPanel({ onClose, startMonth, teacher }: { onClose: () => void; startMonth: string; teacher: Row }) {
   const [thisMonth] = useState(() => monthValue(dayValue(new Date())));
   const [month, setMonth] = useState(startMonth);

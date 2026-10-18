@@ -7,6 +7,7 @@ import 'package:smartshala_mobile/core/data/calendar_models.dart';
 import 'package:smartshala_mobile/core/data/dashboard_models.dart';
 import 'package:smartshala_mobile/core/data/messages_models.dart';
 import 'package:smartshala_mobile/core/data/messages_repository.dart';
+import 'package:smartshala_mobile/core/data/unread_controller.dart';
 import 'package:smartshala_mobile/core/widgets/app_cards.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_dashboard.dart';
@@ -162,6 +163,7 @@ Future<void> _pumpHome(
     MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthController>.value(value: _FakeAuth()),
+        ChangeNotifierProvider<UnreadController>(create: (_) => UnreadController()),
         Provider<PrincipalRepository>.value(value: _FakeRepository()),
         Provider<MessagesRepository>.value(value: _FakeMessages()),
       ],

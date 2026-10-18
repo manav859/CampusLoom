@@ -19,9 +19,20 @@ class TeacherRepository {
     return PunchStatus.fromJson(data);
   }
 
-  Future<PunchStatus> punchIn() async {
-    final data = await api.post('/staff-attendance/me/punch-in') as Map<String, dynamic>;
-    return PunchStatus.fromJson(data);
+  /// [selfiePath], when given, is the photo taken for the day's first
+  /// punch-in. The server stores it only on that first punch and ignores one
+  /// sent with any later punch.
+  Future<PunchStatus> punchIn({String? selfiePath}) async {
+    final data = selfiePath == null
+        ? await api.post('/staff-attendance/me/punch-in')
+        : await api.postMultipart(
+            '/staff-attendance/me/punch-in',
+            fields: const {},
+            fileField: 'selfie',
+            filePath: selfiePath,
+            fileName: 'punch-selfie.jpg',
+          );
+    return PunchStatus.fromJson(data as Map<String, dynamic>);
   }
 
   /// Pauses the day; [punchIn] resumes it.

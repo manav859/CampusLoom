@@ -1906,6 +1906,9 @@ export type StaffDay = {
     punchInAt: string | null;
     punchOutAt: string | null;
     onBreak: boolean;
+    /** Whether the day's first punch-in carried a selfie. The image itself is
+     * fetched on demand, so a day list never signs a URL nobody opens. */
+    hasSelfie: boolean;
     /** Null for a punch left open on a past day: its hours are unknown. */
     workedMinutes: number | null;
   }>;
@@ -1925,7 +1928,11 @@ export type StaffMonthSummary = {
 export const staffAttendanceApi = {
   day: (date: string) => apiFetch<StaffDay>(`/staff-attendance/day?date=${encodeURIComponent(date)}`),
   userSummary: (userId: string, month: string) =>
-    apiFetch<StaffMonthSummary>(`/staff-attendance/users/${userId}/summary?month=${encodeURIComponent(month)}`)
+    apiFetch<StaffMonthSummary>(`/staff-attendance/users/${userId}/summary?month=${encodeURIComponent(month)}`),
+  punchSelfie: (userId: string, date: string) =>
+    apiFetch<{ url: string }>(
+      `/staff-attendance/users/${userId}/selfie?date=${encodeURIComponent(date)}`
+    )
 };
 
 export const leaveTypes = ["CASUAL", "SICK", "EARNED", "MATERNITY", "UNPAID", "OTHER"] as const;

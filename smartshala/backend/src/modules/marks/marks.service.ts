@@ -3,6 +3,7 @@ import { logger } from "../../config/logger.js";
 import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { gradeForPercentage } from "../../core/grading.js";
+import { sortClassRecords } from "../../utils/sortClasses.js";
 import { buildLowMarksMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 
@@ -314,7 +315,7 @@ export async function marksContext(user: Express.UserContext) {
       taught.some((pair) => pair.classId === classRecord.id && pair.subjectId === subject.id);
 
     return {
-      classes: hydratedClasses.map((classRecord) => ({
+      classes: sortClassRecords(hydratedClasses).map((classRecord) => ({
         id: classRecord.id,
         name: classRecord.name,
         section: classRecord.section,

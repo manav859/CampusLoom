@@ -7,7 +7,13 @@ export const getTodayStatus = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const punchIn = asyncHandler(async (req: Request, res: Response) => {
-  res.status(201).json(await staffAttendanceService.punchIn(req.user!));
+  res.status(201).json(await staffAttendanceService.punchIn(req.user!, req.file));
+});
+
+export const getPunchSelfie = asyncHandler(async (req: Request, res: Response) => {
+  res.json(
+    await staffAttendanceService.getPunchSelfie(req.user!, req.params.id, req.query.date as string)
+  );
 });
 
 export const startBreak = asyncHandler(async (req: Request, res: Response) => {

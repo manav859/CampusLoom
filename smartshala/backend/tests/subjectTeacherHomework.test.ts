@@ -30,7 +30,9 @@ const context = (user: { id: string; schoolId: string; role: string; fullName: s
 const subjectsOf = (result: { classes: { id: string; subjects: { name: string }[] }[] }, classId: string) =>
   (result.classes.find((entry) => entry.id === classId)?.subjects ?? []).map((subject) => subject.name).sort();
 
-const dueDate = new Date("2026-09-25T00:00:00.000Z");
+// Relative to today: a fixed date eventually falls into the past, where the
+// service's own "due on or after assigned" guard rejects it and the test rots.
+const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
 async function main() {
   const school = await prisma.school.create({

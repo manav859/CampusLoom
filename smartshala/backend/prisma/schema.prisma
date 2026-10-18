@@ -881,6 +881,11 @@ model StaffAttendance {
   date       DateTime
   punchInAt  DateTime
   punchOutAt DateTime?
+  // The selfie from the day's first punch-in. Null is a valid state: a denied
+  // or broken camera must never stop a teacher punching in.
+  selfieKey      String?
+  selfieMime     String?
+  selfieProvider String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   school     School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)

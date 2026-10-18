@@ -11,6 +11,7 @@ import {
 import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { WhatsAppCloudProvider } from "../notifications/whatsapp.service.js";
+import { sortClassRecords } from "../../utils/sortClasses.js";
 
 type CommunicationUser = Pick<Express.UserContext, "id" | "schoolId" | "role">;
 
@@ -100,7 +101,7 @@ export async function communicationContext(user: Express.UserContext) {
     });
 
     return {
-      classes: classes.map((classRecord) => ({
+      classes: sortClassRecords(classes).map((classRecord) => ({
         id: classRecord.id,
         name: classRecord.name,
         section: classRecord.section,

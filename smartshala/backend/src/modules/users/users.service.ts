@@ -6,6 +6,7 @@ import { getPagination } from "../../core/pagination.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { getTenantContext } from "../../tenant/tenantContext.js";
+import { sortClassRecords } from "../../utils/sortClasses.js";
 
 type TeacherPeriodInput = {
   dayOfWeek?: string;
@@ -317,7 +318,7 @@ export async function getTeacherAssignments(schoolId: string, teacherId: string)
     days: timetableDays.map((id) => ({ id, label: timetableDayLabels[id] })),
     periodCount,
     periods: periods.map(mapPeriod),
-    classes: classes.map((classRecord) => ({
+    classes: sortClassRecords(classes).map((classRecord) => ({
       id: classRecord.id,
       name: classRecord.name,
       section: classRecord.section,

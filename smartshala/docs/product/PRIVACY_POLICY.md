@@ -39,6 +39,15 @@ routes and who rides them, salary slips your principal records, and messages and
 **Student and parent details entered by school staff.** Name, admission number, class, roll number, parent
 name and parent phone number, and anything else the school chooses to record. Students do not use the apps.
 
+**A punch selfie (teacher app only).** When a teacher punches in for the first time that day, the app
+opens the phone's camera so they can take a photo of themselves, which is stored with that day's attendance
+record and shown to their principal on the school dashboard. It is taken with the front camera, never in the
+background, and never without the teacher pressing the shutter. **It is optional:** declining the camera,
+closing it, or cancelling still punches the teacher in — the day is simply recorded as having no selfie.
+Later punches the same day (returning from a break, or re-opening a day punched out by mistake) never ask
+for one. The app does not read your photo gallery, and the photo is not used for face recognition, identity
+matching or any automated decision.
+
 **Technical information needed to run the service.** Your sign-in tokens, the app version, and the server
 logs any internet service keeps (request times, error traces, and the IP address your phone connects from).
 
@@ -46,8 +55,10 @@ logs any internet service keeps (request times, error traces, and the IP address
 
 - **No location.** Punch in and punch out record the time only. There is no geofencing and the apps never ask
   for a location permission.
-- **No contacts, photos, microphone or camera.** The only file that leaves your phone is a document you pick
-  yourself to attach to a leave request.
+- **No contacts, no microphone, and no access to your photo gallery.** The camera is used in one place
+  only — the punch selfie described above, taken by you, in the teacher app. The apps never read photos you
+  already have. The only other file that leaves your phone is a document you pick yourself to attach to a
+  leave request.
 - **No advertising, and no advertising identifier.** The apps carry no ad SDK and no third-party analytics or
   tracking SDK.
 - **No selling of personal information, to anyone, ever.**
@@ -57,6 +68,7 @@ logs any internet service keeps (request times, error traces, and the IP address
 | Permission / capability | Why |
 |---|---|
 | Internet access | Everything in the apps comes from your school's SmartShala server. |
+| Camera (teacher app, no camera permission declared) | Only when you punch in for the first time on a given day. Android's own camera app takes the photo and hands back the one frame you accepted; the apps cannot open the camera by themselves or in the background. Declining is allowed and still punches you in. |
 | File picker (no storage permission) | Only when you tap Attach on a leave request. Android's own picker hands us the one file you choose; the apps cannot browse your storage. |
 | Opening the dialer or WhatsApp | Only when you tap a phone number on a student, teacher or transport screen. It hands the number to the app you choose and we learn nothing about the call. |
 | The Android share sheet | Only when you tap Share or Export on a report, so you can send it on yourself. |
@@ -127,11 +139,17 @@ today. Both apps collect the same things.
 | User IDs | Yes | No | App functionality | Required |
 | Other personal info (student and parent records staff enter) | Yes | No | App functionality | Required |
 | Files and docs (a document attached to a leave request) | Yes | No | App functionality | **Optional** |
+| Photos (the punch selfie, teacher app) | Yes | No | App functionality | **Optional** |
 | App activity, crash logs, diagnostics | No | No | — | — |
-| Location, contacts, photos, financial info about the *user* | No | No | — | — |
+| Location, contacts, financial info about the *user* | No | No | — | — |
 
 Also declare: data is **encrypted in transit**; users **can request deletion** (through their school, or by
 writing to us); the apps have an **account** and are **not directed to children**.
+
+On the Photos row, answer "collected" and **not** "shared", and do not tick any processing purpose beyond
+app functionality. The selfie is a photo of the user taken for attendance; it is not biometric data in the
+Play policy sense because nothing measures or matches faces, but say plainly in the listing that teachers
+photograph themselves when punching in, so a reviewer is never surprised by the camera opening.
 
 **Before the first upload, re-check this list against the code** — it will stop being true the moment push
 notifications add a device token, which is declared as "Device or other IDs".

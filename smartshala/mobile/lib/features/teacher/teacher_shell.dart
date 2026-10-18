@@ -48,9 +48,17 @@ class _TeacherShellState extends State<TeacherShell> {
           ],
         ),
       ),
-      bottomNavigationBar: _BottomBar(
-        index: _index,
-        onChanged: (next) => setState(() => _index = next),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Home only: every other tab is a list, and a swipe target over one
+          // is too easy to catch while scrolling.
+          if (_index == 0) const TeacherPunchSwipeBar(),
+          _BottomBar(
+            index: _index,
+            onChanged: (next) => setState(() => _index = next),
+          ),
+        ],
       ),
     );
   }
