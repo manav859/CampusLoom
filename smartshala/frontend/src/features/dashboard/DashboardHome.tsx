@@ -8,7 +8,7 @@ import { AttendanceChart } from "@/components/dashboard/AttendanceChart";
 import { FeeOverviewChart } from "@/components/dashboard/FeeOverviewChart";
 import { ActivityFeed, type ActivityEvent } from "@/components/dashboard/ActivityFeed";
 import { KpiCardSkeleton, ChartSkeleton, AlertSkeleton } from "@/components/ui/Skeleton";
-import { activityApi, apiFetch, studentsApi, whatsappApi, type ActivityLog, type FeeDefaulter, type FeesDashboard } from "@/lib/api";
+import { activityApi, apiFetch, staffAttendanceApi, studentsApi, whatsappApi, type ActivityLog, type FeeDefaulter, type FeesDashboard, type StaffDay } from "@/lib/api";
 import { formatINR, humanizeConstant } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 import type { Kpi } from "@/types";
@@ -217,6 +217,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sendingReminderId, setSendingReminderId] = useState("");
+  const [staffDay, setStaffDay] = useState<StaffDay | null>(null);
   const [activityDate, setActivityDate] = useState(() => dateInputValue(new Date()));
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -251,6 +252,24 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     }
 
     loadDashboard();
+    return () => {
+      active = false;
+    };
+  }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "ADMIN") return;
+    let active = true;
+
+    const today = dateInputValue(new Date());
+    cachedFetch(`dashboard:staff-day:${today}`, () => staffAttendanceApi.day(today))
+      .then((result) => {
+        if (active) setStaffDay(result);
+      })
+      .catch(() => {
+        if (active) setStaffDay(null);
+      });
+
     return () => {
       active = false;
     };
@@ -342,6 +361,18 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         },
     mode === "ADMIN"
       ? {
+          label: "Teacher Attendance",
+          value: staffDay ? `${staffDay.present}/${staffDay.total}` : "—",
+          helper: staffDay
+            ? `${staffDay.present} of ${staffDay.total} punched in today`
+            : "Punched in today",
+          formula: "Teachers who punched in today / active teachers.",
+          href: "/teachers/attendance",
+          tone: staffDay && staffDay.present < staffDay.total ? "amber" as const : "green" as const
+        }
+      : null,
+    mode === "ADMIN"
+      ? {
           label: "Defaulters",
           value: defaulterCount,
           helper: "School-wide",
@@ -372,16 +403,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
           href: "/teacher/classes",
           tone: "blue" as const
         },
-    mode === "ADMIN"
-      ? {
-          label: "Alerts",
-          value: kpis.alerts ?? data?.alerts?.length ?? 0,
-          helper: "Opens risk insights",
-          formula: "Below 75% attendance + repeat absentees + high severity risks.",
-          href: "/analytics",
-          tone: "purple" as const
-        }
-      : null
+    null
   ].filter(Boolean) as Kpi[];
 
   /* ── Alert items ── */
