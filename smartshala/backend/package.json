@@ -46,7 +46,8 @@
     "test:timetable": "tsx tests/timetable.test.ts",
     "test:subject-teacher": "tsx tests/subjectTeacherMarks.test.ts",
     "test:subject-teacher-homework": "tsx tests/subjectTeacherHomework.test.ts",
-    "test:class-order": "tsx tests/classOrder.test.ts"
+    "test:class-order": "tsx tests/classOrder.test.ts",
+    "selfies:purge": "node scripts/purge-punch-selfies.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

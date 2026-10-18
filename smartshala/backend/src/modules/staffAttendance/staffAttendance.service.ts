@@ -370,10 +370,15 @@ export async function getPunchSelfie(user: Express.UserContext, userId: string, 
 
   const punch = await prisma.staffAttendance.findFirst({
     where: { schoolId: user.schoolId, userId, date: { gte: from, lt: to } },
-    select: { selfieKey: true }
+    select: { selfieKey: true, selfieMime: true }
   });
 
   if (!punch?.selfieKey) throw notFound("Punch selfie");
 
-  return { url: await getDownloadUrl(punch.selfieKey) };
+  // With S3 this is a presigned URL; without it, it is the storage key and the
+  // controller streams the file, exactly as leave attachments do.
+  return {
+    url: await getDownloadUrl(punch.selfieKey),
+    mimeType: punch.selfieMime ?? "image/jpeg"
+  };
 }

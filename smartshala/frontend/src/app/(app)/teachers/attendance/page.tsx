@@ -72,7 +72,7 @@ export default function TeacherAttendancePage() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<StaffDayStatus | null>(null);
   const [selected, setSelected] = useState<Row | null>(null);
-  const [selfie, setSelfie] = useState<{ name: string; url: string } | null>(null);
+  const [selfie, setSelfie] = useState<{ name: string; url: string; revoke: boolean } | null>(null);
 
   const load = useCallback(async (target: string) => {
     setLoading(true);
@@ -246,7 +246,7 @@ function SelfieCell({
   row
 }: {
   date: string;
-  onOpen: (selfie: { name: string; url: string }) => void;
+  onOpen: (selfie: { name: string; url: string; revoke: boolean }) => void;
   row: Row;
 }) {
   const [loading, setLoading] = useState(false);
@@ -266,7 +266,7 @@ function SelfieCell({
         setError("");
         staffAttendanceApi
           .punchSelfie(row.id, date)
-          .then((result) => onOpen({ name: row.fullName, url: result.url }))
+          .then((result) => onOpen({ name: row.fullName, url: result.url, revoke: result.revoke }))
           .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not open it"))
           .finally(() => setLoading(false));
       }}
@@ -278,7 +278,19 @@ function SelfieCell({
   );
 }
 
-function SelfieViewer({ onClose, selfie }: { onClose: () => void; selfie: { name: string; url: string } }) {
+function SelfieViewer({
+  onClose,
+  selfie
+}: {
+  onClose: () => void;
+  selfie: { name: string; url: string; revoke: boolean };
+}) {
+  // An object URL pins the image bytes in memory until it is released.
+  useEffect(() => {
+    if (!selfie.revoke) return;
+    return () => URL.revokeObjectURL(selfie.url);
+  }, [selfie]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"

@@ -1929,10 +1929,24 @@ export const staffAttendanceApi = {
   day: (date: string) => apiFetch<StaffDay>(`/staff-attendance/day?date=${encodeURIComponent(date)}`),
   userSummary: (userId: string, month: string) =>
     apiFetch<StaffMonthSummary>(`/staff-attendance/users/${userId}/summary?month=${encodeURIComponent(month)}`),
-  punchSelfie: (userId: string, date: string) =>
-    apiFetch<{ url: string }>(
-      `/staff-attendance/users/${userId}/selfie?date=${encodeURIComponent(date)}`
-    )
+  /** Resolves to a URL an <img> can load. `revoke` is true when that URL is an
+   * object URL the caller owns and must release. */
+  punchSelfie: async (userId: string, date: string): Promise<{ url: string; revoke: boolean }> => {
+    const token = tokenStore.get();
+    const response = await fetch(
+      `${tenantApiBase(env.apiBaseUrl)}/staff-attendance/users/${userId}/selfie?date=${encodeURIComponent(date)}`,
+      { credentials: "include", headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+    );
+    if (!response.ok) throw new Error("Could not open this selfie");
+
+    // S3 mode returns a presigned URL as JSON; local mode streams the image.
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const { url } = (await response.json()) as { url: string };
+      return { url, revoke: false };
+    }
+    return { url: URL.createObjectURL(await response.blob()), revoke: true };
+  }
 };
 
 export const leaveTypes = ["CASUAL", "SICK", "EARNED", "MATERNITY", "UNPAID", "OTHER"] as const;
