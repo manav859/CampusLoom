@@ -11,8 +11,7 @@ type ClassesTodayReportRow = {
   marked: boolean;
   present: number;
   absent: number;
-  late: number;
-  halfDay: number;
+  leave: number;
   attended: number;
   total: number;
   percentage: number;
@@ -97,8 +96,7 @@ export async function getClassesTodayReport(user: AttendanceReportUser, dateFrom
       ({
         [AttendanceStatus.PRESENT]: 0,
         [AttendanceStatus.ABSENT]: 0,
-        [AttendanceStatus.LATE]: 0,
-        [AttendanceStatus.HALF_DAY]: 0
+        [AttendanceStatus.LEAVE]: 0
       } satisfies Record<AttendanceStatus, number>);
 
     counts[recordGroup.status] = recordGroup._count._all;
@@ -109,15 +107,13 @@ export async function getClassesTodayReport(user: AttendanceReportUser, dateFrom
     const counts = countsByClassId.get(classRecord.id) ?? {
       [AttendanceStatus.PRESENT]: 0,
       [AttendanceStatus.ABSENT]: 0,
-      [AttendanceStatus.LATE]: 0,
-      [AttendanceStatus.HALF_DAY]: 0
+      [AttendanceStatus.LEAVE]: 0
     };
     const present = counts[AttendanceStatus.PRESENT];
     const absent = counts[AttendanceStatus.ABSENT];
-    const late = counts[AttendanceStatus.LATE];
-    const halfDay = counts[AttendanceStatus.HALF_DAY];
-    const attended = present + late + (halfDay * 0.5);
-    const total = present + absent + late + halfDay;
+    const leave = counts[AttendanceStatus.LEAVE];
+    const attended = present;
+    const total = present + absent + leave;
 
     return {
       classId: classRecord.id,
@@ -125,8 +121,7 @@ export async function getClassesTodayReport(user: AttendanceReportUser, dateFrom
       marked: countsByClassId.has(classRecord.id),
       present,
       absent,
-      late,
-      halfDay,
+      leave,
       attended,
       total,
       percentage: percentage(attended, total),

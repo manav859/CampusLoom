@@ -46,6 +46,7 @@ import {
   createLeadPaymentLink,
   createStage,
   createTeamMember,
+  deleteLead,
   deleteStage,
   getLead,
   issueProforma,
@@ -226,6 +227,16 @@ crmRouter.patch(
   validate({ params: leadIdParamSchema, body: updateLeadSchema }),
   asyncHandler(async (req, res) => {
     res.json(await updateLead(crmActor(res), req.params.leadId, req.body));
+  })
+);
+
+crmRouter.delete(
+  "/leads/:leadId",
+  requireCrmAdmin,
+  validate({ params: leadIdParamSchema }),
+  asyncHandler(async (req, res) => {
+    await deleteLead(crmActor(res), req.params.leadId);
+    res.status(204).send();
   })
 );
 

@@ -147,10 +147,11 @@ void main() {
   testWidgets('home shows the web dashboard sections with the same labels', (tester) async {
     await _pumpHome(tester, width: 390);
 
-    for (final label in ['Assigned Students', 'Pending Attendance', 'Pending Homework', 'Assigned Classes']) {
+    for (final label in ['Assigned Students', 'Pending Attendance', 'Pending Homework', "Today's Classes"]) {
       expect(find.text(label), findsOneWidget, reason: label);
     }
     expect(find.text('96'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget, reason: "Today's Classes counts the periods on today's schedule, not the 3 assigned classes");
     expect(find.text("Today's Punch"), findsOneWidget);
     expect(find.text('Punched In'), findsOneWidget);
     expect(find.text('02:05:00'), findsOneWidget, reason: 'the punch timer shows time worked today');
@@ -191,7 +192,7 @@ void main() {
     await _pumpHome(tester, width: 1200);
 
     final students = tester.getRect(find.text('Assigned Students'));
-    final classes = tester.getRect(find.text('Assigned Classes'));
+    final classes = tester.getRect(find.text("Today's Classes"));
     expect(students.top, closeTo(classes.top, 1), reason: 'all four KPI cards sit on one row');
 
     final scaffold = tester.getRect(find.byType(Scaffold).first);

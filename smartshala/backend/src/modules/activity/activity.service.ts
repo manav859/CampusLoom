@@ -50,16 +50,18 @@ function readBody(log: { afterJson: Prisma.JsonValue | null }) {
 }
 
 function countAttendance(records: unknown) {
-  const counts = { present: 0, absent: 0, halfDay: 0, late: 0 };
+  const counts = { present: 0, absent: 0, leave: 0 };
   if (!Array.isArray(records)) return counts;
 
   for (const record of records) {
     if (!record || typeof record !== "object") continue;
     const status = (record as Record<string, unknown>).status;
-    if (status === "PRESENT") counts.present += 1;
+    // Logs written before attendance became three states still hold LATE and
+    // HALF_DAY. They read as present, which is where the records themselves
+    // were moved, so an old log still totals to its class size.
+    if (status === "PRESENT" || status === "LATE" || status === "HALF_DAY") counts.present += 1;
     if (status === "ABSENT") counts.absent += 1;
-    if (status === "HALF_DAY") counts.halfDay += 1;
-    if (status === "LATE") counts.late += 1;
+    if (status === "LEAVE") counts.leave += 1;
   }
 
   return counts;
@@ -164,8 +166,7 @@ async function enrichAttendanceLog<T extends { action: string; afterJson: Prisma
         className,
         present: counts.present,
         absent: counts.absent,
-        halfDay: counts.halfDay,
-        late: counts.late
+        leave: counts.leave
       }
     }
   };

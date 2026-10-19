@@ -224,11 +224,24 @@ class TeacherDashboard {
 }
 
 class ClassOption {
-  const ClassOption({required this.id, required this.name, required this.section});
+  const ClassOption({
+    required this.id,
+    required this.name,
+    required this.section,
+    this.studentCount = 0,
+    this.classTeacherId,
+  });
 
   final String id;
   final String name;
   final String section;
+
+  /// Students on the roll. GET /classes counts them for every class it returns.
+  final int studentCount;
+
+  /// Whose class it is. Only the class teacher may mark its attendance, so a
+  /// screen that offers marking has to compare this with the signed-in teacher.
+  final String? classTeacherId;
 
   String get label => '$name-$section';
 
@@ -236,23 +249,29 @@ class ClassOption {
         id: json['id'] as String,
         name: json['name'] as String? ?? '',
         section: json['section'] as String? ?? '',
+        studentCount: ((json['_count'] as Map?)?['students'] as num?)?.toInt() ?? 0,
+        classTeacherId: json['classTeacherId'] as String?,
       );
 }
 
-enum AttendanceMark { present, absent, late, halfDay }
+/// [leave] is an excused absence — the family told the school. It counts for
+/// nothing towards attendance, exactly like [absent]; the two are kept apart
+/// so a school can tell "told us" from "did not turn up".
+enum AttendanceMark { present, absent, leave }
 
 extension AttendanceMarkApi on AttendanceMark {
   String get apiValue => switch (this) {
         AttendanceMark.present => 'PRESENT',
         AttendanceMark.absent => 'ABSENT',
-        AttendanceMark.late => 'LATE',
-        AttendanceMark.halfDay => 'HALF_DAY',
+        AttendanceMark.leave => 'LEAVE',
       };
 
+  /// Anything else — including the LATE and HALF_DAY a roster saved before
+  /// attendance became three states — reads as present, which is where those
+  /// records were moved.
   static AttendanceMark fromApi(String? value) => switch (value) {
         'ABSENT' => AttendanceMark.absent,
-        'LATE' => AttendanceMark.late,
-        'HALF_DAY' => AttendanceMark.halfDay,
+        'LEAVE' => AttendanceMark.leave,
         _ => AttendanceMark.present,
       };
 }
@@ -300,9 +319,13 @@ class AttendanceRoster {
   final bool alreadySubmitted;
   final String? holidayReason;
 
-  int get presentCount =>
-      students.where((student) => student.mark != AttendanceMark.absent).length;
+  /// Leave is not attendance, so it is no more "present" than an absence is.
+  int get presentCount => students
+      .where((student) =>
+          student.mark != AttendanceMark.absent && student.mark != AttendanceMark.leave)
+      .length;
   int get absentCount => students.where((student) => student.mark == AttendanceMark.absent).length;
+  int get leaveCount => students.where((student) => student.mark == AttendanceMark.leave).length;
 
   factory AttendanceRoster.fromJson(Map<String, dynamic> json) => AttendanceRoster(
         className: json['className'] as String? ?? '',

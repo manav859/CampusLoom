@@ -203,7 +203,9 @@ export async function classPerformance(user: Express.UserContext) {
 
   return classes.map((classRecord) => {
     const records = classRecord.attendanceSessions.flatMap((session) => session.records);
-    const present = records.filter((record) => record.status !== AttendanceStatus.ABSENT).length;
+    const present = records.filter(
+      (record) => record.status !== AttendanceStatus.ABSENT && record.status !== AttendanceStatus.LEAVE
+    ).length;
     const percentage = records.length ? Math.round((present / records.length) * 100) : 0;
     return {
       classId: classRecord.id,

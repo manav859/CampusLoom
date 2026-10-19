@@ -26,6 +26,7 @@ import 'students/students_needing_focus_screen.dart';
 import 'teacher_more_sheet.dart';
 import 'widgets/swipe_to_punch.dart';
 import 'timetable/my_timetable_screen.dart';
+import 'timetable/todays_classes_screen.dart';
 
 /// The teacher dashboard. It reads the same endpoints as the web teacher
 /// dashboard (GET /dashboard, /users/me/schedule, /staff-attendance/me/today)
@@ -125,31 +126,6 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       ),
     );
   }
-}
-
-/// The home screen's own palette and shapes. The brand blue still comes from
-/// [AppColors]; the pastel grounds below belong to this screen, one per metric
-/// and one per quick action, so a tile is recognised by colour before it is read.
-class Home {
-  static const page = Color(0xFFFFFFFF);
-  static const ink = Color(0xFF12284C);
-  static const inkSoft = Color(0xFF5E7290);
-  static const inkMuted = Color(0xFF8C9AAF);
-  static const line = Color(0xFFEBEFF5);
-
-  static const green = Color(0xFF17A05C);
-  static const greenSoft = Color(0xFFDDF5E7);
-  static const amber = Color(0xFFF5A623);
-  static const amberInk = Color(0xFFB95A00);
-  static const amberSoft = Color(0xFFFEF1DE);
-  static const blueSoft = Color(0xFFE4EFFC);
-
-  static const cardRadius = 14.0;
-  static const tileRadius = 16.0;
-
-  static const shadow = [
-    BoxShadow(color: Color(0x0D123A6B), blurRadius: 14, offset: Offset(0, 4)),
-  ];
 }
 
 /// White, softly shadowed, rounded surface — every section row on Home.
@@ -330,7 +306,7 @@ class _HomeBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _KpiGrid(overview: dashboard.overview),
+        _KpiGrid(overview: dashboard.overview, todayPeriods: data.schedule.length),
         const SizedBox(height: 24),
         const _SectionHeader(title: 'Quick Actions'),
         const _QuickActionsGrid(),
@@ -409,9 +385,12 @@ class _SectionHeader extends StatelessWidget {
 /// The four metrics, two across, each on its own pastel ground and each
 /// opening the screen it counts.
 class _KpiGrid extends StatelessWidget {
-  const _KpiGrid({required this.overview});
+  const _KpiGrid({required this.overview, required this.todayPeriods});
 
   final TeacherOverview overview;
+
+  /// Periods on today's timetable — none on a day the school does not teach.
+  final int todayPeriods;
 
   @override
   Widget build(BuildContext context) {
@@ -441,12 +420,12 @@ class _KpiGrid extends StatelessWidget {
         screen: const HomeworkScreen() as Widget,
       ),
       (
-        label: 'Assigned Classes',
-        value: overview.assignedClasses,
+        label: "Today's Classes",
+        value: todayPeriods,
         icon: Icons.co_present_rounded,
         ground: const Color(0xFFE9F7EC),
         accent: const Color(0xFF56C078),
-        screen: const MyStudentsScreen() as Widget,
+        screen: const TodaysClassesScreen() as Widget,
       ),
     ];
 

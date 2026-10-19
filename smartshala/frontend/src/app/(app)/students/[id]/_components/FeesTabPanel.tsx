@@ -76,7 +76,7 @@ export default function FeesTabPanel({ student }: FeesTabPanelProps) {
     setError("");
     try {
       const result = await feesApi.sendReceiptWhatsApp(receiptId);
-      setNotice(`Receipt ${result.receiptNo} sent on WhatsApp to ${result.parentPhone}`);
+      setNotice(`Receipt ${result.receiptNo} queued on WhatsApp to ${result.parentPhone}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send receipt on WhatsApp");
     } finally {

@@ -171,3 +171,60 @@ class CalendarEventDraft {
         'endTime': startTime == null ? null : _time(endTime),
       };
 }
+
+/// One stamp on the teacher's own day: when they punched in, each break they
+/// took, and when they punched out.
+enum DayStampKind { punchIn, onBreak, punchOut }
+
+class DayStamp {
+  const DayStamp({required this.kind, required this.at, this.until});
+
+  final DayStampKind kind;
+  final DateTime at;
+
+  /// When a break ended. Null on the two punches, and on a break the teacher
+  /// never came back from before the school's last shift ended.
+  final DateTime? until;
+}
+
+/// The teacher's own attendance on one day, as the calendar lists it under
+/// "Your activity". Built from one record of GET /staff-attendance/me/history,
+/// whose breaks the server has already worked out from the day's sessions.
+class DayActivity {
+  const DayActivity({required this.date, required this.stamps});
+
+  /// Local midnight of the day these stamps belong to.
+  final DateTime date;
+
+  /// In the order they happened.
+  final List<DayStamp> stamps;
+
+  factory DayActivity.fromJson(Map<String, dynamic> json) {
+    final stamps = <DayStamp>[];
+
+    void add(DayStampKind kind, Object? at, {Object? until}) {
+      final moment = _parseMoment(at);
+      if (moment != null) {
+        stamps.add(DayStamp(kind: kind, at: moment, until: _parseMoment(until)));
+      }
+    }
+
+    add(DayStampKind.punchIn, json['punchInAt']);
+    for (final entry in (json['breaks'] as List?) ?? const []) {
+      final gap = (entry as Map).cast<String, dynamic>();
+      // Ending a break and punching straight back in leaves a gap of no
+      // length. The server still counts it as a break; a row saying
+      // "2:03 PM – 2:03 PM" only gets in the way of reading the day.
+      if (gap['endAt'] != null && ((gap['minutes'] as num?) ?? 0) < 1) continue;
+      add(DayStampKind.onBreak, gap['startAt'], until: gap['endAt']);
+    }
+    add(DayStampKind.punchOut, json['punchOutAt']);
+    stamps.sort((first, second) => first.at.compareTo(second.at));
+
+    return DayActivity(date: _parseDay(json['date']), stamps: stamps);
+  }
+}
+
+/// A timestamp, in this phone's zone. Null for anything that is not one.
+DateTime? _parseMoment(Object? value) =>
+    value is String ? DateTime.tryParse(value)?.toLocal() : null;

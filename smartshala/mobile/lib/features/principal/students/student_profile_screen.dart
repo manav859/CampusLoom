@@ -408,8 +408,7 @@ class _AttendanceTab extends StatelessWidget {
         _AttendanceTiles(metrics: metrics),
         const SizedBox(height: 16),
         InfoSection(title: 'Details', lines: [
-          ('Late', '${metrics.late}'),
-          ('Half days', '${metrics.halfDays}'),
+          ('On leave', '${metrics.leaves}'),
           if (metrics.remainingBefore75 != null)
             ('Before 75%', '${metrics.remainingBefore75} more absences allowed'),
         ]),

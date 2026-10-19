@@ -16,6 +16,20 @@ class _FakeRepository extends Fake implements TeacherRepository {
   final String? holidayReason;
   bool? requestedClassTeacherOnly;
 
+  /// What the last save sent, as {studentId: status}.
+  Map<String, String>? submitted;
+
+  @override
+  Future<void> markAttendance({
+    required String classId,
+    required DateTime date,
+    required List<RosterStudent> students,
+  }) async {
+    submitted = {
+      for (final student in students) student.id: student.mark.apiValue,
+    };
+  }
+
   @override
   Future<List<ClassOption>> myClasses({bool classTeacherOnly = false}) async {
     requestedClassTeacherOnly = classTeacherOnly;
@@ -41,6 +55,7 @@ class _FakeRepository extends Fake implements TeacherRepository {
       'holidayReason': holidayReason,
       'students': [
         {'id': 's1', 'fullName': 'Aarav Mehta', 'rollNumber': 1, 'defaultStatus': 'PRESENT'},
+        {'id': 's2', 'fullName': 'Isha Rao', 'rollNumber': 2, 'defaultStatus': 'PRESENT'},
       ],
     });
   }
@@ -69,6 +84,19 @@ void main() {
     expect(repository.requestedClassTeacherOnly, isTrue);
     expect(find.text('Class not found'), findsNothing);
     expect(find.text('Aarav Mehta'), findsOneWidget);
+  });
+
+  testWidgets('a student can be marked on leave, and it is sent as LEAVE', (tester) async {
+    final repository = await _pump(tester);
+
+    // The second student's L segment; the first stays on the default Present.
+    await tester.tap(find.byKey(const Key('mark-s2-leave')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Save Attendance'));
+    await tester.pumpAndSettle();
+
+    expect(repository.submitted, {'s1': 'PRESENT', 's2': 'LEAVE'});
   });
 
   testWidgets('a Sunday says so instead of erroring', (tester) async {

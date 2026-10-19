@@ -22,7 +22,7 @@ type DashboardResponse = {
     attended?: number;
     attendancePercentage: number;
     className: string;
-    halfDay?: number;
+    leave?: number;
     marked: boolean;
     present?: number;
     totalStudents?: number;
@@ -417,7 +417,7 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         phone: student.parentPhone,
         message: `Dear Parent, fee balance of ${formatINR(item.balance, { compact: false })} for ${item.name} is pending. Please clear it at the earliest.`
       });
-      setNotice(`WhatsApp reminder sent to ${item.name}.`);
+      setNotice(`WhatsApp reminder queued for ${item.name}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send fee reminder");
     } finally {
@@ -585,8 +585,8 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
               data={(data?.attendance ?? []).map((a) => ({
                 absent: a.absent,
                 attended: a.attended,
-                halfDay: a.halfDay,
                 label: a.className,
+                leave: a.leave,
                 marked: a.marked,
                 present: a.present,
                 total: a.totalStudents,

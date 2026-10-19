@@ -200,7 +200,7 @@ class _AttendanceReportScreenState extends State<AttendanceReportScreen> {
                       Text(
                         [
                           row.classTeacherName ?? 'No class teacher',
-                          if (row.marked) '${row.present + row.late} present · ${row.absent} absent of ${row.total}',
+                          if (row.marked) '${row.present} present · ${row.absent} absent of ${row.total}',
                         ].join(' · '),
                         style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                       ),

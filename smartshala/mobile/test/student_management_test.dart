@@ -90,7 +90,7 @@ Map<String, dynamic> _detailJson({required bool allowFees}) => {
       'examAverage': 81,
       'performanceRate': 84,
       'attendanceAnalytics': {
-        'metrics': {'attendancePercentage': 92, 'totalDays': 50, 'absences': 4, 'late': 1, 'halfDays': 0, 'remainingBefore75': 8, 'classAverageAttendance': 88},
+        'metrics': {'attendancePercentage': 92, 'totalDays': 50, 'absences': 4, 'leaves': 1, 'remainingBefore75': 8, 'classAverageAttendance': 88},
       },
       'academicAnalytics': {
         'exams': [

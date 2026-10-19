@@ -103,8 +103,9 @@ type AttendanceRecord = { studentId: string; name: string; status: string };
 function statusLabel(status: string) {
   if (status === "PRESENT") return "Present";
   if (status === "ABSENT") return "Absent";
-  if (status === "HALF_DAY") return "Half day";
-  if (status === "LATE") return "Late";
+  if (status === "LEAVE") return "Leave";
+  // Logs from before attendance became three states still carry HALF_DAY and
+  // LATE; humanizeConstant spells them out well enough to read back.
   return humanizeConstant(status);
 }
 
@@ -136,12 +137,13 @@ function attendanceDetails(log: ActivityLog) {
   const hasNames = records.some((record) => record.name);
 
   const counts = records.reduce((acc, record) => {
-    if (record.status === "PRESENT") acc.present += 1;
+    // An old log's LATE and HALF_DAY read as present, which is where those
+    // records themselves were moved, so the totals still add up to the class.
+    if (record.status === "PRESENT" || record.status === "LATE" || record.status === "HALF_DAY") acc.present += 1;
     if (record.status === "ABSENT") acc.absent += 1;
-    if (record.status === "HALF_DAY") acc.halfDay += 1;
-    if (record.status === "LATE") acc.late += 1;
+    if (record.status === "LEAVE") acc.leave += 1;
     return acc;
-  }, { present: 0, absent: 0, halfDay: 0, late: 0 });
+  }, { present: 0, absent: 0, leave: 0 });
 
   return {
     className: typeof after.className === "string" ? after.className : "",
@@ -254,8 +256,7 @@ function diffLines(log: ActivityLog) {
     return [
       `Present: ${attendance.counts.present}`,
       `Absent: ${attendance.counts.absent}`,
-      `Half day: ${attendance.counts.halfDay}`,
-      `Late: ${attendance.counts.late}`
+      `Leave: ${attendance.counts.leave}`
     ];
   }
 

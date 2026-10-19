@@ -296,7 +296,7 @@ export default function AnalyticsPage() {
         phone: row.parentPhone,
         message: `Dear Parent, SmartShala has flagged ${row.studentName} for follow-up: ${row.explainers.join(", ")}. Please contact the school office.`
       });
-      setNotice(`WhatsApp message sent to ${row.studentName}'s parent.`);
+      setNotice(`WhatsApp message queued for ${row.studentName}'s parent.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send WhatsApp message");
     } finally {
@@ -317,7 +317,7 @@ export default function AnalyticsPage() {
         phone: row.parentPhone,
         message: `Dear Parent, SmartShala has flagged ${row.studentName} for follow-up: ${row.explainers.join(", ")}. Please contact the school office.`
       })));
-      setNotice(`Bulk WhatsApp sent to ${messageableRows.length} priority parents.`);
+      setNotice(`Bulk WhatsApp queued for ${messageableRows.length} priority parents.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send bulk WhatsApp messages");
     } finally {

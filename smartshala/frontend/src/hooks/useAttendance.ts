@@ -111,14 +111,15 @@ function classesFromDailyRows(rows: Awaited<ReturnType<typeof attendanceApi.dail
 
 function toMarkStatus(status: string): AttendanceMarkStatus {
   if (status === "ABSENT") return "ABSENT";
-  if (status === "LATE") return "LATE";
-  if (status === "HALF_DAY") return "HALF_DAY";
+  if (status === "LEAVE") return "LEAVE";
+  // LATE and HALF_DAY were folded into PRESENT when attendance became three
+  // states; a cached response from before that still carries them.
   return "PRESENT";
 }
 
 function attendanceValue(status: AttendanceMarkStatus) {
-  if (status === "ABSENT") return 0;
-  if (status === "HALF_DAY") return 0.5;
+  // Leave is an excused absence, so it attends nothing, exactly like absence.
+  if (status === "ABSENT" || status === "LEAVE") return 0;
   return 1;
 }
 
@@ -161,8 +162,7 @@ export function useAttendance() {
       total: students.length,
       present: students.filter((student) => student.status === "PRESENT").length,
       absent: students.filter((student) => student.status === "ABSENT").length,
-      late: students.filter((student) => student.status === "LATE").length,
-      halfDay: students.filter((student) => student.status === "HALF_DAY").length,
+      leave: students.filter((student) => student.status === "LEAVE").length,
       attended: students.reduce((sum, student) => sum + attendanceValue(student.status), 0)
     }),
     [students]
@@ -387,12 +387,10 @@ export function useAttendance() {
         if (student.id !== studentId) return student;
         const next =
           student.status === "PRESENT"
-            ? "LATE"
-            : student.status === "LATE"
-              ? "HALF_DAY"
-              : student.status === "HALF_DAY"
-                ? "ABSENT"
-                : "PRESENT";
+            ? "ABSENT"
+            : student.status === "ABSENT"
+              ? "LEAVE"
+              : "PRESENT";
         return { ...student, status: next };
       })
     );

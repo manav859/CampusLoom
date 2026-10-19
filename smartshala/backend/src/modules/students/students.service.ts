@@ -148,7 +148,7 @@ function emptyAttendanceAnalytics() {
   return {
     records: [],
     calendar: [],
-    metrics: { attendancePercentage: 0, totalDays: 0, absences: 0, late: 0, halfDays: 0, attended: 0, remainingBefore75: 0, classAverageAttendance: null },
+    metrics: { attendancePercentage: 0, totalDays: 0, absences: 0, leaves: 0, attended: 0, remainingBefore75: 0, classAverageAttendance: null },
     cbseWarning: false,
     repeatedWeekdayAbsences: []
   };
@@ -292,8 +292,7 @@ function attendanceAnalytics(records: AttendanceForSnapshot[], classAverageAtten
       attendancePercentage: summary.attendancePercentage,
       totalDays: summary.totalDays,
       absences: summary.absences,
-      late: summary.late,
-      halfDays: summary.halfDays,
+      leaves: summary.leaves,
       attended: summary.attended,
       remainingBefore75: summary.remainingBefore75,
       classAverageAttendance
@@ -978,7 +977,10 @@ export async function studentsNeedingFocus(user: Express.UserContext, query: { c
       const entry = attendance.get(group.studentId) ?? { present: 0, total: 0 };
       const count = group._count._all;
       entry.total += count;
-      if (group.status !== AttendanceStatus.ABSENT) entry.present += count;
+      // Leave sits with absence here: the student was not in class.
+      if (group.status !== AttendanceStatus.ABSENT && group.status !== AttendanceStatus.LEAVE) {
+        entry.present += count;
+      }
       attendance.set(group.studentId, entry);
     }
 

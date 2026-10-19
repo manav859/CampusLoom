@@ -10,7 +10,9 @@ class AppTheme {
     final base = ThemeData.light(useMaterial3: true);
 
     return base.copyWith(
-      scaffoldBackgroundColor: AppColors.background,
+      // The page is white, as on Home: cards are told apart from it by their
+      // shadow and hairline, not by a grey behind them.
+      scaffoldBackgroundColor: Home.page,
       // Dropdown menus paint on canvasColor, which base set from its own
       // lavender-white surface.
       canvasColor: AppColors.surface,
@@ -36,17 +38,24 @@ class AppTheme {
         onSurfaceVariant: AppColors.textSecondary,
         outlineVariant: AppColors.border,
       ),
+      // The title starts at the margin and is set in the same heavy ink as the
+      // brand row on Home, so a pushed screen reads as the same product. The
+      // hairline is all that separates a white bar from a white page once the
+      // content scrolls under it.
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.surface,
-        foregroundColor: AppColors.textPrimary,
+        foregroundColor: Home.ink,
         elevation: 0,
-        centerTitle: true,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
         surfaceTintColor: Colors.transparent,
+        shape: Border(bottom: BorderSide(color: Home.line)),
         titleTextStyle: TextStyle(
           fontFamily: fontFamily,
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: Home.ink,
+          letterSpacing: -0.2,
         ),
       ),
       // Web type scale: h1 24, h2 20, h3 16, body 14, caption 12.
@@ -100,8 +109,8 @@ class AppTheme {
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-        border: _inputBorder(AppColors.border),
-        enabledBorder: _inputBorder(AppColors.border),
+        border: _inputBorder(AppColors.inputBorder),
+        enabledBorder: _inputBorder(AppColors.inputBorder),
         focusedBorder: _inputBorder(AppColors.primary, width: 1.5),
         errorBorder: _inputBorder(AppColors.danger),
         focusedErrorBorder: _inputBorder(AppColors.danger, width: 1.5),

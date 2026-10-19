@@ -45,6 +45,7 @@ class TimetableSlot {
     this.endTime,
     this.subjectName,
     this.holderName,
+    this.classId,
     this.contestedBy = 0,
   });
 
@@ -56,6 +57,11 @@ class TimetableSlot {
   /// The teacher taking the period (principal app) or the class being taught
   /// (teacher app).
   final String? holderName;
+
+  /// The class being taught, when the payload names it — the teacher's week
+  /// does, a class's own week has no need to. It is what lets a period open
+  /// the screens that work on a class.
+  final String? classId;
 
   /// How many further teachers hold this same slot. Always 0 in the teacher
   /// app; in the principal app it flags a class booked twice over.
@@ -84,6 +90,7 @@ class TimetableSlot {
         endTime: json['endTime'] as String?,
         subjectName: json['subjectName'] as String?,
         holderName: json['className'] as String?,
+        classId: json['classId'] as String?,
       );
 }
 

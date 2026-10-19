@@ -65,7 +65,7 @@ class _DefaultersScreenState extends State<DefaultersScreen> {
     setState(() => _sendingId = row.studentId);
     try {
       await _repository.sendFeeReminder(row);
-      if (mounted) showFeeToast(context, 'WhatsApp reminder sent to ${row.name}.');
+      if (mounted) showFeeToast(context, 'WhatsApp reminder queued for ${row.name}.');
     } on ApiException catch (error) {
       if (mounted) showFeeToast(context, error.message, isError: true);
     } finally {

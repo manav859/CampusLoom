@@ -59,9 +59,13 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The page is white now, so the bar needs a shadow of its own to sit
+    // above it. A border would cut straight across the centre notch.
     return BottomAppBar(
       color: AppColors.surface,
-      elevation: 0,
+      elevation: 3,
+      shadowColor: const Color(0x14123A6B),
+      surfaceTintColor: Colors.transparent,
       height: 64,
       padding: EdgeInsets.zero,
       shape: const CircularNotchedRectangle(),

@@ -62,8 +62,9 @@ function percentage(numerator: number, denominator: number) {
 }
 
 function attendanceValue(status: AttendanceStatus) {
-  if (status === AttendanceStatus.ABSENT) return 0;
-  if (status === AttendanceStatus.HALF_DAY) return 0.5;
+  // Leave attends nothing, like an absence; the two are kept apart only in
+  // the counts a school reads, never in the arithmetic.
+  if (status === AttendanceStatus.ABSENT || status === AttendanceStatus.LEAVE) return 0;
   return 1;
 }
 
@@ -371,8 +372,7 @@ export async function getClassTodayAttendance(user: AttendanceUser, classId: str
         total: 0,
         present: 0,
         absent: 0,
-        late: 0,
-        halfDay: 0,
+        leave: 0,
         attended: 0
       }
     };
@@ -389,8 +389,7 @@ export async function getClassTodayAttendance(user: AttendanceUser, classId: str
 
   const present = attendance.filter((record) => record.status === AttendanceStatus.PRESENT).length;
   const absent = attendance.filter((record) => record.status === AttendanceStatus.ABSENT).length;
-  const late = attendance.filter((record) => record.status === AttendanceStatus.LATE).length;
-  const halfDay = attendance.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
+  const leave = attendance.filter((record) => record.status === AttendanceStatus.LEAVE).length;
   const attended = session.records.reduce((sum, record) => sum + Number(record.attendanceValue), 0);
 
   return {
@@ -402,8 +401,7 @@ export async function getClassTodayAttendance(user: AttendanceUser, classId: str
       total: attendance.length,
       present,
       absent,
-      late,
-      halfDay,
+      leave,
       attended
     }
   };
@@ -446,8 +444,7 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
   const schoolDayRecords = records.filter((record) => record.session.date.getDay() !== 0);
   const present = schoolDayRecords.filter((record) => record.status === AttendanceStatus.PRESENT).length;
   const absent = schoolDayRecords.filter((record) => record.status === AttendanceStatus.ABSENT).length;
-  const late = schoolDayRecords.filter((record) => record.status === AttendanceStatus.LATE).length;
-  const halfDay = schoolDayRecords.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
+  const leave = schoolDayRecords.filter((record) => record.status === AttendanceStatus.LEAVE).length;
   const attended = schoolDayRecords.reduce((sum, record) => sum + Number(record.attendanceValue), 0);
 
   return {
@@ -457,8 +454,7 @@ export async function getStudentMonthlyAttendance(user: AttendanceUser, studentI
       totalDays: schoolDayRecords.length,
       present,
       absent,
-      late,
-      halfDay,
+      leave,
       attended,
       percentage: percentage(attended, schoolDayRecords.length)
     },
@@ -496,11 +492,10 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
 
   const holidaysMap = new Map(holidays.map(h => [formatDate(h.date), h]));
 
-  const days: { date: string; marked: boolean; total: number; present: number; late: number; halfDay: number; absent: number; attended: number; percentage: number; isHoliday?: boolean; holidayReason?: string }[] = sessions.map((session) => {
+  const days: { date: string; marked: boolean; total: number; present: number; absent: number; leave: number; attended: number; percentage: number; isHoliday?: boolean; holidayReason?: string }[] = sessions.map((session) => {
     const present = session.records.filter((record) => record.status === AttendanceStatus.PRESENT).length;
-    const late = session.records.filter((record) => record.status === AttendanceStatus.LATE).length;
-    const halfDay = session.records.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
     const absent = session.records.filter((record) => record.status === AttendanceStatus.ABSENT).length;
+    const leave = session.records.filter((record) => record.status === AttendanceStatus.LEAVE).length;
     const attended = session.records.reduce((sum, record) => sum + attendanceValue(record.status), 0);
     const total = session.records.length || students;
     const formattedDate = formatDate(session.date);
@@ -512,9 +507,8 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
       marked: true,
       total,
       present,
-      late,
-      halfDay,
       absent,
+      leave,
       attended,
       percentage: percentage(attended, total),
       isHoliday: isSunday || Boolean(holiday),
@@ -531,9 +525,8 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
         marked: false,
         total: 0,
         present: 0,
-        late: 0,
-        halfDay: 0,
         absent: 0,
+        leave: 0,
         attended: 0,
         percentage: 0,
         isHoliday: true,
@@ -551,9 +544,8 @@ export async function getClassMonthlyAttendance(user: AttendanceUser, classId: s
         marked: false,
         total: 0,
         present: 0,
-        late: 0,
-        halfDay: 0,
         absent: 0,
+        leave: 0,
         attended: 0,
         percentage: 0,
         isHoliday: true,
@@ -622,11 +614,13 @@ export async function getAttendanceDashboard(user: AttendanceUser, dateFrom = ne
   });
 
   const statusCounts = new Map(groupedRecords.map((item) => [item.status, item._count._all]));
-  const present = (statusCounts.get(AttendanceStatus.PRESENT) ?? 0) + (statusCounts.get(AttendanceStatus.LATE) ?? 0);
-  const halfDay = statusCounts.get(AttendanceStatus.HALF_DAY) ?? 0;
-  const attended = present + (halfDay * 0.5);
+  const present = statusCounts.get(AttendanceStatus.PRESENT) ?? 0;
+  const attended = present;
   const absent = statusCounts.get(AttendanceStatus.ABSENT) ?? 0;
-  const totalMarkedStudents = present + absent + halfDay;
+  const leave = statusCounts.get(AttendanceStatus.LEAVE) ?? 0;
+  // Leave is a day the school was open and the student was not there, so it
+  // belongs in the denominator with the absences.
+  const totalMarkedStudents = present + absent + leave;
 
   return {
     totalClasses: classes.length,
@@ -636,7 +630,7 @@ export async function getAttendanceDashboard(user: AttendanceUser, dateFrom = ne
     students: {
       present,
       absent,
-      halfDay,
+      leave,
       attended
     },
     alerts: classes
@@ -702,11 +696,11 @@ export async function dailyReport(user: Express.UserContext, date = new Date()) 
   return classes.map((classRecord) => {
     const sessionId = sessionByClass.get(classRecord.id);
     const counts = sessionId ? countsBySession.get(sessionId) : undefined;
-    const present = (counts?.get(AttendanceStatus.PRESENT) ?? 0) + (counts?.get(AttendanceStatus.LATE) ?? 0);
-    const halfDay = counts?.get(AttendanceStatus.HALF_DAY) ?? 0;
+    const present = counts?.get(AttendanceStatus.PRESENT) ?? 0;
     const absent = counts?.get(AttendanceStatus.ABSENT) ?? 0;
-    const totalMarked = present + halfDay + absent;
-    const attended = present + (halfDay * 0.5);
+    const leave = counts?.get(AttendanceStatus.LEAVE) ?? 0;
+    const totalMarked = present + absent + leave;
+    const attended = present;
     const total = totalMarked || classRecord._count.students;
 
     return {
@@ -715,9 +709,9 @@ export async function dailyReport(user: Express.UserContext, date = new Date()) 
       totalStudents: classRecord._count.students,
       marked: Boolean(sessionId),
       present,
-      halfDay,
       attended,
       absent,
+      leave,
       attendancePercentage: total ? Math.round((attended / total) * 100) : 0
     };
   });
@@ -744,19 +738,19 @@ export async function monthlyStudentReport(user: Express.UserContext, studentId:
     orderBy: { session: { date: "asc" } }
   });
   const schoolDayRecords = records.filter((record) => record.session.date.getDay() !== 0);
-  const present = schoolDayRecords.filter((record) => record.status === AttendanceStatus.PRESENT || record.status === AttendanceStatus.LATE).length;
-  const halfDay = schoolDayRecords.filter((record) => record.status === AttendanceStatus.HALF_DAY).length;
+  const present = schoolDayRecords.filter((record) => record.status === AttendanceStatus.PRESENT).length;
   const attended = schoolDayRecords.reduce((sum, record) => sum + attendanceValue(record.status), 0);
   const absent = schoolDayRecords.filter((record) => record.status === AttendanceStatus.ABSENT).length;
+  const leave = schoolDayRecords.filter((record) => record.status === AttendanceStatus.LEAVE).length;
 
   return {
     student,
     month,
     totalMarkedDays: schoolDayRecords.length,
     present,
-    halfDay,
     attended,
     absent,
+    leave,
     percentage: schoolDayRecords.length ? Math.round((attended / schoolDayRecords.length) * 100) : 0,
     records: schoolDayRecords
   };

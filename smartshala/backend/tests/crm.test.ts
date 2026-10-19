@@ -18,6 +18,7 @@ import {
   createStage,
   createTeamMember,
   createWebsiteLead,
+  deleteLead,
   deleteStage,
   getLead,
   issueProforma,
@@ -324,6 +325,34 @@ async function main() {
   assert.equal(enquiryLead.assignedToId, null);
   const timeline = await getLead(ADMIN, enquiryLead.id);
   assert.ok(timeline.activities.some((activity) => activity.type === "ENQUIRY"));
+
+  // --- Deleting a deal --------------------------------------------------------------
+  // The onboarded deal owns a school, an invoice and two payments: it stays.
+  await rejects(deleteLead(ADMIN, created.id), "LEAD_PAID");
+
+  // A deal that only ever had a proforma goes, and takes its proforma and
+  // timeline with it.
+  assert.equal(await masterPrisma.proforma.count({ where: { leadId: lost.id } }), 1);
+  await deleteLead(ADMIN, lost.id);
+  await rejects(getLead(ADMIN, lost.id), "LEAD_NOT_FOUND");
+  assert.equal(await masterPrisma.proforma.count({ where: { leadId: lost.id } }), 0, "its proforma goes with it");
+  assert.equal(await masterPrisma.leadActivity.count({ where: { leadId: lost.id } }), 0, "and so does its timeline");
+
+  // A part payment leaves the deal in Proforma sent, so the stage check above
+  // would let it through — the captured payment is what stops it.
+  const part = await createLead(ADMIN, {
+    schoolName: "Part Payment Academy",
+    ownerName: "Sunil Rao",
+    email: `part${EMAIL_DOMAIN}`,
+    phone: "9000099999"
+  });
+  const partProforma = await issueProforma(ADMIN, part.id, { planCode: PLAN_CODE });
+  await masterPrisma.payment.create({ data: { proformaId: partProforma.id, amountMinor: 100000, status: "CAPTURED" } });
+  await rejects(deleteLead(ADMIN, part.id), "LEAD_HAS_PAYMENT");
+
+  // A salesperson cannot delete a deal that is not theirs — the route keeps
+  // them off the endpoint, and the service cannot even see it.
+  await rejects(deleteLead(asMeena, enquiryLead.id), "LEAD_NOT_FOUND");
 
   await cleanup();
   console.log("crm.test.ts: all assertions passed");

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// White, hairline-bordered, 8dp-radius surface (the web's --radius-lg) — the one card shape used
-/// everywhere in the blueprint.
+/// White, hairline-bordered, softly shadowed, 14dp-radius surface — the one
+/// card shape used everywhere, and the same one the Home screens are built
+/// from. The shadow is what separates it from the white page behind it.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
@@ -23,18 +24,21 @@ class AppCard extends StatelessWidget {
     final content = Padding(padding: padding ?? const EdgeInsets.all(16), child: child);
     final radius = BorderRadius.circular(borderRadius);
 
-    return Material(
-      color: AppColors.surface,
-      borderRadius: radius,
-      child: InkWell(
-        onTap: onTap,
+    return DecoratedBox(
+      decoration: BoxDecoration(borderRadius: radius, boxShadow: Home.shadow),
+      child: Material(
+        color: AppColors.surface,
         borderRadius: radius,
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            border: Border.all(color: AppColors.border),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: content,
           ),
-          child: content,
         ),
       ),
     );
@@ -57,9 +61,9 @@ class SectionHeader extends StatelessWidget {
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: Home.ink,
               ),
             ),
           ),
@@ -109,7 +113,7 @@ class StatTile extends StatelessWidget {
               height: 34,
               decoration: BoxDecoration(
                 color: tint ?? color.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, size: 19, color: color),
             ),
@@ -191,7 +195,7 @@ class QuickActionTile extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
+              shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 22, color: color),
           ),
@@ -249,7 +253,7 @@ class ListRowCard extends StatelessWidget {
             height: 40,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
+              shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 21, color: color),
           ),

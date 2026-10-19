@@ -1,4 +1,4 @@
-export type StudentAttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
+export type StudentAttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 
 export type StudentAttendanceRecord = {
   status: StudentAttendanceStatus;
@@ -10,8 +10,7 @@ export type StudentAttendanceSummary = {
   attendancePercentage: number;
   totalDays: number;
   absences: number;
-  late: number;
-  halfDays: number;
+  leaves: number;
   attended: number;
   remainingBefore75: number;
   lastAbsentDate: Date | null;
@@ -21,12 +20,12 @@ export function calculateStudentAttendanceSummary(records: StudentAttendanceReco
   const schoolDayRecords = records.filter((record) => record.session.date.getDay() !== 0);
   const totalDays = schoolDayRecords.length;
   const absences = schoolDayRecords.filter((record) => record.status === "ABSENT").length;
-  const late = schoolDayRecords.filter((record) => record.status === "LATE").length;
-  const halfDays = schoolDayRecords.filter((record) => record.status === "HALF_DAY").length;
+  const leaves = schoolDayRecords.filter((record) => record.status === "LEAVE").length;
   const attended = schoolDayRecords.reduce((sum, record) => {
     if (record.attendanceValue !== undefined && record.attendanceValue !== null) return sum + Number(record.attendanceValue);
-    if (record.status === "ABSENT") return sum;
-    if (record.status === "HALF_DAY") return sum + 0.5;
+    // Leave is an excused absence, so it attends nothing. It still counts as
+    // a school day below, exactly as an absence does.
+    if (record.status === "ABSENT" || record.status === "LEAVE") return sum;
     return sum + 1;
   }, 0);
   const attendancePercentage = totalDays ? Math.round((attended / totalDays) * 100) : 0;
@@ -40,8 +39,7 @@ export function calculateStudentAttendanceSummary(records: StudentAttendanceReco
     attendancePercentage,
     totalDays,
     absences,
-    late,
-    halfDays,
+    leaves,
     attended,
     remainingBefore75,
     lastAbsentDate

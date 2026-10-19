@@ -247,6 +247,18 @@ class TeacherRepository {
         .toList();
   }
 
+  /// The teacher's own punches for every day of [month] they worked — what
+  /// the calendar lists under "Your activity".
+  Future<List<DayActivity>> attendanceMonth(DateTime month) async {
+    final data = await api.get(
+      '/staff-attendance/me/history',
+      query: {'month': DateFormat('yyyy-MM').format(month)},
+    ) as Map<String, dynamic>;
+    return ((data['records'] as List?) ?? const [])
+        .map((item) => DayActivity.fromJson((item as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
   Future<List<TeachingClass>> _teachingClasses(String path) async {
     final data = await api.get(path) as Map<String, dynamic>;
     return ((data['classes'] as List?) ?? const [])

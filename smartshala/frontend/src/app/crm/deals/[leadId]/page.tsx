@@ -2,7 +2,8 @@
 
 import { use, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Btn, ErrorBanner, Field, FormModal, Input, Select, TextArea, cx } from "../../../super-admin/_components/ui";
+import { useRouter } from "next/navigation";
+import { Btn, ConfirmModal, ErrorBanner, Field, FormModal, Input, Select, TextArea, cx } from "../../../super-admin/_components/ui";
 import { useAction } from "../../../super-admin/_lib/action";
 import { fmtDate, fmtDateTime } from "../../../super-admin/_lib/format";
 import { crmFetch } from "../../crmFetch";
@@ -20,11 +21,14 @@ const SETUP_POLL_MS = 4000;
 
 export default function DealPage({ params }: { params: Promise<{ leadId: string }> }) {
   const { leadId } = use(params);
+  const router = useRouter();
+  const isAdmin = useCrmUser().role === "ADMIN";
   const key = `/leads/${leadId}`;
   const lead = useResource<LeadDetail>(key);
   const [editing, setEditing] = useState(false);
   const [losing, setLosing] = useState(false);
   const [noting, setNoting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const { run, isPending } = useAction();
   const data = lead.data;
 
@@ -63,8 +67,23 @@ export default function DealPage({ params }: { params: Promise<{ leadId: string 
   const canWork = data.stage !== "PAID" && data.stage !== "ONBOARDED";
   const actions = [
     ...(data.stage !== "ONBOARDED" ? [{ label: "Edit details", onClick: () => setEditing(true) }] : []),
-    ...(canWork && data.stage !== "LOST" ? [{ label: "Mark as missed sale", onClick: () => setLosing(true), danger: true }] : [])
+    ...(canWork && data.stage !== "LOST" ? [{ label: "Mark as missed sale", onClick: () => setLosing(true), danger: true }] : []),
+    // Only a sales admin, and never a deal that has paid: the server refuses that too.
+    ...(isAdmin && canWork ? [{ label: "Delete deal", onClick: () => setDeleting(true), danger: true }] : [])
   ];
+
+  const remove = async () => {
+    const gone = await run(
+      "delete",
+      async () => {
+        await crmFetch(key, { method: "DELETE" });
+        invalidate("/leads");
+        return true;
+      },
+      `${data.code} (${data.schoolName}) deleted.`
+    );
+    if (gone) router.push("/crm");
+  };
 
   return (
     <>
@@ -125,6 +144,16 @@ export default function DealPage({ params }: { params: Promise<{ leadId: string 
         />
       ) : null}
       {noting ? <NoteModal leadId={data.id} onClose={() => setNoting(false)} /> : null}
+      <ConfirmModal
+        busy={isPending("delete")}
+        confirmLabel="Delete deal"
+        danger
+        message={`${data.code} (${data.schoolName}), its notes and its proformas are removed for good. Nothing about this deal is kept.`}
+        onClose={() => setDeleting(false)}
+        onConfirm={remove}
+        open={deleting}
+        title="Delete this deal?"
+      />
     </>
   );
 }

@@ -82,7 +82,8 @@ async function principalDashboard(user: Express.UserContext) {
 
   const markedClasses = attendance.filter((item) => item.marked).length;
   const totalPresent = attendance.reduce((sum, item) => sum + item.present, 0);
-  const totalMarked = attendance.reduce((sum, item) => sum + item.present + item.absent, 0);
+  // Leave joins the denominator with absence, as it does everywhere else.
+  const totalMarked = attendance.reduce((sum, item) => sum + item.present + item.absent + item.leave, 0);
   const alertCount = risks.lowAttendanceCount + risks.repeatAbsenteeCount + risks.severityCounts.HIGH;
 
   const behaviourAlerts = behaviourActions.map((record) => ({

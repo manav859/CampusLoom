@@ -95,11 +95,10 @@ export default function AttendanceReportsPage() {
 
   const totals = useMemo(
     () => ({
-      total: data ? data.students.present + data.students.absent + (data.students.halfDay ?? 0) : 0,
+      total: data ? data.students.present + data.students.absent + (data.students.leave ?? 0) : 0,
       present: data?.students.present ?? 0,
       absent: data?.students.absent ?? 0,
-      late: 0,
-      halfDay: data?.students.halfDay ?? 0,
+      leave: data?.students.leave ?? 0,
       attended: data?.students.attended
     }),
     [data]
@@ -126,19 +125,18 @@ export default function AttendanceReportsPage() {
 
   function reportRows() {
     return [
-      [schoolProfile?.name ?? "School", "", "", "", "", "", "", "", ""],
-      [schoolMeta, "", "", "", "", "", "", "", ""],
-      [`Report range: ${rangeLabel}`, "", "", "", "", "", "", "", ""],
-      ["Class", "Teacher", "Marked", "Total", "Present", "Late", "Half day", "Absent", "Rate"],
+      [schoolProfile?.name ?? "School", "", "", "", "", "", "", ""],
+      [schoolMeta, "", "", "", "", "", "", ""],
+      [`Report range: ${rangeLabel}`, "", "", "", "", "", "", ""],
+      ["Class", "Teacher", "Marked", "Total", "Present", "Absent", "Leave", "Rate"],
       ...classRows.map((row) => [
         row.className,
         row.classTeacherName ?? "",
         row.marked ? "Yes" : "No",
         row.total,
         row.present,
-        row.late,
-        row.halfDay,
         row.absent,
+        row.leave,
         row.marked ? `${row.percentage}%` : "Pending"
       ])
     ];
@@ -285,8 +283,7 @@ export default function AttendanceReportsPage() {
         total={totals.total}
         present={totals.present}
         absent={totals.absent}
-        late={totals.late}
-        halfDay={totals.halfDay}
+        leave={totals.leave}
         attended={totals.attended}
       />
 
@@ -306,8 +303,8 @@ export default function AttendanceReportsPage() {
                   <th className="px-5 py-3.5 font-semibold">Teacher</th>
                   <th className="px-5 py-3.5 font-semibold">Total</th>
                   <th className="px-5 py-3.5 font-semibold">Present</th>
-                  <th className="px-5 py-3.5 font-semibold">Half Day</th>
                   <th className="px-5 py-3.5 font-semibold">Absent</th>
+                  <th className="px-5 py-3.5 font-semibold">Leave</th>
                   <th className="px-5 py-3.5 font-semibold">Rate</th>
                 </tr>
               </thead>
@@ -325,8 +322,8 @@ export default function AttendanceReportsPage() {
                       <td className="px-5 py-4 text-[#6e6e73]">{row.classTeacherName ?? "-"}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{row.total}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? <StatusPill label="Pending" tone="warn" /> : row.present}</td>
-                      <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "-" : row.halfDay}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "-" : row.absent}</td>
+                      <td className="px-5 py-4 text-[#6e6e73]">{pendingClassIds.has(row.classId) ? "-" : row.leave}</td>
                       <td className="px-5 py-4 text-[#6e6e73]">
                         {pendingClassIds.has(row.classId) ? <StatusPill label="Pending" tone="warn" /> : `${row.percentage}%`}
                       </td>

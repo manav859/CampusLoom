@@ -707,11 +707,14 @@ enum Gender {
   OTHER
 }
 
+/// A school day is one of three things for a student: they came, they did not,
+/// or they were excused. LEAVE is that excused absence — it counts nothing
+/// towards attendance, exactly like ABSENT, and is kept apart only so a school
+/// can tell "told us" from "did not turn up".
 enum AttendanceStatus {
   PRESENT
   ABSENT
-  LATE
-  HALF_DAY
+  LEAVE
 }
 
 enum FeeFrequency {

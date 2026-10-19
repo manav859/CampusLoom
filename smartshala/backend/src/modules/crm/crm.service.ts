@@ -512,6 +512,28 @@ export async function updateLead(
   return getLead(actor, leadId);
 }
 
+/**
+ * Drops a deal for good, with its timeline and its proformas (both cascade).
+ * Admins only — the route guards that — and never once money has arrived: a
+ * paid deal owns the invoice and payments of a school, and an onboarded one has
+ * a live database behind it. Those go to Missed Sales instead.
+ */
+export async function deleteLead(actor: CrmActor, leadId: string) {
+  const lead = await leadForActor(actor, leadId);
+  if (lead.stage === LeadStage.PAID || lead.stage === LeadStage.ONBOARDED || lead.schoolId) {
+    throw new AppError(409, "This deal has paid — mark it as a missed sale instead of deleting it", "LEAD_PAID");
+  }
+  // A part payment leaves the deal in Proforma sent, so the stage above does not
+  // catch it. Deleting it would strand a captured payment with nothing to explain it.
+  const captured = await masterPrisma.payment.count({
+    where: { proforma: { leadId: lead.id }, status: PaymentState.CAPTURED }
+  });
+  if (captured) {
+    throw new AppError(409, "A payment was received against this deal, so it cannot be deleted", "LEAD_HAS_PAYMENT");
+  }
+  await masterPrisma.lead.delete({ where: { id: lead.id } });
+}
+
 export async function addNote(actor: CrmActor, leadId: string, text: string) {
   const lead = await leadForActor(actor, leadId);
   await addActivity(lead.id, "NOTE", text.trim(), actor.name);

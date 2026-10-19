@@ -22,8 +22,8 @@ export function attendanceSummary(records: StudentDetail["attendanceRecords"]): 
   const total = records.length;
   const attended = records.reduce((sum, record) => {
     if (record.attendanceValue !== undefined && record.attendanceValue !== null) return sum + Number(record.attendanceValue);
-    if (record.status === "ABSENT") return sum;
-    if (record.status === "HALF_DAY") return sum + 0.5;
+    // Leave attends nothing, like an absence.
+    if (record.status === "ABSENT" || record.status === "LEAVE") return sum;
     return sum + 1;
   }, 0);
   const absent = records.filter((record) => record.status === "ABSENT").length;

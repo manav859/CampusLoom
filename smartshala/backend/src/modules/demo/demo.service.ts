@@ -150,8 +150,7 @@ function daysAgo(days: number) {
 }
 
 function attendanceValue(status: AttendanceStatus) {
-  if (status === AttendanceStatus.ABSENT) return new Prisma.Decimal(0);
-  if (status === AttendanceStatus.HALF_DAY) return new Prisma.Decimal(0.5);
+  if (status === AttendanceStatus.ABSENT || status === AttendanceStatus.LEAVE) return new Prisma.Decimal(0);
   return new Prisma.Decimal(1);
 }
 
@@ -480,10 +479,8 @@ export async function resetAndSeedDemoData(user: Express.UserContext, body: unkn
           pattern === 0
             ? AttendanceStatus.ABSENT
             : pattern === 1
-              ? AttendanceStatus.HALF_DAY
-              : pattern <= 3
-                ? AttendanceStatus.LATE
-                : AttendanceStatus.PRESENT;
+              ? AttendanceStatus.LEAVE
+              : AttendanceStatus.PRESENT;
         attendanceRecords.push({
           schoolId: user.schoolId,
           sessionId,

@@ -6,7 +6,6 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_cards.dart';
-import '../../core/widgets/placeholder_screen.dart';
 import '../../core/widgets/state_views.dart';
 import '../auth/change_password_screen.dart';
 import 'announcements/create_announcement_screen.dart';
@@ -44,25 +43,25 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
       title: 'School Management',
       entries: [
         _MoreEntry('Student Management', 'Search, add and manage students',
-            Icons.school_rounded, AppColors.primary, 'Phase 5',
+            Icons.school_rounded, AppColors.primary,
             screen: StudentManagementScreen.new),
         _MoreEntry('School Profile', 'View and manage school information',
-            Icons.apartment_rounded, AppColors.primary, 'Phase 5',
+            Icons.apartment_rounded, AppColors.primary,
             screen: SchoolProfileScreen.new),
         _MoreEntry('Teacher Management', 'Manage teachers and their details',
-            Icons.badge_rounded, AppColors.success, 'Phase 5',
+            Icons.badge_rounded, AppColors.success,
             screen: TeacherManagementScreen.new),
         _MoreEntry('Classes & Sections', 'Manage classes and sections',
-            Icons.grid_view_rounded, AppColors.teal, 'Phase 5',
+            Icons.grid_view_rounded, AppColors.teal,
             screen: ClassesScreen.new),
         _MoreEntry('Subjects', 'Manage subjects and curriculum',
-            Icons.menu_book_rounded, AppColors.purple, 'Phase 5',
+            Icons.menu_book_rounded, AppColors.purple,
             screen: SubjectsScreen.new),
         _MoreEntry('Timetable', 'View the weekly timetable for each class',
-            Icons.schedule_rounded, AppColors.warning, 'Phase 7',
+            Icons.schedule_rounded, AppColors.warning,
             screen: TimetableScreen.new),
         _MoreEntry('Transport', 'Manage routes, vehicles and drivers',
-            Icons.directions_bus_rounded, AppColors.danger, 'Phase 7',
+            Icons.directions_bus_rounded, AppColors.danger,
             screen: TransportScreen.new, hidden: !kTransportEnabled),
       ],
     ),
@@ -70,17 +69,17 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
       title: 'Academics',
       entries: [
         _MoreEntry('Exams', 'Manage exams, schedules and results',
-            Icons.assignment_rounded, AppColors.primary, 'Phase 6',
+            Icons.assignment_rounded, AppColors.primary,
             screen: ExamsScreen.new),
         _MoreEntry('Reports', 'View detailed reports',
-            Icons.insights_rounded, AppColors.purple, 'Phase 6',
+            Icons.insights_rounded, AppColors.purple,
             screen: ReportsScreen.new),
         // The web Analytics page is the student risk summary this screen reads.
         _MoreEntry('Analytics', 'Students whose attendance needs attention',
-            Icons.query_stats_rounded, AppColors.danger, 'Phase 6',
+            Icons.query_stats_rounded, AppColors.danger,
             screen: StudentReportScreen.new),
         _MoreEntry('Academic Calendar', 'View events, holidays and dates',
-            Icons.calendar_month_rounded, AppColors.teal, 'Phase 6',
+            Icons.calendar_month_rounded, AppColors.teal,
             screen: AcademicCalendarScreen.new),
       ],
     ),
@@ -88,13 +87,13 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
       title: 'Finance',
       entries: [
         _MoreEntry('Fee Management', 'Track fee collection and pending fees',
-            Icons.currency_rupee_rounded, AppColors.success, 'Phase 5',
+            Icons.currency_rupee_rounded, AppColors.success,
             screen: FeeManagementScreen.new),
         _MoreEntry('Fee Reports', 'View fee collection reports',
-            Icons.account_balance_wallet_rounded, AppColors.teal, 'Phase 5',
+            Icons.account_balance_wallet_rounded, AppColors.teal,
             screen: DefaultersScreen.new),
         _MoreEntry('Payroll', 'Shifts, salaries and pay slips from attendance',
-            Icons.badge_outlined, AppColors.primary, 'Phase 9',
+            Icons.badge_outlined, AppColors.primary,
             screen: PayrollScreen.new, hidden: !kPayrollEnabled),
       ],
     ),
@@ -102,16 +101,14 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
       title: 'Communication',
       entries: [
         _MoreEntry('Announcements', 'Send announcements to staff and parents',
-            Icons.campaign_rounded, AppColors.primary, 'Phase 4',
+            Icons.campaign_rounded, AppColors.primary,
             screen: CreateAnnouncementScreen.new),
         _MoreEntry('Messages', 'Communicate with staff and parents',
-            Icons.forum_rounded, AppColors.purple, 'Phase 4',
+            Icons.forum_rounded, AppColors.purple,
             screen: PrincipalMessagesScreen.new),
         _MoreEntry('Leave Approval', 'Review and approve leave requests',
-            Icons.event_available_rounded, AppColors.warning, 'Phase 4',
+            Icons.event_available_rounded, AppColors.warning,
             screen: LeaveApprovalScreen.new),
-        _MoreEntry('Notifications', 'View all school notifications',
-            Icons.notifications_active_rounded, AppColors.danger, 'Phase 8'),
       ],
     ),
   ];
@@ -179,13 +176,7 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
                 color: entry.color,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) =>
-                        entry.screen?.call() ??
-                        PlaceholderScreen(
-                          title: entry.title,
-                          icon: entry.icon,
-                          phase: entry.phase,
-                        ),
+                    builder: (_) => entry.screen(),
                   ),
                 ),
               ),
@@ -221,17 +212,13 @@ class _MoreGroup {
 }
 
 class _MoreEntry {
-  const _MoreEntry(this.title, this.subtitle, this.icon, this.color, this.phase, {this.screen, this.hidden = false});
+  const _MoreEntry(this.title, this.subtitle, this.icon, this.color, {required this.screen, this.hidden = false});
 
   final String title;
   final String subtitle;
   final IconData icon;
   final Color color;
-  final String phase;
-
-  /// Built modules point at their screen; the rest still open the labelled
-  /// placeholder that names the phase they arrive in.
-  final Widget Function()? screen;
+  final Widget Function() screen;
 
   /// Modules turned off in feature_flags.dart: kept here, never listed.
   final bool hidden;

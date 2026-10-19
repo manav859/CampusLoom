@@ -112,6 +112,7 @@ function PlanFormModal({ plan, onClose }: { plan: PlanRow | null; onClose: () =>
     description: plan?.description ?? "",
     price: plan ? String(plan.priceMinor / 100) : "",
     interval: (plan?.interval ?? "YEAR") as Plan["interval"],
+    intervalCount: String(plan?.intervalCount ?? 1),
     trialDays: String(plan?.trialDays ?? 0),
     maxStudents: plan?.maxStudents == null ? "" : String(plan.maxStudents),
     maxStaff: plan?.maxStaff == null ? "" : String(plan.maxStaff),
@@ -120,7 +121,11 @@ function PlanFormModal({ plan, onClose }: { plan: PlanRow | null; onClose: () =>
     isPublic: plan?.isPublic ?? true
   });
   const set = (patch: Partial<typeof draft>) => setDraft((current) => ({ ...current, ...patch }));
-  const valid = draft.name.trim().length >= 2 && draft.price.trim() !== "" && (plan || draft.code.trim().length >= 2);
+  // The server accepts 1–36 periods; anything outside that is rejected after a
+  // round trip, so the form will not send it.
+  const every = Number(draft.intervalCount);
+  const everyValid = Number.isInteger(every) && every >= 1 && every <= 36;
+  const valid = draft.name.trim().length >= 2 && draft.price.trim() !== "" && everyValid && (plan || draft.code.trim().length >= 2);
 
   return (
     <FormModal
@@ -131,7 +136,7 @@ function PlanFormModal({ plan, onClose }: { plan: PlanRow | null; onClose: () =>
           description: draft.description.trim() || null,
           priceRupees: Number(draft.price),
           interval: draft.interval,
-          intervalCount: plan?.intervalCount ?? 1,
+          intervalCount: every,
           trialDays: Number(draft.trialDays) || 0,
           maxStudents: draft.maxStudents === "" ? null : Number(draft.maxStudents),
           maxStaff: draft.maxStaff === "" ? null : Number(draft.maxStaff),
@@ -175,16 +180,40 @@ function PlanFormModal({ plan, onClose }: { plan: PlanRow | null; onClose: () =>
         <Field label="Price (₹, before GST)">
           <Input min={0} onChange={(event) => set({ price: event.target.value })} step="0.01" type="number" value={draft.price} />
         </Field>
-        <Field label="Billed">
-          <Select
-            ariaLabel="Billing interval"
-            onChange={(interval) => set({ interval })}
-            options={[
-              { value: "YEAR", label: "Yearly" },
-              { value: "MONTH", label: "Monthly" }
-            ]}
-            value={draft.interval}
-          />
+        <Field
+          hint={
+            everyValid
+              ? `Schools see "${intervalLabel({ interval: draft.interval, intervalCount: every })}".`
+              : "Between 1 and 36 periods."
+          }
+          label="Billed every"
+        >
+          <div className="flex gap-2">
+            {/* The width sits on the wrapper: cx only joins, so a w-20 on the
+                Input itself would race the w-full already in inputClass. */}
+            <div className="w-20 shrink-0">
+              <Input
+                aria-label="Number of periods"
+                max={36}
+                min={1}
+                onChange={(event) => set({ intervalCount: event.target.value })}
+                step="1"
+                type="number"
+                value={draft.intervalCount}
+              />
+            </div>
+            <div className="flex-1">
+              <Select
+                ariaLabel="Billing period"
+                onChange={(interval) => set({ interval })}
+                options={[
+                  { value: "YEAR", label: every === 1 ? "year" : "years" },
+                  { value: "MONTH", label: every === 1 ? "month" : "months" }
+                ]}
+                value={draft.interval}
+              />
+            </div>
+          </div>
         </Field>
         <Field hint="Blank = unlimited" label="Max students">
           <Input min={1} onChange={(event) => set({ maxStudents: event.target.value })} type="number" value={draft.maxStudents} />
@@ -206,6 +235,11 @@ function PlanFormModal({ plan, onClose }: { plan: PlanRow | null; onClose: () =>
         <Checkbox checked={draft.isActive} label="Active" onChange={(isActive) => set({ isActive })} />
         <Checkbox checked={draft.isPublic} label="Shown to schools" onChange={(isPublic) => set({ isPublic })} />
       </div>
+      <p className="text-xs text-slate-500">
+        {draft.isActive && !draft.isPublic
+          ? "A one-off plan: you can put a school on it, but it stays off the public price list."
+          : "Clear “Shown to schools” for a one-off plan you assign yourself without listing it publicly."}
+      </p>
     </FormModal>
   );
 }

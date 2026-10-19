@@ -283,7 +283,7 @@ void main() {
       await tester.tap(find.text('Send WhatsApp'));
       await tester.pumpAndSettle();
       expect(repo.reminders, ['Diya Rao']);
-      expect(find.text('WhatsApp reminder sent to Diya Rao.'), findsOneWidget);
+      expect(find.text('WhatsApp reminder queued for Diya Rao.'), findsOneWidget);
     });
 
     testWidgets('lays out at 320dp with 1.3x text', (tester) async {
@@ -382,7 +382,7 @@ void main() {
       expect(repo.ledgerCalls, 2);
       expect(find.text('Payment Recorded'), findsOneWidget);
       expect(find.text('REC-2026-00002'), findsOneWidget);
-      expect(find.text('WhatsApp receipt sent or queued for parent'), findsOneWidget);
+      expect(find.text('WhatsApp receipt queued for the parent'), findsOneWidget);
     });
 
     testWidgets('lays out at 320dp with 1.3x text', (tester) async {

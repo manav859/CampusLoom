@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
 
-/// The web dashboard's design tokens (frontend/src/app/globals.css), so the
-/// apps and the web read as one product. Change a colour there and here together.
+/// The brand and status colours the web dashboard uses (frontend/src/app/
+/// globals.css), so the apps and the web read as one product. Change a colour
+/// there and here together. The surfaces those colours sit on are the phone's
+/// own — a white page and softly shadowed cards — and live in [Home] below.
 class AppColors {
   // --brand-primary / -hover / --info-100
   static const primary = Color(0xFF2456E6);
   static const primaryDark = Color(0xFF1B45BD);
   static const primarySoft = Color(0xFFE2EAFD);
 
-  // --surface-50, white cards, --border-200
+  // --surface-50 (a neutral tint, not the page: the page is white), white
+  // cards, and the hairline a card is drawn on.
   static const background = Color(0xFFF7F8FB);
   static const surface = Color(0xFFFFFFFF);
-  static const border = Color(0xFFDCE1E8);
+  static const border = Home.line;
 
-  // --ink-900 / --ink-500 / the web's tertiary grey
-  static const textPrimary = Color(0xFF0F1419);
-  static const textSecondary = Color(0xFF5A6573);
-  static const textMuted = Color(0xFF86868B);
+  /// A field has to show its edge without a card's shadow to help it, so it
+  /// keeps the firmer line the rest of the app has given up.
+  static const inputBorder = Color(0xFFDCE1E8);
+
+  // The Home screens' ink, now both apps': a deep navy that reads warmer
+  // than the web's near-black on a white page.
+  static const textPrimary = Home.ink;
+  static const textSecondary = Home.inkSoft;
+  static const textMuted = Home.inkMuted;
 
   // --success-600/100, --danger-600/100, --warning-600/100
   static const success = Color(0xFF0F8A4A);
@@ -40,13 +48,40 @@ class AppColors {
     (ground: Color(0xFFF0E8FF), icon: Color(0xFF8B6CF6)),
   ];
 
-  static const kpiLabel = Color(0xFF6F7480);
-  static const kpiValue = Color(0xFF111827);
+  static const kpiLabel = Home.inkSoft;
+  static const kpiValue = Home.ink;
 }
 
-/// The web's radii: --radius-md for controls, --radius-lg for cards.
+/// The radii both apps round to — the Home screens' shapes.
 class AppRadii {
-  static const control = 6.0;
-  static const card = 8.0;
+  static const control = 10.0;
+  static const card = Home.cardRadius;
   static const sheet = 16.0;
+}
+
+/// The palette and shapes the Home screens are drawn in, and with them the
+/// rest of both apps: a white page, softly shadowed white cards on a hairline,
+/// deep navy ink, and a pastel ground per metric so a tile is recognised by
+/// colour before it is read. [AppColors] above still holds the brand blue and
+/// the status colours; these are the surfaces they sit on.
+class Home {
+  static const page = Color(0xFFFFFFFF);
+  static const ink = Color(0xFF12284C);
+  static const inkSoft = Color(0xFF5E7290);
+  static const inkMuted = Color(0xFF8C9AAF);
+  static const line = Color(0xFFEBEFF5);
+
+  static const green = Color(0xFF17A05C);
+  static const greenSoft = Color(0xFFDDF5E7);
+  static const amber = Color(0xFFF5A623);
+  static const amberInk = Color(0xFFB95A00);
+  static const amberSoft = Color(0xFFFEF1DE);
+  static const blueSoft = Color(0xFFE4EFFC);
+
+  static const cardRadius = 14.0;
+  static const tileRadius = 16.0;
+
+  static const shadow = [
+    BoxShadow(color: Color(0x0D123A6B), blurRadius: 14, offset: Offset(0, 4)),
+  ];
 }

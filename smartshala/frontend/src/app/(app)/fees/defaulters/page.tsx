@@ -52,7 +52,7 @@ export default function DefaultersPage() {
         phone: student.parentPhone,
         message: `Dear Parent, fee balance of ${formatINR(row.balance, { compact: false })} for ${row.name} is pending. Please clear it at the earliest.`
       });
-      setNotice(`WhatsApp reminder sent to ${row.name}.`);
+      setNotice(`WhatsApp reminder queued for ${row.name}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send reminder");
     } finally {

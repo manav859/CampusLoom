@@ -545,8 +545,7 @@ class AttendanceMetrics {
     required this.percentage,
     required this.totalDays,
     required this.absences,
-    required this.late,
-    required this.halfDays,
+    required this.leaves,
     this.classAverage,
     this.remainingBefore75,
   });
@@ -554,8 +553,7 @@ class AttendanceMetrics {
   final double percentage;
   final int totalDays;
   final int absences;
-  final int late;
-  final int halfDays;
+  final int leaves;
   final double? classAverage;
 
   /// Absences the student can still take before falling under 75%.
@@ -565,8 +563,7 @@ class AttendanceMetrics {
         percentage: _doubleOrNull(json['attendancePercentage']) ?? 0,
         totalDays: _intOrNull(json['totalDays']) ?? 0,
         absences: _intOrNull(json['absences']) ?? 0,
-        late: _intOrNull(json['late']) ?? 0,
-        halfDays: _intOrNull(json['halfDays']) ?? 0,
+        leaves: _intOrNull(json['leaves']) ?? 0,
         classAverage: _doubleOrNull(json['classAverageAttendance']),
         remainingBefore75: _intOrNull(json['remainingBefore75']),
       );

@@ -85,7 +85,7 @@ class _StudentFeeLedgerScreenState extends State<StudentFeeLedgerScreen> {
     setState(() => _busyReceiptId = payment.receiptId);
     try {
       await _repository.sendReceiptOnWhatsApp(payment.receiptId!);
-      if (mounted) showFeeToast(context, 'Receipt ${payment.receiptNo ?? ''} sent on WhatsApp.');
+      if (mounted) showFeeToast(context, 'Receipt ${payment.receiptNo ?? ''} queued on WhatsApp.');
     } on ApiException catch (error) {
       if (mounted) showFeeToast(context, error.message, isError: true);
     } finally {
@@ -455,8 +455,8 @@ class _ReceiptDialogState extends State<_ReceiptDialog> {
           const SizedBox(height: 8),
           Text(
             receipt.whatsAppQueued || _sent
-                ? 'WhatsApp receipt sent or queued for parent'
-                : 'WhatsApp receipt not sent automatically',
+                ? 'WhatsApp receipt queued for the parent'
+                : 'No WhatsApp receipt queued',
             style: const TextStyle(fontSize: 12, color: Color(0xFF128C7E), fontWeight: FontWeight.w600),
           ),
         ],
@@ -476,7 +476,7 @@ class _ReceiptDialogState extends State<_ReceiptDialog> {
                       await widget.repository.sendReceiptOnWhatsApp(receipt.receiptId);
                       if (mounted) setState(() => _sent = true);
                     }),
-            child: Text(_sent ? 'WhatsApp sent' : 'Send WhatsApp'),
+            child: Text(_sent ? 'WhatsApp queued' : 'Send WhatsApp'),
           ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(),

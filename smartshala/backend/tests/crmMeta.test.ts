@@ -197,6 +197,22 @@ async function main() {
   );
   await masterPrisma.metaIntegration.update({ where: { id: "meta" }, data: { accessTokenEnc: before.accessTokenEnc, lastSyncError: null } });
 
+  // A token sealed with a secret this server no longer has — what moving the
+  // backend to another host leaves behind. It must read as a failing sync, not
+  // as a Page that looks connected and quietly stops importing.
+  const cursor = (await masterPrisma.metaIntegration.findUnique({ where: { id: "meta" } }))?.lastAssignedUserId ?? null;
+  const sealed = (await masterPrisma.metaIntegration.findUnique({ where: { id: "meta" } }))!.accessTokenEnc;
+  await masterPrisma.metaIntegration.update({ where: { id: "meta" }, data: { accessTokenEnc: "AAAA.BBBB.CCCC" } });
+  await rejects(syncMetaLeads(), "META_TOKEN_UNREADABLE");
+  const unreadable = await getMetaStatus();
+  assert.match((unreadable.connected && unreadable.lastSyncError) || "", /can no longer be read/, "an unreadable token is shown to the admin");
+  assert.equal(
+    (await masterPrisma.metaIntegration.findUnique({ where: { id: "meta" } }))?.lastAssignedUserId ?? null,
+    cursor,
+    "a failure before the Page is read leaves the round-robin cursor alone"
+  );
+  await masterPrisma.metaIntegration.update({ where: { id: "meta" }, data: { accessTokenEnc: sealed, lastSyncError: null } });
+
   // --- Disconnecting -------------------------------------------------------------
   await disconnectMeta();
   assert.deepEqual(await getMetaStatus(), { connected: false });

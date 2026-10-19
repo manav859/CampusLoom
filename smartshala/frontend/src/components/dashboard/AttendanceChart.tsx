@@ -7,8 +7,8 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 type ChartPoint = {
   absent?: number;
   attended?: number;
-  halfDay?: number;
   label: string;
+  leave?: number;
   marked?: boolean;
   present?: number;
   total?: number;
@@ -195,9 +195,9 @@ export function AttendanceChart({ data, title = "Attendance Trend", classes = []
               <span className="text-[#a1a1a6]">{point.label}</span>
               <span className="font-bold text-white">{point.value}%</span>
             </div>
-            {typeof point.present === "number" || typeof point.halfDay === "number" ? (
+            {typeof point.present === "number" || typeof point.leave === "number" ? (
               <p className="mt-1 text-[11px] text-white/70">
-                Present {point.present ?? 0}, half day {point.halfDay ?? 0}
+                Present {point.present ?? 0}, on leave {point.leave ?? 0}
               </p>
             ) : null}
           </div>
@@ -275,7 +275,7 @@ function PastWeekModal({
                   <div key={row.classId} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl border border-[#E5E8EF] px-4 py-3">
                     <div>
                       <p className="text-[13px] font-semibold text-[#1d1d1f]">{row.className}</p>
-                      <p className="mt-0.5 text-[12px] font-medium text-[#86868b]">Present {row.present + row.late}, half day {row.halfDay}, absent {row.absent}</p>
+                      <p className="mt-0.5 text-[12px] font-medium text-[#86868b]">Present {row.present}, absent {row.absent}, on leave {row.leave}</p>
                     </div>
                     <span className="text-[16px] font-bold text-[#0071e3]">{row.percentage}%</span>
                   </div>

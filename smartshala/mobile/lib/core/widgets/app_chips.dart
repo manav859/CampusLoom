@@ -71,6 +71,10 @@ class SegmentedTabs extends StatelessWidget {
           return Material(
             color: selected ? AppColors.primary : AppColors.surface,
             borderRadius: BorderRadius.circular(20),
+            // An unselected pill is white on a white page, so it carries the
+            // same soft shadow a card does rather than a heavier border.
+            shadowColor: const Color(0x14123A6B),
+            elevation: selected ? 0 : 2,
             child: InkWell(
               onTap: () => onChanged(position),
               borderRadius: BorderRadius.circular(20),

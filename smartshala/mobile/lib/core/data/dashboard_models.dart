@@ -52,6 +52,7 @@ class ClassAttendance {
     required this.present,
     required this.absent,
     required this.attendancePercentage,
+    this.leave = 0,
     this.classId,
   });
 
@@ -61,6 +62,9 @@ class ClassAttendance {
   final int totalStudents;
   final int present;
   final int absent;
+
+  /// Excused absences today. Zero from a server that predates the status.
+  final int leave;
   final int attendancePercentage;
 
   factory ClassAttendance.fromJson(Map<String, dynamic> json) =>
@@ -71,6 +75,7 @@ class ClassAttendance {
         totalStudents: _int(json['totalStudents']),
         present: _int(json['present']),
         absent: _int(json['absent']),
+        leave: _int(json['leave']),
         attendancePercentage:
             (json['attendancePercentage'] as num?)?.round() ?? 0,
       );

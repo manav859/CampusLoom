@@ -71,13 +71,12 @@ type MonthlyDay = NonNullable<ReturnType<typeof useAttendance>["monthly"]>["days
 
 function summaryFromMonthlyDay(day: MonthlyDay, fallbackTotal: number) {
   const total = day.total || fallbackTotal;
-  const late = day.late ?? 0;
-  const halfDay = day.halfDay ?? 0;
+  const leave = day.leave ?? 0;
   const attended = day.attended || Math.round((day.percentage / 100) * total);
-  const present = day.total ? day.present : Math.max(0, Math.round(attended - late - halfDay * 0.5));
-  const absent = day.total ? day.absent : Math.max(0, total - present - late - halfDay);
+  const present = day.total ? day.present : Math.max(0, Math.round(attended));
+  const absent = day.total ? day.absent : Math.max(0, total - present - leave);
 
-  return { total, present, absent, late, halfDay, attended };
+  return { total, present, absent, leave, attended };
 }
 
 export default function TeacherAttendancePage() {
@@ -446,8 +445,7 @@ export default function TeacherAttendancePage() {
               total={summary.total}
               present={summary.present}
               absent={summary.absent}
-              late={summary.late}
-              halfDay={summary.halfDay}
+              leave={summary.leave}
               attended={summary.attended}
               layout="rail"
               pending={attendancePending}
@@ -505,8 +503,7 @@ export default function TeacherAttendancePage() {
                           <>
                             <span className="block font-semibold text-[#1d1d1f]">{day.percentage}%</span>
                             <span className="block">{day.absent} absent</span>
-                            {day.halfDay ? <span className="block">{day.halfDay} half-day</span> : null}
-                            <span className="block">{day.late} late</span>
+                            {day.leave ? <span className="block">{day.leave} on leave</span> : null}
                           </>
                         ) : (
                           <span className="block text-[#86868b]">Unmarked</span>
@@ -530,8 +527,7 @@ export default function TeacherAttendancePage() {
                   ) : (
                     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
                       <span>{selectedMonthDay.absent} absent</span>
-                      {selectedMonthDay.halfDay ? <span>{selectedMonthDay.halfDay} half-day</span> : null}
-                      <span>{selectedMonthDay.late} late</span>
+                      {selectedMonthDay.leave ? <span>{selectedMonthDay.leave} on leave</span> : null}
                     </div>
                   )
                 ) : (

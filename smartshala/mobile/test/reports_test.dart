@@ -92,10 +92,9 @@ ClassAttendanceRow _attendance(String classId, String className, {required bool 
       className: className,
       marked: marked,
       total: marked ? 30 : 0,
-      present: marked ? 25 : 0,
-      late: marked ? 2 : 0,
-      halfDay: 0,
+      present: marked ? 27 : 0,
       absent: marked ? 3 : 0,
+      leave: 0,
       percentage: marked ? 90 : 0,
       classTeacherName: teacher,
     );
@@ -112,7 +111,7 @@ class _FakeRepository extends Fake implements PrincipalRepository {
       'markedClasses': 2,
       'pendingClasses': 1,
       'attendancePercentage': 90,
-      'students': {'present': 54, 'absent': 6, 'halfDay': 0},
+      'students': {'present': 54, 'absent': 6, 'leave': 0},
     });
   }
 
@@ -199,9 +198,9 @@ void main() {
         ],
       ).split('\n');
       expect(csv[0], startsWith('"Noble ""Public"" School",'));
-      expect(csv[2], '"Class","Teacher","Marked","Total","Present","Late","Half day","Absent","Rate"');
-      expect(csv[3], '"6A","Asha Rao","Yes","30","25","2","0","3","90%"');
-      expect(csv[4], '"8C","","No","0","0","0","0","0","Pending"');
+      expect(csv[2], '"Class","Teacher","Marked","Total","Present","Absent","Leave","Rate"');
+      expect(csv[3], '"6A","Asha Rao","Yes","30","27","3","0","90%"');
+      expect(csv[4], '"8C","","No","0","0","0","0","Pending"');
     });
 
     test('exam averages weigh each exam by the marks entered', () {

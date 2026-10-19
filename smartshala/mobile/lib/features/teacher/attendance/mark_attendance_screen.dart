@@ -10,7 +10,11 @@ import '../data/teacher_models.dart';
 import '../data/teacher_repository.dart';
 
 class MarkAttendanceScreen extends StatefulWidget {
-  const MarkAttendanceScreen({super.key});
+  const MarkAttendanceScreen({super.key, this.initialClassId});
+
+  /// Opens on this class instead of the first one — Today's Classes sends the
+  /// class whose row was tapped. Ignored when the teacher does not have it.
+  final String? initialClassId;
 
   @override
   State<MarkAttendanceScreen> createState() => _MarkAttendanceScreenState();
@@ -48,7 +52,12 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
       if (!mounted) return;
       setState(() {
         _classes = classes;
-        _selectedClass = classes.isNotEmpty ? classes.first : null;
+        _selectedClass = classes.isEmpty
+            ? null
+            : classes.firstWhere(
+                (option) => option.id == widget.initialClassId,
+                orElse: () => classes.first,
+              );
         _loadingClasses = false;
       });
       if (_selectedClass != null) await _loadRoster();
@@ -319,7 +328,7 @@ class _CountersRow extends StatelessWidget {
           Expanded(
             child: _Counter(
               value: roster.students.length,
-              label: 'Total Students',
+              label: 'Total',
               color: AppColors.primary,
             ),
           ),
@@ -337,6 +346,14 @@ class _CountersRow extends StatelessWidget {
               value: roster.absentCount,
               label: 'Absent',
               color: AppColors.danger,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _Counter(
+              value: roster.leaveCount,
+              label: 'On Leave',
+              color: AppColors.teal,
             ),
           ),
         ],
@@ -514,14 +531,13 @@ class _StudentList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final student = students[index];
-        final isAbsent = student.mark == AttendanceMark.absent;
 
         return AppCard(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
           child: Row(
             children: [
               CircleAvatar(
-                radius: 18,
+                radius: 17,
                 backgroundColor: AppColors.primarySoft,
                 child: Text(
                   student.rollNumber?.toString() ?? '${index + 1}',
@@ -532,14 +548,14 @@ class _StudentList extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      student.fullName,
+                    _SlidingText(
+                      text: student.fullName,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -554,13 +570,13 @@ class _StudentList extends StatelessWidget {
                   ],
                 ),
               ),
-              _MarkToggle(
-                isAbsent: isAbsent,
+              const SizedBox(width: 10),
+              _MarkSegments(
+                studentId: student.id,
+                studentName: student.fullName,
+                mark: student.mark,
                 enabled: canEdit,
-                onChanged: (absent) => onChanged(
-                  student,
-                  absent ? AttendanceMark.absent : AttendanceMark.present,
-                ),
+                onChanged: (mark) => onChanged(student, mark),
               ),
             ],
           ),
@@ -570,72 +586,204 @@ class _StudentList extends StatelessWidget {
   }
 }
 
-class _MarkToggle extends StatelessWidget {
-  const _MarkToggle({
-    required this.isAbsent,
-    required this.enabled,
-    required this.onChanged,
-  });
+/// A name too long for its column slides rather than widening it, so the marks
+/// stay in the same place down the whole list and a long name is still read in
+/// full. It dwells at each end: a name that never stops moving cannot be read.
+class _SlidingText extends StatefulWidget {
+  const _SlidingText({required this.text, required this.style});
 
-  final bool isAbsent;
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
+  final String text;
+  final TextStyle style;
+
+  @override
+  State<_SlidingText> createState() => _SlidingTextState();
+}
+
+class _SlidingTextState extends State<_SlidingText> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this);
+  double _overflow = -1;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _sync(double overflow) {
+    if (overflow == _overflow) return;
+    _overflow = overflow;
+    _controller.stop();
+    _controller.reset();
+    if (overflow <= 0) return;
+    // Roughly 33 logical pixels a second, plus the dwell at either end.
+    _controller.duration = Duration(milliseconds: 2600 + (overflow * 30).round());
+    _controller.repeat();
+  }
+
+  /// Where the text sits at [t] of one loop: still, out, still, back.
+  static double _offsetFor(double t, double overflow) {
+    const outStart = 0.18;
+    const outEnd = 0.46;
+    const backStart = 0.66;
+    if (t < outStart) return 0;
+    if (t < outEnd) {
+      return -overflow * Curves.easeInOut.transform((t - outStart) / (outEnd - outStart));
+    }
+    if (t < backStart) return -overflow;
+    return -overflow * (1 - Curves.easeInOut.transform((t - backStart) / (1 - backStart)));
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _Pill(
-          label: 'Present',
-          selected: !isAbsent,
-          color: AppColors.success,
-          onTap: enabled ? () => onChanged(false) : null,
-        ),
-        const SizedBox(width: 6),
-        _Pill(
-          label: 'Absent',
-          selected: isAbsent,
-          color: AppColors.danger,
-          onTap: enabled ? () => onChanged(true) : null,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final plain = Text(
+          widget.text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: widget.style,
+        );
+        if (!constraints.hasBoundedWidth) return plain;
+
+        final painter = TextPainter(
+          text: TextSpan(text: widget.text, style: widget.style),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout();
+        final overflow = painter.width - constraints.maxWidth;
+
+        // Someone who has asked for less motion gets the name cut off instead.
+        final stillness = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _sync(stillness ? 0 : overflow);
+        });
+        if (stillness || overflow <= 0) return plain;
+
+        return ClipRect(
+          child: SizedBox(
+            height: painter.height,
+            width: constraints.maxWidth,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) => Transform.translate(
+                offset: Offset(_offsetFor(_controller.value, overflow), 0),
+                child: OverflowBox(
+                  alignment: Alignment.centerLeft,
+                  maxWidth: painter.width,
+                  child: Text(
+                    widget.text,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: widget.style,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({
-    required this.label,
-    required this.selected,
-    required this.color,
-    required this.onTap,
+/// Present, Absent or Leave for one student, as a single control rather than
+/// three loose buttons. Leave is an excused absence — the family said so — and
+/// counts for nothing, exactly like Absent; it is here so the register records
+/// why a seat was empty.
+///
+/// The track is the same width whatever the name beside it is, which is what
+/// keeps the marks aligned down the list.
+class _MarkSegments extends StatelessWidget {
+  const _MarkSegments({
+    required this.studentId,
+    required this.studentName,
+    required this.mark,
+    required this.enabled,
+    required this.onChanged,
   });
 
-  final String label;
-  final bool selected;
-  final Color color;
-  final VoidCallback? onTap;
+  final String studentId;
+  final String studentName;
+  final AttendanceMark mark;
+  final bool enabled;
+  final ValueChanged<AttendanceMark> onChanged;
+
+  static const _options = [
+    (mark: AttendanceMark.present, letter: 'P', label: 'Present', color: AppColors.success),
+    (mark: AttendanceMark.absent, letter: 'A', label: 'Absent', color: AppColors.danger),
+    (mark: AttendanceMark.leave, letter: 'L', label: 'Leave', color: AppColors.teal),
+  ];
+
+  static const _segment = 34.0;
+  static const _height = 30.0;
+  static const _inset = 3.0;
+  static const _hairline = 1.0;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+    final found = _options.indexWhere((option) => option.mark == mark);
+    final index = found < 0 ? 0 : found;
+    final selected = _options[index];
+
+    return Opacity(
+      opacity: enabled ? 1 : 0.55,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        // The border draws inside the box, so it comes out of the width too.
+        width: _segment * 3 + (_inset + _hairline) * 2,
+        padding: const EdgeInsets.all(_inset),
         decoration: BoxDecoration(
-          color: selected ? color : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? color : AppColors.border),
+          color: AppColors.background,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.border, width: _hairline),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            color: selected ? Colors.white : AppColors.textSecondary,
-          ),
+        child: Stack(
+          children: [
+            AnimatedAlign(
+              alignment: Alignment(-1 + index.toDouble(), 0),
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: Container(
+                width: _segment,
+                height: _height,
+                decoration: BoxDecoration(
+                  color: selected.color,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                for (final option in _options)
+                  Semantics(
+                    button: true,
+                    selected: option.mark == selected.mark,
+                    label: '${option.label} — $studentName',
+                    child: InkWell(
+                      key: Key('mark-$studentId-${option.mark.name}'),
+                      onTap: enabled ? () => onChanged(option.mark) : null,
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: _segment,
+                        height: _height,
+                        child: Center(
+                          child: Text(
+                            option.letter,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: option.mark == selected.mark
+                                  ? Colors.white
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

@@ -19,8 +19,7 @@ function dateLabel(value: string) {
 function statusLabel(status: StudentDetail["attendanceAnalytics"]["calendar"][number]["status"]) {
   if (status === "PRESENT") return "Present";
   if (status === "ABSENT") return "Absent";
-  if (status === "LATE") return "Late";
-  if (status === "HALF_DAY") return "Half day";
+  if (status === "LEAVE") return "Leave";
   if (status === "HOLIDAY") return "Holiday";
   return "Unmarked";
 }
@@ -28,8 +27,7 @@ function statusLabel(status: StudentDetail["attendanceAnalytics"]["calendar"][nu
 function statusClasses(status: StudentDetail["attendanceAnalytics"]["calendar"][number]["status"]) {
   if (status === "PRESENT") return "bg-[#34c759] text-white";
   if (status === "ABSENT") return "bg-[#ff3b30] text-white";
-  if (status === "LATE") return "bg-[#ff9500] text-white";
-  if (status === "HALF_DAY") return "bg-[#7c3aed] text-white";
+  if (status === "LEAVE") return "bg-[#0d9488] text-white";
   if (status === "HOLIDAY") return "bg-white text-[#A7B0BD]";
   return "bg-white text-[#C6CBD2]";
 }
@@ -101,7 +99,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
   ];
 
   /* ── "present / total" for the Total Days card ── */
-  const presentDays = metrics.attended ?? (metrics.totalDays - metrics.absences - (metrics.halfDays * 0.5));
+  const presentDays = metrics.attended ?? (metrics.totalDays - metrics.absences - metrics.leaves);
   const absentDates = useMemo(
     () =>
       analytics.records
@@ -158,7 +156,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
                 <span>{metrics.totalDays}</span>
               </p>
             </div>
-            <p className="mt-3 truncate text-[12px] font-medium leading-4 text-[#5A6573]">{metrics.late} late, {metrics.halfDays} half-day</p>
+            <p className="mt-3 truncate text-[12px] font-medium leading-4 text-[#5A6573]">{metrics.leaves} on leave</p>
           </div>
 
           {/* Absences */}
@@ -226,8 +224,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
             <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-[#6e6e73] sm:flex sm:flex-wrap sm:items-center sm:gap-3">
               <div className="flex items-center gap-1.5 rounded-full bg-[#F3FBF6] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#34c759] shadow-sm" /> Present</div>
               <div className="flex items-center gap-1.5 rounded-full bg-[#FFF7F8] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#ff3b30] shadow-sm" /> Absent</div>
-              <div className="flex items-center gap-1.5 rounded-full bg-[#FFF8ED] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#ff9500] shadow-sm" /> Late</div>
-              <div className="flex items-center gap-1.5 rounded-full bg-[#F4F0FF] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#7c3aed] shadow-sm" /> Half Day</div>
+              <div className="flex items-center gap-1.5 rounded-full bg-[#F0FBF9] px-2 py-1"><span className="h-2 w-2 rounded-full bg-[#0d9488] shadow-sm" /> Leave</div>
               <div className="flex items-center gap-1.5 rounded-full bg-[#F7F8FB] px-2 py-1"><span className="h-2 w-2 rounded-full border border-black/10 bg-[#f5f5f7]" /> Holiday</div>
             </div>
           </div>
@@ -240,7 +237,7 @@ export default function AttendanceTabPanel({ student }: AttendanceTabPanelProps)
               {calendarSlots.map((slot) => {
                 if (slot.type === "blank") return <div key={slot.id} className="h-12 w-full rounded-[8px] bg-transparent sm:h-14" />;
                 const date = new Date(slot.date);
-                const letter = slot.status === "PRESENT" ? "P" : slot.status === "ABSENT" ? "A" : slot.status === "LATE" ? "L" : slot.status === "HALF_DAY" ? "HD" : slot.status === "HOLIDAY" ? "H" : "";
+                const letter = slot.status === "PRESENT" ? "P" : slot.status === "ABSENT" ? "A" : slot.status === "LEAVE" ? "L" : slot.status === "HOLIDAY" ? "H" : "";
                 return (
                   <div
                     className={`flex h-12 w-full flex-col items-center justify-center rounded-[10px] shadow-sm ring-1 ring-inset ring-black/[0.05] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md sm:h-14 ${statusClasses(slot.status)}`}

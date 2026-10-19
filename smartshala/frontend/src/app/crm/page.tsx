@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Btn, DataTable, ErrorBanner, Input, PageHeader, Select, cx, type Column } from "../super-admin/_components/ui";
+import { Badge, Btn, ConfirmModal, DataTable, ErrorBanner, Input, PageHeader, RowActions, Select, cx, type Column } from "../super-admin/_components/ui";
 import { useAction } from "../super-admin/_lib/action";
 import { fmtDate, money, timeAgo } from "../super-admin/_lib/format";
 import { crmFetch } from "./crmFetch";
@@ -33,6 +33,7 @@ export default function DealsPage() {
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [losing, setLosing] = useState<LeadRow | null>(null);
+  const [removing, setRemoving] = useState<LeadRow | null>(null);
   const { run, isPending } = useAction();
 
   // The board shows every stage as a column, so only the table filters by stage.
@@ -89,6 +90,18 @@ export default function DealsPage() {
         return true;
       },
       `${deal.schoolName} moved to ${stages.find((entry) => entry.id === to)?.label ?? "the new stage"}.`
+    );
+  }
+
+  async function remove(deal: LeadRow) {
+    return run(
+      "delete",
+      async () => {
+        await crmFetch(`/leads/${deal.id}`, { method: "DELETE" });
+        invalidate("/leads");
+        return true;
+      },
+      `${deal.code} (${deal.schoolName}) deleted.`
     );
   }
 
@@ -162,7 +175,26 @@ export default function DealsPage() {
           <p className="text-slate-500">{fmtTime(deal.updatedAt)}</p>
         </div>
       )
-    }
+    },
+    // Admins only, and never a deal that has paid — the server refuses that too.
+    ...(isAdmin
+      ? [
+          {
+            key: "actions",
+            header: "Actions",
+            align: "right" as const,
+            cell: (deal: LeadRow) => (
+              <RowActions>
+                {deal.stage === "PAID" || deal.stage === "ONBOARDED" ? null : (
+                  <Btn onClick={() => setRemoving(deal)} size="sm" variant="danger">
+                    Delete
+                  </Btn>
+                )}
+              </RowActions>
+            )
+          }
+        ]
+      : [])
   ];
 
   return (
@@ -280,6 +312,22 @@ export default function DealsPage() {
           }}
         />
       ) : null}
+      <ConfirmModal
+        busy={isPending("delete")}
+        confirmLabel="Delete deal"
+        danger
+        message={
+          removing
+            ? `${removing.code} (${removing.schoolName}), its notes and its proformas are removed for good. Nothing about this deal is kept.`
+            : ""
+        }
+        onClose={() => setRemoving(null)}
+        onConfirm={async () => {
+          if (removing && (await remove(removing))) setRemoving(null);
+        }}
+        open={Boolean(removing)}
+        title="Delete this deal?"
+      />
     </>
   );
 }

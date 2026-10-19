@@ -21,12 +21,18 @@ class SchoolCalendarScreen extends StatefulWidget {
     super.key,
     required this.loadMonth,
     this.title = 'Calendar',
+    this.loadActivity,
     this.onAddEvent,
     this.onEventTap,
   });
 
   final Future<List<CalendarEvent>> Function(DateTime month) loadMonth;
   final String title;
+
+  /// The signed-in staff member's own punches for the month. Given, the day in
+  /// view carries a "Your activity" card above the school's events; left out,
+  /// the calendar shows the school's side only.
+  final Future<List<DayActivity>> Function(DateTime month)? loadActivity;
 
   /// Receives the selected day, if any, to start the new event on.
   final Future<bool> Function(DateTime? day)? onAddEvent;
@@ -42,6 +48,7 @@ class _SchoolCalendarScreenState extends State<SchoolCalendarScreen> {
   final Set<CalendarEventType> _hidden = <CalendarEventType>{};
 
   List<CalendarEvent> _events = const [];
+  List<DayActivity> _activity = const [];
   bool _loading = true;
   String? _error;
 
@@ -63,6 +70,7 @@ class _SchoolCalendarScreenState extends State<SchoolCalendarScreen> {
 
   Future<void> _load() async {
     final month = _month;
+    final activity = _loadActivity(month);
     try {
       final events = await widget.loadMonth(month);
       // A slow response for a month already paged away from
@@ -80,6 +88,24 @@ class _SchoolCalendarScreenState extends State<SchoolCalendarScreen> {
         _loading = false;
       });
     }
+    await activity;
+  }
+
+  /// The month's own punches. The calendar is still a calendar without them,
+  /// so anything that goes wrong here leaves the section out rather than
+  /// taking the month down with it.
+  Future<void> _loadActivity(DateTime month) async {
+    final load = widget.loadActivity;
+    if (load == null) return;
+
+    List<DayActivity> days;
+    try {
+      days = await load(month);
+    } catch (_) {
+      days = const [];
+    }
+    if (!mounted || month != _month) return;
+    setState(() => _activity = days);
   }
 
   void _retry() {
@@ -95,14 +121,30 @@ class _SchoolCalendarScreenState extends State<SchoolCalendarScreen> {
       _month = DateTime(_month.year, _month.month + delta);
       _selectedDay = null;
       _events = const [];
+      _activity = const [];
       _loading = true;
       _error = null;
     });
     _load();
   }
 
+  /// Today, when the month on screen is the one it falls in.
+  DateTime? _todayInMonth() {
+    final now = DateTime.now();
+    if (now.year != _month.year || now.month != _month.month) return null;
+    return DateTime(now.year, now.month, now.day);
+  }
+
   void _toggleDay(DateTime day) =>
       setState(() => _selectedDay = _selectedDay == day ? null : day);
+
+  /// The punches recorded on [day]; empty on a day never punched.
+  List<DayStamp> _stampsOn(DateTime day) {
+    for (final entry in _activity) {
+      if (entry.date == day) return entry.stamps;
+    }
+    return const [];
+  }
 
   void _toggleType(CalendarEventType type) => setState(() {
         if (!_hidden.remove(type)) _hidden.add(type);
@@ -115,6 +157,9 @@ class _SchoolCalendarScreenState extends State<SchoolCalendarScreen> {
     final listed = selectedDay == null
         ? visible
         : visible.where((event) => event.occursOn(selectedDay)).toList();
+    // With no day picked the card falls back to today, which is the day the
+    // teacher came to check. Paged to another month, there is no such day.
+    final activityDay = selectedDay ?? _todayInMonth();
 
     return Scaffold(
       // In the app bar, not a floating button: as the principal's Calendar tab
@@ -157,6 +202,10 @@ class _SchoolCalendarScreenState extends State<SchoolCalendarScreen> {
             ),
             const SizedBox(height: 14),
             _LegendFilter(hidden: _hidden, onToggle: _toggleType),
+            if (widget.loadActivity != null && activityDay != null) ...[
+              const SizedBox(height: 22),
+              _ActivityCard(day: activityDay, stamps: _stampsOn(activityDay)),
+            ],
             const SizedBox(height: 22),
             SectionHeader(
               title: selectedDay == null
@@ -261,7 +310,8 @@ class _MonthGrid extends StatelessWidget {
   final DateTime? selectedDay;
   final ValueChanged<DateTime> onDayTap;
 
-  static const _weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  // Named, not initialled: "S M T W T F S" has two pairs that read alike.
+  static const _weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   static final _keyFormat = DateFormat('yyyy-MM-dd');
 
   @override
@@ -279,12 +329,16 @@ class _MonthGrid extends StatelessWidget {
             for (var column = 0; column < 7; column++)
               Expanded(
                 child: Center(
-                  child: Text(
-                    _weekdays[column],
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: column == 0 ? AppColors.danger : AppColors.textMuted,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _weekdays[column],
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: column == 0 ? AppColors.danger : AppColors.textMuted,
+                      ),
                     ),
                   ),
                 ),
@@ -406,6 +460,119 @@ class _DayCell extends StatelessWidget {
   }
 }
 
+/// The signed-in teacher's own day above the school's: when they punched in,
+/// every break they took, and when they punched out. A day they did not work
+/// says so rather than disappearing, so the card does not come and go as the
+/// selection moves across the month.
+class _ActivityCard extends StatelessWidget {
+  const _ActivityCard({required this.day, required this.stamps});
+
+  final DateTime day;
+  final List<DayStamp> stamps;
+
+  @override
+  Widget build(BuildContext context) {
+    final time = DateFormat('h:mm a');
+    final today = DateTime.now();
+    final isToday = day == DateTime(today.year, today.month, today.day);
+
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(color: Home.blueSoft, shape: BoxShape.circle),
+                child: const Icon(Icons.event_available_rounded, size: 18, color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Your activity',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Home.ink),
+                ),
+              ),
+              Text(
+                isToday ? 'Today' : DateFormat('d MMM').format(day),
+                style: const TextStyle(fontSize: 12, color: Home.inkMuted),
+              ),
+            ],
+          ),
+          if (stamps.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text(
+                'No punch recorded on this day.',
+                style: TextStyle(fontSize: 12.5, color: Home.inkSoft),
+              ),
+            )
+          else
+            for (final stamp in stamps) ...[
+              const Divider(height: 21),
+              _StampRow(stamp: stamp, time: time),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StampRow extends StatelessWidget {
+  const _StampRow({required this.stamp, required this.time});
+
+  final DayStamp stamp;
+  final DateFormat time;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, icon, color, tint) = switch (stamp.kind) {
+      DayStampKind.punchIn => ('Punch In', Icons.login_rounded, Home.green, Home.greenSoft),
+      DayStampKind.onBreak =>
+        ('Break', Icons.free_breakfast_rounded, Home.amberInk, Home.amberSoft),
+      DayStampKind.punchOut => ('Punch Out', Icons.logout_rounded, AppColors.danger, AppColors.dangerSoft),
+    };
+    // A break reads as the stretch it took; a punch is one moment.
+    final until = stamp.until;
+    final when = stamp.kind == DayStampKind.onBreak
+        ? (until == null
+            ? 'from ${time.format(stamp.at)}'
+            : '${time.format(stamp.at)} – ${time.format(until)}')
+        : time.format(stamp.at);
+
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, size: 17, color: color),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Home.ink),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          when,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: Home.ink,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// The colour key for the grid's dots. Each entry is also a toggle, so the
 /// legend is the filter rather than a second control beside it.
 class _LegendFilter extends StatelessWidget {
@@ -448,6 +615,10 @@ class _LegendChip extends StatelessWidget {
       child: Material(
         color: active ? type.tint : AppColors.surface,
         borderRadius: radius,
+        // Switched off, the pill is white on a white page; the same soft
+        // shadow the cards carry is what keeps it a control.
+        shadowColor: const Color(0x14123A6B),
+        elevation: active ? 0 : 2,
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,

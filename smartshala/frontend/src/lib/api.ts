@@ -259,8 +259,12 @@ export const authApi = {
   logout: () => apiFetch<void>("/auth/logout", { method: "POST" })
 };
 
-export type AttendanceMarkStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
-export type AttendanceReadStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
+/// A school day is one of three things: the student came, did not come, or was
+/// excused. LEAVE is that excused absence, worth nothing towards attendance.
+export type AttendanceMarkStatus = "PRESENT" | "ABSENT" | "LEAVE";
+/// Marking and reading offer the same three states; the alias is kept because
+/// the attendance views refer to the read side by this name.
+export type AttendanceReadStatus = AttendanceMarkStatus;
 
 export type ClassSummary = {
   id: string;
@@ -297,8 +301,7 @@ export type ClassTodayAttendance = {
     total: number;
     present: number;
     absent: number;
-    late: number;
-    halfDay: number;
+    leave: number;
     attended: number;
   };
 };
@@ -329,10 +332,9 @@ export type ClassMonthlyAttendance = {
     marked: boolean;
     total: number;
     present: number;
-    late: number;
-    halfDay: number;
     attended: number;
     absent: number;
+    leave: number;
     percentage: number;
     isHoliday?: boolean;
     holidayReason?: string;
@@ -353,7 +355,7 @@ export type AttendanceDashboard = {
   students: {
     present: number;
     absent: number;
-    halfDay?: number;
+    leave?: number;
     attended?: number;
   };
   alerts: {
@@ -369,8 +371,7 @@ export type ClassesTodayReportRow = {
   marked: boolean;
   present: number;
   absent: number;
-  late: number;
-  halfDay: number;
+  leave: number;
   attended: number;
   total: number;
   percentage: number;
@@ -383,9 +384,9 @@ export type DailyAttendanceRow = {
   totalStudents: number;
   marked: boolean;
   present: number;
-  halfDay: number;
   attended: number;
   absent: number;
+  leave: number;
   attendancePercentage: number;
 };
 
@@ -679,8 +680,7 @@ export type StudentDetail = {
       attendancePercentage: number;
       totalDays: number;
       absences: number;
-      late: number;
-      halfDays: number;
+      leaves: number;
       attended: number;
       remainingBefore75: number;
       classAverageAttendance: number | null;

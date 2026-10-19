@@ -257,6 +257,10 @@ samp,
     border-color: #7C3AED;
   }
 
+  .kpi-metric-card-teal:hover {
+    border-color: #0D9488;
+  }
+
   .kpi-metric-label {
     font-size: 15px;
     font-weight: 500;
