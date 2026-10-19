@@ -67,4 +67,21 @@ import { leadFromMeta } from "../src/modules/crm/crm.meta.js";
   assert.equal(lead.schoolName, "Test School");
 }
 
+{
+  // The live Smart Shala form: three of its questions mention the school, but
+  // only one of them asks for its name.
+  const lead = leadFromMeta([
+    { name: "email", values: ["patidarchandresh2002@gmail.com"] },
+    { name: "full_name", values: ["Chandresh Patidar"] },
+    { name: "phone_number", values: ["+919784205657"] },
+    { name: "what_best_describes_your_role_at_the_school?", values: ["school_owner_/_founder"] },
+    { name: "how_many_students_does_your_school_currently_manage?", values: ["under_250"] },
+    { name: "how_does_your_school_currently_manage_these_operations?", values: ["spreadsheets_/_excel"] },
+    { name: "enter_your_school_name:", values: ["Gg"] }
+  ]);
+  assert.equal(lead.schoolName, "Gg", "the role answer is not the school name");
+  assert.equal(lead.ownerName, "Chandresh Patidar");
+  assert.equal(lead.numberOfStudents, 250);
+}
+
 console.log("crm import and meta answers: ok");

@@ -176,6 +176,19 @@ function questionLabel(name: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+const SCHOOL_WORD = /^(schools?|institutes?|institution|college|academy|company|organi[sz]ations?)$/;
+/** Words that can sit around the school word without changing what is being asked. */
+const FILLER_WORD = /^(enter|write|type|tell|please|kindly|what|is|your|you|my|our|the|a|an|of|us|name|names)$/;
+
+/**
+ * "school_name" and "enter_your_school_name" ask for the school's name;
+ * "what_best_describes_your_role_at_the_school" only mentions one.
+ */
+function asksForSchoolName(key: string) {
+  const words = key.split(/[^a-z]+/).filter(Boolean);
+  return words.some((word) => SCHOOL_WORD.test(word)) && words.every((word) => SCHOOL_WORD.test(word) || FILLER_WORD.test(word));
+}
+
 /**
  * Meta's Lead Ads Testing Tool answers every question with
  * "<test lead: dummy data for full_name>". Those placeholders are not text
@@ -218,12 +231,13 @@ export function leadFromMeta(answers: MetaAnswer[]): LeadInput {
 
     if (key.includes("email")) lead.email ||= value;
     else if (/phone|mobile|whatsapp|contact_number/.test(key)) lead.phone ||= cleanPhone(value);
-    else if (/school|institut|college|academy|company|organi[sz]ation/.test(key)) lead.schoolName ||= value;
+    // Counts first: "how_many_students_does_your_school_manage" names a school too.
+    else if (key.includes("student")) lead.numberOfStudents ??= firstNumber(value);
+    else if (/staff|teacher|employee/.test(key)) lead.numberOfStaff ??= firstNumber(value);
+    else if (asksForSchoolName(key)) lead.schoolName ||= value;
     else if (key === "first_name") firstName = value;
     else if (key === "last_name") lastName = value;
     else if (key.includes("name")) lead.ownerName ||= value;
-    else if (key.includes("student")) lead.numberOfStudents ??= firstNumber(value);
-    else if (/staff|teacher|employee/.test(key)) lead.numberOfStaff ??= firstNumber(value);
     else if (key === "state" || key === "province") {
       lead.stateName = value;
       address.push(value);
