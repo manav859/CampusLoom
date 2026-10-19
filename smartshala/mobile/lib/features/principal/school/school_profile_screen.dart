@@ -11,7 +11,7 @@ import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
 import '../data/school_models.dart';
-import '../data/student_models.dart' show StudentCounts;
+import '../../../core/data/student_models.dart' show StudentCounts;
 import '../data/teacher_models.dart' show TeacherCounts;
 import '../widgets/management_widgets.dart';
 import 'edit_school_profile_screen.dart';

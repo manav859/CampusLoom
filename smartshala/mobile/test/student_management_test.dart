@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:smartshala_mobile/core/widgets/app_chips.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_repository.dart';
-import 'package:smartshala_mobile/features/principal/data/student_models.dart';
+import 'package:smartshala_mobile/core/data/student_models.dart';
 import 'package:smartshala_mobile/features/principal/students/add_student_screen.dart';
 import 'package:smartshala_mobile/features/principal/students/student_export.dart';
 import 'package:smartshala_mobile/features/principal/students/student_management_screen.dart';

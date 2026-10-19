@@ -49,7 +49,37 @@ const allowedDocumentMimeTypes = new Set([
 ]);
 
 const fullAccessTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "fees", "communication", "behaviour", "documents"];
-const teacherTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "communication", "behaviour"];
+const teacherTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "fees", "communication", "behaviour"];
+
+/** Who sees individual payments, modes and receipts, rather than just a balance. */
+function canViewFeeDetail(role: UserRole) {
+  return role !== UserRole.TEACHER;
+}
+
+type FeeTotals = { totalAmount: unknown; paidAmount: unknown; pendingAmount: unknown; status: InstallmentStatus };
+
+/**
+ * What a teacher is allowed to know about a student's fees: whether anything
+ * is outstanding, and how much. One OVERDUE assignment makes the whole student
+ * overdue — that is the thing worth surfacing to a class teacher.
+ */
+function summariseFees(assignments: FeeTotals[]) {
+  const totalPayable = assignments.reduce((sum, row) => sum + toNumber(row.totalAmount), 0);
+  const totalPaid = assignments.reduce((sum, row) => sum + toNumber(row.paidAmount), 0);
+  const balance = assignments.reduce((sum, row) => sum + toNumber(row.pendingAmount), 0);
+
+  const status = assignments.length === 0
+    ? "NONE"
+    : assignments.some((row) => row.status === InstallmentStatus.OVERDUE)
+      ? "OVERDUE"
+      : balance <= 0
+        ? "PAID"
+        : totalPaid > 0
+          ? "PARTIAL"
+          : "PENDING";
+
+  return { totalPayable, totalPaid, balance, status };
+}
 const accountantTabs: StudentProfileTab[] = ["fees"];
 const parentTabs: StudentProfileTab[] = ["academic", "homework", "attendance", "fees"];
 const queryCache = new Map<string, { expiresAt: number; value: unknown }>();
@@ -1022,7 +1052,9 @@ export async function listStudents(user: Express.UserContext, query: unknown) {
     const allowedTabs = allowedTabsForRole(user.role);
     const canViewAcademic = hasTab(allowedTabs, "academic");
     const canViewHomework = hasTab(allowedTabs, "homework");
-    const canViewFees = hasTab(allowedTabsForRole(user.role), "fees");
+    // The list stays fee-free for teachers. Their fees tab is a summary on the
+    // profile only, so nothing here should start carrying payments or balances.
+    const canViewFees = hasTab(allowedTabsForRole(user.role), "fees") && canViewFeeDetail(user.role);
 
     const { classId, feeStatus } = (query || {}) as { classId?: string; feeStatus?: string };
     const canViewAttendance = hasTab(allowedTabs, "attendance");
@@ -1179,6 +1211,7 @@ export async function getStudent(user: Express.UserContext, id: string) {
     const canViewHomework = hasTab(allowedTabs, "homework");
     const canViewAttendance = hasTab(allowedTabs, "attendance");
     const canViewFees = hasTab(allowedTabs, "fees");
+    const feeDetail = canViewFees && canViewFeeDetail(user.role);
     const canViewCommunication = hasTab(allowedTabs, "communication");
     const canViewBehaviour = hasTab(allowedTabs, "behaviour");
     const canViewDocuments = hasTab(allowedTabs, "documents");
@@ -1194,7 +1227,13 @@ export async function getStudent(user: Express.UserContext, id: string) {
         class: true,
         ...(canViewAcademic ? { examResults: { select: { marksObtained: true, maxMarks: true } } } : {}),
         ...(canViewHomework ? { homeworkRecords: { select: { completionPercentage: true } } } : {}),
-        ...(canViewFees ? { feeAssignments: { include: { feeStructure: true, payments: { include: { receipt: true } } }, orderBy: { assignedAt: "desc" } } } : {}),
+        ...(canViewFees
+          ? {
+              feeAssignments: feeDetail
+                ? { include: { feeStructure: true, payments: { include: { receipt: true } } }, orderBy: { assignedAt: "desc" } }
+                : { select: { totalAmount: true, paidAmount: true, pendingAmount: true, status: true } }
+            }
+          : {}),
         ...(canViewAttendance || canViewAcademic
           ? {
               attendanceRecords: {
@@ -1287,7 +1326,7 @@ export async function getStudent(user: Express.UserContext, id: string) {
 
     // transportFeeAmount is a fee figure that lives on the student row itself,
     // so it has to be stripped explicitly for roles without the fees tab.
-    const transportFeeFields = canViewFees ? { transportFeeAmount } : {};
+    const transportFeeFields = feeDetail ? { transportFeeAmount } : {};
 
     // Consent records are admin-only data — exclude from TEACHER/ACCOUNTANT/PARENT responses.
     const consentFields = isPrincipalRole(user.role)
@@ -1319,7 +1358,8 @@ export async function getStudent(user: Express.UserContext, id: string) {
         createdAt: entry.createdAt,
         actor: entry.actor ? { id: entry.actor.id, fullName: entry.actor.fullName, role: entry.actor.role } : null
       })),
-      feeAssignments: canViewFees ? feeAssignments : [],
+      feeAssignments: feeDetail ? feeAssignments : [],
+      feeSummary: canViewFees ? summariseFees(feeAssignments as FeeTotals[]) : null,
       attendanceRecords: canViewAttendance ? attendanceRecords : [],
       feeBalance
     };

@@ -7,9 +7,12 @@ import { getStudent, listStudents, studentsNeedingFocus, FOCUS_THRESHOLDS } from
 /**
  * Teacher-portal guarantees from the V2 blueprint:
  *
- *  1. A teacher never sees fee information for a student — not in the list and
- *     not in the profile. The same call as a principal must still return it, so
- *     the assertion is meaningful rather than vacuous.
+ *  1. A teacher sees whether a student owes money, and never how the family
+ *     paid. The profile carries a summary — status and balance — while
+ *     individual payments, modes, receipts and the transport fee stay with the
+ *     principal. The student list stays fee-free entirely. The same calls as a
+ *     principal must still return the detail, so the assertions are meaningful
+ *     rather than vacuous.
  *  2. "Students Needing Focus" flags on the published, fee-free thresholds.
  *
  * Requires a reachable database (DATABASE_URL).
@@ -27,16 +30,28 @@ function assertNoFeeKeys(payload: Record<string, unknown>, where: string) {
 }
 
 /**
- * The profile response keeps a stable shape for the web dashboard, so the fee
- * keys are present but neutralised. What matters is that no fee *value* ever
- * reaches a teacher: the assignment list is empty and the balance is zero.
+ * A teacher's profile view may say what is owed, but never how it was paid.
+ * The summary is allowed; the assignment list, individual payments and the
+ * transport fee are not.
  */
-function assertFeeValuesNeutralised(payload: Record<string, unknown>, where: string) {
+function assertFeeSummaryOnly(payload: Record<string, unknown>, where: string) {
   assert.deepEqual(payload.feeAssignments ?? [], [], `${where} must return no fee assignments to a teacher`);
-  assert.equal(payload.feeBalance ?? 0, 0, `${where} must return a zero fee balance to a teacher`);
   assert.equal("currentOutstanding" in payload, false, `${where} must not expose outstanding dues to a teacher`);
   assert.equal("lastPayment" in payload, false, `${where} must not expose payments to a teacher`);
   assert.equal("transportFeeAmount" in payload, false, `${where} must not expose the transport fee to a teacher`);
+
+  const summary = payload.feeSummary as Record<string, unknown> | null | undefined;
+  assert.ok(summary, `${where} must give a teacher a fee summary`);
+  assert.equal(typeof summary!.balance, "number", `${where} fee summary needs a numeric balance`);
+  assert.ok(
+    ["NONE", "PENDING", "PARTIAL", "PAID", "OVERDUE"].includes(String(summary!.status)),
+    `${where} fee summary needs a known status, got ${String(summary!.status)}`
+  );
+
+  // The summary must carry no trace of how the money arrived.
+  for (const key of ["payments", "receipt", "mode", "paidAt"]) {
+    assert.equal(key in summary!, false, `${where} fee summary must not expose "${key}"`);
+  }
 }
 
 async function main() {
@@ -121,7 +136,7 @@ async function main() {
     }
 
     const teacherProfile = await getStudent(teacherUser, struggling.id) as Record<string, unknown>;
-    assertFeeValuesNeutralised(teacherProfile, "GET /students/:id");
+    assertFeeSummaryOnly(teacherProfile, "GET /students/:id");
     assert.equal("attendancePercentage" in teacherProfile, true, "teacher should still get attendance");
 
     // The profile also advertises which tabs the role may open; "fees" must not

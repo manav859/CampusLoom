@@ -7,7 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
-import '../data/student_models.dart';
+import '../../../core/data/student_models.dart';
 
 /// Add Student: the web create form's essential fields, with the same
 /// required ones (name, class, gender, parent name and phone). Admission

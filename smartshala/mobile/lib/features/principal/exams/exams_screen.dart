@@ -10,7 +10,7 @@ import '../../../core/widgets/app_chips.dart';
 import '../../../core/widgets/schedule_exam_screen.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
-import '../data/student_models.dart' show ClassChoice;
+import '../../../core/data/student_models.dart' show ClassChoice;
 import '../widgets/management_widgets.dart';
 import 'exam_results_screen.dart';
 

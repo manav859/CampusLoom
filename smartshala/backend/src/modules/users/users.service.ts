@@ -15,13 +15,14 @@ type TeacherPeriodInput = {
   subjectId?: string | null;
 };
 
-export const timetableDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"] as const;
+export const timetableDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
 export const timetableDayLabels: Record<(typeof timetableDays)[number], string> = {
   MONDAY: "Monday",
   TUESDAY: "Tuesday",
   WEDNESDAY: "Wednesday",
   THURSDAY: "Thursday",
-  FRIDAY: "Friday"
+  FRIDAY: "Friday",
+  SATURDAY: "Saturday"
 };
 
 export async function getTimetablePeriodCount(schoolId: string) {
@@ -32,22 +33,20 @@ export async function getTimetablePeriodCount(schoolId: string) {
   return Math.max(1, Math.min(12, school?.timetablePeriodCount ?? 8));
 }
 
+/// Fills in the timetable rows a teacher has no record for yet, as free
+/// periods. It used to hand each new slot a class picked by a per-teacher
+/// round robin, which had no idea what the other teachers already held: two
+/// teachers routinely ended up owning the same class in the same slot, the
+/// grid lit up with conflicts, and Save Periods stayed disabled until the
+/// principal cleared every one of them by hand. Seeding is also run for
+/// several teachers at once, so no read-then-write check could have made that
+/// safe. An empty slot is what the grid already calls it — "free period" —
+/// and the principal fills it in.
 async function ensureTeacherPeriods(schoolId: string, teacherId: string, periodCount: number) {
-  const [existing, available, teachers] = await Promise.all([
-    prisma.teacherPeriodAssignment.findMany({
-      where: { schoolId, teacherId },
-      select: { dayOfWeek: true, periodNumber: true }
-    }),
-    prisma.subject.findMany({
-      where: { schoolId, classId: { not: null } },
-      select: { id: true, classId: true, class: { select: { name: true, section: true } }, name: true }
-    }),
-    prisma.user.findMany({
-      where: { schoolId, role: UserRole.TEACHER, isActive: true },
-      select: { id: true },
-      orderBy: [{ fullName: "asc" }, { id: "asc" }]
-    })
-  ]);
+  const existing = await prisma.teacherPeriodAssignment.findMany({
+    where: { schoolId, teacherId },
+    select: { dayOfWeek: true, periodNumber: true }
+  });
   const existingPeriods = new Set(existing.map((period) => `${period.dayOfWeek}:${period.periodNumber}`));
   const slots = timetableDays.flatMap((dayOfWeek) =>
     Array.from({ length: periodCount }, (_, index) => ({ dayOfWeek, periodNumber: index + 1 }))
@@ -55,28 +54,15 @@ async function ensureTeacherPeriods(schoolId: string, teacherId: string, periodC
   const missing = slots.filter((slot) => !existingPeriods.has(`${slot.dayOfWeek}:${slot.periodNumber}`));
   if (missing.length === 0) return;
 
-  const sortedAvailable = available.sort((a, b) => {
-    const classCompare = `${a.class?.name ?? ""}-${a.class?.section ?? ""}`.localeCompare(`${b.class?.name ?? ""}-${b.class?.section ?? ""}`);
-    return classCompare || a.name.localeCompare(b.name);
-  });
-  const teacherIndex = Math.max(0, teachers.findIndex((teacher) => teacher.id === teacherId));
-  const offset = sortedAvailable.length > 0 ? (teacherIndex * 7) % sortedAvailable.length : 0;
-
   await prisma.teacherPeriodAssignment.createMany({
-    data: missing.map(({ dayOfWeek, periodNumber }) => {
-      const dayOffset = timetableDays.indexOf(dayOfWeek) * periodCount;
-      const assignment = periodNumber === periodCount || sortedAvailable.length === 0
-        ? null
-        : sortedAvailable[(offset + dayOffset + periodNumber - 1) % sortedAvailable.length];
-      return {
-        schoolId,
-        teacherId,
-        dayOfWeek,
-        periodNumber,
-        classId: assignment?.classId ?? null,
-        subjectId: assignment?.id ?? null
-      };
-    }),
+    data: missing.map(({ dayOfWeek, periodNumber }) => ({
+      schoolId,
+      teacherId,
+      dayOfWeek,
+      periodNumber,
+      classId: null,
+      subjectId: null
+    })),
     skipDuplicates: true
   });
 }

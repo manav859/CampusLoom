@@ -35,6 +35,9 @@ class _TeacherShellState extends State<TeacherShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Home paints on white; the strip behind the docked swipe bar has to
+      // match it or the page ends in a grey band.
+      backgroundColor: Home.page,
       body: HomeTabScope(
         goHome: () => setState(() => _index = 0),
         child: IndexedStack(
@@ -97,19 +100,20 @@ class _NavRow extends StatelessWidget {
   static const _items = [
     (icon: Icons.home_rounded, label: 'Home'),
     (icon: Icons.calendar_month_rounded, label: 'Calendar'),
-    (icon: Icons.groups_2_rounded, label: 'Students'),
+    (icon: Icons.groups_rounded, label: 'Students'),
     if (kPayrollEnabled) (icon: Icons.receipt_long_rounded, label: 'Pay Slip'),
-    (icon: Icons.notifications_none_rounded, label: 'Messages'),
+    (icon: Icons.chat_bubble_outline_rounded, label: 'Messages'),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6, top: 2),
+      padding: const EdgeInsets.only(bottom: 4, top: 4),
       child: Row(
         children: List.generate(_items.length, (position) {
           final item = _items[position];
           final selected = position == index;
+          final color = selected ? AppColors.primary : const Color(0xFF8C9AAF);
 
           return Expanded(
             child: InkWell(
@@ -120,18 +124,24 @@ class _NavRow extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      item.icon,
-                      size: 24,
-                      color: selected ? AppColors.primary : AppColors.textMuted,
-                    ),
+                    Icon(item.icon, size: 24, color: color),
                     const SizedBox(height: 3),
                     Text(
                       item.label,
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                        color: selected ? AppColors.primary : AppColors.textMuted,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    // The selected tab carries a short bar under its label.
+                    Container(
+                      width: 22,
+                      height: 2.5,
+                      decoration: BoxDecoration(
+                        color: selected ? AppColors.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ],

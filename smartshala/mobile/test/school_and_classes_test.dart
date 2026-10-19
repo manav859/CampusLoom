@@ -8,7 +8,7 @@ import 'package:smartshala_mobile/features/principal/classes/class_form_screen.d
 import 'package:smartshala_mobile/features/principal/classes/classes_screen.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_repository.dart';
 import 'package:smartshala_mobile/features/principal/data/school_models.dart';
-import 'package:smartshala_mobile/features/principal/data/student_models.dart' show StudentCounts;
+import 'package:smartshala_mobile/core/data/student_models.dart' show StudentCounts;
 import 'package:smartshala_mobile/features/principal/data/teacher_models.dart';
 import 'package:smartshala_mobile/features/principal/school/edit_school_profile_screen.dart';
 import 'package:smartshala_mobile/features/principal/school/school_profile_screen.dart';

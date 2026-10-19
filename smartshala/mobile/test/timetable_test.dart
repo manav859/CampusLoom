@@ -5,7 +5,7 @@ import 'package:smartshala_mobile/core/api/api_exception.dart';
 import 'package:smartshala_mobile/core/data/timetable_models.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_repository.dart';
-import 'package:smartshala_mobile/features/principal/data/student_models.dart' show ClassChoice;
+import 'package:smartshala_mobile/core/data/student_models.dart' show ClassChoice;
 import 'package:smartshala_mobile/features/principal/timetable/timetable_screen.dart';
 import 'package:smartshala_mobile/features/teacher/data/teacher_repository.dart';
 import 'package:smartshala_mobile/features/teacher/timetable/my_timetable_screen.dart';
@@ -369,7 +369,12 @@ void main() {
       expect(find.text('Now'), findsOneWidget, reason: 'today is $today');
 
       // The same period on another weekday must not claim to be running.
-      final otherDay = _weekdays.indexOf(today) == 0 ? 'Fri' : 'Mon';
+      // The day chips are a lazy horizontal ListView, so a far-off weekday is
+      // never built and cannot be tapped — take a neighbour, which always is.
+      // This branch only runs on a weekday, so it first ran long after it was
+      // written, with 'Fri' hard-coded against a chip showing 'Mon'.
+      final todayIndex = _weekdays.indexOf(today);
+      final otherDay = _labels[todayIndex == 0 ? 1 : todayIndex - 1].substring(0, 3);
       await tester.tap(find.text(otherDay));
       await tester.pumpAndSettle();
       expect(find.text('Now'), findsNothing);

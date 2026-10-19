@@ -11,7 +11,7 @@ import '../../../core/widgets/app_chips.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
-import '../data/student_models.dart';
+import '../../../core/data/student_models.dart';
 import '../fees/student_fee_ledger_screen.dart';
 import '../widgets/management_widgets.dart';
 

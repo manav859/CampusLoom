@@ -35,15 +35,20 @@ export const teacherAssignmentParamsSchema = z.object({
   id: z.string().uuid()
 });
 
+/// The days the teacher grid covers, in order. Kept in step with
+/// `timetableDays` in users.service.ts, which is what the save path validates
+/// against; this file stays free of service imports.
+const timetableDayValues = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"] as const;
+
 export const teacherPeriodAssignmentsSchema = z.object({
   periods: z.array(
     z.object({
-      dayOfWeek: z.enum(["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]).optional().default("MONDAY"),
+      dayOfWeek: z.enum(timetableDayValues).optional().default("MONDAY"),
       periodNumber: z.coerce.number().int().min(1).max(12),
       classId: z.string().uuid().nullable().optional(),
       subjectId: z.string().uuid().nullable().optional()
     })
-  ).min(1).max(60)
+  ).min(1).max(timetableDayValues.length * 12)
 }).refine((data) => new Set(data.periods.map((period) => `${period.dayOfWeek}:${period.periodNumber}`)).size === data.periods.length, {
   message: "Each weekday and period combination must be unique",
   path: ["periods"]

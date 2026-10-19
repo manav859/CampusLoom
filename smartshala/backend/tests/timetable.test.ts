@@ -96,7 +96,7 @@ async function main() {
     assert.equal(week.periodCount, 3);
     assert.deepEqual(
       week.days.map((day) => day.dayOfWeek),
-      ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+      ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
     );
     assert.equal(week.days[0].label, "Monday");
     assert.ok(
@@ -158,7 +158,7 @@ async function main() {
     const anitaWeek = await getMyWeekSchedule(anita);
     assert.deepEqual(
       anitaWeek.days.map((day) => day.dayOfWeek),
-      ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"]
+      ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
     );
     assert.deepEqual(
       anitaWeek.days[0].periods.map((period) => [

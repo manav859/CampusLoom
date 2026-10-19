@@ -7,7 +7,7 @@ import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
 import '../data/school_models.dart';
-import '../data/student_models.dart' show ClassChoice;
+import '../../../core/data/student_models.dart' show ClassChoice;
 import '../data/transport_models.dart';
 
 /// Pick a class, tick its students and choose their stop. Students already on

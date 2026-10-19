@@ -10,7 +10,7 @@ import 'payroll_models.dart';
 import 'principal_dashboard.dart';
 import 'report_models.dart';
 import 'school_models.dart';
-import 'student_models.dart' hide ExamSummary;
+import '../../../core/data/student_models.dart' hide ExamSummary;
 import 'teacher_models.dart';
 import 'transport_models.dart';
 

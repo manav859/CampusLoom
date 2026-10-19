@@ -16,7 +16,7 @@ import '../../../core/widgets/list_with_header.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
-import '../data/student_models.dart';
+import '../../../core/data/student_models.dart';
 import '../widgets/management_widgets.dart';
 import 'add_student_screen.dart';
 import 'student_export.dart';

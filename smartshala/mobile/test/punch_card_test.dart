@@ -187,8 +187,8 @@ void main() {
 
   testWidgets('punched in: the timer ticks, and a break is one tap away', (tester) async {
     final server = await _pump(tester, PunchState.punchedIn, home: const TeacherShell());
-    expect(find.text('Working'), findsOneWidget);
-    expect(find.text('Punch Out'), findsOneWidget);
+    expect(find.text('Punched In'), findsOneWidget);
+    expect(find.text('Swipe to Punch Out'), findsOneWidget);
 
     String timer() => tester
         .widgetList<Text>(find.byType(Text))
@@ -202,7 +202,7 @@ void main() {
     await tester.tap(find.text('Take a Break'));
     await _frames(tester);
     expect(server.calls, ['startBreak']);
-    expect(find.text('On a break'), findsOneWidget);
+    expect(find.text('On Break'), findsOneWidget);
     expect(find.textContaining('timer paused'), findsOneWidget);
 
     final paused = timer();
@@ -213,7 +213,7 @@ void main() {
 
   testWidgets('on a break: swiping ends it; punching out from it asks first', (tester) async {
     final server = await _pump(tester, PunchState.onBreak, home: const TeacherShell());
-    expect(find.text('End Break'), findsOneWidget);
+    expect(find.text('Swipe to End Break'), findsOneWidget);
 
     await tester.tap(find.text('Punch out for the day'));
     await _frames(tester);
@@ -224,17 +224,17 @@ void main() {
 
     await _swipe(tester);
     expect(server.calls, ['punchIn']);
-    expect(find.text('Working'), findsOneWidget);
+    expect(find.text('Punched In'), findsOneWidget);
   });
 
   testWidgets('punched out by mistake: the day can be punched into again', (tester) async {
     final server = await _pump(tester, PunchState.punchedOut, home: const TeacherShell());
-    expect(find.text('Punched out'), findsWidgets);
-    expect(find.text('Punch In Again'), findsOneWidget);
+    expect(find.text('Punched Out'), findsWidgets);
+    expect(find.text('Swipe to Punch In Again'), findsOneWidget);
 
     await _swipe(tester);
     expect(server.calls, ['punchIn']);
-    expect(find.text('Working'), findsOneWidget);
+    expect(find.text('Punched In'), findsOneWidget);
   });
 
   testWidgets('the first punch-in of the day sends the selfie', (tester) async {
@@ -259,7 +259,7 @@ void main() {
 
     expect(server.calls, ['punchIn'], reason: 'a refused camera must not block the punch');
     expect(server.selfies, [null], reason: 'and it is stored without a selfie');
-    expect(find.text('Working'), findsOneWidget);
+    expect(find.text('Punched In'), findsOneWidget);
   });
 
   // Ending a break is a punchIn too, but it is not the day's first.

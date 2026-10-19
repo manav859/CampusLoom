@@ -8,7 +8,7 @@ import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/state_views.dart';
 import '../../../core/widgets/timetable_week.dart';
 import '../data/principal_repository.dart';
-import '../data/student_models.dart' show ClassChoice;
+import '../../../core/data/student_models.dart' show ClassChoice;
 import '../widgets/management_widgets.dart';
 
 /// Timetable: one class's week, read from the teacher period assignments the

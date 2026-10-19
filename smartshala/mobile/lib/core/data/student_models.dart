@@ -258,6 +258,132 @@ class StudentDocument {
 
 /// GET /students/:id for a Principal or Admin: everything the web profile's
 /// tabs show that the app uses.
+/// What a role may know about fees without seeing individual payments. A
+/// teacher gets this and nothing else: whether money is owed, and how much.
+class FeeSummary {
+  const FeeSummary({
+    required this.totalPayable,
+    required this.totalPaid,
+    required this.balance,
+    required this.status,
+  });
+
+  final double totalPayable;
+  final double totalPaid;
+  final double balance;
+
+  /// NONE, PENDING, PARTIAL, PAID or OVERDUE.
+  final String status;
+
+  static const empty = FeeSummary(totalPayable: 0, totalPaid: 0, balance: 0, status: 'NONE');
+
+  factory FeeSummary.fromJson(Map<String, dynamic> json) => FeeSummary(
+        totalPayable: _money(json['totalPayable']),
+        totalPaid: _money(json['totalPaid']),
+        balance: _money(json['balance']),
+        status: json['status'] as String? ?? 'NONE',
+      );
+
+  String get label => switch (status) {
+        'PAID' => 'Paid',
+        'PARTIAL' => 'Partly paid',
+        'OVERDUE' => 'Overdue',
+        'PENDING' => 'Pending',
+        _ => 'No fees assigned',
+      };
+
+  bool get owesMoney => balance > 0;
+}
+
+/// One message sent about a student. The server already withholds fee-related
+/// messages from teachers, so this needs no filtering of its own.
+class CommunicationEntry {
+  const CommunicationEntry({
+    required this.id,
+    required this.channel,
+    required this.summary,
+    required this.status,
+    required this.timestamp,
+    this.reference,
+  });
+
+  final String id;
+  final String channel;
+  final String summary;
+  final String status;
+  final DateTime timestamp;
+  final String? reference;
+
+  factory CommunicationEntry.fromJson(Map<String, dynamic> json) => CommunicationEntry(
+        id: json['id'] as String? ?? '',
+        channel: json['channel'] as String? ?? 'WHATSAPP',
+        summary: json['summary'] as String? ?? '',
+        status: json['status'] as String? ?? '',
+        timestamp: _date(json['timestamp']) ?? DateTime.now(),
+        reference: json['reference'] as String?,
+      );
+}
+
+/// One behaviour entry. Counsellor notes are stripped server-side for roles
+/// that may not read them, so whatever arrives here is safe to show.
+class BehaviourRecord {
+  const BehaviourRecord({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.summary,
+    required this.occurredAt,
+    this.severity,
+    this.actionTaken,
+    this.createdByName,
+  });
+
+  final String id;
+  final String type;
+  final String title;
+  final String summary;
+  final DateTime occurredAt;
+  final String? severity;
+  final String? actionTaken;
+  final String? createdByName;
+
+  factory BehaviourRecord.fromJson(Map<String, dynamic> json) => BehaviourRecord(
+        id: json['id'] as String? ?? '',
+        type: json['type'] as String? ?? 'INCIDENT',
+        title: json['title'] as String? ?? '',
+        summary: json['summary'] as String? ?? '',
+        occurredAt: _date(json['occurredAt']) ?? DateTime.now(),
+        severity: json['severity'] as String?,
+        actionTaken: json['actionTaken'] as String?,
+        createdByName: ((json['createdBy'] as Map?)?['fullName']) as String?,
+      );
+}
+
+class BehaviourAnalytics {
+  const BehaviourAnalytics({
+    required this.incidents,
+    required this.achievements,
+    required this.records,
+  });
+
+  final int incidents;
+  final int achievements;
+  final List<BehaviourRecord> records;
+
+  static const empty = BehaviourAnalytics(incidents: 0, achievements: 0, records: []);
+
+  factory BehaviourAnalytics.fromJson(Map<String, dynamic> json) {
+    final counts = (json['counts'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return BehaviourAnalytics(
+      incidents: _intOrNull(counts['incidents']) ?? 0,
+      achievements: _intOrNull(counts['achievements']) ?? 0,
+      records: (((json['records'] as List?) ?? const [])
+          .map((item) => BehaviourRecord.fromJson((item as Map).cast<String, dynamic>()))
+          .toList()),
+    );
+  }
+}
+
 class StudentDetail {
   const StudentDetail({
     required this.id,
@@ -271,6 +397,9 @@ class StudentDetail {
     required this.allowedTabs,
     required this.feeAssignments,
     required this.feeBalance,
+    required this.feeSummary,
+    required this.communication,
+    required this.behaviour,
     required this.exams,
     required this.subjects,
     required this.documents,
@@ -326,6 +455,12 @@ class StudentDetail {
   final List<String> allowedTabs;
   final List<FeeAssignment> feeAssignments;
   final double feeBalance;
+
+  /// Present for every role with the fees tab. Teachers get only this; the
+  /// principal gets it alongside [feeAssignments].
+  final FeeSummary feeSummary;
+  final List<CommunicationEntry> communication;
+  final BehaviourAnalytics behaviour;
   final List<ExamSummary> exams;
   final List<SubjectSummary> subjects;
   final List<StudentDocument> documents;
@@ -382,6 +517,13 @@ class StudentDetail {
       allowedTabs: (((json['access'] as Map?)?['allowedTabs'] as List?) ?? const []).map((tab) => '$tab').toList(),
       feeAssignments: list(json['feeAssignments']).map(FeeAssignment.fromJson).toList(),
       feeBalance: _money(json['feeBalance']),
+      feeSummary: json['feeSummary'] == null
+          ? FeeSummary.empty
+          : FeeSummary.fromJson((json['feeSummary'] as Map).cast<String, dynamic>()),
+      communication: list(json['communicationAudit']).map(CommunicationEntry.fromJson).toList(),
+      behaviour: json['behaviourAnalytics'] == null
+          ? BehaviourAnalytics.empty
+          : BehaviourAnalytics.fromJson((json['behaviourAnalytics'] as Map).cast<String, dynamic>()),
       exams: list(academic['exams']).map(ExamSummary.fromJson).toList(),
       subjects: list(academic['subjects']).map(SubjectSummary.fromJson).toList(),
       documents: list(json['documents']).map(StudentDocument.fromJson).toList(),

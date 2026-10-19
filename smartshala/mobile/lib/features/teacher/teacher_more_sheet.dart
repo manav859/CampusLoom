@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/theme/app_colors.dart';
 import '../auth/change_password_screen.dart';
@@ -117,6 +119,33 @@ class TeacherMoreSheet extends StatelessWidget {
                   );
                 },
               ),
+            const Divider(height: 20),
+            // Home has no sign-out button of its own any more, so it lives here.
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.danger.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.logout_rounded, color: AppColors.danger, size: 21),
+              ),
+              title: const Text(
+                'Sign out',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.danger,
+                ),
+              ),
+              onTap: () {
+                final auth = context.read<AuthController>();
+                Navigator.of(context).pop();
+                auth.logout();
+              },
+            ),
           ],
         ),
       ),

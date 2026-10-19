@@ -152,16 +152,32 @@ void main() {
     }
     expect(find.text('96'), findsOneWidget);
     expect(find.text("Today's Punch"), findsOneWidget);
-    expect(find.text('Working'), findsOneWidget);
+    expect(find.text('Punched In'), findsOneWidget);
     expect(find.text('02:05:00'), findsOneWidget, reason: 'the punch timer shows time worked today');
     expect(find.text('Take a Break'), findsOneWidget);
-    expect(find.text('Class 6-A'), findsNWidgets(2), reason: 'in the schedule and in class attendance');
-    expect(find.text('94%'), findsOneWidget);
-    expect(find.text('Not marked'), findsOneWidget);
-    expect(find.text("Today's Actions"), findsOneWidget);
+    expect(find.text('Mathematics'), findsOneWidget, reason: 'the schedule leads with the subject');
+    expect(find.text('Class 6-A · Period 1'), findsOneWidget);
+    expect(find.text('Class 6-A'), findsOneWidget, reason: 'in class attendance');
+    expect(find.text('30 of 32 present'), findsOneWidget);
+    expect(find.text('Not marked · 30 students'), findsOneWidget);
+    expect(find.text('Class Attendance'), findsOneWidget);
+    expect(find.text('Alerts'), findsOneWidget);
     expect(find.text('8-C attendance is not submitted yet.'), findsOneWidget);
     expect(find.text('7-B low attendance'), findsOneWidget, reason: 'the web adds marked classes under 75%');
-    expect(find.text('2'), findsWidgets, reason: 'the bell shows the real unread count');
+  });
+
+  // The app bar is gone: the brand, the bell and the overflow scroll with the
+  // page, and nothing on the header says which of the two apps this is.
+  testWidgets('home carries the brand itself instead of an app bar', (tester) async {
+    await _pumpHome(tester, width: 390);
+
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.text('SmartShala'), findsOneWidget);
+    expect(find.text('Teacher App'), findsNothing);
+    expect(find.byTooltip('Notifications'), findsOneWidget);
+    expect(find.textContaining('Good '), findsOneWidget, reason: 'the greeting follows the clock');
+    expect(find.text('Anita Sharma Deshpande'), findsOneWidget);
+    expect(find.text("Let's make today productive!"), findsOneWidget);
   });
 
   // A layout overflow fails a widget test, so reaching the end of
@@ -186,9 +202,9 @@ void main() {
   testWidgets('More opens the teacher screens the grid has no tile for', (tester) async {
     await _pumpHome(tester, width: 390);
 
-    await tester.tap(find.text('More'));
+    await tester.tap(find.byTooltip('More'));
     await _settle(tester);
-    for (final title in ['My Timetable', 'Messages', 'Change Password']) {
+    for (final title in ['My Timetable', 'Messages', 'Change Password', 'Sign out']) {
       expect(find.text(title), findsOneWidget, reason: title);
     }
     expect(find.text('Pay Slip'), findsNothing, reason: 'payroll is hidden');

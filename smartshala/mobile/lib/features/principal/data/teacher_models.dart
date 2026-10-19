@@ -1,5 +1,5 @@
 import '../../../core/data/messages_models.dart';
-import 'student_models.dart';
+import '../../../core/data/student_models.dart';
 
 int? _intOrNull(Object? value) => value is num ? value.toInt() : int.tryParse('$value');
 

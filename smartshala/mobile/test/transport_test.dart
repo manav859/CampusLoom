@@ -5,7 +5,7 @@ import 'package:smartshala_mobile/core/widgets/app_chips.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_repository.dart';
 import 'package:smartshala_mobile/features/principal/data/school_models.dart';
-import 'package:smartshala_mobile/features/principal/data/student_models.dart' show ClassChoice;
+import 'package:smartshala_mobile/core/data/student_models.dart' show ClassChoice;
 import 'package:smartshala_mobile/features/principal/data/transport_models.dart';
 import 'package:smartshala_mobile/features/principal/transport/assign_students_screen.dart';
 import 'package:smartshala_mobile/features/principal/transport/route_detail_screen.dart';

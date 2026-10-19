@@ -11,7 +11,7 @@ import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/fee_models.dart';
 import '../data/principal_repository.dart';
-import '../data/student_models.dart';
+import '../../../core/data/student_models.dart';
 import 'student_fee_ledger_screen.dart';
 
 /// Record Payment starts the way the web modal does: find the student, then

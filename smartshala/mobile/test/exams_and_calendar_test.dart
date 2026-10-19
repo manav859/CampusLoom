@@ -8,7 +8,7 @@ import 'package:smartshala_mobile/core/widgets/schedule_exam_screen.dart';
 import 'package:smartshala_mobile/features/principal/calendar/academic_calendar_screen.dart';
 import 'package:smartshala_mobile/features/principal/calendar/event_form_screen.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_repository.dart';
-import 'package:smartshala_mobile/features/principal/data/student_models.dart' show ClassChoice;
+import 'package:smartshala_mobile/core/data/student_models.dart' show ClassChoice;
 import 'package:smartshala_mobile/features/principal/exams/exam_results_screen.dart';
 import 'package:smartshala_mobile/features/principal/exams/exams_screen.dart';
 import 'package:smartshala_mobile/features/teacher/data/academics_models.dart' show TeachingClass;
