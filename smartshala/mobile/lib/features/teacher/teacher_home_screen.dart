@@ -968,8 +968,8 @@ class TeacherPunchSwipeBar extends StatelessWidget {
     final (action, step, label) = switch (punch.status.state) {
       PunchState.notPunchedIn => (PunchAction.punchIn, PunchStep.punchIn, null),
       PunchState.punchedIn => (PunchAction.punchOut, PunchStep.punchOut, null),
-      PunchState.onBreak => (PunchAction.punchIn, PunchStep.punchIn, 'Swipe to End Break'),
-      PunchState.punchedOut => (PunchAction.punchIn, PunchStep.punchIn, 'Swipe to Punch In Again'),
+      PunchState.onBreak => (PunchAction.punchIn, PunchStep.punchIn, 'End Break'),
+      PunchState.punchedOut => (PunchAction.punchIn, PunchStep.punchIn, 'Punch In Again'),
     };
 
     return Padding(

@@ -40,7 +40,7 @@ void main() {
     }
   }
 
-  final handle = find.byIcon(Icons.arrow_forward_rounded);
+  final handle = find.byIcon(Icons.keyboard_double_arrow_right_rounded);
 
   /// A real swipe arrives as many small moves, not one jump.
   Future<void> swipe(WidgetTester tester, double distance) async {
@@ -89,11 +89,11 @@ void main() {
     await pumpBar(tester, onConfirmed: () async {}, action: PunchAction.punchOut);
     await tester.pump();
 
-    expect(find.text('Swipe to Punch Out'), findsOneWidget);
-    expect(find.text('Swipe to Punch In'), findsNothing);
+    expect(find.text('Punch Out'), findsOneWidget);
+    expect(find.text('Punch In'), findsNothing);
   });
 
-  testWidgets('both directions ride the same brand-blue track', (tester) async {
+  testWidgets('punch out is red where punch in is blue', (tester) async {
     List<Color> trackColors() {
       final track = tester.widget<Container>(
         find.descendant(
@@ -113,10 +113,10 @@ void main() {
     await tester.pump();
     final punchOut = trackColors();
 
-    expect(punchIn, punchOut, reason: 'the prompt names the action, not the colour');
-    expect(punchIn.first, AppColors.primary);
-    expect(punchIn.last.b, greaterThan(punchIn.last.r),
-        reason: 'the far end of the track is still blue');
+    expect(punchIn.last, AppColors.primary);
+    expect(punchOut.last, AppColors.danger);
+    expect(punchOut.first.r, greaterThan(punchOut.first.b),
+        reason: 'the dark end of the punch-out track is red, not blue');
   });
 
   testWidgets('a completed day is inert', (tester) async {

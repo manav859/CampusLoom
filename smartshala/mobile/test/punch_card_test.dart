@@ -188,7 +188,10 @@ void main() {
   testWidgets('punched in: the timer ticks, and a break is one tap away', (tester) async {
     final server = await _pump(tester, PunchState.punchedIn, home: const TeacherShell());
     expect(find.text('Punched In'), findsOneWidget);
-    expect(find.text('Swipe to Punch Out'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(SwipeToPunch), matching: find.text('Punch Out')),
+      findsOneWidget,
+    );
 
     String timer() => tester
         .widgetList<Text>(find.byType(Text))
@@ -213,7 +216,7 @@ void main() {
 
   testWidgets('on a break: swiping ends it; punching out from it asks first', (tester) async {
     final server = await _pump(tester, PunchState.onBreak, home: const TeacherShell());
-    expect(find.text('Swipe to End Break'), findsOneWidget);
+    expect(find.text('End Break'), findsOneWidget);
 
     await tester.tap(find.text('Punch out for the day'));
     await _frames(tester);
@@ -230,7 +233,7 @@ void main() {
   testWidgets('punched out by mistake: the day can be punched into again', (tester) async {
     final server = await _pump(tester, PunchState.punchedOut, home: const TeacherShell());
     expect(find.text('Punched Out'), findsWidgets);
-    expect(find.text('Swipe to Punch In Again'), findsOneWidget);
+    expect(find.text('Punch In Again'), findsOneWidget);
 
     await _swipe(tester);
     expect(server.calls, ['punchIn']);

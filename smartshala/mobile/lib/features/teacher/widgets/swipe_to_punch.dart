@@ -40,9 +40,9 @@ class SwipeToPunch extends StatefulWidget {
 }
 
 class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderStateMixin {
-  static const _handleSize = 46.0;
+  static const _handleSize = 42.0;
   static const _trackHeight = 56.0;
-  static const _padding = 5.0;
+  static const _padding = 7.0;
   static const _completionThreshold = 0.82;
 
   // Created eagerly: a `late final` field would be constructed inside dispose()
@@ -51,6 +51,7 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
   late final AnimationController _controller;
 
   double _dragFraction = 0;
+  bool _dragging = false;
 
   @override
   void initState() {
@@ -70,21 +71,27 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
   bool get _interactive =>
       widget.enabled && !widget.busy && widget.completedLabel == null;
 
-  /// Both directions ride the same brand-blue track, as the home-screen
-  /// design shows it; the prompt names the action instead.
-  Color get _accent => AppColors.primary;
+  /// Punch In is the brand blue and Punch Out the danger red, so the two can
+  /// never be taken for one another at a glance. The dark end of the red track
+  /// is the same step toward black that primaryDark is from primary.
+  Color get _accent =>
+      widget.action == PunchAction.punchOut ? AppColors.danger : AppColors.primary;
 
-  List<Color> get _trackColors => const [AppColors.primary, Color(0xFF4C7BF0)];
+  List<Color> get _trackColors => widget.action == PunchAction.punchOut
+      ? [Color.lerp(AppColors.danger, Colors.black, 0.2)!, AppColors.danger]
+      : const [AppColors.primaryDark, AppColors.primary];
 
   void _onDragUpdate(DragUpdateDetails details, double maxTravel) {
     if (!_interactive || maxTravel <= 0) return;
     setState(() {
+      _dragging = true;
       _dragFraction = (_dragFraction + details.delta.dx / maxTravel).clamp(0.0, 1.0);
     });
   }
 
   Future<void> _onDragEnd() async {
     if (!_interactive) return;
+    setState(() => _dragging = false);
 
     if (_dragFraction < _completionThreshold) {
       _springBack();
@@ -188,24 +195,31 @@ class _SwipeToPunchState extends State<SwipeToPunch> with SingleTickerProviderSt
       );
     }
 
-    final label = widget.label ??
-        (widget.action == PunchAction.punchIn ? 'Swipe to Punch In' : 'Swipe to Punch Out');
+    final label = widget.label ?? (widget.action == PunchAction.punchIn ? 'Punch In' : 'Punch Out');
 
     // Fade the prompt out as the handle covers it.
     return Opacity(
       opacity: (1 - (_dragFraction * 1.6)).clamp(0.0, 1.0),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: _handleSize + _padding + 6),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: widget.enabled ? Colors.white : AppColors.textMuted,
-            fontWeight: FontWeight.w700,
-            fontSize: 15.5,
-          ),
+        padding: const EdgeInsets.only(left: _handleSize + _padding),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _Chevrons(animate: !_dragging && _interactive),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: widget.enabled ? Colors.white : AppColors.textMuted,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -232,7 +246,56 @@ class _Handle extends StatelessWidget {
               height: 20,
               child: CircularProgressIndicator(strokeWidth: 2.4, color: accent),
             )
-          : Icon(Icons.arrow_forward_rounded, color: accent, size: 22),
+          : Icon(Icons.keyboard_double_arrow_right_rounded, color: accent, size: 24),
+    );
+  }
+}
+
+/// The "› › ›" trail that hints at the drag direction.
+class _Chevrons extends StatefulWidget {
+  const _Chevrons({required this.animate});
+
+  final bool animate;
+
+  @override
+  State<_Chevrons> createState() => _ChevronsState();
+}
+
+class _ChevronsState extends State<_Chevrons> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (index) {
+            final phase = ((_controller.value * 3) - index) % 3;
+            final opacity = widget.animate ? (phase < 1 ? 0.35 + (phase * 0.65) : 0.35) : 0.4;
+            return Opacity(
+              opacity: opacity.clamp(0.0, 1.0),
+              child: const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 18),
+            );
+          }),
+        );
+      },
     );
   }
 }
