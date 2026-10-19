@@ -9,22 +9,34 @@ deploy, and the Play Console paperwork only you can fill.
 
 ---
 
-## A. Must fix before the build we publish (code, ~half a day)
+## A. Must fix before the build we publish
 
-1. **The Notifications tile is a visible placeholder.**
+**1, 2 and 4 are done** (2026-10-20, working tree): `flutter analyze` clean, 276 mobile tests pass,
+`tsc --noEmit` clean. Only 3 -- the commit and the production deploy -- is left.
+
+1. ~~**The Notifications tile is a visible placeholder.**~~ **Fixed:** the tile is gone, and with it
+   `placeholder_screen.dart` and the `phase` plumbing -- a module now has to name a screen, so no
+   placeholder can ship again. Messages carries the feed.
+   <details><summary>was</summary>
    `principal_more_screen.dart:113` has no screen, so it opens "This section arrives in a later
    phase of the V2 rollout." That text cannot ship.
    → **Decision needed:** remove the tile (Messages already shows announcements + leave with
    per-user read state), or point it at `GET /notifications`. That endpoint is the *message log*,
    whose rows say SENT for messages nothing ever sent — see 3.
 
-2. **The app claims WhatsApp messages were sent. Nothing is sent.**
+2. ~~**The app claims WhatsApp messages were sent. Nothing is sent.**~~ **Fixed:** every claim now says
+   *queued*, in both apps and on the web -- the defaulter toast, the receipt toast, the receipt dialog
+   line and button, the Record Payment checkbox ("Queue a WhatsApp receipt for the parent / On by
+   default. WhatsApp delivery is not live yet."), plus the web dashboard nudge, analytics nudges, fee
+   pages and PaymentModal. Buttons still read "Send WhatsApp" -- pressing send to queue is normal; what
+   was wrong was reporting delivery that never happened.
+   <details><summary>was</summary>
    Every sender in the backend is a stub (`whatsapp.service.ts` returns `"dry-run"`), yet the app
    says *"WhatsApp reminder sent to Rahul."* (`defaulters_screen.dart:68`), *"Receipt 1041 sent on
    WhatsApp."* (`student_fee_ledger_screen.dart:88`) and offers *"Send receipt to parent on
    WhatsApp"* as a checkbox (`record_payment_screen.dart:308`).
    → Reword to what is true ("Reminder queued") or hide the actions until real delivery exists.
-   A principal who sees "sent" and gets a parent complaint is the worst version of this bug.
+   A principal who sees "sent" and gets a parent complaint is the worst version of this bug.</details>
 
 3. **The in-flight attendance-LEAVE batch is uncommitted and undeployed.**
    20 mobile files, 2 new screens, backend schema + two migrations
@@ -36,7 +48,9 @@ deploy, and the Play Console paperwork only you can fill.
    `LATE`/`HALF_DAY` rows into `PRESENT` at value 1.00, and it runs across all 16 tenant DBs —
    one failure blocks every boot (P3009). Back up first, watch `_prisma_migrations.logs`.
 
-4. **Leftover from that batch, on the web:** the student-profile attendance calendar still shows
+4. ~~**Leftover from that batch, on the web:**~~ **Fixed:** the legend is Present / Absent / Leave /
+   Holiday, Leave in the same teal the calendar already paints it.
+   <details><summary>was</summary> the student-profile attendance calendar still shows
    **Late** and **Half Day** legend chips and no Leave chip
    (`AttendanceTabPanel.tsx:228`), though those statuses no longer exist. Web only, but it is in
    the same change and should go out with it.
