@@ -31,6 +31,7 @@ class PunchStatus {
     this.breakMinutes = 0,
     this.currentSessionStartedAt,
     this.breakStartedAt,
+    this.breakEndsAt,
     this.sessions = const [],
     this.clockOffset = Duration.zero,
   });
@@ -47,6 +48,10 @@ class PunchStatus {
   /// Set while working: the timer counts on from here.
   final DateTime? currentSessionStartedAt;
   final DateTime? breakStartedAt;
+
+  /// When the school's last shift ends: the break timer stops there rather
+  /// than running all night. Null when the school has no shifts.
+  final DateTime? breakEndsAt;
   final List<PunchSession> sessions;
 
   /// Server clock minus this phone's, so the timer does not drift with a phone
@@ -71,10 +76,15 @@ class PunchStatus {
   }
 
   /// How long the current break has run, at [now]; zero when not on a break.
+  /// It stops at [breakEndsAt], so a teacher who forgot to punch out is not on
+  /// a break all night.
   Duration breakAt(DateTime now) {
     final started = breakStartedAt;
     if (state != PunchState.onBreak || started == null) return Duration.zero;
-    final running = now.add(clockOffset).difference(started);
+    var at = now.add(clockOffset);
+    final ends = breakEndsAt;
+    if (ends != null && at.isAfter(ends)) at = ends;
+    final running = at.difference(started);
     return running.isNegative ? Duration.zero : running;
   }
 
@@ -94,6 +104,7 @@ class PunchStatus {
       breakMinutes: (json['breakMinutes'] as num?)?.toInt() ?? 0,
       currentSessionStartedAt: _parseDate(json['currentSessionStartedAt']),
       breakStartedAt: _parseDate(json['breakStartedAt']),
+      breakEndsAt: _parseDate(json['breakEndsAt']),
       sessions: [
         for (final session in (json['sessions'] as List<dynamic>? ?? const []))
           PunchSession.fromJson(session as Map<String, dynamic>),

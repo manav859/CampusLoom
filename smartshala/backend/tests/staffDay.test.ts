@@ -126,6 +126,31 @@ async function main() {
     // Farah's day is closed, so hers read the same whenever they are viewed.
     assert.equal(yesterday.staff.find((row) => row.fullName === "Farah")!.breakMinutes, 50);
 
+    // Once the school has shifts, the break Gita never came back from ends
+    // with the last of them — 16:00 — instead of running on.
+    await prisma.staffShift.createMany({
+      data: [
+        { schoolId: school.id, name: "Morning", startTime: "07:30", endTime: "13:30" },
+        { schoolId: school.id, name: "Full Day", startTime: "08:00", endTime: "16:00" }
+      ]
+    });
+    const gitaAt = async (now: Date) =>
+      (await getStaffDay(school.id, "2026-09-14", now)).staff.find((row) => row.fullName === "Gita")!;
+
+    const duringTheDay = await gitaAt(local(14, 11, 0));
+    assert.deepEqual(duringTheDay.breaks.map((item) => [item.endAt, item.minutes]), [[null, 30]],
+      "still open while the last shift is still running");
+
+    const afterTheShift = await gitaAt(local(14, 18, 0));
+    assert.equal(afterTheShift.breaks.length, 1);
+    assert.equal(afterTheShift.breaks[0].endAt!.getTime(), local(14, 16, 0).getTime());
+    assert.equal(afterTheShift.breakMinutes, 330, "10:30 to 16:00");
+    assert.equal(afterTheShift.onBreak, true, "the day is still not punched out");
+
+    // A day later it reads the same, rather than being dropped as unknown.
+    const dayLater = await gitaAt(local(15, 11, 0));
+    assert.equal(dayLater.breakMinutes, 330);
+
     // The next day: only Anita punched; Chetan's leave runs on.
     const next = await getStaffDay(school.id, "2026-09-15", local(15, 11, 0));
     assert.deepEqual([next.present, next.onLeave, next.notPunchedIn], [1, 1, 5]);

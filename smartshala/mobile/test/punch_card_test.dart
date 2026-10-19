@@ -183,6 +183,21 @@ void main() {
       expect(status.sessions, hasLength(1));
       expect(status.workedAt(DateTime.now()), const Duration(hours: 2));
     });
+
+    test('the break timer stops at the end of the school day', () {
+      final status = PunchStatus(
+        state: PunchState.onBreak,
+        breakStartedAt: DateTime(2026, 10, 8, 15),
+        breakEndsAt: DateTime(2026, 10, 8, 16),
+      );
+      expect(status.breakAt(DateTime(2026, 10, 8, 15, 30)), const Duration(minutes: 30));
+      expect(status.breakAt(DateTime(2026, 10, 8, 23)), const Duration(hours: 1), reason: 'held at the shift end');
+    });
+
+    test('without shifts the break runs on', () {
+      final status = PunchStatus(state: PunchState.onBreak, breakStartedAt: DateTime(2026, 10, 8, 15));
+      expect(status.breakAt(DateTime(2026, 10, 8, 23)), const Duration(hours: 8));
+    });
   });
 
   testWidgets('punched in: the timer ticks, and a break is one tap away', (tester) async {

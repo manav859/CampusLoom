@@ -46,12 +46,44 @@ function gap(startAt: Date, endAt: Date): Break {
   return { startAt, endAt, minutes: Math.round(Math.max(0, endAt.getTime() - startAt.getTime()) / 60000) };
 }
 
+/** A shift that ends before it starts runs past midnight. */
+function shiftEndMinutes(shift: { startTime: string; endTime: string }) {
+  const minutes = (time: string) => {
+    const [hours, rest] = time.split(":").map(Number);
+    return hours * 60 + rest;
+  };
+  const start = minutes(shift.startTime);
+  const end = minutes(shift.endTime);
+  return end > start ? end : end + 24 * 60;
+}
+
+/**
+ * When the school's last shift ends, as minutes after midnight — the moment a
+ * break nobody came back from stops counting. Null when the school has no
+ * shifts: then there is nothing to end it at.
+ */
+async function lastShiftEndMinutes(schoolId: string) {
+  const shifts = await prisma.staffShift.findMany({ where: { schoolId }, select: { startTime: true, endTime: true } });
+  return shifts.length === 0 ? null : Math.max(...shifts.map(shiftEndMinutes));
+}
+
+/** That many minutes after the start of [day]. */
+function atMinutes(day: Date, minutes: number) {
+  const moment = new Date(day);
+  moment.setHours(0, 0, 0, 0);
+  moment.setMinutes(minutes);
+  return moment;
+}
+
 /**
  * A day's punches, as the apps show them. Worked time is the sum of the
  * sessions; the gaps between them are breaks. A day recorded before sessions
  * existed reads as one session from punch-in to punch-out.
+ *
+ * [breakEndsAt] is when a break nobody came back from stops counting — the end
+ * of the school's last shift. Without it, a running break counts up to [now].
  */
-export function toStatus(record: DayRecord | null, now = new Date()) {
+export function toStatus(record: DayRecord | null, now = new Date(), breakEndsAt: Date | null = null) {
   if (!record) {
     return {
       state: "NOT_PUNCHED_IN" as PunchState,
@@ -63,6 +95,7 @@ export function toStatus(record: DayRecord | null, now = new Date()) {
       breaks: [] as Break[],
       currentSessionStartedAt: null,
       breakStartedAt: null,
+      breakEndsAt: null as Date | null,
       sessions: [] as Session[],
       serverTime: now
     };
@@ -85,8 +118,19 @@ export function toStatus(record: DayRecord | null, now = new Date()) {
     const previousEnd = sessions[index - 1].endAt;
     if (previousEnd) breaks.push(gap(previousEnd, sessions[index].startAt));
   }
-  // A break still running counts up to now, and has no end yet.
-  if (state === "ON_BREAK" && last.endAt) breaks.push({ ...gap(last.endAt, now), endAt: null });
+  // The break nobody came back from: it counts up to now while the school day
+  // is still running, and ends with the last shift once that has passed. A
+  // teacher who forgot to punch out is not on a break all night.
+  const running = state === "ON_BREAK" && last.endAt ? last.endAt : null;
+  const runningEndsAt =
+    running && breakEndsAt ? new Date(Math.max(breakEndsAt.getTime(), running.getTime())) : null;
+  if (running) {
+    breaks.push(
+      runningEndsAt && runningEndsAt.getTime() <= now.getTime()
+        ? gap(running, runningEndsAt)
+        : { ...gap(running, now), endAt: null }
+    );
+  }
 
   return {
     state,
@@ -101,6 +145,8 @@ export function toStatus(record: DayRecord | null, now = new Date()) {
     // asking the server every second.
     currentSessionStartedAt: open?.startAt ?? null,
     breakStartedAt: state === "ON_BREAK" ? last.endAt : null,
+    // The apps stop their break timer here rather than ticking all night.
+    breakEndsAt: runningEndsAt,
     sessions,
     serverTime: now
   };
@@ -125,7 +171,9 @@ function today(user: Express.UserContext) {
 }
 
 export async function getTodayStatus(user: Express.UserContext) {
-  return { date: startOfToday(), ...toStatus(await today(user)) };
+  const date = startOfToday();
+  const [record, shiftEnd] = await Promise.all([today(user), lastShiftEndMinutes(user.schoolId)]);
+  return { date, ...toStatus(record, new Date(), shiftEnd == null ? null : atMinutes(date, shiftEnd)) };
 }
 
 /**
@@ -213,16 +261,22 @@ export async function getMyHistory(user: Express.UserContext, month: string) {
   const from = new Date(year, monthIndex - 1, 1);
   const to = new Date(year, monthIndex, 1);
 
-  const records = await prisma.staffAttendance.findMany({
-    where: { userId: user.id, date: { gte: from, lt: to } },
-    orderBy: { date: "desc" },
-    include: withSessions
-  });
+  const [records, shiftEnd] = await Promise.all([
+    prisma.staffAttendance.findMany({
+      where: { userId: user.id, date: { gte: from, lt: to } },
+      orderBy: { date: "desc" },
+      include: withSessions
+    }),
+    lastShiftEndMinutes(user.schoolId)
+  ]);
 
   return {
     month,
     presentDays: records.length,
-    records: records.map((record) => ({ date: record.date, ...toStatus(record) }))
+    records: records.map((record) => ({
+      date: record.date,
+      ...toStatus(record, new Date(), shiftEnd == null ? null : atMinutes(record.date, shiftEnd))
+    }))
   };
 }
 
@@ -317,7 +371,7 @@ export async function getStaffDay(schoolId: string, date: string, now = new Date
   // Leave days are stored at midnight UTC.
   const leaveDay = new Date(Date.UTC(year, monthIndex - 1, dayOfMonth));
 
-  const [teachers, punches, leaves, holiday] = await Promise.all([
+  const [teachers, punches, leaves, holiday, shiftEnd] = await Promise.all([
     prisma.user.findMany({
       where: { schoolId, role: UserRole.TEACHER, isActive: true },
       select: { id: true, fullName: true, phone: true },
@@ -328,8 +382,10 @@ export async function getStaffDay(schoolId: string, date: string, now = new Date
       where: { schoolId, status: LeaveStatus.APPROVED, fromDate: { lte: leaveDay }, toDate: { gte: leaveDay } },
       select: { userId: true, type: true }
     }),
-    prisma.holiday.findFirst({ where: { schoolId, date: { gte: from, lt: to } }, select: { reason: true } })
+    prisma.holiday.findFirst({ where: { schoolId, date: { gte: from, lt: to } }, select: { reason: true } }),
+    lastShiftEndMinutes(schoolId)
   ]);
+  const breakEndsAt = shiftEnd == null ? null : atMinutes(from, shiftEnd);
 
   const punchByUser = new Map(punches.map((row) => [row.userId, row]));
   const leaveByUser = new Map(leaves.map((row) => [row.userId, row.type]));
@@ -339,7 +395,7 @@ export async function getStaffDay(schoolId: string, date: string, now = new Date
       const punch = punchByUser.get(teacher.id);
       const leaveType = leaveByUser.get(teacher.id) ?? null;
       const status: DayStatus = punch ? "PRESENT" : leaveType ? "ON_LEAVE" : "NOT_PUNCHED_IN";
-      const worked = punch ? toStatus(punch, now) : null;
+      const worked = punch ? toStatus(punch, now, breakEndsAt) : null;
       // A break left running on a past day never ended, so its length is
       // unknown — dropped for the same reason workedMinutes is below.
       const stale = Boolean(worked && !worked.punchOutAt && localDayKey(now) !== date);
