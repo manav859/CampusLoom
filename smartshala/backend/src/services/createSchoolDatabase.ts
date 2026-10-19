@@ -107,7 +107,7 @@ async function createNeonDatabase(dbName: string) {
  * identifier guard and $executeRawUnsafe.
  */
 async function createPostgresDatabase(dbName: string) {
-  if (!/^[a-z_][a-z0-9_]*$/.test(dbName)) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(dbName)) {
     throw new AppError(400, `Invalid tenant database name "${dbName}".`, "TENANT_DATABASE_NAME_INVALID");
   }
 
