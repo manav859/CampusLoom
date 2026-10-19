@@ -36,9 +36,15 @@ function startOfToday() {
 export type PunchState = "NOT_PUNCHED_IN" | "PUNCHED_IN" | "ON_BREAK" | "PUNCHED_OUT";
 
 type Session = { startAt: Date; endAt: Date | null };
+/** One gap between two sessions. `endAt` is null while the break is still running. */
+export type Break = { startAt: Date; endAt: Date | null; minutes: number };
 export type DayRecord = { punchInAt: Date; punchOutAt: Date | null; sessions?: Session[] };
 
 const withSessions = { sessions: { orderBy: { startAt: "asc" } } } satisfies Prisma.StaffAttendanceInclude;
+
+function gap(startAt: Date, endAt: Date): Break {
+  return { startAt, endAt, minutes: Math.round(Math.max(0, endAt.getTime() - startAt.getTime()) / 60000) };
+}
 
 /**
  * A day's punches, as the apps show them. Worked time is the sum of the
@@ -54,6 +60,7 @@ export function toStatus(record: DayRecord | null, now = new Date()) {
       workedMinutes: 0,
       workedSeconds: 0,
       breakMinutes: 0,
+      breaks: [] as Break[],
       currentSessionStartedAt: null,
       breakStartedAt: null,
       sessions: [] as Session[],
@@ -72,13 +79,14 @@ export function toStatus(record: DayRecord | null, now = new Date()) {
     (sum, session) => sum + Math.max(0, (session.endAt ?? now).getTime() - session.startAt.getTime()),
     0
   );
-  let breakMs = 0;
+  // Every gap between two sessions is one break, in the order they were taken.
+  const breaks: Break[] = [];
   for (let index = 1; index < sessions.length; index++) {
     const previousEnd = sessions[index - 1].endAt;
-    if (previousEnd) breakMs += Math.max(0, sessions[index].startAt.getTime() - previousEnd.getTime());
+    if (previousEnd) breaks.push(gap(previousEnd, sessions[index].startAt));
   }
-  // A break still running counts up to now.
-  if (state === "ON_BREAK" && last.endAt) breakMs += Math.max(0, now.getTime() - last.endAt.getTime());
+  // A break still running counts up to now, and has no end yet.
+  if (state === "ON_BREAK" && last.endAt) breaks.push({ ...gap(last.endAt, now), endAt: null });
 
   return {
     state,
@@ -86,7 +94,9 @@ export function toStatus(record: DayRecord | null, now = new Date()) {
     punchOutAt: record.punchOutAt,
     workedMinutes: Math.round(workedMs / 60000),
     workedSeconds: Math.floor(workedMs / 1000),
-    breakMinutes: Math.round(breakMs / 60000),
+    // The sum of the breaks below, so a list of them always adds up to this.
+    breakMinutes: breaks.reduce((sum, item) => sum + item.minutes, 0),
+    breaks,
     // The apps run their timer from these and serverTime, so it ticks without
     // asking the server every second.
     currentSessionStartedAt: open?.startAt ?? null,
@@ -330,6 +340,10 @@ export async function getStaffDay(schoolId: string, date: string, now = new Date
       const leaveType = leaveByUser.get(teacher.id) ?? null;
       const status: DayStatus = punch ? "PRESENT" : leaveType ? "ON_LEAVE" : "NOT_PUNCHED_IN";
       const worked = punch ? toStatus(punch, now) : null;
+      // A break left running on a past day never ended, so its length is
+      // unknown — dropped for the same reason workedMinutes is below.
+      const stale = Boolean(worked && !worked.punchOutAt && localDayKey(now) !== date);
+      const breaks = (worked?.breaks ?? []).filter((item) => !stale || item.endAt);
       return {
         ...teacher,
         status,
@@ -337,6 +351,8 @@ export async function getStaffDay(schoolId: string, date: string, now = new Date
         punchInAt: worked?.punchInAt ?? null,
         punchOutAt: worked?.punchOutAt ?? null,
         onBreak: worked?.state === "ON_BREAK",
+        breaks,
+        breakMinutes: breaks.reduce((sum, item) => sum + item.minutes, 0),
         hasSelfie: Boolean(punch?.selfieKey),
         // A punch still open on a past day has no end, so its hours are unknown.
         workedMinutes: worked && (worked.punchOutAt || localDayKey(now) === date) ? worked.workedMinutes : null

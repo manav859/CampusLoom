@@ -35,6 +35,11 @@ function hours(minutes: number) {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
+/** The same, but a break under an hour reads as plain minutes. */
+function span(minutes: number) {
+  return minutes < 60 ? `${minutes}m` : hours(minutes);
+}
+
 /** YYYY-MM for the month the given day falls in. */
 function monthValue(value: string) {
   return value.slice(0, 7);
@@ -73,6 +78,7 @@ export default function TeacherAttendancePage() {
   const [filter, setFilter] = useState<StaffDayStatus | null>(null);
   const [selected, setSelected] = useState<Row | null>(null);
   const [selfie, setSelfie] = useState<{ name: string; url: string; revoke: boolean } | null>(null);
+  const [breaks, setBreaks] = useState<Row | null>(null);
 
   const load = useCallback(async (target: string) => {
     setLoading(true);
@@ -180,6 +186,7 @@ export default function TeacherAttendancePage() {
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Punch in</th>
                     <th className="px-4 py-3">Punch out</th>
+                    <th className="px-4 py-3">Breaks</th>
                     <th className="px-4 py-3">Selfie</th>
                     <th className="px-4 py-3 text-right">Worked</th>
                   </tr>
@@ -199,6 +206,9 @@ export default function TeacherAttendancePage() {
                       </td>
                       <td className="px-4 py-3 [font-variant-numeric:tabular-nums]">{row.punchInAt ? time(row.punchInAt) : "—"}</td>
                       <td className="px-4 py-3 [font-variant-numeric:tabular-nums]">{row.punchOutAt ? time(row.punchOutAt) : row.punchInAt ? <span className="text-[#86868b]">{row.onBreak ? "On break" : "Not punched out"}</span> : "—"}</td>
+                      <td className="px-4 py-3">
+                        <BreaksCell onOpen={setBreaks} row={row} />
+                      </td>
                       <td className="px-4 py-3">
                         <SelfieCell date={date} onOpen={setSelfie} row={row} />
                       </td>
@@ -221,8 +231,9 @@ export default function TeacherAttendancePage() {
                     <StatusPill label={statusView[row.status].label} tone={statusView[row.status].tone} />
                   </div>
                   {row.punchInAt ? (
-                    <div className="mt-2">
+                    <div className="mt-2 flex items-center gap-2">
                       <SelfieCell date={date} onOpen={setSelfie} row={row} />
+                      {row.breaks.length > 0 ? <BreaksCell onOpen={setBreaks} row={row} /> : null}
                     </div>
                   ) : null}
                 </div>
@@ -233,6 +244,7 @@ export default function TeacherAttendancePage() {
       </section>
 
       {selected ? <TeacherMonthPanel key={selected.id} onClose={() => setSelected(null)} startMonth={monthValue(date)} teacher={selected} /> : null}
+      {breaks ? <BreaksPanel date={date} onClose={() => setBreaks(null)} teacher={breaks} /> : null}
       {selfie ? <SelfieViewer onClose={() => setSelfie(null)} selfie={selfie} /> : null}
     </div>
   );
@@ -282,6 +294,60 @@ function SelfieCell({
     >
       {loading ? "Opening…" : error ? "Try again" : "View"}
     </button>
+  );
+}
+
+/** The day's breaks for one teacher, already on the row — opening the list
+ * costs no request. The row behind this cell opens the month panel, hence the
+ * stopPropagation. */
+function BreaksCell({ onOpen, row }: { onOpen: (row: Row) => void; row: Row }) {
+  if (row.breaks.length === 0) {
+    return <span className="text-[#86868b]">{row.punchInAt ? "No breaks" : "—"}</span>;
+  }
+
+  return (
+    <button
+      className="rounded-full border border-[#D8DEE7] px-3 py-1 text-[12px] font-semibold text-[#2456E6] hover:bg-[#F2F6FF]"
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen(row);
+      }}
+      type="button"
+    >
+      {row.breaks.length} · {span(row.breakMinutes)}
+    </button>
+  );
+}
+
+function BreaksPanel({ date, onClose, teacher }: { date: string; onClose: () => void; teacher: Row }) {
+  return (
+    <SideModal eyebrow={dayLabel(date)} onClose={onClose} title={`${teacher.fullName} — Breaks`}>
+      <div className="rounded-[8px] bg-[#FFF2DC] px-4 py-4">
+        <p className="text-[13px] font-medium text-[#6F7480]">Total break time</p>
+        <p className="mt-1.5 text-[22px] font-bold text-[#111827] [font-variant-numeric:tabular-nums]">{span(teacher.breakMinutes)}</p>
+      </div>
+
+      <ol className="mt-4 divide-y divide-[#EEF1F5] rounded-[8px] border border-[#DCE1E8]">
+        {teacher.breaks.map((item, index) => (
+          <li className="flex items-center justify-between gap-4 px-4 py-3" key={item.startAt}>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-[#0F1419] [font-variant-numeric:tabular-nums]">
+                {time(item.startAt)} → {item.endAt ? time(item.endAt) : "on break"}
+              </p>
+              <p className="text-[12px] text-[#5A6573]">Break {index + 1}</p>
+            </div>
+            <p className="shrink-0 text-[13px] font-semibold text-[#0F1419] [font-variant-numeric:tabular-nums]">
+              {span(item.minutes)}
+              {item.endAt ? "" : " so far"}
+            </p>
+          </li>
+        ))}
+      </ol>
+
+      <p className="mt-4 text-[12px] text-[#86868b]">
+        A break is the gap between punching out for one and punching back in. Breaks do not count as worked time.
+      </p>
+    </SideModal>
   );
 }
 

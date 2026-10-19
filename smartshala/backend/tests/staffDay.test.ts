@@ -38,6 +38,8 @@ async function main() {
     const chetan = await makeUser(school.id, "Chetan");    // approved leave
     const deepak = await makeUser(school.id, "Deepak");    // leave, but punched anyway
     const esha = await makeUser(school.id, "Esha");        // nothing: rejected leave only
+    const farah = await makeUser(school.id, "Farah");      // worked the day in three sessions
+    const gita = await makeUser(school.id, "Gita");        // on a break when the day was viewed
     await makeUser(school.id, "Former", "TEACHER", false);
     await makeUser(school.id, "Accounts", "ACCOUNTANT");
     const outsider = await makeUser(otherSchool.id, "Outsider");
@@ -51,6 +53,22 @@ async function main() {
         { schoolId: otherSchool.id, userId: outsider.id, date: local(14), punchInAt: local(14, 8, 0) }
       ]
     });
+
+    // Two teachers with sessions: the gaps between them are the breaks.
+    const withSessions = async (userId: string, punchOutAt: Date | null, spans: Array<[Date, Date | null]>) => {
+      const day = await prisma.staffAttendance.create({
+        data: { schoolId: school.id, userId, date: local(14), punchInAt: spans[0][0], punchOutAt }
+      });
+      await prisma.staffAttendanceSession.createMany({
+        data: spans.map(([startAt, endAt]) => ({ attendanceId: day.id, startAt, endAt }))
+      });
+    };
+    await withSessions(farah.id, local(14, 14, 30), [
+      [local(14, 8, 0), local(14, 10, 0)],
+      [local(14, 10, 20), local(14, 12, 0)],
+      [local(14, 12, 30), local(14, 14, 30)]
+    ]);
+    await withSessions(gita.id, null, [[local(14, 9, 0), local(14, 10, 30)]]);
     await prisma.leaveRequest.createMany({
       data: [
         { schoolId: school.id, userId: chetan.id, type: "SICK", status: "APPROVED", fromDate: utc(13), toDate: utc(15), reason: "Fever" },
@@ -61,13 +79,13 @@ async function main() {
 
     // Viewed on the day itself, at 11:00.
     const today = await getStaffDay(school.id, "2026-09-14", local(14, 11, 0));
-    assert.equal(today.total, 5, "active teachers of this school only");
-    assert.deepEqual([today.present, today.onLeave, today.notPunchedIn], [3, 1, 1]);
+    assert.equal(today.total, 7, "active teachers of this school only");
+    assert.deepEqual([today.present, today.onLeave, today.notPunchedIn], [5, 1, 1]);
     assert.equal(today.isSunday, false);
     assert.equal(today.holiday, null);
     assert.deepEqual(
       today.staff.map((row) => [row.fullName, row.status]),
-      [["Esha", "NOT_PUNCHED_IN"], ["Chetan", "ON_LEAVE"], ["Anita", "PRESENT"], ["Bhavna", "PRESENT"], ["Deepak", "PRESENT"]],
+      [["Esha", "NOT_PUNCHED_IN"], ["Chetan", "ON_LEAVE"], ["Anita", "PRESENT"], ["Bhavna", "PRESENT"], ["Deepak", "PRESENT"], ["Farah", "PRESENT"], ["Gita", "PRESENT"]],
       "not punched in first, then leave, then present; by name within each"
     );
     const byName = new Map(today.staff.map((row) => [row.fullName, row]));
@@ -78,13 +96,39 @@ async function main() {
     assert.equal(byName.get("Bhavna")!.punchOutAt, null);
     assert.equal(byName.get("Esha")!.punchInAt, null);
 
+    // Breaks: the gaps between the sessions, in order, and nothing for a day
+    // that was never paused.
+    assert.deepEqual(byName.get("Anita")!.breaks, []);
+    assert.equal(byName.get("Anita")!.breakMinutes, 0);
+    assert.deepEqual(
+      byName.get("Farah")!.breaks.map((item) => [item.startAt.getTime(), item.endAt!.getTime(), item.minutes]),
+      [
+        [local(14, 10, 0).getTime(), local(14, 10, 20).getTime(), 20],
+        [local(14, 12, 0).getTime(), local(14, 12, 30).getTime(), 30]
+      ]
+    );
+    assert.equal(byName.get("Farah")!.breakMinutes, 50, "the total is the sum of the breaks");
+    assert.equal(byName.get("Farah")!.workedMinutes, 340, "6h 30m on the clock, minus the 50m of breaks");
+
+    // A break still running counts up to now and has no end yet.
+    const gitaToday = byName.get("Gita")!;
+    assert.equal(gitaToday.onBreak, true);
+    assert.deepEqual(gitaToday.breaks.map((item) => [item.endAt, item.minutes]), [[null, 30]]);
+    assert.equal(gitaToday.breakMinutes, 30);
+
     // Viewed a day later: Bhavna never punched out, so her hours are unknown.
     const yesterday = await getStaffDay(school.id, "2026-09-14", local(15, 11, 0));
     assert.equal(yesterday.staff.find((row) => row.fullName === "Bhavna")!.workedMinutes, null);
+    // Gita's break never ended either, so its length is unknown and it is left out.
+    const gitaYesterday = yesterday.staff.find((row) => row.fullName === "Gita")!;
+    assert.deepEqual(gitaYesterday.breaks, []);
+    assert.equal(gitaYesterday.breakMinutes, 0);
+    // Farah's day is closed, so hers read the same whenever they are viewed.
+    assert.equal(yesterday.staff.find((row) => row.fullName === "Farah")!.breakMinutes, 50);
 
     // The next day: only Anita punched; Chetan's leave runs on.
     const next = await getStaffDay(school.id, "2026-09-15", local(15, 11, 0));
-    assert.deepEqual([next.present, next.onLeave, next.notPunchedIn], [1, 1, 3]);
+    assert.deepEqual([next.present, next.onLeave, next.notPunchedIn], [1, 1, 5]);
 
     // A holiday and a Sunday say so.
     await prisma.holiday.create({ data: { schoolId: school.id, date: local(16), reason: "Founders Day" } });
@@ -114,7 +158,7 @@ async function main() {
       assert.equal((await get("", "PRINCIPAL")).status, 400);
       const response = await get("date=2026-09-14", "PRINCIPAL");
       assert.equal(response.status, 200);
-      assert.equal(((await response.json()) as { total: number }).total, 5, "the token's school only");
+      assert.equal(((await response.json()) as { total: number }).total, 7, "the token's school only");
     } finally {
       server.close();
     }

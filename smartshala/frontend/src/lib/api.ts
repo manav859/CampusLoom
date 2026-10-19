@@ -1888,6 +1888,9 @@ export const teacherDayApi = {
 
 export type StaffDayStatus = "PRESENT" | "ON_LEAVE" | "NOT_PUNCHED_IN";
 
+/** One break between two work sessions. */
+export type StaffBreak = { startAt: string; endAt: string | null; minutes: number };
+
 /** Every active teacher on one day, not-in first — the principal app's Teacher Attendance. */
 export type StaffDay = {
   date: string;
@@ -1906,6 +1909,11 @@ export type StaffDay = {
     punchInAt: string | null;
     punchOutAt: string | null;
     onBreak: boolean;
+    /** This day's breaks, in the order they were taken. `endAt` is null while
+     * one is still running. A break left open on a past day is left out. */
+    breaks: StaffBreak[];
+    /** The sum of `breaks`, so the two always agree. */
+    breakMinutes: number;
     /** Whether the day's first punch-in carried a selfie. The image itself is
      * fetched on demand, so a day list never signs a URL nobody opens. */
     hasSelfie: boolean;
