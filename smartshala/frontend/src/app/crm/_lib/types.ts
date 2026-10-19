@@ -201,3 +201,6 @@ export type MetaStatus =
     };
 
 export type MetaForm = { id: string; name: string; status: string; leadsCount: number | null };
+
+export type MetaSyncCounts = { created: number; merged: number; failed: number };
+export type MetaSyncResponse = MetaSyncCounts & { status: MetaStatus };

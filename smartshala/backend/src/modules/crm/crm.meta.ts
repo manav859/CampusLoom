@@ -246,7 +246,7 @@ function leadDetails(lead: MetaLead, formName: string) {
 }
 
 /** The next active salesperson after the one who got the last Meta lead. */
-function nextInTurn(team: Array<{ id: string }>, lastId: string | null) {
+function nextInTurn(team: Array<{ id: string }>, lastId: string | null | undefined) {
   if (team.length === 0) return null;
   const last = team.findIndex((user) => user.id === lastId);
   return team[(last + 1) % team.length].id;
@@ -267,12 +267,18 @@ export function syncMetaLeads() {
 }
 
 async function runSync(): Promise<MetaSyncResult> {
-  const { row, token } = await connected();
   const startedAt = new Date();
   const result: MetaSyncResult = { created: 0, merged: 0, failed: 0 };
-  let lastAssignedUserId = row.lastAssignedUserId;
+  // Left undefined until the row is read, so a failure before that leaves the
+  // round-robin cursor alone instead of resetting it to the top of the team.
+  let lastAssignedUserId: string | null | undefined;
 
   try {
+    // Inside the try: reading the Page back can fail on its own — a token sealed
+    // with a secret this server no longer has, say — and that has to show up as
+    // a sync error rather than a Page that looks connected and never updates.
+    const { row, token } = await connected();
+    lastAssignedUserId = row.lastAssignedUserId;
     const allForms = await fetchForms(row.pageId, token);
     const forms = row.formIds.length ? allForms.filter((form) => row.formIds.includes(form.id)) : allForms;
     const since = row.lastSyncedAt ? Math.floor((row.lastSyncedAt.getTime() - SYNC_OVERLAP_MS) / 1000) : null;
@@ -333,8 +339,10 @@ async function runSync(): Promise<MetaSyncResult> {
     return result;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // updateMany, not update: a sync that failed because no Page is connected
+    // has no row to write the error to, and that is not worth an error log.
     await masterPrisma.metaIntegration
-      .update({ where: { id: ROW_ID }, data: { lastSyncError: message, lastAssignedUserId } })
+      .updateMany({ where: { id: ROW_ID }, data: { lastSyncError: message, lastAssignedUserId } })
       .catch(() => undefined);
     throw err;
   }

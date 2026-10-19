@@ -352,6 +352,17 @@ crmRouter.put(
   })
 );
 
+// The leads arrive on their own every few minutes; this is for the admin who
+// has just fixed a token, or who wants to watch a test lead land.
+crmRouter.post(
+  "/integrations/meta/sync",
+  requireCrmAdmin,
+  asyncHandler(async (_req, res) => {
+    const result = await syncMetaLeads();
+    res.json({ ...result, status: await getMetaStatus() });
+  })
+);
+
 crmRouter.delete(
   "/integrations/meta",
   requireCrmAdmin,

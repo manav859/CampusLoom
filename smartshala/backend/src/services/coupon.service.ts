@@ -3,7 +3,7 @@ import { masterPrisma } from "../master-db/masterPrisma.js";
 import { discountMinorFor, loadCoupon, rupeesFromMinor } from "../modules/billing/billing.pricing.js";
 
 /** Used only if the plan catalogue has not been seeded yet. */
-const FALLBACK_BASE_PRICE = 20_000;
+const FALLBACK_BASE_PRICE = 9_999;
 
 export type CouponPreview = {
   baseAmount: number;
@@ -15,17 +15,15 @@ export type CouponPreview = {
 };
 
 /**
- * The onboarding form quotes the default paid plan. The price now lives in the
- * plan catalogue the super admin edits, not in a constant.
+ * The onboarding form quotes the entry tier — the cheapest plan on offer —
+ * because which tier a school lands on depends on its roll. The price lives in
+ * the plan catalogue the super admin edits, not in a constant.
  */
 export async function defaultPaidPlan() {
-  return (
-    (await masterPrisma.plan.findUnique({ where: { code: "STANDARD" } })) ??
-    (await masterPrisma.plan.findFirst({
-      where: { isActive: true, isPublic: true, priceMinor: { gt: 0 } },
-      orderBy: [{ sortOrder: "asc" }, { priceMinor: "asc" }]
-    }))
-  );
+  return masterPrisma.plan.findFirst({
+    where: { isActive: true, isPublic: true, priceMinor: { gt: 0 } },
+    orderBy: [{ sortOrder: "asc" }, { priceMinor: "asc" }]
+  });
 }
 
 export async function previewCoupon(code?: string | null): Promise<CouponPreview> {

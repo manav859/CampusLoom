@@ -7,7 +7,7 @@ import { timeAgo } from "../../super-admin/_lib/format";
 import { crmFetch } from "../crmFetch";
 import { invalidate, setResource, useResource } from "../_lib/resource";
 import { useCrmUser } from "../_lib/session";
-import type { MetaForm, MetaStatus } from "../_lib/types";
+import type { MetaForm, MetaStatus, MetaSyncCounts, MetaSyncResponse } from "../_lib/types";
 
 const STATUS_KEY = "/integrations/meta";
 const FORMS_KEY = "/integrations/meta/forms";
@@ -29,10 +29,34 @@ export default function IntegrationsPage() {
   );
 }
 
+/** What a sync just did, for the toast. */
+function syncMessage({ created, merged, failed }: MetaSyncCounts) {
+  const parts = [];
+  if (created) parts.push(`${created} new deal${created === 1 ? "" : "s"}`);
+  if (merged) parts.push(`${merged} added to an open deal`);
+  if (failed) parts.push(`${failed} could not be imported`);
+  return parts.length ? `Synced: ${parts.join(", ")}.` : "Synced. Meta had no new leads.";
+}
+
 function MetaCard({ status }: { status: MetaStatus }) {
   const { run, isPending } = useAction();
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+
+  const syncNow = async () => {
+    const counts = await run(
+      "sync",
+      async () => {
+        const { status: next, ...rest } = await crmFetch<MetaSyncResponse>(`${STATUS_KEY}/sync`, { method: "POST" });
+        setResource<MetaStatus>(STATUS_KEY, () => next);
+        return rest;
+      },
+      syncMessage
+    );
+    // The sync threw, so no fresh status came back with it — refetch so the
+    // reason lands on the card.
+    if (!counts) invalidate(STATUS_KEY);
+  };
 
   return (
     <Card>
@@ -40,6 +64,9 @@ function MetaCard({ status }: { status: MetaStatus }) {
         actions={
           status.connected ? (
             <>
+              <Btn loading={isPending("sync")} onClick={() => void syncNow()} size="sm" variant="primary">
+                Sync now
+              </Btn>
               <Btn onClick={() => setConnecting(true)} size="sm">
                 Change token
               </Btn>
