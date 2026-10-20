@@ -2,7 +2,7 @@ name: smartshala_mobile
 description: "SmartShala V2 mobile apps — Principal Portal and Teacher Portal."
 publish_to: 'none'
 
-version: 1.0.0+3
+version: 1.0.0+4
 environment:
   sdk: ^3.12.2
 
