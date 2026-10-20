@@ -10,6 +10,8 @@ import '../auth/token_storage.dart';
 import '../config/app_config.dart';
 import '../data/messages_repository.dart';
 import '../data/unread_controller.dart';
+import '../push/push_messenger.dart';
+import '../push/push_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/brand_header.dart';
 import '../widgets/responsive.dart';
@@ -50,12 +52,22 @@ class SmartShalaApp extends StatelessWidget {
           update: (_, api, storage, previous) =>
               previous ?? AuthRepository(api: api, storage: storage),
         ),
+        // Above AuthController, which starts and stops it with the session,
+        // and above the Navigator, so a tapped notification still has
+        // somewhere to publish itself while the shell is being built.
+        ChangeNotifierProvider<PushService>(
+          create: (context) => PushService(api: context.read<ApiClient>(), config: config),
+        ),
+        // PushService is read in create, not listed as a dependency: it is a
+        // ChangeNotifier, and depending on it would rebuild this provider on
+        // every notification that arrives.
         ChangeNotifierProxyProvider3<AuthRepository, TokenStorage, ApiClient, AuthController>(
           create: (context) => AuthController(
             config: config,
             repository: context.read<AuthRepository>(),
             storage: context.read<TokenStorage>(),
             api: context.read<ApiClient>(),
+            push: context.read<PushService>(),
           )..restoreSession(),
           update: (_, __, ___, ____, previous) => previous!,
         ),
@@ -71,7 +83,7 @@ class SmartShalaApp extends StatelessWidget {
               ChangeNotifierProvider<UnreadController>(create: (_) => UnreadController()),
               ...sessionProviders,
             ],
-            child: child,
+            child: PushMessenger(child: child ?? const SizedBox.shrink()),
           ),
         ),
         home: _AuthGate(shellBuilder: shellBuilder),

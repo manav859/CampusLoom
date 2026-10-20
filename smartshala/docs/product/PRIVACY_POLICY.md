@@ -3,13 +3,12 @@
 Published at <https://app.letssmartshala.com/privacy>, which is the URL given to Google Play and the
 App Store. It must stay reachable without signing in.
 
-This describes what the apps and the backend in this repository actually do as of 2026-10-20. If the apps
-change what they collect — push notifications will add a device token — change this page in the same
-commit.
+This describes what the apps and the backend in this repository actually do as of 2026-10-21. If the apps
+change what they collect, change this page in the same commit.
 
 ---
 
-**Effective date:** 20 October 2026
+**Effective date:** 21 October 2026
 **Applies to:** SmartShala Principal (`com.smartshala.principal`) and SmartShala Teacher
 (`com.smartshala.teacher`), on Android and iOS, and the SmartShala web dashboard they share.
 **Published by:** Hybrid Monks LLP, F1, Bhagwati Complex, Vejalpur, Ahmedabad, Gujarat, India ("we", "us").
@@ -46,6 +45,13 @@ Later punches the same day (returning from a break, or re-opening a day punched 
 for one. The app does not read your photo gallery, and the photo is not used for face recognition, identity
 matching or any automated decision.
 
+**A notification identifier.** If you allow notifications, the app registers with Google's Firebase Cloud
+Messaging and gets back an identifier for that installation — one per app on one device, not an identifier
+for you or your phone. We store it against your account so the server knows where to send a notice about a
+new announcement, a leave decision, or a reminder that attendance is unmarked. It is deleted when you sign
+out, when you turn notifications off, and when you uninstall the app. It is never used to advertise to you
+or to recognise you anywhere else.
+
 **Technical information needed to run the service.** Your sign-in tokens, the app version, and the server
 logs any internet service keeps (request times, error traces, and the IP address your phone connects from).
 
@@ -72,6 +78,7 @@ logs any internet service keeps (request times, error traces, and the IP address
 | File picker (no storage permission) | Only when you tap Attach on a leave request. The phone's own picker hands us the one file you choose; the apps cannot browse your storage. On iOS that picker can offer your photo library as one place to pick from, so iOS may ask for photo access at that moment — the apps never read the library otherwise, and never at any other time. |
 | Opening the dialer or WhatsApp | Only when you tap a phone number on a student, teacher or transport screen. It hands the number to the app you choose and we learn nothing about the call. |
 | The share sheet | Only when you tap Share or Export on a report, so you can send it on yourself. |
+| Notifications | Only to tell you about your own work: a new announcement, a decision on your leave request, a leave request waiting for you to decide, a calendar or exam change, and a daily reminder when attendance is unmarked. Android asks once, the first time you sign in; iOS asks the same way. Declining changes nothing else in the apps — the same items are all in the Messages and Calendar tabs. |
 
 ## Where the information is kept
 
@@ -146,6 +153,7 @@ cross-app advertising, so neither app needs the App Tracking Transparency prompt
 | Name | Yes | No | App functionality, account management | Required |
 | Phone number | Yes | No | App functionality, account management | Required |
 | User IDs | Yes | No | App functionality | Required |
+| Device or other IDs (the notification identifier) | Yes | No | App functionality | **Optional** — only if you allow notifications |
 | Other personal info (student and parent records staff enter) | Yes | No | App functionality | Required |
 | Files and docs (a document attached to a leave request) | Yes | No | App functionality | **Optional** |
 | Photos (the punch selfie, teacher app) | Yes | No | App functionality | **Optional** |
@@ -160,5 +168,9 @@ app functionality. The selfie is a photo of the user taken for attendance; it is
 Play policy sense because nothing measures or matches faces, but say plainly in the listing that teachers
 photograph themselves when punching in, so a reviewer is never surprised by the camera opening.
 
-**Before the first upload, re-check this list against the code** — it will stop being true the moment push
-notifications add a device token, which is declared as "Device or other IDs".
+On the Device or other IDs row, the identifier is the Firebase Installation ID described above. It is
+collected only once the user allows notifications, never shared, and used for app functionality alone — not
+for advertising, analytics or tracking, so Apple's tracking answer stays **no**.
+
+**Before every upload, re-check this list against the code.** It describes what the apps do, not what they
+were once intended to do.

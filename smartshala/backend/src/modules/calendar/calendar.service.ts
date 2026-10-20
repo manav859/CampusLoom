@@ -1,6 +1,7 @@
 import { CalendarEvent, CalendarEventType, UserRole } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { notifyCalendarEvent } from "../push/push.events.js";
 
 const editorRoles = new Set<UserRole>([UserRole.PRINCIPAL, UserRole.ADMIN]);
 
@@ -140,6 +141,14 @@ export async function createEvent(user: Express.UserContext, input: CalendarEven
   const created = await prisma.calendarEvent.create({
     data: { ...toData(input), schoolId: user.schoolId, createdById: user.id }
   });
+
+  notifyCalendarEvent(user, {
+    type: created.type,
+    title: created.title,
+    startDate: created.startDate,
+    endDate: created.endDate
+  });
+
   return toItem(created);
 }
 

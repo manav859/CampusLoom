@@ -29,6 +29,13 @@ dependencies:
   # permission of its own and there is no runtime prompt to handle.
   image_picker: ^1.1.2
   share_plus: ^12.0.2
+  # Push notifications. Both are inert until the Firebase project values are
+  # filled into lib/core/push/push_config.dart — see docs/product/PUSH_NOTIFICATIONS.md.
+  # No google-services.json or GoogleService-Info.plist is used: the options are
+  # passed from Dart instead, which is the only way one codebase can serve two
+  # application IDs per platform without a per-flavor native copy step.
+  firebase_core: ^5.0.0
+  firebase_messaging: ^17.0.0
 
 dev_dependencies:
   flutter_test:

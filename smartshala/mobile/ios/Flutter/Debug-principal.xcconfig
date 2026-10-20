@@ -4,3 +4,7 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug-principal.xcconfig"
 #include "Generated.xcconfig"
 #include "principal.xcconfig"
+
+// APNs issues a different device token per environment, and a token from
+// one is rejected by the other.
+APS_ENVIRONMENT = development

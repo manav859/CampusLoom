@@ -26,16 +26,22 @@ const _densities = <String, double>{'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi'
 
 /// The legacy launcher icon is 48dp, the adaptive layers are drawn on a 108dp
 /// canvas of which only the middle 66dp survives every mask, and the
-/// launch-screen mark shows at 96dp.
+/// launch-screen mark shows at 96dp. The status-bar notification icon is 24dp.
 const _legacyDp = 48.0;
 const _adaptiveDp = 108.0;
 const _splashDp = 96.0;
+const _notificationDp = 24.0;
 
 /// How much of each canvas the mark fills. The adaptive figure keeps it well
 /// inside the 61% safe zone; a circular mask cuts the corners off anything
 /// larger. The legacy and splash marks sit on their own blue square.
 const _legacyInkFraction = 0.5;
 const _adaptiveInkFraction = 0.42;
+
+/// The notification icon is drawn almost edge to edge. It has no ground of its
+/// own: Android reads only its alpha, tints the result white or grey, and adds
+/// its own padding around it in the status bar and the shade.
+const _notificationInkFraction = 0.9;
 
 /// Corner radius of the rounded square, as a fraction of its side. iOS rounds
 /// and masks app icons itself and rejects one that arrives pre-rounded, so the
@@ -97,6 +103,10 @@ void main() {
           await _write(
             '$res/drawable-${density.key}/ic_splash.png',
             await _paint((_splashDp * scale).round(), mark: mark, ground: ground, ink: _legacyInkFraction),
+          );
+          await _write(
+            '$res/drawable-${density.key}/ic_notification.png',
+            await _paint((_notificationDp * scale).round(), mark: mark, ink: _notificationInkFraction),
           );
         }
 

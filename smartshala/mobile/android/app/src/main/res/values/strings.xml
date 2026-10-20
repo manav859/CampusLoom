@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The one notification channel both apps post through. The name is what
+         the user sees in Settings → Notifications, so it describes the content
+         rather than the app. -->
+    <string name="notification_channel_name">School updates</string>
+    <string name="notification_channel_description">Announcements, leave decisions, exam and calendar changes, and reminders from your school.</string>
+</resources>

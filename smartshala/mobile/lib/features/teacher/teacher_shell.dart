@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/config/feature_flags.dart';
+import '../../core/push/push_message.dart';
+import '../../core/push/push_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_back_button.dart';
 import 'calendar/teacher_calendar_screen.dart';
@@ -23,6 +25,7 @@ class TeacherShell extends StatefulWidget {
 
 class _TeacherShellState extends State<TeacherShell> {
   int _index = 0;
+  PushService? _push;
 
   @override
   void initState() {
@@ -30,6 +33,44 @@ class _TeacherShellState extends State<TeacherShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PunchController>().load();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Nullable: the shells are pumped on their own in widget tests, where
+    // nothing provides push. SmartShalaApp always does — session_providers_test
+    // is what holds it to that.
+    final push = context.read<PushService?>();
+    if (push == _push) return;
+    _push?.removeListener(_onPushTarget);
+    _push = push?..addListener(_onPushTarget);
+    // A notification tapped from a cold start is already waiting by the time
+    // the shell exists.
+    _onPushTarget();
+  }
+
+  /// Where a tapped notification lands. There is no Leave Approval screen in
+  /// this app and the server never sends a teacher there; Messages, which
+  /// carries their own leave requests, is the honest fallback.
+  void _onPushTarget() {
+    final target = _push?.takePendingTarget();
+    if (target == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _index = switch (target) {
+            PushTarget.home => 0,
+            PushTarget.calendar => 1,
+            PushTarget.messages || PushTarget.leaveApproval => _messagesIndex,
+          });
+    });
+  }
+
+  @override
+  void dispose() {
+    _push?.removeListener(_onPushTarget);
+    super.dispose();
   }
 
   @override

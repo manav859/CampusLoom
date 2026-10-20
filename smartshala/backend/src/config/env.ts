@@ -51,6 +51,15 @@ const envSchema = z.object({
   DEMO_RESET_ENABLED: z
     .preprocess((value) => value === "true" || value === true, z.boolean())
     .default(false),
+  // Push notifications to the two mobile apps, through Firebase Cloud
+  // Messaging. Either the path to the service account JSON downloaded from
+  // Firebase, or the JSON itself. Unset means every send is a no-op, which is
+  // how the apps behave before a Firebase project exists.
+  FCM_SERVICE_ACCOUNT: z.string().optional(),
+  // Hour of the server day the once-daily reminder pass runs at: attendance
+  // still unmarked, leave still awaiting a decision. Server local time, the
+  // same clock every other date in this codebase is read on.
+  PUSH_REMINDER_HOUR: z.coerce.number().int().min(0).max(23).default(12),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),

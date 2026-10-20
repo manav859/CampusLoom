@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/push/push_message.dart';
+import '../../core/push/push_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_back_button.dart';
 import 'calendar/academic_calendar_screen.dart';
+import 'leave/leave_approval_screen.dart';
 import 'messages/principal_messages_screen.dart';
 import 'principal_home_screen.dart';
 import 'principal_more_screen.dart';
@@ -17,6 +21,51 @@ class PrincipalShell extends StatefulWidget {
 
 class _PrincipalShellState extends State<PrincipalShell> {
   int _index = 0;
+  PushService? _push;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Nullable: the shells are pumped on their own in widget tests, where
+    // nothing provides push. SmartShalaApp always does — session_providers_test
+    // is what holds it to that.
+    final push = context.read<PushService?>();
+    if (push == _push) return;
+    _push?.removeListener(_onPushTarget);
+    _push = push?..addListener(_onPushTarget);
+    // A notification tapped from a cold start is already waiting by the time
+    // the shell exists, so the pending target is read here as well as on
+    // every later change.
+    _onPushTarget();
+  }
+
+  /// Where a tapped notification lands. Leave Approval is a pushed route rather
+  /// than a tab, so it opens over Messages — which is where the shortcut to it
+  /// lives anyway, and where the back button returns to.
+  void _onPushTarget() {
+    final target = _push?.takePendingTarget();
+    if (target == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _index = switch (target) {
+            PushTarget.home => 0,
+            PushTarget.messages || PushTarget.leaveApproval => 1,
+            PushTarget.calendar => 2,
+          });
+      if (target == PushTarget.leaveApproval) {
+        Navigator.of(context).push<void>(
+          MaterialPageRoute(builder: (_) => const LeaveApprovalScreen()),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _push?.removeListener(_onPushTarget);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -17,6 +17,7 @@ import { webhooksRouter } from "./routes/webhooks.js";
 import { dbHealthHandler } from "./routes/health.js";
 import { startDatabaseDeletionWorker } from "./services/databaseDeletion.service.js";
 import { startSubscriptionWorker } from "./modules/billing/billing.service.js";
+import { startPushReminderWorker } from "./modules/push/push.worker.js";
 import { startMetaLeadWorker } from "./modules/crm/crm.meta.js";
 
 function buildAllowedOrigins() {
@@ -78,6 +79,7 @@ export function createApp() {
   startDatabaseDeletionWorker();
   startSubscriptionWorker();
   startMetaLeadWorker();
+  startPushReminderWorker();
 
   return app;
 }

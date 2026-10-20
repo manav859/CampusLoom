@@ -1,6 +1,7 @@
 import { AnnouncementAudience, AnnouncementPriority, Prisma, UserRole } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
+import { notifyAnnouncementPosted } from "../push/push.events.js";
 
 const authorRoles = new Set<UserRole>([UserRole.PRINCIPAL, UserRole.ADMIN]);
 
@@ -46,6 +47,8 @@ export async function createAnnouncement(
     },
     include: { postedBy: { select: { id: true, fullName: true, role: true } } }
   });
+
+  notifyAnnouncementPosted(user, created);
 
   // The author has, by definition, already read it.
   return {

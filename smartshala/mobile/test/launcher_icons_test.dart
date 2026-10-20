@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 const _legacyDp = 48;
 const _adaptiveDp = 108;
 const _splashDp = 96;
+const _notificationDp = 24;
 const _densities = <String, double>{'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4};
 
 /// Only the middle 66 of the adaptive icon's 108dp survives every launcher mask.
@@ -39,7 +40,31 @@ void main() {
             (_adaptiveDp * scale).round(),
           );
           await _expectSquare('${_res(flavor)}/drawable-${density.key}/ic_splash.png', (_splashDp * scale).round());
+          await _expectSquare(
+            '${_res(flavor)}/drawable-${density.key}/ic_notification.png',
+            (_notificationDp * scale).round(),
+          );
         }
+      });
+
+      test('the notification icon is a transparent silhouette, not a square', () async {
+        // Android reads this icon's alpha and tints it, so a drawing with an
+        // opaque ground shows up in the status bar as a solid white block.
+        final image = await _decode('${_res(flavor)}/drawable-xxxhdpi/ic_notification.png');
+        final pixels = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+        final last = image.width - 1;
+        for (final corner in [(0, 0), (last, 0), (0, last), (last, last)]) {
+          final alpha = pixels.getUint8(((corner.$2 * image.width) + corner.$1) * 4 + 3);
+          expect(alpha, 0, reason: 'corner ${corner.$1},${corner.$2} is painted');
+        }
+
+        // Nearly edge to edge: Android adds its own padding, and a mark drawn
+        // small here is a speck in the shade.
+        final ink = await _inkBounds(image);
+        final side = image.width.toDouble();
+        expect(ink.longestSide, greaterThan(side * 0.8));
+        expect((ink.center.dx - side / 2).abs(), lessThan(side * 0.02));
+        expect((ink.center.dy - side / 2).abs(), lessThan(side * 0.02));
       });
 
       test('the adaptive foreground stays inside the mask', () async {

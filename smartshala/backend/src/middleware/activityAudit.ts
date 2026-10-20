@@ -69,6 +69,10 @@ export function auditMutatingRequest(req: Request, res: Response, next: NextFunc
     if (res.statusCode >= 400) return;
     if (req.originalUrl.includes("/activity-logs")) return;
     if (req.originalUrl.includes("/auth/logout")) return;
+    // Registering a device for push happens on every app start and every time
+    // the platform rotates the installation id. It is not a school action and
+    // would bury the ones that are.
+    if (/\/api(?:\/v1)?\/push(?:\/|$)/.test(req.originalUrl)) return;
     // Chatbot logs one consolidated entry per conversation itself (see
     // chatbot.controller), so skip the generic per-request logging here.
     if (/\/api(?:\/v1)?\/chatbot(?:\/|$)/.test(req.originalUrl)) return;

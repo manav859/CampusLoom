@@ -9,3 +9,12 @@ FLAVOR_APP_ICON = AppIcon-principal
 // Settings and the app switcher, and it is cut off past 15 characters.
 FLAVOR_DISPLAY_NAME = SmartShala Principal
 FLAVOR_BUNDLE_NAME = Principal
+
+// Push notifications. The entitlement file is shared by both flavors; the APNs
+// environment inside it comes from APS_ENVIRONMENT, set per build mode.
+//
+// This needs the Push Notifications capability on the App ID in the Apple
+// developer portal. Until it is enabled there, signing fails with "provisioning
+// profile does not include the aps-environment entitlement" — see
+// docs/product/PUSH_NOTIFICATIONS.md.
+CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements

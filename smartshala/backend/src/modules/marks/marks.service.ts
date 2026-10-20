@@ -4,6 +4,7 @@ import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { gradeForPercentage } from "../../core/grading.js";
 import { sortClassRecords } from "../../utils/sortClasses.js";
+import { notifyMarksRecorded } from "../push/push.events.js";
 import { buildLowMarksMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
 
@@ -452,6 +453,14 @@ export async function createExamWithMarks(user: Express.UserContext, input: Crea
         }];
       })
     );
+
+    notifyMarksRecorded(user, {
+      classId: input.classId,
+      examName: exam.name,
+      className: exam.class ? `${exam.class.name}-${exam.class.section}` : "",
+      subject: subject.name,
+      studentCount: input.results.length
+    });
 
     return mapExam(exam, students.length);
   }, { label: "createExamWithMarks" });

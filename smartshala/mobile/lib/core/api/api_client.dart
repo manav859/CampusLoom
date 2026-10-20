@@ -244,7 +244,10 @@ class ApiClient {
       _send(() => _dio.patch<dynamic>('$_apiRoot$path', data: body));
   Future<dynamic> put(String path, {Object? body}) =>
       _send(() => _dio.put<dynamic>('$_apiRoot$path', data: body));
-  Future<dynamic> delete(String path) => _send(() => _dio.delete<dynamic>('$_apiRoot$path'));
+  /// [body] is for the one endpoint that needs it: unregistering a push device
+  /// is identified by its FCM token, which is far too long for a path segment.
+  Future<dynamic> delete(String path, {Object? body}) =>
+      _send(() => _dio.delete<dynamic>('$_apiRoot$path', data: body));
 
   Future<dynamic> _send(Future<Response<dynamic>> Function() request) async {
     try {

@@ -54,6 +54,7 @@ model School {
   staffPayProfiles         StaffPayProfile[]
   transportVehicles        TransportVehicle[]
   transportRoutes          TransportRoute[]
+  deviceRegistrations      DeviceRegistration[]
 
   @@map("schools")
 }
@@ -111,6 +112,7 @@ model User {
   salarySlips              SalarySlip[]              @relation("SalarySlipUser")
   salarySlipsRecorded      SalarySlip[]              @relation("SalarySlipRecordedBy")
   payProfile               StaffPayProfile?          @relation("StaffPayProfileUser")
+  deviceRegistrations      DeviceRegistration[]      @relation("DeviceRegistrationUser")
   school                   School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, email])
@@ -1150,4 +1152,30 @@ model TransportStop {
 
   @@index([routeId, sequence])
   @@map("transport_stops")
+}
+
+enum DevicePlatform {
+  ANDROID
+  IOS
+}
+
+/// One row per app install, not per user: a teacher with a phone and a tablet
+/// has two. The identity is the Firebase Installation ID the app reports — FCM
+/// deprecated the registration token in favour of it, and `fid` is the field
+/// the HTTP v1 send API now takes. A FID is moved rather than duplicated when a
+/// second account signs in on the same device, or the previous user would keep
+/// receiving that device's notifications.
+model DeviceRegistration {
+  id         String         @id @default(uuid()) @db.Uuid
+  schoolId   String         @db.Uuid
+  userId     String         @db.Uuid
+  fid        String         @unique
+  platform   DevicePlatform
+  lastSeenAt DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+  school     School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user       User           @relation("DeviceRegistrationUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, userId])
+  @@map("device_registrations")
 }

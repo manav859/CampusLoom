@@ -23,6 +23,7 @@ import { notificationsRouter } from "../modules/notifications/notifications.rout
 import { onboardingRouter } from "../modules/onboarding/onboarding.routes.js";
 import { paymentLinkRouter } from "../modules/billing/paymentLinks.routes.js";
 import { payrollRouter } from "../modules/payroll/payroll.routes.js";
+import { pushRouter } from "../modules/push/push.routes.js";
 import { reportsRouter } from "../modules/reports/reports.routes.js";
 import { settingsRouter } from "../modules/settings/settings.routes.js";
 import { staffAttendanceRouter } from "../modules/staffAttendance/staffAttendance.routes.js";
@@ -74,4 +75,5 @@ apiRouter.use("/analytics", analyticsRouter);
 apiRouter.use("/reports", reportsRouter);
 apiRouter.use("/settings", settingsRouter);
 apiRouter.use("/notifications", notificationsRouter);
+apiRouter.use("/push", pushRouter);
 apiRouter.use("/wa", whatsappRouter);

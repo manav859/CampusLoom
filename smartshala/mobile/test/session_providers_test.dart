@@ -8,6 +8,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:provider/provider.dart';
 import 'package:smartshala_mobile/core/app/smartshala_app.dart';
 import 'package:smartshala_mobile/core/config/app_config.dart';
+import 'package:smartshala_mobile/core/push/push_service.dart';
 
 class _PathProvider extends PathProviderPlatform with MockPlatformInterfaceMixin {
   _PathProvider(this.path);
@@ -58,5 +59,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(read, isNotNull);
+  });
+
+  testWidgets('the shells can always find a PushService', (tester) async {
+    // Both shells read it as PushService? so they can be pumped alone in a
+    // widget test. That tolerance is only safe while the real app provides
+    // one — without it, tapping a notification would quietly go nowhere.
+    await tester.runAsync(() async {
+      await tester.pumpWidget(SmartShalaApp(
+        config: AppConfig.forFlavor(AppFlavor.teacher),
+        sessionProviders: const [],
+        shellBuilder: (_) => const SizedBox(),
+      ));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pump();
+
+    PushService? push;
+    tester.state<NavigatorState>(find.byType(Navigator)).push(MaterialPageRoute<void>(
+      builder: (context) {
+        push = context.read<PushService?>();
+        return const SizedBox();
+      },
+    ));
+    await tester.pumpAndSettle();
+
+    expect(push, isNotNull);
   });
 }

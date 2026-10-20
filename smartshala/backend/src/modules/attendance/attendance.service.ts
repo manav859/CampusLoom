@@ -5,6 +5,7 @@ import { AppError, notFound } from "../../core/errors.js";
 import { recordAuditLog } from "../../core/auditLog.js";
 import { buildAttendanceAbsentMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
+import { notifyHoliday } from "../push/push.events.js";
 
 type AttendanceUser = Pick<Express.UserContext, "id" | "schoolId" | "role">;
 
@@ -783,6 +784,9 @@ export async function createHoliday(user: AttendanceUser, date: Date, reason: st
         reason
       }
     });
+
+    notifyHoliday(user, { reason: holiday.reason, date: holiday.date });
+
     return holiday;
   } catch (error) {
     if (isUniqueConstraintError(error)) {

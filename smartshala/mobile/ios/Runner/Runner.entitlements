@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Which APNs environment this build's device tokens are issued for.
+	     A production-signed app carrying "development" is accepted at build
+	     time and then silently never receives anything, so the value is read
+	     from APS_ENVIRONMENT, which Debug/Profile set to development and
+	     Release to production — see ios/Flutter/*.xcconfig. -->
+	<key>aps-environment</key>
+	<string>$(APS_ENVIRONMENT)</string>
+</dict>
+</plist>

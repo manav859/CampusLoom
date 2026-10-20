@@ -4,6 +4,7 @@ import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { env } from "../../config/env.js";
 import { getDownloadUrl, uploadFile } from "../../services/storageService.js";
+import { notifyLeaveDecided, notifyLeaveSubmitted } from "../push/push.events.js";
 
 const approverRoles = new Set<UserRole>([UserRole.PRINCIPAL, UserRole.ADMIN]);
 
@@ -130,7 +131,16 @@ export async function applyForLeave(
     select: leaveSelect
   });
 
-  return toResponse(created);
+  const response = toResponse(created);
+  notifyLeaveSubmitted(user, {
+    applicantName: response.applicant.fullName,
+    type: response.type,
+    fromDate: response.fromDate,
+    toDate: response.toDate,
+    days: response.days
+  });
+
+  return response;
 }
 
 /** The signed-in user's own requests — what the teacher Messages tab shows. */
@@ -245,6 +255,14 @@ export async function decideLeave(
       decisionNote: payload.note?.trim() || null
     },
     select: leaveSelect
+  });
+
+  notifyLeaveDecided(user, {
+    applicantId: request.userId,
+    approved: payload.status === "APPROVED",
+    fromDate: updated.fromDate,
+    toDate: updated.toDate,
+    note: updated.decisionNote
   });
 
   return toResponse(updated);

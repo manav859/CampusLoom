@@ -7,9 +7,10 @@ Transport (item 30), Payroll with teacher Salary Details (item 31) and Timetable
 Phase 8 items 33 and 34 are done too, item 35 is half done — icons, splash, a signing slot and a privacy policy
 draft (2026-09-23) — and the device run's one open decision, who may examine a subject, was settled and fixed on
 2026-09-22 with the same rule carried into homework on 2026-09-23, when the teacher Home's More tile also stopped
-being a placeholder. What is left — push notifications (32) and Play Store prep (35), and with them
-the principal app's last placeholder, Notifications — is **blocked on a Firebase project, a keystore and a Play
-Console account**, not on code. See Phase 8 for what is needed.
+being a placeholder. Both apps shipped to Google Play (2026-10-18) and to Apple review (2026-10-21), and
+**push notifications (item 32) are built end to end (2026-10-21)** — everything but the Firebase project
+itself, which only the owner can create. See [PUSH_NOTIFICATIONS.md](PUSH_NOTIFICATIONS.md) for the five
+assets that turn it on.
 
 ## Decisions taken (2026-09-05)
 
@@ -148,7 +149,7 @@ Auth is JWT bearer + refresh, roles `PRINCIPAL | ADMIN | TEACHER | ACCOUNTANT | 
 | **Transport** | MISSING | **New:** routes, vehicles, drivers, student-route assignment |
 | Exams | OK — `Exam` model | Exam management screens |
 | Announcements | PARTIAL — communication module | First-class announcement entity + read state for the Messages tab |
-| **Push notifications** | MISSING | **New:** `DeviceToken` model + FCM integration |
+| **Push notifications** | DONE (2026-10-21) | **New:** `DeviceRegistration` model + FCM HTTP v1 — see [PUSH_NOTIFICATIONS.md](PUSH_NOTIFICATIONS.md) |
 | Students Needing Focus | PARTIAL — analytics | Derived endpoint (attendance % + marks thresholds) |
 
 ---
@@ -847,14 +848,37 @@ signs the user out, because only session restore treats a 401 as the end of a se
 **Not yet:** neither has been opened on a phone.
 
 ### Phase 8 — Polish & release
-32. **Blocked, not started.** Push notifications (`DeviceToken` + FCM) → **verify:** an announcement triggers a device
-    notification. There is no Firebase project and no `google-services.json` anywhere in the repo, and
-    `firebase_messaging` cannot be added to the app without one. Open question 2 (per-device or per-user tokens) is
-    still unanswered. Nothing was stubbed: a half-wired FCM path that cannot be delivered to or tested is worse than
-    an honest gap. **Needs from the owner:** a Firebase project for the two application IDs, its
-    `google-services.json`, a service account for the backend, and the per-device/per-user decision.
-    The principal app's **Notifications** tile stays a placeholder for the same reason — the in-app feed it would
-    otherwise show is already the Messages tab in both apps (announcements with per-user read state, plus leave).
+32. ✅ **Built end to end** (2026-10-21), on both platforms. Full runbook:
+    [PUSH_NOTIFICATIONS.md](PUSH_NOTIFICATIONS.md).
+    - **Open question 2 answered: per device.** `DeviceRegistration` holds one row per app install, keyed by the
+      **Firebase Installation ID** — FCM has deprecated the registration token in favour of it, and `message.fid`
+      is what the HTTP v1 send API now takes. A FID is unique per install, so signing in on a shared phone moves
+      the row rather than adding one, and the previous user stops receiving that device's notifications.
+    - **Eight events**, chosen by the owner: announcements (to the audience addressed, not everyone who can read
+      them), leave submitted → approvers, leave decided → applicant, marks recorded, calendar events, holidays,
+      and two daily reminders — attendance unmarked and leave still pending. The actor is never notified of their
+      own action; parent-addressed notices wake nobody, since parents are reached over WhatsApp.
+    - **No in-app feed was added.** The owner chose push-only: every event is already visible in the Messages or
+      Calendar tab, so a tapped notification deep-links there instead of duplicating it. The principal app's
+      **Notifications** tile therefore stays as it is.
+    - **No `google-services.json` or `GoogleService-Info.plist`.** Four applications (two flavors × two platforms)
+      from one target would need a per-flavor Gradle copy step and an Xcode build phase; passing `FirebaseOptions`
+      from Dart in `push_config.dart`, where the flavor is already known, replaces both. Eight values, no native
+      file wiring, and the apps are completely inert until they are filled in.
+    - **No `firebase-admin` and no local-notifications plugin.** The backend signs its own service-account JWT in
+      `fcm.ts` (Node built-ins only, the same approach as `tools/appstore-publish/asc.mjs`); foreground
+      notifications use iOS's own banner and an in-app SnackBar on Android.
+    - **Verified:** `npm run test:push` (backend wording, targets and audiences, no DB), `test/push_test.dart`
+      (17 tests — registration, re-registration, refused permission, refused server, sign-out, cold-start and
+      background taps, foreground banners on each platform), the extended `launcher_icons_test.dart` (the new
+      `ic_notification` silhouette at every density), the whole 300-test mobile suite, `flutter analyze` clean,
+      `tsc --noEmit` clean, **both release APKs build** with the FCM service and meta-data in the merged manifest,
+      and the **iOS build succeeds** with `aps-environment` resolving to `development` in Debug and `production`
+      in Release.
+    - **Still needs from the owner** (nothing else): a Firebase project with the four apps, eight values pasted
+      into `push_config.dart`, an APNs `.p8` uploaded to Firebase, the Push Notifications capability on both iOS
+      App IDs, and `FCM_SERVICE_ACCOUNT` on the VPS. **Not yet seen on a phone** — it cannot be, until the
+      Firebase project exists.
 33. ✅ **Audited, already in place.** Every screen was checked for the four states. Loading, error with retry, and
     empty are on every screen that loads data; the two Calendar screens looked bare only because they delegate to the
     shared [school_calendar.dart](../../mobile/lib/core/widgets/school_calendar.dart), which has all four. Screens
@@ -944,8 +968,8 @@ The nine questions that opened this plan are all answered in **Decisions taken**
 What remains open is scoped to later phases:
 
 1. ~~**Period times for the timetable**~~ — answered 2026-09-11: one school-wide bell, set on the web dashboard.
-2. **Push notification provider** (Phase 8). FCM is assumed; needs a Firebase project and a decision on
-   whether notifications are per-device or per-user.
+2. ~~**Push notification provider**~~ — answered 2026-10-21: FCM HTTP v1, **per device**, keyed by the Firebase
+   Installation ID. Built; see item 32 and [PUSH_NOTIFICATIONS.md](PUSH_NOTIFICATIONS.md).
 3. **Play Store listings** (Phase 8). Two listings mean two sets of store metadata, screenshots and
    privacy declarations.
 

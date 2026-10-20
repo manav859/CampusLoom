@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../api/api_client.dart';
 import '../api/api_exception.dart';
 import '../config/app_config.dart';
+import '../push/push_service.dart';
 import 'app_user.dart';
 import 'auth_repository.dart';
 import 'token_storage.dart';
@@ -17,12 +20,17 @@ class AuthController extends ChangeNotifier {
     required this.repository,
     required this.storage,
     required this.api,
+    this.push,
   });
 
   final AppConfig config;
   final AuthRepository repository;
   final TokenStorage storage;
   final ApiClient api;
+
+  /// Registers this device for notifications once a session exists, and drops
+  /// it again on sign-out. Null in tests that do not exercise push.
+  final PushService? push;
 
   AuthStatus status = AuthStatus.checking;
   AppUser? user;
@@ -58,6 +66,7 @@ class AuthController extends ChangeNotifier {
       }
       user = me;
       _set(AuthStatus.signedIn);
+      _startPush();
     } on ApiException catch (error) {
       if (error.isUnauthorized) {
         // The server's verdict: the refresh token was refused or the account
@@ -107,6 +116,7 @@ class AuthController extends ChangeNotifier {
       schoolCode = signedIn.tenantSchoolId;
       isSubmitting = false;
       _set(AuthStatus.signedIn);
+      _startPush();
       return true;
     } on ApiException catch (error) {
       errorMessage = error.message;
@@ -117,11 +127,18 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    // Before repository.logout(): unregistering the device is an authenticated
+    // call, and the access token is about to be thrown away.
+    await push?.stop();
     await repository.logout();
     user = null;
     errorMessage = null;
     _set(AuthStatus.signedOut);
   }
+
+  /// Not awaited: the permission prompt and the token round trip must not hold
+  /// up the shell, and nothing in the app depends on their outcome.
+  void _startPush() => unawaited(push?.start() ?? Future<void>.value());
 
   bool _roleAllowed(AppUser candidate) => config.allowedRoles.contains(candidate.role);
 

@@ -47,6 +47,7 @@
     "test:subject-teacher": "tsx tests/subjectTeacherMarks.test.ts",
     "test:subject-teacher-homework": "tsx tests/subjectTeacherHomework.test.ts",
     "test:class-order": "tsx tests/classOrder.test.ts",
+    "test:push": "tsx tests/push.test.ts",
     "selfies:purge": "node scripts/purge-punch-selfies.mjs"
   },
   "dependencies": {
