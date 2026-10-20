@@ -1,26 +1,24 @@
-# SmartShala mobile apps — privacy policy (draft)
+# SmartShala mobile apps — privacy policy
 
-**Status: a draft for the owner to complete and host.** Google Play will not publish either app without a
-privacy policy at a public URL, and the URL must be reachable without signing in. Everything in `{{ }}` is a
-fact only the owner has; fill those in, host the page (a plain page on the SmartShala marketing site is
-enough), and put its URL in both Play Console listings.
+Published at <https://app.letssmartshala.com/privacy>, which is the URL given to Google Play and the
+App Store. It must stay reachable without signing in.
 
-Everything else below describes what the apps and the backend in this repository actually do as of
-2026-09-23. If the apps change what they collect — push notifications will add a device token — change this
-page in the same commit.
+This describes what the apps and the backend in this repository actually do as of 2026-10-20. If the apps
+change what they collect — push notifications will add a device token — change this page in the same
+commit.
 
 ---
 
-**Effective date:** {{DD Month YYYY}}
+**Effective date:** 20 October 2026
 **Applies to:** SmartShala Principal (`com.smartshala.principal`) and SmartShala Teacher
-(`com.smartshala.teacher`) for Android, and the SmartShala web dashboard they share.
-**Published by:** {{LEGAL ENTITY NAME}}, {{REGISTERED ADDRESS}} ("we", "us").
+(`com.smartshala.teacher`), on Android and iOS, and the SmartShala web dashboard they share.
+**Published by:** Hybrid Monks LLP, F1, Bhagwati Complex, Vejalpur, Ahmedabad, Gujarat, India ("we", "us").
 
 ## Who uses these apps
 
 Both apps are for **school staff**: a principal or administrator, and teachers. Accounts are not open to the
-public — a school creates them, and you sign in with the school code, your phone number and a password given
-to you by your school. There are no student or parent accounts in these apps.
+public — a school creates them, and you sign in with the email address or phone number your school holds for
+you and a password it gives you. There are no student or parent accounts in these apps.
 
 Your school decides what information about its students and staff goes into SmartShala and how long it is
 kept. We hold that information on the school's behalf and act on the school's instructions.
@@ -68,21 +66,22 @@ logs any internet service keeps (request times, error traces, and the IP address
 | Permission / capability | Why |
 |---|---|
 | Internet access | Everything in the apps comes from your school's SmartShala server. |
-| Camera (teacher app, no camera permission declared) | Only when you punch in for the first time on a given day. Android's own camera app takes the photo and hands back the one frame you accepted; the apps cannot open the camera by themselves or in the background. Declining is allowed and still punches you in. |
-| File picker (no storage permission) | Only when you tap Attach on a leave request. Android's own picker hands us the one file you choose; the apps cannot browse your storage. |
+| Camera (teacher app) | Only when you punch in for the first time on a given day. The phone's own camera takes the photo and hands back the one frame you accepted; the apps cannot open the camera by themselves or in the background. Declining is allowed and still punches you in. On Android no camera permission is declared at all; on iOS the system asks once, the first time. |
+| File picker (no storage permission) | Only when you tap Attach on a leave request. The phone's own picker hands us the one file you choose; the apps cannot browse your storage. On iOS that picker can offer your photo library as one place to pick from, so iOS may ask for photo access at that moment — the apps never read the library otherwise, and never at any other time. |
 | Opening the dialer or WhatsApp | Only when you tap a phone number on a student, teacher or transport screen. It hands the number to the app you choose and we learn nothing about the call. |
-| The Android share sheet | Only when you tap Share or Export on a report, so you can send it on yourself. |
+| The share sheet | Only when you tap Share or Export on a report, so you can send it on yourself. |
 
 ## Where the information is kept
 
-On servers we run for SmartShala, {{HOSTING LOCATION, e.g. "in India"}}. Each school's records sit in its own
+On servers we run for SmartShala, in India. Each school's records sit in its own
 database. Connections between the app and the server use HTTPS. A document you attach to a leave request is
-stored {{"in our object storage" / "on the application server"}} and is readable only by you and your
+stored on the application server and is readable only by you and your
 school's principal or administrator.
 
-On your phone, the apps keep your sign-in token and your school code in the Android keystore
-(encrypted shared preferences), never in plain storage. Signing out deletes the tokens; the school code stays
-so the next sign-in screen can fill it in for you.
+On your phone, the apps keep your sign-in token and your school code in the device's own secure store — the
+Android keystore (encrypted shared preferences) or the iOS keychain — never in plain storage. Signing out
+deletes the tokens. On iOS the keychain outlives an uninstall, so reinstalling the app can restore a session
+that was never signed out of; sign out before handing a phone to someone else.
 
 ## Who else sees it
 
@@ -94,13 +93,16 @@ so the next sign-in screen can fill it in for you.
 
 ## How long it is kept, and how to have it deleted
 
-School records are kept while your school uses SmartShala and for {{RETENTION PERIOD}} after it stops,
+School records are kept while your school uses SmartShala and for 30 days after it stops,
 unless the school asks us to delete them sooner.
+
+**Punch selfies are deleted after 7 days**, automatically, whatever else is kept. They exist so a principal
+can check a punch soon after it happens, not to build a record of anyone's face.
 
 Because your school creates and owns the accounts, **ask your school's principal or administrator** to
 correct or delete your account and the records attached to it. They can do it from the SmartShala dashboard.
-If your school is no longer reachable, write to us at {{CONTACT EMAIL}} from the phone number or email on
-your account and we will act on it within {{N}} days.
+If your school is no longer reachable, write to us at letssmartshala@gmail.com from the phone number or email on
+your account and we will act on it within 30 days.
 
 ## Children
 
@@ -121,16 +123,21 @@ collect will also be announced in the apps.
 
 ## Contact
 
-{{LEGAL ENTITY NAME}}
-{{CONTACT EMAIL}} · {{CONTACT PHONE}}
-{{REGISTERED ADDRESS}}
+Hybrid Monks LLP
+letssmartshala@gmail.com · 9660877411
+F1, Bhagwati Complex, Vejalpur, Ahmedabad, Gujarat, India
 
 ---
 
-## Appendix — what to declare in Play Console's Data safety form
+## Appendix — what to declare in Play Console's Data safety form and Apple's App Privacy
 
-Not part of the published policy. This is the same list in the form's own vocabulary, as the apps stand
-today. Both apps collect the same things.
+Not part of the published policy. This is the same list in the forms' own vocabulary, as the apps stand
+today. Both apps collect the same things, and both stores get the same answers.
+
+Apple's form asks one extra thing Google's does not: whether each type is **linked to the user's identity**.
+Everything below is linked, because it all hangs off a named staff account. Apple also asks about
+**tracking** — answer **no**, on both apps: nothing here is shared with a data broker or used for
+cross-app advertising, so neither app needs the App Tracking Transparency prompt.
 
 | Data type | Collected | Shared | Why | Optional? |
 |---|---|---|---|---|

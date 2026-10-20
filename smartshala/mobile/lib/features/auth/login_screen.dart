@@ -6,24 +6,10 @@ import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/brand_header.dart';
 
-/// Requests are routed on `/{schoolCode}/api/v1/...` and the server rejects
-/// anything that is not eight uppercase letters or digits, so a malformed code
-/// can be caught here instead of costing a round trip.
-final _schoolCodePattern = RegExp(r'^[A-Z0-9]{8}$');
-
 /// Login matches the identifier against `email` or `phone` exactly, and phone
 /// numbers are stored as ten digits.
 final _emailPattern = RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$');
 final _phonePattern = RegExp(r'^[0-9]{10}$');
-
-String? validateSchoolCode(String? value) {
-  final code = (value ?? '').trim().toUpperCase();
-  if (code.isEmpty) return 'Enter your school code';
-  if (!_schoolCodePattern.hasMatch(code)) {
-    return 'School code is 8 letters or numbers, e.g. SS000001';
-  }
-  return null;
-}
 
 String? validateIdentifier(String? value) {
   final identifier = (value ?? '').trim();
@@ -51,22 +37,12 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _schoolCode = TextEditingController();
   final _identifier = TextEditingController();
   final _password = TextEditingController();
   bool _obscurePassword = true;
 
   @override
-  void initState() {
-    super.initState();
-    // The tenant code survives sign-out, so a returning user only types
-    // credentials.
-    _schoolCode.text = context.read<AuthController>().schoolCode ?? '';
-  }
-
-  @override
   void dispose() {
-    _schoolCode.dispose();
     _identifier.dispose();
     _password.dispose();
     super.dispose();
@@ -77,7 +53,6 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
 
     await context.read<AuthController>().login(
-          schoolCodeInput: _schoolCode.text,
           identifier: _identifier.text,
           password: _password.text,
         );
@@ -125,15 +100,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
                     ),
                     const SizedBox(height: 28),
-                    _Field(
-                      label: 'School code',
-                      controller: _schoolCode,
-                      hint: 'e.g. SS000001',
-                      icon: Icons.apartment_rounded,
-                      textCapitalization: TextCapitalization.characters,
-                      validator: validateSchoolCode,
-                    ),
-                    const SizedBox(height: 16),
                     _Field(
                       label: 'Email or phone',
                       controller: _identifier,
@@ -282,7 +248,6 @@ class _Field extends StatelessWidget {
     this.validator,
     this.obscureText = false,
     this.keyboardType,
-    this.textCapitalization = TextCapitalization.none,
     this.suffix,
     this.onSubmitted,
   });
@@ -294,7 +259,6 @@ class _Field extends StatelessWidget {
   final String? Function(String?)? validator;
   final bool obscureText;
   final TextInputType? keyboardType;
-  final TextCapitalization textCapitalization;
   final Widget? suffix;
   final void Function(String)? onSubmitted;
 
@@ -317,7 +281,6 @@ class _Field extends StatelessWidget {
           validator: validator,
           obscureText: obscureText,
           keyboardType: keyboardType,
-          textCapitalization: textCapitalization,
           onFieldSubmitted: onSubmitted,
           decoration: InputDecoration(
             hintText: hint,

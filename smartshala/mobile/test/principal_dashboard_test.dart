@@ -141,7 +141,7 @@ class _FakeMessages extends Fake implements MessagesRepository {
 
 class _FakeAuth extends ChangeNotifier implements AuthController {
   @override
-  AppUser? user = const AppUser(id: 'p1', fullName: 'Payroll Demo Principal', role: 'PRINCIPAL', schoolName: 'Noble Public School');
+  AppUser? user = const AppUser(id: 'p1', fullName: 'Payroll Demo Principal', role: 'PRINCIPAL', schoolName: 'Noble Public School', tenantSchoolId: 'SS000001');
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

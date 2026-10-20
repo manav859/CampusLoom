@@ -9,10 +9,10 @@ class AuthRepository {
   final ApiClient api;
   final TokenStorage storage;
 
-  /// The school code is part of the URL, so it is validated by the same call
-  /// that checks the credentials — a wrong code fails before any password work.
+  /// Signing in needs nothing but the credentials: the server searches the
+  /// active tenants for the identifier and returns the school it belongs to as
+  /// `tenantSchoolId`. Every call after this one is scoped to that code.
   Future<AppUser> login({
-    required String schoolCode,
     required String identifier,
     required String password,
   }) async {
@@ -20,7 +20,7 @@ class AuthRepository {
       '/auth/login',
       body: {'identifier': identifier.trim(), 'password': password},
       skipAuth: true,
-      schoolCode: schoolCode,
+      tenantScoped: false,
     ) as Map<String, dynamic>;
 
     final accessToken = data['accessToken'] as String?;
@@ -30,14 +30,24 @@ class AuthRepository {
       throw ApiException(message: 'Unexpected response from server.', code: 'BAD_RESPONSE');
     }
 
+    final user = AppUser.fromJson(userJson);
+    if (user.tenantSchoolId.isEmpty) {
+      // Without it nothing after this request can be addressed, and failing
+      // here says so plainly rather than at the first screen that loads.
+      throw ApiException(
+        message: 'Your account is not attached to a school. Ask your school to check it.',
+        code: 'TENANT_MISSING',
+      );
+    }
+
     await storage.saveSession(
       accessToken: accessToken,
       refreshToken: data['refreshToken'] as String?,
-      schoolCode: schoolCode,
+      schoolCode: user.tenantSchoolId,
     );
-    api.useSchoolCode(schoolCode);
+    api.useSchoolCode(user.tenantSchoolId);
 
-    return AppUser.fromJson(userJson);
+    return user;
   }
 
   Future<AppUser> me() async {
@@ -64,11 +74,10 @@ class AuthRepository {
         body: {'currentPassword': currentPassword, 'newPassword': newPassword},
       );
 
-  Future<void> forgotPassword({required String schoolCode, required String identifier}) =>
-      api.post(
+  Future<void> forgotPassword({required String identifier}) => api.post(
         '/auth/forgot-password',
         body: {'identifier': identifier.trim()},
         skipAuth: true,
-        schoolCode: schoolCode,
+        tenantScoped: false,
       );
 }

@@ -56,7 +56,7 @@ Map<String, dynamic> _weekJson() => {
     };
 
 /// 7-A is this teacher's own class; 7-B is one they only take periods in.
-const _me = AppUser(id: 'teacher-1', fullName: 'Anita Sharma', role: 'TEACHER', schoolName: 'Noble Public School');
+const _me = AppUser(id: 'teacher-1', fullName: 'Anita Sharma', role: 'TEACHER', schoolName: 'Noble Public School', tenantSchoolId: 'SS000001');
 
 class _FakeRepository extends Fake implements TeacherRepository {
   @override

@@ -50,6 +50,7 @@ const _teacher = AppUser(
   fullName: 'Asha Menon',
   role: 'TEACHER',
   schoolName: 'Demo School',
+  tenantSchoolId: 'SS000001',
 );
 
 AuthController _controller(_Storage storage, List<Object> replies) => AuthController(

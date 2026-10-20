@@ -82,7 +82,6 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> login({
-    required String schoolCodeInput,
     required String identifier,
     required String password,
   }) async {
@@ -92,7 +91,6 @@ class AuthController extends ChangeNotifier {
 
     try {
       final signedIn = await repository.login(
-        schoolCode: schoolCodeInput.trim().toUpperCase(),
         identifier: identifier,
         password: password,
       );
@@ -106,7 +104,7 @@ class AuthController extends ChangeNotifier {
       }
 
       user = signedIn;
-      schoolCode = schoolCodeInput.trim().toUpperCase();
+      schoolCode = signedIn.tenantSchoolId;
       isSubmitting = false;
       _set(AuthStatus.signedIn);
       return true;

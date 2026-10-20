@@ -128,7 +128,6 @@
 				FC3260CBB5049C55D07C54EF /* Pods-RunnerTests.profile-teacher.xcconfig */,
 				2EDFEE133754FF0D66380C05 /* Pods-RunnerTests.release-teacher.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};

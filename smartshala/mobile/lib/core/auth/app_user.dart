@@ -4,6 +4,7 @@ class AppUser {
     required this.fullName,
     required this.role,
     required this.schoolName,
+    required this.tenantSchoolId,
     this.email,
     this.phone,
     this.academicBackground,
@@ -13,6 +14,11 @@ class AppUser {
   final String fullName;
   final String role;
   final String schoolName;
+
+  /// The eight-character code every tenant-scoped URL is built from. The
+  /// server resolves it from the credentials at sign-in; the app never asks.
+  final String tenantSchoolId;
+
   final String? email;
   final String? phone;
   final String? academicBackground;
@@ -33,6 +39,7 @@ class AppUser {
         fullName: (json['fullName'] ?? json['name'] ?? '') as String,
         role: json['role'] as String,
         schoolName: (json['schoolName'] ?? '') as String,
+        tenantSchoolId: (json['tenantSchoolId'] ?? '') as String,
         email: json['email'] as String?,
         phone: json['phone'] as String?,
         academicBackground: json['academicBackground'] as String?,

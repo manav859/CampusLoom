@@ -8,8 +8,8 @@ platform, built from separate entrypoints and flavors.
 | Principal | `lib/main_principal.dart` | `principal` | `com.smartshala.principal` |
 | Teacher | `lib/main_teacher.dart` | `teacher` | `com.smartshala.teacher` |
 
-Android and iOS use the same two IDs. Only Android has shipped so far; the iOS
-projects build but have never been submitted.
+Android and iOS use the same two IDs. Android is on Play internal testing; the
+iOS builds are uploaded to App Store Connect and not yet submitted for review.
 
 ## Run
 
@@ -66,22 +66,22 @@ there when the API moves.
 
 ## Signing in
 
-The backend is multi-tenant and routes are `/{schoolCode}/api/v1/...`, so the
-login screen asks for a **school code** (e.g. `SS000001`) alongside the
-email/phone and password. The code is remembered between sessions; tokens live
-in the device keystore.
+The backend is multi-tenant and routes are `/{schoolCode}/api/v1/...`, but the
+login screen asks only for an **email or phone** and a password, the same as
+the web dashboard. `/auth/login` is not tenant-scoped: the server searches the
+active tenants for the identifier and returns the school as `tenantSchoolId`,
+which the app stores in the device keystore and puts in every later URL. Tokens
+live there too.
 
 Each binary accepts only its own roles — `PRINCIPAL`/`ADMIN` for the principal
 app, `TEACHER` for the teacher app — and says so plainly if you sign in to the
 wrong one.
 
-The form validates before it calls the API: the school code must be eight
-letters/digits (what the server's `isValidSchoolId` accepts), the identifier
-must be an email or a ten-digit phone, and the password 6–72 characters.
+The form validates before it calls the API: the identifier must be an email or
+a ten-digit phone, and the password 6–72 characters.
 
-Note that a locally-run backend is usually a *different* tenant. `SS000001` is
-valid on the deployed API; a local backend without `MASTER_DATABASE_URL` falls
-back to legacy mode and derives its code from the school row instead.
+One consequence of resolving the tenant server-side: the same email in two
+schools is ambiguous, and the server returns whichever tenant answers first.
 
 ## Layout
 

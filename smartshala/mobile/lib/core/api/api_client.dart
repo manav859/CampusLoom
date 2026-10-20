@@ -11,9 +11,9 @@ import '../config/app_config.dart';
 import 'api_exception.dart';
 
 /// Every request is tenant-scoped: `{baseUrl}/{schoolCode}/api/v1/{path}`.
-/// The school code comes from the login screen and is kept in secure storage,
-/// because a mobile client — unlike the web dashboard — does not know its
-/// tenant until the user names it.
+/// Sign-in is the exception and goes to `{baseUrl}/api/v1/auth/login`: the
+/// server finds the tenant from the identifier and returns its code, which is
+/// then kept in secure storage and used for everything after.
 class ApiClient {
   // Initializing formals cannot be used here: the fields are private and Dart
   // forbids private named parameters.
@@ -202,17 +202,19 @@ class ApiClient {
     return data as List<int>;
   }
 
+  /// [tenantScoped] false sends to `{baseUrl}/api/v1/{path}`, without a school
+  /// in the URL. Sign-in and forgot-password are the only calls made before a
+  /// school is known; the server finds the tenant from the identifier and
+  /// hands the code back, which is the same thing the web dashboard does.
   Future<dynamic> post(
     String path, {
     Object? body,
     bool skipAuth = false,
-    String? schoolCode,
+    bool tenantScoped = true,
     Map<String, String>? headers,
   }) =>
       _send(() {
-        final root = schoolCode != null
-            ? '${_config.apiBaseUrl}/${schoolCode.toUpperCase()}/api/v1'
-            : _apiRoot;
+        final root = tenantScoped ? _apiRoot : '${_config.apiBaseUrl}/api/v1';
         return _dio.post<dynamic>(
           '$root$path',
           data: body,
