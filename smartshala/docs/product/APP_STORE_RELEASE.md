@@ -137,10 +137,29 @@ subscription to the person holding the phone.
 
 ## 7. Listing assets — per app
 
-Screenshots do not exist for iOS and the Android ones cannot be reused — Apple
-wants 6.9" and 6.5" iPhone sizes at exact pixel dimensions. Everything else
-(short description, full description, keywords, support URL) can be adapted from
-the Play listings.
+Four 6.9" screenshots are live on each listing as of 2026-10-20, captured on
+the **iPhone 17 Pro Max** simulator — it renders exactly 1320x2868, while the
+iPhone 17 Pro gives 1206x2622 and Apple rejects it. Upload them with
+`node tools/appstore-publish/screenshots.mjs <localizationId> <image.png...>`,
+which reserves, PUTs and commits each image; `asc.mjs` cannot, because the bytes
+go to a signed URL on another host. **The 6.9" slot is called `APP_IPHONE_67` in
+the API — there is no `APP_IPHONE_69`** — and an image with an alpha channel is
+refused, so flatten the simctl PNGs to RGB first. Everything else (short
+description, full description, keywords, support URL) can be adapted from the
+Play listings.
+
+Driving the simulator to reach each screen needs three things right, and each
+one fails silently on its own:
+
+- Accessibility must be granted to the terminal **before it starts**; a grant
+  made mid-process lets AppleScript keep reading window geometry while every
+  synthetic click and keystroke is dropped.
+- Set Window -> Point Accurate first. The window is otherwise scaled (~91.6%),
+  so screen points are not device points; read the device rect off the window's
+  AXGroup and map `screen = origin + pixel / 3`.
+- Click instantly (`cliclick c:x,y`). A held press — even 120ms — loses the tap
+  to the scroll gesture arena anywhere inside a Flutter scrollable, which looks
+  exactly like a missed coordinate.
 
 Icons are generated: `mobile/ios/Runner/Assets.xcassets/AppIcon-<flavor>.appiconset`,
 all 15 sizes, alpha flattened by `actool` on build so the no-transparency rule is
