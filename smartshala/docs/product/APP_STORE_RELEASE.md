@@ -137,7 +137,12 @@ subscription to the person holding the phone.
 
 ## 7. Listing assets — per app
 
-Four 6.9" screenshots are live on each listing as of 2026-10-20, captured on
+Screenshots are live on both listings as of 2026-10-21: four 6.9" iPhone shots
+each, plus four (Principal) and three (Teacher) 13" iPad shots. **The iPad set
+is not optional** — the binaries are universal, so review refuses the version
+with `SCREENSHOT_REQUIRED.IPAD_13_PROFILE` until a 2064x2752 set exists; capture
+it on the **iPad Pro 13-inch (M5)** simulator and upload it as
+`APP_IPAD_PRO_3GEN_129`. The iPhone shots were captured on
 the **iPhone 17 Pro Max** simulator — it renders exactly 1320x2868, while the
 iPhone 17 Pro gives 1206x2622 and Apple rejects it. Upload them with
 `node tools/appstore-publish/screenshots.mjs <localizationId> <image.png...>`,
@@ -160,6 +165,33 @@ one fails silently on its own:
 - Click instantly (`cliclick c:x,y`). A held press — even 120ms — loses the tap
   to the scroll gesture arena anywhere inside a Flutter scrollable, which looks
   exactly like a missed coordinate.
+- **Re-read the window rect before every tap.** The Simulator window moves on
+  its own; a cached origin silently misses everything after it shifts.
+- Paste credentials through `simctl pbcopy` + Cmd-V. Typing them lets iOS
+  autocapitalise the first letter of an email address.
+
+## 8. Submission preflight
+
+Adding the version to a review submission is the only honest check — it returns
+every blocker at once:
+
+```bash
+node asc.mjs POST /v1/reviewSubmissions '{"data":{"type":"reviewSubmissions","attributes":{"platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"<appId>"}}}}}'
+node asc.mjs POST /v1/reviewSubmissionItems '{"data":{"type":"reviewSubmissionItems","relationships":{"reviewSubmission":{"data":{"type":"reviewSubmissions","id":"<subId>"}},"appStoreVersion":{"data":{"type":"appStoreVersions","id":"<versionId>"}}}}}'
+```
+
+Six things blocked the first run; five are settable over the API and are now
+done on both apps: `copyright` on the version, `usesNonExemptEncryption` on the
+*build* (the `Info.plist` key does not backfill a build already uploaded),
+`primaryCategory` on the appInfo, a free `appPriceSchedule`, and the iPad
+screenshots. **`contentRightsDeclaration` is a declaration, not a formality** —
+it is set to `DOES_NOT_USE_THIRD_PARTY_CONTENT`.
+
+The sixth, **App Privacy (`appDataUsages`), has no API at all** — every path
+404s. It has to be filled in the App Store Connect web UI, App Privacy ->
+Get Started, using the appendix table in [PRIVACY_POLICY.md](PRIVACY_POLICY.md),
+and then **published**. Until it is, both versions fail with
+`STATE_ERROR.APP_DATA_USAGES_REQUIRED`.
 
 Icons are generated: `mobile/ios/Runner/Assets.xcassets/AppIcon-<flavor>.appiconset`,
 all 15 sizes, alpha flattened by `actool` on build so the no-transparency rule is

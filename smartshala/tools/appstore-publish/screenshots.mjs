@@ -15,7 +15,7 @@ import { homedir } from "node:os";
 const KEY_ID = process.env.ASC_KEY_ID ?? "F5ZA3HP979";
 const ISSUER = process.env.ASC_ISSUER_ID ?? "a7fcde31-f275-42f5-8627-3f12662eb03a";
 const KEY = readFileSync(`${homedir()}/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8`, "utf8");
-const DISPLAY_TYPE = "APP_IPHONE_67";
+const DISPLAY_TYPE = process.env.ASC_DISPLAY_TYPE ?? "APP_IPHONE_67";
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 
