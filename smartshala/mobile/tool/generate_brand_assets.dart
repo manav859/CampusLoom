@@ -37,11 +37,37 @@ const _splashDp = 96.0;
 const _legacyInkFraction = 0.5;
 const _adaptiveInkFraction = 0.42;
 
-/// Corner radius of the rounded square, as a fraction of its side.
+/// Corner radius of the rounded square, as a fraction of its side. iOS rounds
+/// and masks app icons itself and rejects one that arrives pre-rounded, so the
+/// iOS set is drawn with a corner of 0 — a full-bleed square.
 const _cornerFraction = 0.22;
+
+/// The iOS app icon set, file name to pixel size: every size Xcode's asset
+/// catalog asks for, at the names its Contents.json uses.
+const _iosIcons = <String, int>{
+  'Icon-App-20x20@1x.png': 20,
+  'Icon-App-20x20@2x.png': 40,
+  'Icon-App-20x20@3x.png': 60,
+  'Icon-App-29x29@1x.png': 29,
+  'Icon-App-29x29@2x.png': 58,
+  'Icon-App-29x29@3x.png': 87,
+  'Icon-App-40x40@1x.png': 40,
+  'Icon-App-40x40@2x.png': 80,
+  'Icon-App-40x40@3x.png': 120,
+  'Icon-App-60x60@2x.png': 120,
+  'Icon-App-60x60@3x.png': 180,
+  'Icon-App-76x76@1x.png': 76,
+  'Icon-App-76x76@2x.png': 152,
+  'Icon-App-83.5x83.5@2x.png': 167,
+  'Icon-App-1024x1024@1x.png': 1024,
+};
 
 /// The in-app logo, shown at up to 40dp: 4x for the densest screens.
 const _inAppSize = 160;
+
+/// iOS draws one launch screen for both flavors — they wear the same mark — so
+/// this set is shared, unlike Android's per-flavor ic_splash.
+const _iosLaunchScales = <String, int>{'': 1, '@2x': 2, '@3x': 3};
 
 void main() {
   testWidgets('generate brand assets', (WidgetTester tester) async {
@@ -82,6 +108,28 @@ void main() {
         // What a Play Store listing asks for: 512x512, square, and no rounding of
         // our own — the store applies its own mask. It is the web logo as is.
         await _write('$root/store/$flavor/icon-512.png', await _scaled(logo, 512));
+
+        // iOS. One asset catalog per flavor, named by FLAVOR_APP_ICON in
+        // ios/Flutter/<flavor>.xcconfig, so the two apps can hold different
+        // marks later without touching the Xcode project.
+        final iconset = '$root/ios/Runner/Assets.xcassets/AppIcon-$flavor.appiconset';
+        for (final icon in _iosIcons.entries) {
+          await _write(
+            '$iconset/${icon.key}',
+            await _paint(icon.value, mark: mark, ground: ground, ink: _legacyInkFraction, corner: 0),
+          );
+        }
+        await _writeText('$iconset/Contents.json', _iosContentsJson);
+      }
+
+      // The iOS launch screen, which ships blank white otherwise: the same
+      // mark at the same size Android's ic_splash draws, on the background
+      // LaunchScreen.storyboard paints behind it.
+      for (final scale in _iosLaunchScales.entries) {
+        await _write(
+          '$root/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage${scale.key}.png',
+          await _paint((_splashDp * scale.value).round(), mark: mark, ground: ground, ink: _legacyInkFraction),
+        );
       }
 
       // The app bar and sign-in screen mark: the web logo itself.
@@ -97,6 +145,132 @@ const _adaptiveIconXml = '''<?xml version="1.0" encoding="utf-8"?>
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
     <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>
+''';
+
+/// Xcode's index of the icon set above — the Flutter template's own file,
+/// identical for both flavors.
+const _iosContentsJson = '''{
+  "images" : [
+    {
+      "size" : "20x20",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-20x20@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-20x20@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-29x29@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-40x40@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-40x40@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "60x60",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-60x60@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "60x60",
+      "idiom" : "iphone",
+      "filename" : "Icon-App-60x60@3x.png",
+      "scale" : "3x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-20x20@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "20x20",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-20x20@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-29x29@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "29x29",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-29x29@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-40x40@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "40x40",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-40x40@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "76x76",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-76x76@1x.png",
+      "scale" : "1x"
+    },
+    {
+      "size" : "76x76",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-76x76@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "83.5x83.5",
+      "idiom" : "ipad",
+      "filename" : "Icon-App-83.5x83.5@2x.png",
+      "scale" : "2x"
+    },
+    {
+      "size" : "1024x1024",
+      "idiom" : "ios-marketing",
+      "filename" : "Icon-App-1024x1024@1x.png",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "version" : 1,
+    "author" : "xcode"
+  }
+}
 ''';
 
 String _backgroundColorXml(Color color) {
@@ -165,15 +339,21 @@ Future<ui.Image> _fromPixels(Uint8List pixels, int width, int height) async {
 
 /// The mark centred on a [size] by [size] canvas, on a rounded square of
 /// [ground] when given, else on transparency. [ink] is the share of the canvas
-/// the mark's longer side fills.
-Future<Uint8List> _paint(int size, {required ({ui.Image image, Rect bounds}) mark, Color? ground, required double ink}) async {
+/// the mark's longer side fills, [corner] the radius as a fraction of the side.
+Future<Uint8List> _paint(
+  int size, {
+  required ({ui.Image image, Rect bounds}) mark,
+  Color? ground,
+  required double ink,
+  double corner = _cornerFraction,
+}) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   final side = size.toDouble();
 
   if (ground != null) {
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, side, side), Radius.circular(side * _cornerFraction)),
+      RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, side, side), Radius.circular(side * corner)),
       Paint()..color = ground,
     );
   }
@@ -181,7 +361,11 @@ Future<Uint8List> _paint(int size, {required ({ui.Image image, Rect bounds}) mar
   final bounds = mark.bounds;
   final longest = bounds.width > bounds.height ? bounds.width : bounds.height;
   final scale = (side * ink) / longest;
-  final target = Rect.fromCenter(center: Offset(side / 2, side / 2), width: bounds.width * scale, height: bounds.height * scale);
+  final target = Rect.fromCenter(
+    center: Offset(side / 2, side / 2),
+    width: bounds.width * scale,
+    height: bounds.height * scale,
+  );
   canvas.drawImageRect(mark.image, bounds, target, Paint()..filterQuality = FilterQuality.high);
 
   return _encode(recorder.endRecording(), size);

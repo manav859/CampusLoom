@@ -85,7 +85,7 @@ deploy, and the Play Console paperwork only you can fill.
 | Activity logs, Analytics page | Dashboard and Student Report cover the useful parts. |
 | Billing / subscription | **Keep it out.** In-app purchase of a digital subscription would force Google Play Billing and a 15–30% cut. Renewals stay on the web. |
 | Payroll, Transport | Hidden behind flags on purpose since 2026-10-12 (web + app + API). |
-| iOS | Not started, by decision. |
+| iOS | Project generated 2026-10-20; both flavors build, branded and unsigned. Signing is wired to team `759C76D23N` but no archive has ever succeeded — the team has no registered devices, so Xcode cannot mint a profile. Never run on an iPhone. See [APP_STORE_RELEASE.md](APP_STORE_RELEASE.md). |
 
 ## D. Non-coding, only you can do these
 

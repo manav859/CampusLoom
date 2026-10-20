@@ -1,0 +1,6 @@
+// The Debug build of the Principal app. Same two lines the Flutter template
+// puts in Debug.xcconfig, plus the flavor's identity. CocoaPods names the file
+// it generates after the build configuration, lowercased, hence the suffix.
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug-principal.xcconfig"
+#include "Generated.xcconfig"
+#include "principal.xcconfig"

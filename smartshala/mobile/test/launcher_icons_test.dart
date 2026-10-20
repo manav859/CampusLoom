@@ -2,6 +2,7 @@
 // density is invisible until a phone in that bucket shows a blank icon, and a
 // foreground drawn too large loses its corners to whatever mask the launcher
 // applies.
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -21,6 +22,10 @@ const _safeZone = 66 / 108;
 const _flavors = <String, String>{'principal': '#003DE5', 'teacher': '#003DE5'};
 
 String _res(String flavor) => 'android/app/src/$flavor/res';
+
+/// Named by FLAVOR_APP_ICON in `ios/Flutter/<flavor>.xcconfig` — rename one and
+/// the other has to follow.
+String _iconset(String flavor) => 'ios/Runner/Assets.xcassets/AppIcon-$flavor.appiconset';
 
 void main() {
   for (final flavor in _flavors.keys) {
@@ -62,6 +67,29 @@ void main() {
         expect(xml, contains('<color name="ic_launcher_background">${_flavors[flavor]}</color>'));
       });
     });
+
+    group('$flavor iOS app icon', () {
+      test('every size Contents.json asks for is drawn at that size', () async {
+        final wanted = _iosSizes(flavor);
+        // The set Xcode expects; a short one means the index was hand-edited.
+        expect(wanted.length, 15);
+        for (final icon in wanted.entries) {
+          await _expectSquare('${_iconset(flavor)}/${icon.key}', icon.value);
+        }
+      });
+
+      test('the icon is a full-bleed opaque square', () async {
+        // iOS applies its own rounding and rejects an icon that arrives with
+        // transparency, so every corner has to be painted.
+        final image = await _decode('${_iconset(flavor)}/Icon-App-1024x1024@1x.png');
+        final pixels = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+        final last = image.width - 1;
+        for (final corner in [(0, 0), (last, 0), (0, last), (last, last)]) {
+          final alpha = pixels.getUint8(((corner.$2 * image.width) + corner.$1) * 4 + 3);
+          expect(alpha, 255, reason: 'corner ${corner.$1},${corner.$2} is see-through');
+        }
+      });
+    });
   }
 
   test('the launch screen shows the mark, not the stock white window', () {
@@ -69,6 +97,41 @@ void main() {
     expect(xml, contains('@color/brand_launch_background'));
     expect(xml, contains('@drawable/ic_splash'));
   });
+
+  group('the iOS launch screen', () {
+    const set = 'ios/Runner/Assets.xcassets/LaunchImage.imageset';
+
+    test('carries the mark at every scale', () async {
+      // Flutter ships a 1x1 transparent pixel here, which is to say a blank
+      // white window on every cold start.
+      for (final scale in {'': 1, '@2x': 2, '@3x': 3}.entries) {
+        await _expectSquare('$set/LaunchImage${scale.key}.png', 96 * scale.value);
+      }
+    });
+
+    test('is painted the same colour as the Android one', () {
+      final storyboard = File('ios/Runner/Base.lproj/LaunchScreen.storyboard').readAsStringSync();
+      // #F7F8FB, matching brand_launch_background in colors.xml.
+      expect(storyboard, contains('red="0.96862745098039216"'));
+      expect(storyboard, contains('green="0.97254901960784312"'));
+      expect(storyboard, contains('blue="0.98431372549019602"'));
+    });
+  });
+}
+
+/// The iOS icon set as the asset catalog declares it: file name to the pixel
+/// size its points-by-scale works out to.
+Map<String, int> _iosSizes(String flavor) {
+  final path = '${_iconset(flavor)}/Contents.json';
+  final file = File(path);
+  expect(file.existsSync(), isTrue, reason: '$path is missing — run tool/generate_brand_assets.dart');
+
+  final images = (jsonDecode(file.readAsStringSync()) as Map<String, dynamic>)['images'] as List<dynamic>;
+  return {
+    for (final image in images.cast<Map<String, dynamic>>())
+      image['filename'] as String:
+          (double.parse((image['size'] as String).split('x').first) * int.parse((image['scale'] as String)[0])).round(),
+  };
 }
 
 Future<void> _expectSquare(String path, int expected) async {

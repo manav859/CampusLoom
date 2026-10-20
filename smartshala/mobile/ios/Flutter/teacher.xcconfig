@@ -1,0 +1,11 @@
+// Everything that makes a build the Teacher app, and nothing else — the
+// counterpart of the `teacher` productFlavor in android/app/build.gradle.kts.
+// Included by Debug/Profile/Release-teacher.xcconfig; the Runner target reads
+// these through $(...) so no flavor literal ever lands in project.pbxproj.
+FLAVOR_BUNDLE_ID = com.smartshala.teacher
+FLAVOR_APP_ICON = AppIcon-teacher
+
+// The home-screen label. CFBundleName is the short form iOS falls back to in
+// Settings and the app switcher, and it is cut off past 15 characters.
+FLAVOR_DISPLAY_NAME = SmartShala Teacher
+FLAVOR_BUNDLE_NAME = Teacher

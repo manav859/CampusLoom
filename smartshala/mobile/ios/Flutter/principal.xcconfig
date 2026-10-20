@@ -1,0 +1,11 @@
+// Everything that makes a build the Principal app, and nothing else — the
+// counterpart of the `principal` productFlavor in android/app/build.gradle.kts.
+// Included by Debug/Profile/Release-principal.xcconfig; the Runner target reads
+// these through $(...) so no flavor literal ever lands in project.pbxproj.
+FLAVOR_BUNDLE_ID = com.smartshala.principal
+FLAVOR_APP_ICON = AppIcon-principal
+
+// The home-screen label. CFBundleName is the short form iOS falls back to in
+// Settings and the app switcher, and it is cut off past 15 characters.
+FLAVOR_DISPLAY_NAME = SmartShala Principal
+FLAVOR_BUNDLE_NAME = Principal
