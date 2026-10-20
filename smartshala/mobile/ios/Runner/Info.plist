@@ -31,6 +31,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SmartShala does not use your location and never asks for it. This appears only because the attachment picker bundles a camera component that can tag photos with where they were taken; the app never opens that camera.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take the selfie that goes with your punch-in, so your school can see the attendance was marked by you. Punching still works if you skip it.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

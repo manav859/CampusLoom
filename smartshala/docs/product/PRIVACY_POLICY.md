@@ -51,8 +51,10 @@ logs any internet service keeps (request times, error traces, and the IP address
 
 ## What the apps do not collect
 
-- **No location.** Punch in and punch out record the time only. There is no geofencing and the apps never ask
-  for a location permission.
+- **No location.** Punch in and punch out record the time only. There is no geofencing, and neither app ever
+  asks for location or records where you are. On iOS the app information lists a location purpose string:
+  that is required by Apple because the attachment picker bundles a camera component capable of tagging
+  photos with a place. That camera is never opened, so the permission is never requested.
 - **No contacts, no microphone, and no access to your photo gallery.** The camera is used in one place
   only — the punch selfie described above, taken by you, in the teacher app. The apps never read photos you
   already have. The only other file that leaves your phone is a document you pick yourself to attach to a
