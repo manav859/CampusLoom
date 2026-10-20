@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(ssh root@200.141.3.48*)",
       "Bash(echo \"exit: $?\")",
       "Read(//d/d/siteonlab/CampusLoom/smartshala/backend/**)",
       "Read(//d/d/siteonlab/CampusLoom/smartshala/backend/scripts/**)",
