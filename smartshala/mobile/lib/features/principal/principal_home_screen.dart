@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_exception.dart';
@@ -13,8 +12,8 @@ import '../../core/data/messages_repository.dart';
 import '../../core/data/unread_controller.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/app_cards.dart';
-import '../../core/widgets/brand_header.dart';
 import '../../core/widgets/dashboard_widgets.dart';
+import '../../core/widgets/home_blocks.dart';
 import '../../core/widgets/responsive.dart';
 import '../../core/widgets/state_views.dart';
 import 'announcements/create_announcement_screen.dart';
@@ -147,14 +146,12 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: BrandAppBar(
-        fallbackName: 'Principal',
-        notificationCount: context.watch<UnreadController>().count,
-        onNotificationsTap: widget.onOpenMessages,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<_HomeData>(
+      backgroundColor: Home.page,
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: FutureBuilder<_HomeData>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -178,11 +175,27 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
 
             final data = snapshot.data!;
             final dashboard = data.dashboard;
+            final user = context.select<AuthController, AppUser?>((auth) => auth.user);
+            final schoolName = user?.schoolName;
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 96),
               children: [
-                const _SchoolCard(),
+                HomeBrandRow(
+                  actions: [
+                    HomeHeaderButton(
+                      icon: Icons.notifications_none_rounded,
+                      tooltip: 'Notifications',
+                      onTap: widget.onOpenMessages,
+                      dot: context.watch<UnreadController>().count > 0,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                HomeGreeting(
+                  name: user?.fullName ?? 'Principal',
+                  subtitle: (schoolName != null && schoolName.isNotEmpty) ? schoolName : null,
+                ),
                 const SizedBox(height: 14),
                 Text(
                   dashboard.pulse,
@@ -293,62 +306,7 @@ class _PrincipalHomeScreenState extends State<PrincipalHomeScreen> {
             );
           },
         ),
-      ),
-    );
-  }
-}
-
-class _SchoolCard extends StatelessWidget {
-  const _SchoolCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final user = context.select<AuthController, AppUser?>((auth) => auth.user);
-    final schoolName = user?.schoolName ?? '';
-
-    return AppCard(
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.primarySoft,
-              borderRadius: BorderRadius.circular(AppRadii.card),
-            ),
-            child: const Icon(
-              Icons.apartment_rounded,
-              color: AppColors.primary,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  schoolName.isNotEmpty ? schoolName : 'Your school',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    height: 1.3,
-                  ),
-                ),
-                Text(
-                  DateFormat('EEEE, d MMMM yyyy').format(DateTime.now()),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -377,24 +335,32 @@ class _KpiGrid extends StatelessWidget {
         label: 'Students',
         value: '${dashboard.totalStudents}',
         icon: Icons.school_rounded,
+        ground: const Color(0xFFE7F2FD),
+        accent: const Color(0xFF4A9BE8),
         onTap: onStudents,
       ),
       (
         label: 'Attendance',
         value: dashboard.attendanceLabel,
         icon: Icons.fact_check_rounded,
+        ground: const Color(0xFFE9F7EC),
+        accent: const Color(0xFF56C078),
         onTap: onAttendance,
       ),
       (
         label: 'Fee Collected',
         value: formatInr(dashboard.totalCollected),
         icon: Icons.savings_rounded,
+        ground: const Color(0xFFF4EBFE),
+        accent: const Color(0xFF9B5FE8),
         onTap: onCollected,
       ),
       (
         label: 'Pending Actions',
         value: '$pendingActions',
         icon: Icons.pending_actions_rounded,
+        ground: const Color(0xFFFEF1E6),
+        accent: const Color(0xFFF59A52),
         // Needs Your Attention, further down, breaks this number down.
         onTap: null,
       ),
@@ -403,13 +369,15 @@ class _KpiGrid extends StatelessWidget {
     return ResponsiveGrid(
       phoneColumns: 2,
       wideColumns: 4,
+      spacing: 12,
       children: [
         for (final card in cards)
-          KpiCard(
-            index: cards.indexOf(card),
+          KpiBlock(
             label: card.label,
             value: card.value,
             icon: card.icon,
+            ground: card.ground,
+            accent: card.accent,
             onTap: card.onTap,
           ),
       ],
@@ -519,13 +487,15 @@ class _QuickActions extends StatelessWidget {
     return ResponsiveGrid(
       phoneColumns: 3,
       wideColumns: 9,
+      spacing: 11,
       children: [
         for (final key in keys)
           if (key.available)
-            _ActionTile(
+            HomeQuickAction(
               icon: _spec(key).icon,
               title: _spec(key).title,
-              color: _spec(key).color,
+              chip: _spec(key).color.withValues(alpha: 0.12),
+              accent: _spec(key).color,
               badge: _spec(key).badge,
               onTap: _spec(key).onTap,
             ),
@@ -768,83 +738,4 @@ class _NeedsAttention extends StatelessWidget {
   }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.color,
-    this.badge = 0,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final Color color;
-  final int badge;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(AppRadii.card),
-                ),
-                child: Icon(icon, size: 22, color: color),
-              ),
-              if (badge > 0)
-                Positioned(
-                  right: -8,
-                  top: -6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
-                    constraints: const BoxConstraints(minWidth: 20),
-                    decoration: BoxDecoration(
-                      color: AppColors.danger,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.white, width: 1.5),
-                    ),
-                    child: Text(
-                      badge > 99 ? '99+' : '$badge',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.25,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// Quick-action tiles now use the shared HomeQuickAction block.

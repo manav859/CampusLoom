@@ -11,6 +11,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/data/messages_repository.dart';
 import '../../core/data/unread_controller.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/widgets/auto_scroll_text.dart';
 import '../../core/widgets/brand_header.dart';
 import '../../core/widgets/responsive.dart';
 import '../../core/widgets/state_views.dart';
@@ -494,18 +495,19 @@ class _KpiTile extends StatelessWidget {
                     child: Icon(icon, size: 16, color: accent),
                   ),
                   const SizedBox(width: 8),
-                  // One line next to the icon on a normal phone; it wraps
-                  // rather than clips when the font is scaled up.
+                  // One line next to the icon; if the label is too long for the
+                  // tile it scrolls rather than wrapping to a second line.
                   Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                        color: Home.inkSoft,
-                        height: 1.25,
+                    child: SizedBox(
+                      height: 16,
+                      child: AutoScrollText(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: Home.inkSoft,
+                          height: 1.25,
+                        ),
                       ),
                     ),
                   ),
@@ -642,16 +644,18 @@ class _QuickAction extends StatelessWidget {
             child: Icon(icon, size: 21, color: accent),
           ),
           const SizedBox(height: 10),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: Home.ink,
-              height: 1.25,
+          SizedBox(
+            width: double.infinity,
+            height: 15,
+            child: AutoScrollText(
+              title,
+              alignment: Alignment.center,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: Home.ink,
+                height: 1.25,
+              ),
             ),
           ),
         ],

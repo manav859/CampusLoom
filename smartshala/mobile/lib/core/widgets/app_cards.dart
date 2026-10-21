@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'auto_scroll_text.dart';
 
 /// White, hairline-bordered, softly shadowed, 14dp-radius surface — the one
 /// card shape used everywhere, and the same one the Home screens are built
@@ -329,15 +330,19 @@ class KpiCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      label,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.kpiLabel,
-                        height: 1.25,
+                    // One line; if the label is too wide for the tile it
+                    // scrolls rather than wrapping onto a second line.
+                    SizedBox(
+                      height: 17,
+                      width: double.infinity,
+                      child: AutoScrollText(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.kpiLabel,
+                          height: 1.25,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 6),
