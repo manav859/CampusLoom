@@ -61,21 +61,30 @@ echo "    Take a Hostinger snapshot before a deploy that carries migrations."
 log "Checking out $REF"
 cd "$APP_DIR"
 git fetch --all --tags --prune
-git checkout --detach "$REF"
+# A branch name must resolve to the just-fetched remote commit: `git fetch`
+# moves origin/<branch> but not the local branch, so `checkout <branch>` alone
+# would deploy stale local code. Commit hashes and tags pass through unchanged.
+TARGET="$REF"
+if git show-ref --verify --quiet "refs/remotes/origin/$REF"; then
+  TARGET="origin/$REF"
+fi
+git checkout --detach "$TARGET"
 git --no-pager log -1 --oneline
 
 log "Building backend"
 cd "$APP_DIR/backend"
-# --include=dev because backend.env was sourced above and sets
-# NODE_ENV=production, under which npm omits devDependencies — and the build
-# is `prisma generate && tsc`, with typescript sitting in devDependencies.
-npm ci --include=dev
+# backend.env was sourced above and sets NODE_ENV=production, under which npm
+# omits devDependencies — and `--include=dev` alone does NOT override that in
+# npm 10.9.9, so clear NODE_ENV for the install. The build (`prisma generate
+# && tsc`) needs typescript, which sits in devDependencies.
+NODE_ENV=development npm ci --include=dev
 npm run build
 
 log "Building frontend (NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL is baked in here)"
 cd "$APP_DIR/frontend"
-# Same reason: `next build` type-checks, so it needs typescript too.
-npm ci --include=dev
+# Same reason: `next build` type-checks, so it needs typescript too, and the
+# same NODE_ENV override is needed for devDependencies to install.
+NODE_ENV=development npm ci --include=dev
 npm run build
 
 log "Migrating master database"
