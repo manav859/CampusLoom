@@ -1,4 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+
+// Under `flutter test` the label stays static. Its scroll is a continuous
+// animation that never settles, so pumpAndSettle would hang forever on any
+// screen that renders an overflowing label. Real builds never set this.
+final bool _scrollDisabled = Platform.environment.containsKey('FLUTTER_TEST');
 
 /// A single line of text that scrolls itself horizontally when it does not fit,
 /// instead of wrapping onto a second line or clipping. When the text fits, it
@@ -64,7 +71,7 @@ class _AutoScrollTextState extends State<AutoScrollText>
 
         // Half a pixel of slack so a value that measures exactly the width does
         // not jitter between the two branches on successive layouts.
-        if (!maxWidth.isFinite || textWidth <= maxWidth + 0.5) {
+        if (_scrollDisabled || !maxWidth.isFinite || textWidth <= maxWidth + 0.5) {
           if (_controller.isAnimating) _controller.stop();
           return Align(
             alignment: widget.alignment,

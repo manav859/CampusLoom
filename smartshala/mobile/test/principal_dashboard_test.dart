@@ -8,7 +8,7 @@ import 'package:smartshala_mobile/core/data/dashboard_models.dart';
 import 'package:smartshala_mobile/core/data/messages_models.dart';
 import 'package:smartshala_mobile/core/data/messages_repository.dart';
 import 'package:smartshala_mobile/core/data/unread_controller.dart';
-import 'package:smartshala_mobile/core/widgets/app_cards.dart';
+import 'package:smartshala_mobile/core/widgets/home_blocks.dart';
 import 'package:smartshala_mobile/core/widgets/responsive.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_dashboard.dart';
 import 'package:smartshala_mobile/features/principal/data/principal_repository.dart';
@@ -305,8 +305,8 @@ void main() {
 
   testWidgets('home puts all four overview cards on one row on a tablet', (tester) async {
     await _pumpHome(tester, width: 1200);
-    final tops = tester.widgetList<KpiCard>(find.byType(KpiCard)).map((card) => tester.getRect(find.byWidget(card)).top).toSet();
-    expect(find.byType(KpiCard), findsNWidgets(4));
+    final tops = tester.widgetList<KpiBlock>(find.byType(KpiBlock)).map((card) => tester.getRect(find.byWidget(card)).top).toSet();
+    expect(find.byType(KpiBlock), findsNWidgets(4));
     expect(tops, hasLength(1), reason: 'every card starts on the same row');
   });
 
