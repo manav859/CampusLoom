@@ -104,15 +104,31 @@ Firebase → Project settings → Service accounts → **Generate new private ke
 Put the JSON on the VPS *outside* the repository and point the API at it:
 
 ```
-# /srv/smartshala-env/api.env
+# /srv/smartshala-env/backend.env
 FCM_SERVICE_ACCOUNT=/srv/smartshala-secrets/fcm-service-account.json
-PUSH_REMINDER_HOUR=12          # optional, defaults to 12
-BACKGROUND_WORKERS_ENABLED=1   # required for the two daily reminders only
 ```
 
 `chmod 600` it. The variable also accepts the JSON inline for hosts that have
 nothing but environment variables. Then redeploy —
 see [VPS_PRODUCTION_RUNBOOK](../../deploy/deploy.sh) for the deploy command.
+
+`FCM_SERVICE_ACCOUNT` is a new variable, and `pm2 ... --update-env` does **not**
+pick up a variable the running process never had. After adding it, source the env
+and restart so it lands: `set -a; . /srv/smartshala-env/backend.env; set +a; pm2
+restart smartshala-api --update-env`.
+
+The event-driven pushes (notices, leave, marks, calendar) now work. The **two
+daily reminders** need one more thing. In-process they run from
+`startPushReminderWorker`, gated on `BACKGROUND_WORKERS_ENABLED` — but that same
+switch starts the billing worker, which stays off in production, so do **not**
+turn it on. Run the reminders from cron instead, exactly like the selfie purge:
+
+```
+# once a day at 12:00 server time — cron owns the timing, so PUSH_REMINDER_HOUR
+# is not consulted by this script. cron runs under a bare env, so source the env
+# and use an absolute node path, exactly like the selfie purge line next to it.
+0 12 * * *  set -a; . /srv/smartshala-env/backend.env; set +a; cd /srv/smartshala/backend && /usr/bin/node scripts/send-push-reminders.mjs >> /var/log/smartshala-push-reminders.log 2>&1
+```
 
 ---
 
