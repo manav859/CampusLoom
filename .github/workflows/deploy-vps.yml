@@ -69,5 +69,6 @@ jobs:
           ssh-keyscan -p "$PORT" "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
           # deploy.sh fetches origin and checks out this exact commit, builds,
           # migrates master + main + every tenant, reloads pm2 and health-checks.
+          # Invoked via `bash` because the script is not marked executable on the VPS.
           ssh -i ~/.ssh/id_deploy -p "$PORT" -o StrictHostKeyChecking=yes \
-            "$VPS_USER@$VPS_HOST" "cd '$VPS_APP_DIR' && ./deploy/deploy.sh '$SHA'"
+            "$VPS_USER@$VPS_HOST" "cd '$VPS_APP_DIR' && bash deploy/deploy.sh '$SHA'"
