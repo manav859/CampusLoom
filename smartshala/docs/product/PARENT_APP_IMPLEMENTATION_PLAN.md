@@ -1,7 +1,7 @@
 # SmartShala — Parent App Implementation Plan
 
 **Created:** 2026-10-23
-**Status:** **Phase 0 complete (2026-10-23)** — the `parent` flavor builds and runs on Android and is fully wired on iOS. Phase 1 (parent login + Select Student) is next.
+**Status:** **Phases 0–1 complete in code (2026-10-23).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login (mobile + admission number) and the Select Student screen are built end to end — backend + app — and pass unit, widget and build checks. **Live end-to-end verification is still pending on staging** (needs the real multi-tenant DB; see Phase 1 notes). Phase 2 (Home + Attendance) is next.
 **Design reference:** the 10-screen parent-dashboard mockup shared on 2026-10-23 — **reference only, not to be replicated pixel-for-pixel**. The parent app uses the **same design tokens, Inter font, `CustomSelect`, `BrandHeader`, pastel KPI cards and 6/8px radii** already shared across the Principal and Teacher apps (`mobile/lib/core/`), not the mockup's own icons, colours or avatars.
 **Scope:** a third Flutter binary — **SmartShala Parent** — for **Android and iOS**, built phase-wise.
 
@@ -84,13 +84,15 @@ Each phase lists **backend → app**, and a **verify** check so we can loop to d
 2. **Brand assets — placeholders only.** The Android `src/parent/res` and the iOS `AppIcon-parent.appiconset` are **copies of the teacher icons** so the build is green. **Real parent icon + splash are still to be made** (reuse `tool/generate_brand_assets.dart`) before any store build.
    → **verify (pending):** real parent icon + splash render; no teacher branding leaks in.
 
-### Phase 1 — Parent identity & auth (mostly backend)
-*No migration and no OTP provider needed — children are derived by phone match (per D1).*
-1. **Login endpoint.** `POST /auth/parent/login` with `{ schoolId, mobile, admissionNumber }`. Match active students in the school by any guardian phone == `mobile`; authenticate if one of them has `admissionNumber` == the password. Issue a PARENT access/refresh token scoped to `(schoolId, mobile)`. Rate-limit it (reuse the `loginLimiter` pattern in `auth.routes.ts`). Decide how the refresh token is persisted given there is no `User` row (options: a lightweight parent-session record, or a signed stateless refresh token) — settle in this phase.
-2. **`GET /parent/children`** — returns the students the token's mobile number is guardian for (id, name, class, roll, photo).
-3. **School selection.** Parents aren't tied to a subdomain; the login screen needs the school. Reuse the web's school-code lookup so the parent picks/enters their school first.
-4. **App:** parent login screen (school → mobile + admission number) → **Select Student** screen → child held in a session provider; token stored via existing `TokenStorage`.
-   → **verify:** a parent logs in on a real device, sees exactly their own children and no one else's; wrong admission number is rejected; a staff token is rejected from parent endpoints and vice-versa; a parent in school A cannot read school B.
+### Phase 1 — Parent identity & auth (mostly backend) ✅ **built 2026-10-23** (live test pending)
+*No migration and no OTP provider — children are derived by phone match (per D1).*
+1. **Login endpoint.** ✅ `POST /auth/parent/login` with `{ mobile, admissionNumber }` (`auth.service.ts` → `parentLogin`). Admission number is unique per school, so it is one indexed lookup per tenant — no phone scanning: the number locates the student, then the mobile must match one of that student's guardian phones (`parentPhone`/`father`/`mother`/`guardian`/`alternate`, matched on the last 10 digits via `utils/parentPhone.ts`). The matching tenant becomes the school. Rate-limited by IP+mobile.
+2. **No User row, no migration, no refresh table.** ✅ The PARENT access token's subject is `parent:<mobile>`; the refresh token is **stateless** (marked `pt`), re-validated on `/auth/refresh` by confirming at least one of the parent's children is still enrolled (`refreshParent`). `/auth/me` is parent-aware the same way, so cold-start session restore works.
+3. **School selection** is implicit: like staff login, the server scans active tenants and returns the school code as `tenantSchoolId`; the app scopes every later call to it. (Multi-school parents log into whichever school the entered admission number belongs to — a noted v1 limitation.)
+4. **`GET /parent/children`** ✅ (`modules/parent/`) — PARENT-only, tenant-scoped; returns each child's id, name, class, roll, admission number, photo. The dormant PARENT branch of `students.service` `studentAccessFilter` was completed to the same 5-field match, so later phases stay consistent.
+5. **App:** ✅ `ParentLoginScreen` (mobile + SR number) → `ParentSession` loads children → **Select Student** screen (auto-skipped for a single child) → per-child dashboard with a Change-child header; `loginBuilder` hook on `SmartShalaApp` keeps `core/` flavor-agnostic.
+   → **verified:** `parentPhone` unit test (matching rules), `parent_select_child_test` widget test (load → pick / auto-select), `flutter analyze` clean, parent APK builds, backend `tsc` clean.
+   → **pending (staging):** a real round-trip — parent logs in and sees exactly their own children; wrong admission number rejected; staff token rejected from `/parent/*` and vice-versa; a parent in school A cannot read school B; session survives a cold start. Needs the multi-tenant DB, so it runs on staging after this pushes (main auto-deploys staging).
 
 ### Phase 2 — Home + Attendance (first real value)
 1. **Backend:** `GET /parent/children/:id/home` (aggregate) and reuse/scoped attendance read.

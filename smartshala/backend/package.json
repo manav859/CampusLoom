@@ -48,7 +48,8 @@
     "test:subject-teacher-homework": "tsx tests/subjectTeacherHomework.test.ts",
     "test:class-order": "tsx tests/classOrder.test.ts",
     "test:push": "tsx tests/push.test.ts",
-    "selfies:purge": "node scripts/purge-punch-selfies.mjs"
+    "selfies:purge": "node scripts/purge-punch-selfies.mjs",
+    "test:parent-phone": "tsx tests/parentPhone.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

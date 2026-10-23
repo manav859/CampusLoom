@@ -126,6 +126,44 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Parent sign-in: mobile number + a child's admission number. Mirrors
+  /// [login] but takes the parent credentials.
+  Future<bool> parentLogin({
+    required String mobile,
+    required String admissionNumber,
+  }) async {
+    isSubmitting = true;
+    errorMessage = null;
+    notifyListeners();
+
+    try {
+      final signedIn = await repository.parentLogin(
+        mobile: mobile,
+        admissionNumber: admissionNumber,
+      );
+
+      if (!_roleAllowed(signedIn)) {
+        await repository.logout();
+        errorMessage = _wrongPortalMessage(signedIn.role);
+        isSubmitting = false;
+        notifyListeners();
+        return false;
+      }
+
+      user = signedIn;
+      schoolCode = signedIn.tenantSchoolId;
+      isSubmitting = false;
+      _set(AuthStatus.signedIn);
+      _startPush();
+      return true;
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+      isSubmitting = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     // Before repository.logout(): unregistering the device is an authenticated
     // call, and the access token is about to be thrown away.

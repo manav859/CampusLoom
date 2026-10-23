@@ -50,6 +50,45 @@ class AuthRepository {
     return user;
   }
 
+  /// Parents sign in with their mobile number and a child's admission (SR)
+  /// number. Like staff login, the server finds the school and returns its code
+  /// as `tenantSchoolId`; every call after this is scoped to it.
+  Future<AppUser> parentLogin({
+    required String mobile,
+    required String admissionNumber,
+  }) async {
+    final data = await api.post(
+      '/auth/parent/login',
+      body: {'mobile': mobile.trim(), 'admissionNumber': admissionNumber.trim()},
+      skipAuth: true,
+      tenantScoped: false,
+    ) as Map<String, dynamic>;
+
+    final accessToken = data['accessToken'] as String?;
+    final userJson = data['user'] as Map<String, dynamic>?;
+
+    if (accessToken == null || userJson == null) {
+      throw ApiException(message: 'Unexpected response from server.', code: 'BAD_RESPONSE');
+    }
+
+    final user = AppUser.fromJson(userJson);
+    if (user.tenantSchoolId.isEmpty) {
+      throw ApiException(
+        message: 'Your account is not attached to a school. Ask your school to check it.',
+        code: 'TENANT_MISSING',
+      );
+    }
+
+    await storage.saveSession(
+      accessToken: accessToken,
+      refreshToken: data['refreshToken'] as String?,
+      schoolCode: user.tenantSchoolId,
+    );
+    api.useSchoolCode(user.tenantSchoolId);
+
+    return user;
+  }
+
   Future<AppUser> me() async {
     final data = await api.get('/auth/me') as Map<String, dynamic>;
     return AppUser.fromJson(data['user'] as Map<String, dynamic>);

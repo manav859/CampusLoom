@@ -18,6 +18,7 @@ import { gradeForPercentage } from "../../core/grading.js";
 import { calculateStudentAttendanceSummary } from "../../core/studentAttendance.js";
 import { recordAuditLog } from "../../core/auditLog.js";
 import { assignFee } from "../fees/fees.service.js";
+import { parentStudentWhere } from "../../utils/parentPhone.js";
 import { computeCurrentDue } from "../fees/feeSchedule.js";
 import { env } from "../../config/env.js";
 import { uploadFile, getDownloadUrl, deleteFile } from "../../services/storageService.js";
@@ -128,7 +129,9 @@ async function studentAccessFilter(user: Express.UserContext) {
   if (user.role === UserRole.PARENT) {
     const phone = await phoneForUser(user);
     if (!phone) return { parentPhone: "__NO_PARENT_PHONE__" };
-    return { OR: [{ parentPhone: phone }, { alternatePhone: phone }] };
+    // Match every guardian phone field, and tolerate stored country-code
+    // spellings — the same rule the parent login and children list use.
+    return parentStudentWhere(phone);
   }
   return {};
 }

@@ -8,6 +8,7 @@ import { logger } from "../../config/logger.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError } from "../../core/errors.js";
 import { maskIdentifier } from "../../utils/maskSensitive.js";
+import { normalizePhone, parentStudentWhere, studentMatchesPhone } from "../../utils/parentPhone.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { legacyTenantSchoolId } from "../../tenant/legacyTenant.js";
 import { getTenantPrismaClient } from "../../tenant/prismaManager.js";
@@ -93,6 +94,46 @@ function signRefreshToken(user: TokenUser, mobile = false) {
     expiresIn: mobile ? Math.floor(MOBILE_SESSION_MS / 1000) : (env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"])
   };
   return jwt.sign({ schoolId: user.schoolId }, env.JWT_REFRESH_SECRET, options);
+}
+
+/**
+ * Parents have no User row, so their refresh token is stateless: it carries
+ * everything needed to re-mint an access token, marked with `pt` so refresh()
+ * re-validates it against the student table instead of a User lookup.
+ */
+function signParentRefreshToken(user: TokenUser, mobile = false) {
+  const options: jwt.SignOptions = {
+    subject: user.id,
+    expiresIn: mobile ? Math.floor(MOBILE_SESSION_MS / 1000) : (env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"])
+  };
+  return jwt.sign(
+    {
+      pt: true,
+      schoolId: user.schoolId,
+      tenantSchoolId: user.tenantSchoolId,
+      role: user.role,
+      fullName: user.fullName,
+      phone: user.phone,
+      schoolName: user.schoolName
+    },
+    env.JWT_REFRESH_SECRET,
+    options
+  );
+}
+
+/** The `user` payload for a parent session — shaped like publicUser, no User row behind it. */
+function parentPublicUser(tokenUser: TokenUser) {
+  return {
+    id: tokenUser.id,
+    name: tokenUser.fullName,
+    fullName: tokenUser.fullName,
+    email: null,
+    phone: tokenUser.phone,
+    role: tokenUser.role,
+    schoolId: tokenUser.schoolId,
+    schoolName: tokenUser.schoolName,
+    tenantSchoolId: tokenUser.tenantSchoolId
+  };
 }
 
 function publicUser(user: {
@@ -392,6 +433,125 @@ async function loginWithClient(
   };
 }
 
+/**
+ * Parents sign in with their mobile number and a child's admission number.
+ * There is no parent account: a login is a per-request check against the
+ * student table — the admission number locates one student (it is unique per
+ * school), and the mobile must match one of that student's guardian phones.
+ * The matching school becomes the parent's tenant; a PARENT token is issued
+ * with no User row and a stateless refresh token.
+ */
+export async function parentLogin(mobile: string, admissionNumber: string, requestIp: string = "unknown", mobileClient = false) {
+  const normalizedMobile = normalizePhone(mobile);
+  const admission = admissionNumber.trim();
+
+  try {
+    if (normalizedMobile.length < 10) {
+      throw new AppError(401, "Invalid mobile number or admission number", "INVALID_CREDENTIALS");
+    }
+
+    const tenantContext = getTenantContext();
+    if (tenantContext) {
+      return await parentLoginWithClient(prisma, normalizedMobile, mobile, admission, tenantContext.schoolId, requestIp, mobileClient);
+    }
+
+    if (isMasterDbConfigured()) {
+      const tenant = await tenantForParentLogin(admission, mobile);
+      if (!tenant) throw new AppError(401, "Invalid mobile number or admission number", "INVALID_CREDENTIALS");
+      return await parentLoginWithClient(getTenantPrismaClient(tenant.dbUrl), normalizedMobile, mobile, admission, tenant.schoolId, requestIp, mobileClient);
+    }
+
+    return await parentLoginWithClient(prisma, normalizedMobile, mobile, admission, undefined, requestIp, mobileClient);
+  } catch (err) {
+    logger.warn({
+      evt: "auth.parentLogin",
+      outcome: "failure",
+      reason: err instanceof AppError ? err.code : "UNKNOWN",
+      mobile: maskIdentifier(normalizedMobile),
+      ip: requestIp
+    });
+    throw err;
+  }
+}
+
+/** Finds the active tenant whose student has this admission number and a matching guardian phone. */
+async function tenantForParentLogin(admissionNumber: string, mobile: string) {
+  const schools = await masterPrisma.school.findMany({
+    where: { isActive: true },
+    select: { schoolId: true, dbUrl: true, isTrial: true, trialEndsAt: true }
+  });
+
+  const checkSchool = async (school: typeof schools[number]) => {
+    try {
+      const tenantPrisma = getTenantPrismaClient(school.dbUrl);
+      const student = await tenantPrisma.student.findFirst({
+        where: { admissionNumber, isActive: true },
+        select: { parentPhone: true, alternatePhone: true, fatherPhone: true, motherPhone: true, guardianPhone: true }
+      });
+      return student && studentMatchesPhone(student, mobile) ? school : null;
+    } catch (err) {
+      console.warn(`[ParentLogin] Failed to query tenant database for school ${school.schoolId}:`, err);
+      return null;
+    }
+  };
+
+  const withTimeout = <T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> =>
+    Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
+
+  const results = await Promise.all(schools.map((school) => withTimeout(checkSchool(school), 4000, null)));
+  const matched = results.find((s) => s !== null);
+  if (!matched) return null;
+
+  const trialExpired = Boolean(matched.isTrial && matched.trialEndsAt && matched.trialEndsAt <= new Date());
+  if (trialExpired) throw new AppError(402, "School subscription is inactive or expired", "SCHOOL_INACTIVE");
+
+  return matched;
+}
+
+async function parentLoginWithClient(
+  client: PrismaClient,
+  normalizedMobile: string,
+  rawMobile: string,
+  admissionNumber: string,
+  tenantSchoolId?: string,
+  requestIp: string = "unknown",
+  mobileClient = false
+) {
+  const student = await client.student.findFirst({
+    where: { admissionNumber, isActive: true },
+    include: { school: true }
+  });
+
+  if (!student || !studentMatchesPhone(student, rawMobile)) {
+    throw new AppError(401, "Invalid mobile number or admission number", "INVALID_CREDENTIALS");
+  }
+
+  const effectiveTenantSchoolId = getTenantContext()?.schoolId ?? tenantSchoolId ?? legacyTenantSchoolId(student.school);
+
+  const tokenUser: TokenUser = {
+    id: `parent:${normalizedMobile}`,
+    schoolId: student.schoolId,
+    role: UserRole.PARENT,
+    fullName: student.parentName || "Parent",
+    phone: normalizedMobile,
+    email: null,
+    schoolName: student.school.name,
+    tenantSchoolId: effectiveTenantSchoolId
+  };
+
+  const accessToken = signAccessToken(tokenUser);
+  const refreshToken = signParentRefreshToken(tokenUser, mobileClient);
+
+  logger.info({
+    evt: "auth.parentLogin",
+    outcome: "success",
+    schoolId: student.schoolId,
+    ip: requestIp
+  });
+
+  return { accessToken, refreshToken, user: parentPublicUser(tokenUser) };
+}
+
 export async function forgotPassword(identifier: string) {
   const normalizedIdentifier = identifier.trim();
 
@@ -520,15 +680,69 @@ async function recordPasswordResetRequest(
   });
 }
 
-export async function getCurrentUser(userId: string) {
-  const user = await prisma.user.findFirst({
-    where: { id: userId, status: UserStatus.ACTIVE, isActive: true },
+export async function getCurrentUser(user: Express.UserContext) {
+  // A parent has no User row: the session is rebuilt from the token and
+  // confirmed only by the presence of at least one of their active children.
+  if (user.role === UserRole.PARENT) {
+    const child = await prisma.student.findFirst({
+      where: { ...parentStudentWhere(user.phone ?? ""), isActive: true },
+      select: { id: true }
+    });
+    if (!child) throw new AppError(401, "No active student is linked to this parent", "AUTH_REQUIRED");
+    return {
+      id: user.id,
+      name: user.fullName,
+      fullName: user.fullName,
+      email: null,
+      phone: user.phone ?? "",
+      role: user.role,
+      schoolId: user.schoolId,
+      schoolName: user.schoolName ?? "",
+      tenantSchoolId: user.tenantSchoolId
+    };
+  }
+
+  const found = await prisma.user.findFirst({
+    where: { id: user.id, status: UserStatus.ACTIVE, isActive: true },
     include: { school: true }
   });
 
-  if (!user) throw new AppError(401, "Current user is no longer active", "AUTH_REQUIRED");
+  if (!found) throw new AppError(401, "Current user is no longer active", "AUTH_REQUIRED");
 
-  return publicUser(user);
+  return publicUser(found);
+}
+
+/**
+ * Renews a parent session without a User row or a stored refresh row. The token
+ * is trusted only while at least one of the parent's children is still enrolled;
+ * the session slides the same way a staff session does.
+ */
+async function refreshParent(decoded: jwt.JwtPayload, mobileClient: boolean) {
+  const subject = typeof decoded.sub === "string" ? decoded.sub : "";
+  const phone = typeof decoded.phone === "string" ? decoded.phone : "";
+  if (!subject || !phone) throw new AppError(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN");
+
+  const stillEnrolled = await prisma.student.findFirst({
+    where: { ...parentStudentWhere(phone), isActive: true },
+    select: { id: true }
+  });
+  if (!stillEnrolled) throw new AppError(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN");
+
+  const tokenUser: TokenUser = {
+    id: subject,
+    schoolId: typeof decoded.schoolId === "string" ? decoded.schoolId : "",
+    role: UserRole.PARENT,
+    fullName: typeof decoded.fullName === "string" ? decoded.fullName : "Parent",
+    phone,
+    email: null,
+    schoolName: typeof decoded.schoolName === "string" ? decoded.schoolName : "",
+    tenantSchoolId: typeof decoded.tenantSchoolId === "string" ? decoded.tenantSchoolId : getTenantContext()?.schoolId
+  };
+
+  const issuedAt = typeof decoded.iat === "number" ? decoded.iat * 1000 : 0;
+  const renewed = Date.now() - issuedAt > RENEW_AFTER_MS ? signParentRefreshToken(tokenUser, mobileClient) : undefined;
+
+  return { accessToken: signAccessToken(tokenUser), refreshToken: renewed };
 }
 
 export async function refresh(refreshToken: string, mobile = false) {
@@ -541,6 +755,8 @@ export async function refresh(refreshToken: string, mobile = false) {
 
   const userId = decoded.sub;
   if (!userId) throw new AppError(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN");
+
+  if (decoded.pt) return refreshParent(decoded, mobile);
 
   const user = await prisma.user.findUnique({ where: { id: userId }, include: { refreshTokens: true, school: true } });
   if (!user || user.status !== UserStatus.ACTIVE || !user.isActive) {

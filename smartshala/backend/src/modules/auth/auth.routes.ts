@@ -4,7 +4,7 @@ import { validate } from "../../middleware/validate.js";
 import { rateLimit } from "../../lib/rateLimit.js";
 import type { Request } from "express";
 import * as controller from "./auth.controller.js";
-import { forgotPasswordSchema, loginSchema, registerSchema, updateProfileSchema, changePasswordSchema } from "./auth.schemas.js";
+import { forgotPasswordSchema, loginSchema, parentLoginSchema, registerSchema, updateProfileSchema, changePasswordSchema } from "./auth.schemas.js";
 
 export const authRouter = Router();
 
@@ -16,6 +16,20 @@ const loginLimiter = rateLimit({
   keyFn: (req: Request) => {
     const ip = (req.ip ?? "unknown").replace(/^::ffff:/, "");
     const id = String(req.body?.identifier ?? "").toLowerCase().slice(0, 64);
+    return `${ip}:${id}`;
+  },
+  message: "Too many login attempts. Please wait 15 minutes before trying again.",
+});
+
+// Parents sign in with mobile + admission number; key by IP + mobile, same as
+// the staff login limiter.
+const parentLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  keyPrefix: "auth:parent-login",
+  keyFn: (req: Request) => {
+    const ip = (req.ip ?? "unknown").replace(/^::ffff:/, "");
+    const id = String(req.body?.mobile ?? "").replace(/\D/g, "").slice(-10);
     return `${ip}:${id}`;
   },
   message: "Too many login attempts. Please wait 15 minutes before trying again.",
@@ -50,6 +64,12 @@ authRouter.post("/login",
   loginLimiter,
   validate({ body: loginSchema }),
   controller.login
+);
+
+authRouter.post("/parent/login",
+  parentLoginLimiter,
+  validate({ body: parentLoginSchema }),
+  controller.parentLogin
 );
 
 authRouter.post("/forgot-password",

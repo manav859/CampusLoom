@@ -26,10 +26,18 @@ class SmartShalaApp extends StatelessWidget {
     required this.config,
     required this.shellBuilder,
     required this.sessionProviders,
+    this.loginBuilder = _defaultLoginBuilder,
   });
 
   final AppConfig config;
   final WidgetBuilder shellBuilder;
+
+  /// The sign-in screen shown while signed out. Principal and Teacher use the
+  /// shared email/password [LoginScreen]; the Parent app passes its own
+  /// mobile + admission-number screen.
+  final WidgetBuilder loginBuilder;
+
+  static Widget _defaultLoginBuilder(BuildContext _) => const LoginScreen();
 
   /// Mounted above the Navigator, so screens pushed as routes can read them
   /// too. Keyed by the signed-in user: a different user gets fresh ones.
@@ -86,16 +94,17 @@ class SmartShalaApp extends StatelessWidget {
             child: PushMessenger(child: child ?? const SizedBox.shrink()),
           ),
         ),
-        home: _AuthGate(shellBuilder: shellBuilder),
+        home: _AuthGate(shellBuilder: shellBuilder, loginBuilder: loginBuilder),
       ),
     );
   }
 }
 
 class _AuthGate extends StatelessWidget {
-  const _AuthGate({required this.shellBuilder});
+  const _AuthGate({required this.shellBuilder, required this.loginBuilder});
 
   final WidgetBuilder shellBuilder;
+  final WidgetBuilder loginBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +112,7 @@ class _AuthGate extends StatelessWidget {
 
     return switch (status) {
       AuthStatus.checking => const _SplashScreen(),
-      AuthStatus.signedOut => const LoginScreen(),
+      AuthStatus.signedOut => Builder(builder: loginBuilder),
       AuthStatus.signedIn => Builder(builder: shellBuilder),
       AuthStatus.unreachable => const _UnreachableScreen(),
     };

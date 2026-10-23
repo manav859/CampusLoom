@@ -18,6 +18,11 @@ export const loginSchema = z.object({
   password: z.string().min(6).max(72)
 });
 
+export const parentLoginSchema = z.object({
+  mobile: z.string().trim().min(10).max(20),
+  admissionNumber: z.string().trim().min(1).max(64)
+});
+
 export const refreshSchema = z.object({
   refreshToken: z.string().min(20)
 });

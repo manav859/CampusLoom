@@ -27,6 +27,19 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+export const parentLogin = asyncHandler(async (req: Request, res: Response) => {
+  const isMobileClient = isMobile(req);
+  const result = await authService.parentLogin(req.body.mobile, req.body.admissionNumber, req.ip ?? "unknown", isMobileClient);
+
+  setRefreshCookie(res, result.refreshToken, authService.sessionLengthMs(isMobileClient));
+
+  res.json({
+    accessToken: result.accessToken,
+    user: result.user,
+    ...(isMobileClient ? { refreshToken: result.refreshToken } : {})
+  });
+});
+
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const result = await authService.forgotPassword(req.body.identifier);
   res.status(202).json(result);
@@ -49,7 +62,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {
-  const user = await authService.getCurrentUser(req.user!.id);
+  const user = await authService.getCurrentUser(req.user!);
   res.json({ user });
 });
 
