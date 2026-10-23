@@ -1,7 +1,7 @@
 # SmartShala — Parent App Implementation Plan
 
 **Created:** 2026-10-23
-**Status:** **Phases 0–1 complete in code (2026-10-23).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login (mobile + admission number) and the Select Student screen are built end to end — backend + app — and pass unit, widget and build checks. **Live end-to-end verification is still pending on staging** (needs the real multi-tenant DB; see Phase 1 notes). Phase 2 (Home + Attendance) is next.
+**Status:** **Phases 0–2 complete in code (2026-10-23).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home (today's attendance + this-month summary) and the Attendance screen (ring, counts, month calendar). All pass unit, widget and build checks. **Live end-to-end verification is still pending on staging** (needs the real multi-tenant DB). Phase 3 (Academics) is next.
 **Design reference:** the 10-screen parent-dashboard mockup shared on 2026-10-23 — **reference only, not to be replicated pixel-for-pixel**. The parent app uses the **same design tokens, Inter font, `CustomSelect`, `BrandHeader`, pastel KPI cards and 6/8px radii** already shared across the Principal and Teacher apps (`mobile/lib/core/`), not the mockup's own icons, colours or avatars.
 **Scope:** a third Flutter binary — **SmartShala Parent** — for **Android and iOS**, built phase-wise.
 
@@ -94,10 +94,11 @@ Each phase lists **backend → app**, and a **verify** check so we can loop to d
    → **verified:** `parentPhone` unit test (matching rules), `parent_select_child_test` widget test (load → pick / auto-select), `flutter analyze` clean, parent APK builds, backend `tsc` clean.
    → **pending (staging):** a real round-trip — parent logs in and sees exactly their own children; wrong admission number rejected; staff token rejected from `/parent/*` and vice-versa; a parent in school A cannot read school B; session survives a cold start. Needs the multi-tenant DB, so it runs on staging after this pushes (main auto-deploys staging).
 
-### Phase 2 — Home + Attendance (first real value)
-1. **Backend:** `GET /parent/children/:id/home` (aggregate) and reuse/scoped attendance read.
-2. **App:** Home dashboard tiles + Attendance screen (monthly %, calendar).
-   → **verify:** numbers on the app match the web dashboard for the same student; switching child re-fetches.
+### Phase 2 — Home + Attendance (first real value) ✅ **built 2026-10-23** (live test pending)
+1. **Backend:** ✅ `GET /parent/children/:id/home` (child + this-month attendance + today's status) and `GET /parent/children/:id/attendance?month=YYYY-MM` (percentage, present/absent/leave/total, per-day marks). Both guard ownership via `parentStudentWhere`, and reuse `attendance.service` `getStudentMonthlyAttendance` so the numbers match the web for the same student.
+2. **App:** ✅ Home tab (`ParentHomeScreen`: today's-attendance card + tappable month summary with a percentage ring) → Attendance screen (`ParentAttendanceScreen`: ring, present/absent/total KPI tiles, a Mon-first month calendar coloured by status with a legend and month stepping). Switching child re-fetches (`didUpdateWidget`). Reuses `HomeSurface`, `KpiBlock` and the design tokens.
+   → **verified:** `parent_attendance_test` + updated `parent_select_child_test` widget tests, `flutter analyze` clean, parent APK builds, backend `tsc` clean.
+   → **pending (staging):** app numbers match the web dashboard for the same student; a parent cannot read another child's attendance (ownership 404).
 
 ### Phase 3 — Academics (Performance + Homework)
 1. **Backend:** parent-scoped reads over `marks` and `homework`.

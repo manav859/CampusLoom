@@ -14,4 +14,19 @@ class ParentRepository {
     final list = (data['children'] as List? ?? const []).cast<Map<String, dynamic>>();
     return list.map(ParentChild.fromJson).toList();
   }
+
+  /// The Home aggregate for one child — their details and this month's attendance.
+  Future<ChildHome> home(String childId) async {
+    final data = await api.get('/parent/children/$childId/home') as Map<String, dynamic>;
+    return ChildHome.fromJson(data);
+  }
+
+  /// One child's attendance for [month] (YYYY-MM), or the current month when null.
+  Future<MonthlyAttendance> attendance(String childId, {String? month}) async {
+    final data = await api.get(
+      '/parent/children/$childId/attendance',
+      query: month == null ? null : {'month': month},
+    ) as Map<String, dynamic>;
+    return MonthlyAttendance.fromJson(data);
+  }
 }

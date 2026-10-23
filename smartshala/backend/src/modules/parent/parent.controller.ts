@@ -6,3 +6,13 @@ export const listChildren = asyncHandler(async (req: Request, res: Response) => 
   const result = await parentService.listChildren(req.user!);
   res.json(result);
 });
+
+export const childHome = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.childHome(req.user!, req.params.id);
+  res.json(result);
+});
+
+export const childAttendance = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.childAttendance(req.user!, req.params.id, req.query.month as string | undefined);
+  res.json(result);
+});
