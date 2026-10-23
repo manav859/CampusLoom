@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { authApi, settingsApi, type DatabaseDeletionStatus, type SchoolProfilePayload } from "@/lib/api";
-import { tokenStore } from "@/lib/tokenStore";
+import { settingsApi, type SchoolProfilePayload } from "@/lib/api";
 import { communicationTemplates, renderCommunicationTemplate } from "@/lib/communicationTemplates";
 import { invalidateCache } from "@/lib/prefetchCache";
 import { AcademicYearSection } from "./AcademicYearSection";
@@ -44,7 +42,6 @@ function defaultTemplateDrafts(): TemplateDrafts {
 }
 
 export default function SettingsPage() {
-  const router = useRouter();
   const [profile, setProfile] = useState<SchoolProfilePayload>(emptyProfile);
   // The bell editor follows the saved period count, not the unsaved field.
   const [savedPeriodCount, setSavedPeriodCount] = useState(8);
@@ -56,12 +53,6 @@ export default function SettingsPage() {
   const [logoSaving, setLogoSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [deletionStatus, setDeletionStatus] = useState<DatabaseDeletionStatus | null>(null);
-  const [deletionPassword, setDeletionPassword] = useState("");
-  const [deletionPasswordVerified, setDeletionPasswordVerified] = useState(false);
-  const [deletionBusy, setDeletionBusy] = useState(false);
-  const [deletionError, setDeletionError] = useState("");
-  const [deletionNotice, setDeletionNotice] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -70,10 +61,7 @@ export default function SettingsPage() {
       setLoading(true);
       setError("");
       try {
-        const [row, deletion] = await Promise.all([
-          settingsApi.schoolProfile(),
-          settingsApi.databaseDeletionStatus().catch(() => null)
-        ]);
+        const row = await settingsApi.schoolProfile();
         if (!active) return;
         setProfile({
           name: row.name,
@@ -86,7 +74,6 @@ export default function SettingsPage() {
           timetablePeriodCount: row.timetablePeriodCount ?? 8
         });
         setSavedPeriodCount(row.timetablePeriodCount ?? 8);
-        setDeletionStatus(deletion);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Unable to load school profile");
       } finally {
@@ -109,10 +96,6 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const deletionPending = deletionStatus?.deletionStatus === "PENDING";
-  const scheduledDeletion = deletionStatus?.deletionScheduledAt
-    ? new Date(deletionStatus.deletionScheduledAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
-    : null;
   const editedCount = useMemo(
     () => communicationTemplates.filter((template) => {
       const draft = templateDrafts[template.type];
@@ -260,60 +243,6 @@ export default function SettingsPage() {
     window.localStorage.removeItem(templateStorageKey);
     setEditingTemplate(null);
     setNotice("WhatsApp templates reset.");
-  }
-
-  async function requestDeletion() {
-    setDeletionBusy(true);
-    setDeletionError("");
-    setDeletionNotice("");
-    try {
-      const status = await settingsApi.requestDatabaseDeletion(deletionPassword);
-      setDeletionStatus(status);
-      setDeletionPassword("");
-      setDeletionPasswordVerified(false);
-      setDeletionNotice("Database deletion scheduled. You can cancel it before the scheduled date.");
-      await authApi.logout().catch(() => {});   // revoke refresh token + clear the httpOnly cookie
-      tokenStore.clear();
-      window.localStorage.removeItem("smartshala.user");
-      router.replace("/login");
-    } catch (err) {
-      setDeletionError(err instanceof Error ? err.message : "Unable to schedule database deletion");
-    } finally {
-      setDeletionBusy(false);
-    }
-  }
-
-  async function verifyDeletionPassword() {
-    setDeletionBusy(true);
-    setDeletionError("");
-    setDeletionNotice("");
-    setDeletionPasswordVerified(false);
-    try {
-      await settingsApi.verifyDatabaseDeletionPassword(deletionPassword);
-      setDeletionPasswordVerified(true);
-      setDeletionNotice("Password verified. Confirm below to schedule deletion.");
-    } catch {
-      setDeletionError("Password incorrect.");
-    } finally {
-      setDeletionBusy(false);
-    }
-  }
-
-  async function cancelDeletion() {
-    setDeletionBusy(true);
-    setDeletionError("");
-    setDeletionNotice("");
-    try {
-      const status = await settingsApi.cancelDatabaseDeletion(deletionPassword);
-      setDeletionStatus(status);
-      setDeletionPassword("");
-      setDeletionPasswordVerified(false);
-      setDeletionNotice("Database deletion cancelled.");
-    } catch (err) {
-      setDeletionError(err instanceof Error ? err.message : "Unable to cancel database deletion");
-    } finally {
-      setDeletionBusy(false);
-    }
   }
 
   return (
@@ -467,60 +396,6 @@ export default function SettingsPage() {
       </div>
 
       {loading ? null : <PeriodTimesSection periodCount={savedPeriodCount} />}
-
-      <section className="rounded-[6px] border border-[#F2B8B5] bg-[#FFF8F8] p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="max-w-2xl">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#C8242C]">Danger Zone</p>
-            <h2 className="mt-2 text-[20px] font-semibold text-[#031526]">Delete This School Database</h2>
-            <p className="mt-2 text-[13px] leading-6 text-[#5A6573]">This schedules deletion of the current school's Neon database after 3 days. The school remains usable during the waiting period, and an admin can cancel before the scheduled time.</p>
-            {deletionStatus ? (
-              <div className="mt-4 rounded-[6px] border border-[#F2B8B5] bg-white p-4 text-[13px] text-[#424B57]">
-                <p>Status: <span className="font-semibold">{deletionStatus.deletionStatus}</span></p>
-                <p>Database: <span className="font-semibold">{deletionStatus.dbName}</span></p>
-                {scheduledDeletion ? <p>Scheduled deletion: <span className="font-semibold">{scheduledDeletion}</span></p> : null}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="w-full max-w-md rounded-[6px] border border-[#F2B8B5] bg-white p-4">
-            <label className="block">
-              <span className="text-[13px] font-semibold text-[#031526]">Admin Password</span>
-              <input
-                className={fieldClass}
-                disabled={deletionBusy}
-                onChange={(event) => {
-                  setDeletionPassword(event.target.value);
-                  setDeletionPasswordVerified(false);
-                  setDeletionError("");
-                  setDeletionNotice("");
-                }}
-                placeholder="Enter your password"
-                type="password"
-                value={deletionPassword}
-              />
-            </label>
-            {deletionError ? <p className="mt-3 rounded-[6px] bg-[#FCE3E5] px-3 py-2 text-[12px] font-semibold text-[#C8242C]">{deletionError}</p> : null}
-            {deletionNotice ? <p className="mt-3 rounded-[6px] bg-[#E1F5EA] px-3 py-2 text-[12px] font-semibold text-[#0F8A4A]">{deletionNotice}</p> : null}
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              {deletionPending ? (
-                <button className="min-h-11 flex-1 rounded-[6px] bg-[#2456E6] px-5 text-[14px] font-semibold text-white hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50" disabled={deletionBusy || deletionPassword.length < 8} onClick={cancelDeletion} type="button">
-                  {deletionBusy ? "Cancelling..." : "Cancel deletion"}
-                </button>
-              ) : !deletionPasswordVerified ? (
-                <button className="min-h-11 flex-1 rounded-[6px] bg-[#2456E6] px-5 text-[14px] font-semibold text-white hover:bg-[#1B45BD] disabled:cursor-not-allowed disabled:opacity-50" disabled={deletionBusy || deletionPassword.length < 8} onClick={verifyDeletionPassword} type="button">
-                  {deletionBusy ? "Checking..." : "Verify password"}
-                </button>
-              ) : (
-                <button className="min-h-11 flex-1 rounded-[6px] bg-[#C8242C] px-5 text-[14px] font-semibold text-white hover:bg-[#A51D24] disabled:cursor-not-allowed disabled:opacity-50" disabled={deletionBusy || deletionPassword.length < 8} onClick={requestDeletion} type="button">
-                  {deletionBusy ? "Scheduling..." : "Confirm deletion in 3 days"}
-                </button>
-              )}
-            </div>
-            {!deletionPending && deletionPasswordVerified ? <p className="mt-3 text-[12px] font-semibold text-[#C8242C]">Confirmation required. This will schedule database deletion after 3 days.</p> : null}
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
