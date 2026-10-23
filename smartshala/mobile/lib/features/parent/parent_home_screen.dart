@@ -7,7 +7,9 @@ import '../../core/widgets/home_blocks.dart';
 import '../../core/widgets/state_views.dart';
 import 'data/parent_models.dart';
 import 'data/parent_repository.dart';
+import 'parent_academics_screen.dart';
 import 'parent_attendance_screen.dart';
+import 'parent_homework_screen.dart';
 import 'widgets/attendance_bits.dart';
 
 /// The Home tab for the selected child. Phase 2 shows today's attendance and
@@ -61,9 +63,9 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
     }
   }
 
-  void _openAttendance() {
+  void _open(Widget Function(String id, String name) builder) {
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ParentAttendanceScreen(childId: widget.child.id, childName: widget.child.fullName),
+      builder: (_) => builder(widget.child.id, widget.child.fullName),
     ));
   }
 
@@ -80,9 +82,52 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
         children: [
           _TodayCard(status: data.todayStatus),
           const SizedBox(height: 14),
-          _AttendanceCard(summary: data.attendance, onTap: _openAttendance),
+          _AttendanceCard(
+            summary: data.attendance,
+            onTap: () => _open((id, name) => ParentAttendanceScreen(childId: id, childName: name)),
+          ),
+          const SizedBox(height: 18),
+          const _SectionLabel('Quick links'),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: HomeQuickAction(
+                  icon: Icons.insights_rounded,
+                  title: 'Academics',
+                  chip: AppColors.purpleSoft,
+                  accent: AppColors.purple,
+                  onTap: () => _open((id, name) => ParentAcademicsScreen(childId: id, childName: name)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: HomeQuickAction(
+                  icon: Icons.menu_book_rounded,
+                  title: 'Homework',
+                  chip: AppColors.tealSoft,
+                  accent: AppColors.teal,
+                  onTap: () => _open((id, name) => ParentHomeworkScreen(childId: id, childName: name)),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
     );
   }
 }

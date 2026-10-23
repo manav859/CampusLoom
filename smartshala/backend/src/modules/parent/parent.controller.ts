@@ -16,3 +16,13 @@ export const childAttendance = asyncHandler(async (req: Request, res: Response) 
   const result = await parentService.childAttendance(req.user!, req.params.id, req.query.month as string | undefined);
   res.json(result);
 });
+
+export const childAcademics = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.childAcademics(req.user!, req.params.id);
+  res.json(result);
+});
+
+export const childHomework = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.childHomework(req.user!, req.params.id);
+  res.json(result);
+});

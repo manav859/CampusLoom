@@ -29,4 +29,19 @@ class ParentRepository {
     ) as Map<String, dynamic>;
     return MonthlyAttendance.fromJson(data);
   }
+
+  /// One child's exam performance.
+  Future<ChildAcademics> academics(String childId) async {
+    final data = await api.get('/parent/children/$childId/academics') as Map<String, dynamic>;
+    return ChildAcademics.fromJson(data);
+  }
+
+  /// One child's homework assignments with submission state.
+  Future<List<HomeworkItem>> homework(String childId) async {
+    final data = await api.get('/parent/children/$childId/homework') as Map<String, dynamic>;
+    return ((data['items'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(HomeworkItem.fromJson)
+        .toList();
+  }
 }

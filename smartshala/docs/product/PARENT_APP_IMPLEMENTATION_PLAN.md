@@ -1,7 +1,7 @@
 # SmartShala — Parent App Implementation Plan
 
 **Created:** 2026-10-23
-**Status:** **Phases 0–2 complete in code (2026-10-23).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home (today's attendance + this-month summary) and the Attendance screen (ring, counts, month calendar). All pass unit, widget and build checks. **Live end-to-end verification is still pending on staging** (needs the real multi-tenant DB). Phase 3 (Academics) is next.
+**Status:** **Phases 0–3 complete in code (2026-10-23).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home + Attendance. Phase 3: Academics (exam performance) + Homework. The backend is **live on production** — the VPS now auto-deploys from `main` (GitHub Actions → `deploy.sh`). Phase 4 (Fees) is next.
 **Design reference:** the 10-screen parent-dashboard mockup shared on 2026-10-23 — **reference only, not to be replicated pixel-for-pixel**. The parent app uses the **same design tokens, Inter font, `CustomSelect`, `BrandHeader`, pastel KPI cards and 6/8px radii** already shared across the Principal and Teacher apps (`mobile/lib/core/`), not the mockup's own icons, colours or avatars.
 **Scope:** a third Flutter binary — **SmartShala Parent** — for **Android and iOS**, built phase-wise.
 
@@ -100,10 +100,10 @@ Each phase lists **backend → app**, and a **verify** check so we can loop to d
    → **verified:** `parent_attendance_test` + updated `parent_select_child_test` widget tests, `flutter analyze` clean, parent APK builds, backend `tsc` clean.
    → **pending (staging):** app numbers match the web dashboard for the same student; a parent cannot read another child's attendance (ownership 404).
 
-### Phase 3 — Academics (Performance + Homework)
-1. **Backend:** parent-scoped reads over `marks` and `homework`.
-2. **App:** Academic Performance (exams/progress/subject-wise) + Homework list.
-   → **verify:** marks and homework match the teacher-entered data for that student.
+### Phase 3 — Academics (Performance + Homework) ✅ **built 2026-10-23**
+1. **Backend:** ✅ `GET /parent/children/:id/academics` (exam results grouped by exam, per-subject marks + grade via the shared `gradeForPercentage` bands, overall %) and `GET /parent/children/:id/homework` (every assignment for the child's class with their submission state). Both ownership-guarded.
+2. **App:** ✅ Academics screen (overall-performance ring + per-exam cards with a Subject/Marks/Grade table) and Homework screen (Pending/Completed toggle with counts, overdue highlighting). Reached from two **Quick links** tiles added to the Home tab.
+   → **verified:** `parent_academics_homework_test` widget tests, analyze clean, parent APK builds, backend `tsc` clean. Live check pending alongside the others.
 
 ### Phase 4 — Fees & Payments — *external Razorpay web flow per D3*
 1. **Backend:** parent-scoped fee summary + history; a payment-initiation link into the existing Razorpay flow (respect `RAZORPAY_MODE`, see memory).

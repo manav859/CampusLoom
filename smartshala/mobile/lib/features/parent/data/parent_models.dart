@@ -126,3 +126,117 @@ class ChildHome {
     );
   }
 }
+
+/// One subject's result within an exam.
+class ExamSubject {
+  const ExamSubject({
+    required this.subject,
+    required this.marks,
+    required this.percentage,
+    required this.grade,
+    required this.isAbsent,
+  });
+
+  final String subject;
+  final String marks; // "85/100"
+  final int percentage;
+  final String grade;
+  final bool isAbsent;
+
+  factory ExamSubject.fromJson(Map<String, dynamic> json) => ExamSubject(
+        subject: (json['subject'] ?? '—') as String,
+        marks: (json['marks'] ?? '') as String,
+        percentage: (json['percentage'] as num?)?.toInt() ?? 0,
+        grade: (json['grade'] ?? '') as String,
+        isAbsent: json['isAbsent'] as bool? ?? false,
+      );
+}
+
+/// One exam/test with its per-subject rows and an overall percentage.
+class ExamResultGroup {
+  const ExamResultGroup({
+    required this.id,
+    required this.name,
+    required this.term,
+    required this.date,
+    required this.percentage,
+    required this.grade,
+    required this.subjects,
+  });
+
+  final String id;
+  final String name;
+  final String? term;
+  final DateTime? date;
+  final int percentage;
+  final String grade;
+  final List<ExamSubject> subjects;
+
+  factory ExamResultGroup.fromJson(Map<String, dynamic> json) => ExamResultGroup(
+        id: (json['id'] ?? '') as String,
+        name: (json['name'] ?? '') as String,
+        term: json['term'] as String?,
+        date: json['date'] == null ? null : DateTime.tryParse(json['date'] as String),
+        percentage: (json['percentage'] as num?)?.toInt() ?? 0,
+        grade: (json['grade'] ?? '') as String,
+        subjects: ((json['subjects'] as List?) ?? const [])
+            .cast<Map<String, dynamic>>()
+            .map(ExamSubject.fromJson)
+            .toList(),
+      );
+}
+
+/// GET /parent/children/:id/academics
+class ChildAcademics {
+  const ChildAcademics({required this.overallPercentage, required this.overallGrade, required this.exams});
+
+  final int overallPercentage;
+  final String overallGrade;
+  final List<ExamResultGroup> exams;
+
+  factory ChildAcademics.fromJson(Map<String, dynamic> json) {
+    final overall = json['overall'] as Map<String, dynamic>? ?? const {};
+    return ChildAcademics(
+      overallPercentage: (overall['percentage'] as num?)?.toInt() ?? 0,
+      overallGrade: (overall['grade'] ?? '') as String,
+      exams: ((json['exams'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(ExamResultGroup.fromJson)
+          .toList(),
+    );
+  }
+}
+
+/// One homework assignment with this child's submission state.
+class HomeworkItem {
+  const HomeworkItem({
+    required this.id,
+    required this.title,
+    required this.completed,
+    this.subject,
+    this.description,
+    this.assignedDate,
+    this.dueDate,
+    this.status,
+  });
+
+  final String id;
+  final String title;
+  final bool completed;
+  final String? subject;
+  final String? description;
+  final DateTime? assignedDate;
+  final DateTime? dueDate;
+  final String? status;
+
+  factory HomeworkItem.fromJson(Map<String, dynamic> json) => HomeworkItem(
+        id: (json['id'] ?? '') as String,
+        title: (json['title'] ?? '') as String,
+        completed: json['completed'] as bool? ?? false,
+        subject: json['subject'] as String?,
+        description: json['description'] as String?,
+        assignedDate: json['assignedDate'] == null ? null : DateTime.tryParse(json['assignedDate'] as String),
+        dueDate: json['dueDate'] == null ? null : DateTime.tryParse(json['dueDate'] as String),
+        status: json['status'] as String?,
+      );
+}

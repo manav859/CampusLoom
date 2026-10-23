@@ -1,7 +1,17 @@
+import { HomeworkSubmissionStatus } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { notFound } from "../../core/errors.js";
+import { gradeForPercentage } from "../../core/grading.js";
 import { parentStudentWhere } from "../../utils/parentPhone.js";
 import { getStudentMonthlyAttendance } from "../attendance/attendance.service.js";
+
+/** Percentage from marks, rounded; 0 when there is no denominator. */
+function pct(marks: unknown, max: unknown) {
+  const m = Number(marks);
+  const d = Number(max);
+  if (!Number.isFinite(m) || !Number.isFinite(d) || d <= 0) return 0;
+  return Math.round((m / d) * 100);
+}
 
 /** YYYY-MM for the given date, local time. */
 function monthKey(date: Date) {
@@ -103,4 +113,113 @@ export async function childHome(user: Express.UserContext, studentId: string) {
       todayStatus
     }
   };
+}
+
+/**
+ * One child's exam performance: each exam with its per-subject marks and grade,
+ * plus an overall percentage. Grades reuse the school-wide bands.
+ */
+export async function childAcademics(user: Express.UserContext, studentId: string) {
+  await assertOwnChild(user, studentId);
+
+  const results = await prisma.examResult.findMany({
+    where: { studentId },
+    include: {
+      exam: { select: { name: true, term: true, examDate: true } },
+      subjectRef: { select: { name: true } }
+    },
+    orderBy: [{ examDate: "desc" }, { createdAt: "desc" }]
+  });
+
+  // Group results into the exam/test they belong to.
+  const groups = new Map<string, {
+    id: string;
+    name: string;
+    term: string | null;
+    date: Date;
+    subjects: { subject: string; marks: string; percentage: number; grade: string; isAbsent: boolean }[];
+  }>();
+
+  for (const r of results) {
+    const date = r.exam?.examDate ?? r.examDate;
+    const key = r.examId ?? `${r.assessmentName}|${date.toISOString().slice(0, 10)}`;
+    const group = groups.get(key) ?? {
+      id: key,
+      name: r.exam?.name ?? r.assessmentName,
+      term: r.exam?.term ?? null,
+      date,
+      subjects: []
+    };
+    const percentage = pct(r.marksObtained, r.maxMarks);
+    group.subjects.push({
+      subject: r.subjectRef?.name ?? r.subject ?? "—",
+      marks: `${Number(r.marksObtained)}/${Number(r.maxMarks)}`,
+      percentage,
+      grade: r.grade ?? gradeForPercentage(percentage),
+      isAbsent: r.isAbsent
+    });
+    groups.set(key, group);
+  }
+
+  const exams = Array.from(groups.values()).map((exam) => {
+    const present = exam.subjects.filter((s) => !s.isAbsent);
+    const average = present.length ? Math.round(present.reduce((a, s) => a + s.percentage, 0) / present.length) : 0;
+    return {
+      id: exam.id,
+      name: exam.name,
+      term: exam.term,
+      date: exam.date,
+      percentage: average,
+      grade: gradeForPercentage(average),
+      subjects: exam.subjects
+    };
+  });
+
+  const overallPercentage = exams.length
+    ? Math.round(exams.reduce((a, e) => a + e.percentage, 0) / exams.length)
+    : 0;
+
+  return {
+    overall: { percentage: overallPercentage, grade: gradeForPercentage(overallPercentage) },
+    exams
+  };
+}
+
+/**
+ * One child's homework: every assignment for their class with this child's
+ * submission status. `completed` is true once the child has turned it in.
+ */
+export async function childHomework(user: Express.UserContext, studentId: string) {
+  await assertOwnChild(user, studentId);
+
+  const student = await prisma.student.findUnique({ where: { id: studentId }, select: { classId: true } });
+  if (!student) throw notFound("Student");
+
+  const assignments = await prisma.homeworkAssignment.findMany({
+    where: { classId: student.classId },
+    include: {
+      subjectRef: { select: { name: true } },
+      submissions: { where: { studentId }, select: { status: true, marks: true, submittedAt: true } }
+    },
+    orderBy: [{ dueDate: "desc" }]
+  });
+
+  const items = assignments.map((a) => {
+    const submission = a.submissions[0];
+    const completed =
+      submission != null &&
+      (submission.status === HomeworkSubmissionStatus.ON_TIME || submission.status === HomeworkSubmissionStatus.LATE);
+    return {
+      id: a.id,
+      title: a.title,
+      subject: a.subjectRef?.name ?? a.subject ?? null,
+      description: a.description,
+      assignedDate: a.assignedDate,
+      dueDate: a.dueDate,
+      status: submission?.status ?? null,
+      completed
+    };
+  });
+
+  return { items };
 }

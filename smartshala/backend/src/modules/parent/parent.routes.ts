@@ -21,3 +21,13 @@ parentRouter.get(
   validate({ params: childParamsSchema, query: childAttendanceQuerySchema }),
   controller.childAttendance
 );
+parentRouter.get(
+  "/children/:id/academics",
+  validate({ params: childParamsSchema }),
+  controller.childAcademics
+);
+parentRouter.get(
+  "/children/:id/homework",
+  validate({ params: childParamsSchema }),
+  controller.childHomework
+);
