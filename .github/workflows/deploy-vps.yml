@@ -1,0 +1,73 @@
+name: Deploy to VPS
+
+# Production (the Hostinger VPS) used to deploy only by hand — deploy/deploy.sh
+# was run on the server with a ref that had already passed on staging. This
+# workflow deploys every push to main automatically, once the backend compiles.
+#
+# Safety: deploy.sh builds the backend and frontend BEFORE it reloads pm2 and
+# health-checks AFTER, so a broken build or a dead process never replaces the
+# running app. The real risk is a bad *migration* — it runs against every tenant
+# and a half-applied one (Prisma P3009) can block every school from booting. So
+# take a Hostinger snapshot before a push that carries a schema change, and let
+# staging (Render/Vercel, which main also deploys) catch problems first.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'smartshala/backend/**'
+      - 'smartshala/frontend/**'
+      - 'smartshala/deploy/**'
+  workflow_dispatch: {}
+
+# Never let two deploys touch the server at once; queue them instead.
+concurrency:
+  group: vps-deploy
+  cancel-in-progress: false
+
+jobs:
+  build-check:
+    name: Backend compiles
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartshala/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: smartshala/backend/package-lock.json
+      - run: npm ci
+      # prisma generate (both schemas, no DB) + tsc. Fails the deploy if the
+      # backend would not compile on the server.
+      - run: npm run build
+      - run: npm run test:parent-phone
+
+  deploy:
+    name: Deploy over SSH
+    needs: build-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run deploy.sh on the VPS
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_PORT }}
+          VPS_APP_DIR: ${{ secrets.VPS_APP_DIR }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$VPS_SSH_KEY" ] || [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_APP_DIR" ]; then
+            echo "::error::VPS secrets are not set. Add VPS_SSH_KEY, VPS_HOST, VPS_USER and VPS_APP_DIR (and optional VPS_PORT) in repo Settings → Secrets → Actions."
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          PORT="${VPS_PORT:-22}"
+          ssh-keyscan -p "$PORT" "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # deploy.sh fetches origin and checks out this exact commit, builds,
+          # migrates master + main + every tenant, reloads pm2 and health-checks.
+          ssh -i ~/.ssh/id_deploy -p "$PORT" -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" "cd '$VPS_APP_DIR' && ./deploy/deploy.sh '$SHA'"
