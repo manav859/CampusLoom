@@ -1,0 +1,10 @@
+// The Debug build of the Parent app. Same two lines the Flutter template
+// puts in Debug.xcconfig, plus the flavor's identity. CocoaPods names the file
+// it generates after the build configuration, lowercased, hence the suffix.
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug-parent.xcconfig"
+#include "Generated.xcconfig"
+#include "parent.xcconfig"
+
+// APNs issues a different device token per environment, and a token from
+// one is rejected by the other.
+APS_ENVIRONMENT = development

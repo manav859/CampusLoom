@@ -1,0 +1,20 @@
+// Everything that makes a build the Parent app, and nothing else — the
+// counterpart of the `parent` productFlavor in android/app/build.gradle.kts.
+// Included by Debug/Profile/Release-parent.xcconfig; the Runner target reads
+// these through $(...) so no flavor literal ever lands in project.pbxproj.
+FLAVOR_BUNDLE_ID = com.smartshala.parent
+FLAVOR_APP_ICON = AppIcon-parent
+
+// The home-screen label. CFBundleName is the short form iOS falls back to in
+// Settings and the app switcher, and it is cut off past 15 characters.
+FLAVOR_DISPLAY_NAME = SmartShala Parent
+FLAVOR_BUNDLE_NAME = Parent
+
+// Push notifications. The entitlement file is shared by all flavors; the APNs
+// environment inside it comes from APS_ENVIRONMENT, set per build mode.
+//
+// This needs the Push Notifications capability on the App ID in the Apple
+// developer portal. Until it is enabled there, signing fails with "provisioning
+// profile does not include the aps-environment entitlement" — see
+// docs/product/PUSH_NOTIFICATIONS.md.
+CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements

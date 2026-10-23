@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 
-/// Which portal this binary is. The two apps share everything in `core/` and
+/// Which portal this binary is. The apps share everything in `core/` and
 /// differ only in the feature tree they mount after login.
-enum AppFlavor { principal, teacher }
+enum AppFlavor { principal, teacher, parent }
 
 class AppConfig {
   const AppConfig({required this.flavor, required this.apiBaseUrl});
@@ -36,12 +36,25 @@ class AppConfig {
 
   bool get isPrincipal => flavor == AppFlavor.principal;
   bool get isTeacher => flavor == AppFlavor.teacher;
+  bool get isParent => flavor == AppFlavor.parent;
 
-  String get appName => isPrincipal ? 'SmartShala Principal' : 'SmartShala Teacher';
-  String get portalLabel => isPrincipal ? 'PRINCIPAL APP' : 'TEACHER PORTAL';
+  String get appName => switch (flavor) {
+        AppFlavor.principal => 'SmartShala Principal',
+        AppFlavor.teacher => 'SmartShala Teacher',
+        AppFlavor.parent => 'SmartShala Parent',
+      };
+
+  String get portalLabel => switch (flavor) {
+        AppFlavor.principal => 'PRINCIPAL APP',
+        AppFlavor.teacher => 'TEACHER PORTAL',
+        AppFlavor.parent => 'PARENT APP',
+      };
 
   /// Roles allowed to sign in to this binary. The server enforces permissions
   /// per endpoint; this only keeps a teacher out of the principal app's shell.
-  List<String> get allowedRoles =>
-      isPrincipal ? const ['PRINCIPAL', 'ADMIN'] : const ['TEACHER'];
+  List<String> get allowedRoles => switch (flavor) {
+        AppFlavor.principal => const ['PRINCIPAL', 'ADMIN'],
+        AppFlavor.teacher => const ['TEACHER'],
+        AppFlavor.parent => const ['PARENT'],
+      };
 }

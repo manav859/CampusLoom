@@ -40,13 +40,21 @@ abstract final class PushConfig {
   static const principalIosAppId = '1:937759986920:ios:db7cbe5e2545c43d60255d';
   static const teacherAndroidAppId = '1:937759986920:android:28ed7bb80db4ad9a60255d';
   static const teacherIosAppId = '1:937759986920:ios:209b1af85d2638f760255d';
+  // The Parent app's Firebase apps are not registered yet (Phase 6). Empty
+  // keeps push disabled for this flavor — isConfiguredFor returns false — until
+  // the owner adds the two App IDs here.
+  static const parentAndroidAppId = '';
+  static const parentIosAppId = '';
 
   /// Must match the Android notification channel the app creates in
   /// MainActivity.kt and the `channel_id` the backend sends.
   static const androidChannelId = 'smartshala_default';
 
-  static String bundleIdFor(AppFlavor flavor) =>
-      flavor == AppFlavor.principal ? 'com.smartshala.principal' : 'com.smartshala.teacher';
+  static String bundleIdFor(AppFlavor flavor) => switch (flavor) {
+        AppFlavor.principal => 'com.smartshala.principal',
+        AppFlavor.teacher => 'com.smartshala.teacher',
+        AppFlavor.parent => 'com.smartshala.parent',
+      };
 
   /// False on every platform but Android and iOS: the apps ship nowhere else,
   /// and a Flutter test runs on neither.
@@ -79,5 +87,7 @@ abstract final class PushConfig {
         (AppFlavor.principal, true) => principalIosAppId,
         (AppFlavor.teacher, false) => teacherAndroidAppId,
         (AppFlavor.teacher, true) => teacherIosAppId,
+        (AppFlavor.parent, false) => parentAndroidAppId,
+        (AppFlavor.parent, true) => parentIosAppId,
       };
 }

@@ -6,7 +6,7 @@ platform :ios, '15.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-# One configuration per build mode per flavor, the same six the Runner target
+# One configuration per build mode per flavor, the same nine the Runner target
 # defines. CocoaPods cannot guess the build type from a name it does not know,
 # and a flavor missing from this map gets debug pods in a release build.
 project 'Runner', {
@@ -16,6 +16,9 @@ project 'Runner', {
   'Debug-teacher' => :debug,
   'Profile-teacher' => :release,
   'Release-teacher' => :release,
+  'Debug-parent' => :debug,
+  'Profile-parent' => :release,
+  'Release-parent' => :release,
 }
 
 def flutter_root

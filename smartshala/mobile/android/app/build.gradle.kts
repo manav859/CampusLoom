@@ -35,6 +35,7 @@ android {
     // one codebase. Each flavor pairs with its own entrypoint:
     //   flutter run --flavor principal -t lib/main_principal.dart
     //   flutter run --flavor teacher   -t lib/main_teacher.dart
+    //   flutter run --flavor parent    -t lib/main_parent.dart
     // Required for the per-flavor app_name resValue below.
     buildFeatures {
         resValues = true
@@ -52,6 +53,11 @@ android {
             dimension = "portal"
             applicationId = "com.smartshala.teacher"
             resValue("string", "app_name", "SmartShala Teacher")
+        }
+        create("parent") {
+            dimension = "portal"
+            applicationId = "com.smartshala.parent"
+            resValue("string", "app_name", "SmartShala Parent")
         }
     }
 

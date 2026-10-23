@@ -143,7 +143,12 @@ class AuthController extends ChangeNotifier {
   bool _roleAllowed(AppUser candidate) => config.allowedRoles.contains(candidate.role);
 
   String _wrongPortalMessage(String role) {
-    final target = config.isPrincipal ? 'SmartShala Teacher' : 'SmartShala Principal';
+    final target = switch (role) {
+      'PRINCIPAL' || 'ADMIN' => 'SmartShala Principal',
+      'TEACHER' => 'SmartShala Teacher',
+      'PARENT' => 'SmartShala Parent',
+      _ => 'correct SmartShala',
+    };
     return 'This account is a ${_roleLabel(role)} account. Please use the $target app.';
   }
 

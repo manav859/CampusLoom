@@ -95,7 +95,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Sign in to continue to your ${config.isPrincipal ? 'school' : 'classes'}',
+                      'Sign in to continue to your ${switch (config.flavor) {
+                        AppFlavor.principal => 'school',
+                        AppFlavor.teacher => 'classes',
+                        AppFlavor.parent => 'children',
+                      }}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
                     ),
