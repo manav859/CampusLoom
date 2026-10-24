@@ -18,8 +18,16 @@ import 'package:flutter_test/flutter_test.dart';
 /// Relative to the mobile/ project, where the command is run.
 const _source = '../frontend/public/logo-latest.png';
 
-/// Both apps wear the web's logo. The label under the icon tells them apart.
-const _flavors = ['principal', 'teacher'];
+/// Each app wears the web's logo. The label under the icon and the background
+/// colour tell them apart.
+const _flavors = ['principal', 'teacher', 'parent'];
+
+/// Per-flavor launcher background, overriding the source logo's blue so the
+/// apps are told apart on the home screen. A flavor absent here keeps the blue.
+const _grounds = <String, Color>{
+  'parent': Color(0xFF2E7D32), // leaf green
+  'teacher': Color(0xFF0F766E), // teal
+};
 
 /// Android density buckets, as a multiple of mdpi.
 const _densities = <String, double>{'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4};
@@ -84,11 +92,12 @@ void main() {
       final root = Directory.current.path;
       final logo = await _decode(await File('$root/$_source').readAsBytes());
       final source = (await logo.toByteData(format: ui.ImageByteFormat.rawRgba))!;
-      final ground = _pixel(source, logo.width, 4, 4);
-      final mark = await _liftMark(source, logo.width, logo.height, ground);
+      final sourceGround = _pixel(source, logo.width, 4, 4);
+      final mark = await _liftMark(source, logo.width, logo.height, sourceGround);
 
       for (final flavor in _flavors) {
         final res = '$root/android/app/src/$flavor/res';
+        final ground = _grounds[flavor] ?? sourceGround;
 
         for (final density in _densities.entries) {
           final scale = density.value;
@@ -116,8 +125,15 @@ void main() {
         await _writeText('$res/values/ic_launcher_background.xml', _backgroundColorXml(ground));
 
         // What a Play Store listing asks for: 512x512, square, and no rounding of
-        // our own — the store applies its own mask. It is the web logo as is.
-        await _write('$root/store/$flavor/icon-512.png', await _scaled(logo, 512));
+        // our own — the store applies its own mask. A flavor with its own ground
+        // wears the launcher's mark-on-ground so the listing matches the icon the
+        // phone shows; the rest keep the web logo as is.
+        await _write(
+          '$root/store/$flavor/icon-512.png',
+          _grounds.containsKey(flavor)
+              ? await _paint(512, mark: mark, ground: ground, ink: _legacyInkFraction, corner: 0)
+              : await _scaled(logo, 512),
+        );
 
         // iOS. One asset catalog per flavor, named by FLAVOR_APP_ICON in
         // ios/Flutter/<flavor>.xcconfig, so the two apps can hold different
@@ -138,7 +154,7 @@ void main() {
       for (final scale in _iosLaunchScales.entries) {
         await _write(
           '$root/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage${scale.key}.png',
-          await _paint((_splashDp * scale.value).round(), mark: mark, ground: ground, ink: _legacyInkFraction),
+          await _paint((_splashDp * scale.value).round(), mark: mark, ground: sourceGround, ink: _legacyInkFraction),
         );
       }
 
