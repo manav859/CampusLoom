@@ -17,6 +17,20 @@ export const feePayLinkSchema = z.object({
   assignmentId: z.string().uuid()
 });
 
+export const calendarQuerySchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use a YYYY-MM month").optional()
+});
+
+export const announcementsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  offset: z.coerce.number().int().min(0).default(0)
+});
+
+export const childDocumentParamsSchema = z.object({
+  id: z.string().uuid(),
+  documentId: z.string().uuid()
+});
+
 export const feePayTokenParamsSchema = z.object({
   token: z.string().min(16)
 });

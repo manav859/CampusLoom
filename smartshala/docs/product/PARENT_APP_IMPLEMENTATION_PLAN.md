@@ -1,7 +1,7 @@
 # SmartShala — Parent App Implementation Plan
 
 **Created:** 2026-10-23
-**Status:** **Phases 0–4 complete in code (Phase 4 on 2026-10-24).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home + Attendance. Phase 3: Academics (exam performance) + Homework. Phase 4: Fees & online payment (external Razorpay web flow). The backend is **live on production** — the VPS now auto-deploys from `main` (GitHub Actions → `deploy.sh`). Phase 5 (Calendar, Announcements & Documents) is next.
+**Status:** **Phases 0–5 complete in code (Phase 5 on 2026-10-24).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home + Attendance. Phase 3: Academics (exam performance) + Homework. Phase 4: Fees & online payment (external Razorpay web flow). Phase 5: Calendar, Announcements (read-only) + Documents — the five-tab shell is now fully built. The backend is **live on production** — the VPS now auto-deploys from `main` (GitHub Actions → `deploy.sh`). Phase 6 (push notifications) is next.
 **Design reference:** the 10-screen parent-dashboard mockup shared on 2026-10-23 — **reference only, not to be replicated pixel-for-pixel**. The parent app uses the **same design tokens, Inter font, `CustomSelect`, `BrandHeader`, pastel KPI cards and 6/8px radii** already shared across the Principal and Teacher apps (`mobile/lib/core/`), not the mockup's own icons, colours or avatars.
 **Scope:** a third Flutter binary — **SmartShala Parent** — for **Android and iOS**, built phase-wise.
 
@@ -118,10 +118,18 @@ Each phase lists **backend → app**, and a **verify** check so we can loop to d
    → **verified:** `parent_fees_test` widget test, `flutter analyze` clean, parent APK builds, backend + frontend `tsc` clean.
    → **pending (staging/prod):** an end-to-end mock-mode payment reconciles and the receipt downloads; confirm + webhook don't double-record; `RAZORPAY_MODE=live` on prod uses the real keys and the shared webhook (see memory [[razorpay-mode-live-in-env]]); a parent cannot pay or read another child's fees (ownership 404).
 
-### Phase 5 — Calendar, Announcements & Documents
-1. **Backend:** parent-scoped calendar, `PARENTS`-audience announcements feed, student documents + certificates list.
-2. **App:** Calendar & Events, Messages/Announcements (read), Documents & Certificates (download).
-   → **verify:** a `PARENTS` announcement posted on the web appears; a report-card/receipt PDF downloads.
+### Phase 5 — Calendar, Announcements & Documents ✅ **built 2026-10-24** (live test pending)
+1. **Backend:** ✅
+   - `GET /parent/calendar?month=YYYY-MM` — reuses the staff `calendar.service` `listMonth`, scoped to the parent's school (events + holidays; the same for every child). Defaults to the current month.
+   - `GET /parent/announcements` — the school's `ALL`/`PARENTS`-audience notices, newest first, paged (`limit`/`offset`). **No read tracking** (parents have no `User` row), so every item is returned `isRead: true` — the feed is purely read-only.
+   - `GET /parent/children/:id/documents` — ownership-guarded list of the child's `StudentDocument`s (report cards, certificates, …).
+   - `GET /parent/children/:id/documents/:documentId/download` — ownership-guarded; mirrors the staff download (S3 → presigned URL as JSON which the app opens in a browser tab; local disk → served directly, dev only).
+2. **App:** ✅
+   - Calendar tab (`ParentCalendarScreen`): month stepper + event cards typed/coloured via the shared `core/data/calendar_models.dart`.
+   - Messages tab (`ParentAnnouncementsScreen`): reuses the shared `AnnouncementCard` + `AnnouncementDetailScreen`.
+   - More tab (`ParentMoreScreen`): child identity, a link to **Documents & Certificates** (`ParentDocumentsScreen`, opens each via `url_launcher` — Apple-safe), a child switcher when there is more than one, and Sign out. This replaces the last placeholder tabs, so the five-tab shell is now fully built.
+   → **verified:** `parent_phase5_test` widget tests (calendar/announcements/documents), `flutter analyze` clean, parent APK builds, backend `tsc` clean.
+   → **pending (staging):** a `PARENTS` announcement posted on the web appears in the feed; a report-card PDF opens/downloads; a parent cannot read another child's documents (ownership 404).
 
 ### Phase 6 — Push notifications
 1. New application ID registered in the existing Firebase project (`smartshala-a9822`, see memory); parent token registration reusing `PushService`.

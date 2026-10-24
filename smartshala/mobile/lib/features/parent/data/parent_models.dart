@@ -306,6 +306,44 @@ class ChildFees {
   }
 }
 
+/// One document on a child's file — a report card, certificate and the like.
+/// Listed by GET /parent/children/:id/documents, downloaded on demand.
+class ParentDocument {
+  const ParentDocument({
+    required this.id,
+    required this.type,
+    required this.name,
+    required this.originalName,
+    required this.sizeBytes,
+    this.mimeType,
+    this.uploadedAt,
+  });
+
+  final String id;
+  final String type; // StudentDocumentType, e.g. REPORT_CARD
+  final String name;
+  final String originalName;
+  final int sizeBytes;
+  final String? mimeType;
+  final DateTime? uploadedAt;
+
+  /// "REPORT_CARD" -> "Report Card", for display.
+  String get typeLabel => type
+      .split('_')
+      .map((word) => word.isEmpty ? word : '${word[0]}${word.substring(1).toLowerCase()}')
+      .join(' ');
+
+  factory ParentDocument.fromJson(Map<String, dynamic> json) => ParentDocument(
+        id: (json['id'] ?? '') as String,
+        type: (json['type'] ?? '') as String,
+        name: (json['name'] ?? '') as String,
+        originalName: (json['originalName'] ?? '') as String,
+        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+        mimeType: json['mimeType'] as String?,
+        uploadedAt: json['uploadedAt'] == null ? null : DateTime.tryParse(json['uploadedAt'] as String),
+      );
+}
+
 /// One homework assignment with this child's submission state.
 class HomeworkItem {
   const HomeworkItem({

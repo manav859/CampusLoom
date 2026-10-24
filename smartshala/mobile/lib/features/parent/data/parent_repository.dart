@@ -1,4 +1,8 @@
+import 'package:intl/intl.dart';
+
 import '../../../core/api/api_client.dart';
+import '../../../core/data/calendar_models.dart';
+import '../../../core/data/messages_models.dart';
 import 'parent_models.dart';
 
 /// Reads the parent-facing API. Each phase adds the calls it needs — home,
@@ -63,4 +67,41 @@ class ParentRepository {
   /// The PDF bytes of one payment's receipt.
   Future<List<int>> feeReceiptPdf(String childId, String paymentId) =>
       api.getBytes('/parent/children/$childId/fees/receipts/$paymentId/pdf');
+
+  /// The school calendar (events + holidays) overlapping [month].
+  Future<List<CalendarEvent>> calendar(DateTime month) async {
+    final data = await api.get(
+      '/parent/calendar',
+      query: {'month': DateFormat('yyyy-MM').format(month)},
+    ) as Map<String, dynamic>;
+    return ((data['items'] as List?) ?? const [])
+        .map((item) => CalendarEvent.fromJson((item as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// The school's parent-facing announcements, newest first.
+  Future<AnnouncementPage> announcements({int limit = 20, int offset = 0}) async {
+    final data = await api.get(
+      '/parent/announcements',
+      query: {'limit': '$limit', 'offset': '$offset'},
+    ) as Map<String, dynamic>;
+    return AnnouncementPage.fromJson(data);
+  }
+
+  /// One child's documents — report cards, certificates and the like.
+  Future<List<ParentDocument>> documents(String childId) async {
+    final data = await api.get('/parent/children/$childId/documents') as Map<String, dynamic>;
+    return ((data['documents'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(ParentDocument.fromJson)
+        .toList();
+  }
+
+  /// A short-lived download URL for one of the child's documents.
+  Future<String> documentDownloadUrl(String childId, String documentId) async {
+    final data = await api.get(
+      '/parent/children/$childId/documents/$documentId/download',
+    ) as Map<String, dynamic>;
+    return data['downloadUrl'] as String;
+  }
 }

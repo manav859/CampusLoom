@@ -1,10 +1,12 @@
-import { HomeworkSubmissionStatus } from "@prisma/client";
+import { AnnouncementAudience, HomeworkSubmissionStatus } from "@prisma/client";
 import { env } from "../../config/env.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { gradeForPercentage } from "../../core/grading.js";
 import { parentStudentWhere } from "../../utils/parentPhone.js";
+import { getDownloadUrl } from "../../services/storageService.js";
 import { getStudentMonthlyAttendance } from "../attendance/attendance.service.js";
+import { listMonth } from "../calendar/calendar.service.js";
 import { getReceiptPdf, getStudentLedger } from "../fees/fees.service.js";
 import { signFeePayToken } from "./feePay.service.js";
 
@@ -312,4 +314,99 @@ export async function childFeeReceiptPdf(user: Express.UserContext, studentId: s
   if (!payment?.receipt) throw notFound("Receipt");
 
   return getReceiptPdf(user.schoolId, payment.receipt.id);
+}
+
+/**
+ * The school calendar for one month — exactly what the staff apps read, scoped
+ * to the parent's school. The same events and holidays apply to every child, so
+ * this is school-wide rather than per-child.
+ */
+export async function schoolCalendar(user: Express.UserContext, month?: string) {
+  return listMonth(user, month ?? monthKey(new Date()));
+}
+
+/**
+ * The announcements a parent may read: the school's `PARENTS`-audience notices
+ * and anything addressed to everyone, newest first. Parents have no `User` row,
+ * so there is no per-notice read state to track — the feed is purely read-only.
+ */
+export async function parentAnnouncements(
+  user: Express.UserContext,
+  query: { limit: number; offset: number }
+) {
+  const where = {
+    schoolId: user.schoolId,
+    audience: { in: [AnnouncementAudience.ALL, AnnouncementAudience.PARENTS] }
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.announcement.findMany({
+      where,
+      orderBy: { publishedAt: "desc" },
+      take: query.limit,
+      skip: query.offset,
+      include: { postedBy: { select: { id: true, fullName: true, role: true } } }
+    }),
+    prisma.announcement.count({ where })
+  ]);
+
+  return {
+    items: rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      body: row.body,
+      audience: row.audience,
+      priority: row.priority,
+      publishedAt: row.publishedAt,
+      // No read tracking for parents — present every notice as read so the feed
+      // never shows a permanent "unread" badge it can never clear.
+      isRead: true,
+      postedBy: row.postedBy
+        ? { id: row.postedBy.id, fullName: row.postedBy.fullName, role: row.postedBy.role }
+        : null
+    })),
+    total,
+    unreadCount: 0,
+    hasMore: query.offset + rows.length < total
+  };
+}
+
+/** One child's documents — report cards, certificates and the like. Ownership-guarded. */
+export async function childDocuments(user: Express.UserContext, studentId: string) {
+  await assertOwnChild(user, studentId);
+
+  const documents = await prisma.studentDocument.findMany({
+    where: { schoolId: user.schoolId, studentId },
+    orderBy: [{ uploadedAt: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      type: true,
+      name: true,
+      originalName: true,
+      mimeType: true,
+      sizeBytes: true,
+      uploadedAt: true
+    }
+  });
+
+  return { documents };
+}
+
+/**
+ * A download for one of the child's documents. Mirrors the staff download: on
+ * S3 it is a short-lived presigned URL (the app opens it in a browser tab —
+ * Apple-safe); on local disk it is the storage key for the controller to serve.
+ */
+export async function childDocumentDownload(user: Express.UserContext, studentId: string, documentId: string) {
+  await assertOwnChild(user, studentId);
+
+  const document = await prisma.studentDocument.findFirst({
+    where: { id: documentId, studentId, schoolId: user.schoolId },
+    select: { originalName: true, storageKey: true }
+  });
+  if (!document) throw notFound("Document");
+  if (!document.storageKey) throw notFound("Document file");
+
+  const downloadUrl = await getDownloadUrl(document.storageKey);
+  return { downloadUrl, fileName: document.originalName };
 }
