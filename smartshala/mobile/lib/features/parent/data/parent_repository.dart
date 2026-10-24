@@ -44,4 +44,23 @@ class ParentRepository {
         .map(HomeworkItem.fromJson)
         .toList();
   }
+
+  /// One child's fees — summary, assignments and payment history.
+  Future<ChildFees> fees(String childId) async {
+    final data = await api.get('/parent/children/$childId/fees') as Map<String, dynamic>;
+    return ChildFees.fromJson(data);
+  }
+
+  /// Mint an external Razorpay pay link for one outstanding fee assignment.
+  Future<String> feePayLink(String childId, String assignmentId) async {
+    final data = await api.post(
+      '/parent/children/$childId/fees/pay-link',
+      body: {'assignmentId': assignmentId},
+    ) as Map<String, dynamic>;
+    return data['payUrl'] as String;
+  }
+
+  /// The PDF bytes of one payment's receipt.
+  Future<List<int>> feeReceiptPdf(String childId, String paymentId) =>
+      api.getBytes('/parent/children/$childId/fees/receipts/$paymentId/pdf');
 }

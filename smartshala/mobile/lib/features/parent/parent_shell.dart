@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/widgets/state_views.dart';
 import 'data/parent_models.dart';
 import 'data/parent_session.dart';
+import 'parent_fees_screen.dart';
 import 'parent_home_screen.dart';
 import 'parent_select_child_screen.dart';
 import 'widgets/child_avatar.dart';
@@ -94,7 +95,8 @@ class _ParentHomeState extends State<_ParentHome> {
                 index: _index,
                 children: [
                   ParentHomeScreen(child: widget.child),
-                  for (final tab in _tabs.skip(1))
+                  ParentFeesScreen(child: widget.child),
+                  for (final tab in _tabs.skip(2))
                     EmptyView(
                       icon: tab.icon,
                       title: '${tab.label} coming soon',

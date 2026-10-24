@@ -22,6 +22,7 @@ import { analyticsRouter } from "../modules/analytics/analytics.routes.js";
 import { notificationsRouter } from "../modules/notifications/notifications.routes.js";
 import { onboardingRouter } from "../modules/onboarding/onboarding.routes.js";
 import { parentRouter } from "../modules/parent/parent.routes.js";
+import { feePayRouter } from "../modules/parent/feePay.routes.js";
 import { paymentLinkRouter } from "../modules/billing/paymentLinks.routes.js";
 import { payrollRouter } from "../modules/payroll/payroll.routes.js";
 import { pushRouter } from "../modules/push/push.routes.js";
@@ -46,6 +47,8 @@ apiRouter.use("/crm", crmRouter);
 apiRouter.use("/tenant-setup", tenantSetupRouter);
 // Token-authenticated, so it sits with the other unauthenticated routers.
 apiRouter.use("/pay", paymentLinkRouter);
+// The student-fee payment page (Parent app) — the token carries the tenant.
+apiRouter.use("/student-pay", feePayRouter);
 apiRouter.use(auditMutatingRequest);
 
 apiRouter.use("/auth", authRouter);

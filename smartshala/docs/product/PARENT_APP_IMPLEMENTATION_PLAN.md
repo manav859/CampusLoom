@@ -1,7 +1,7 @@
 # SmartShala — Parent App Implementation Plan
 
 **Created:** 2026-10-23
-**Status:** **Phases 0–3 complete in code (2026-10-23).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home + Attendance. Phase 3: Academics (exam performance) + Homework. The backend is **live on production** — the VPS now auto-deploys from `main` (GitHub Actions → `deploy.sh`). Phase 4 (Fees) is next.
+**Status:** **Phases 0–4 complete in code (Phase 4 on 2026-10-24).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home + Attendance. Phase 3: Academics (exam performance) + Homework. Phase 4: Fees & online payment (external Razorpay web flow). The backend is **live on production** — the VPS now auto-deploys from `main` (GitHub Actions → `deploy.sh`). Phase 5 (Calendar, Announcements & Documents) is next.
 **Design reference:** the 10-screen parent-dashboard mockup shared on 2026-10-23 — **reference only, not to be replicated pixel-for-pixel**. The parent app uses the **same design tokens, Inter font, `CustomSelect`, `BrandHeader`, pastel KPI cards and 6/8px radii** already shared across the Principal and Teacher apps (`mobile/lib/core/`), not the mockup's own icons, colours or avatars.
 **Scope:** a third Flutter binary — **SmartShala Parent** — for **Android and iOS**, built phase-wise.
 
@@ -105,10 +105,18 @@ Each phase lists **backend → app**, and a **verify** check so we can loop to d
 2. **App:** ✅ Academics screen (overall-performance ring + per-exam cards with a Subject/Marks/Grade table) and Homework screen (Pending/Completed toggle with counts, overdue highlighting). Reached from two **Quick links** tiles added to the Home tab.
    → **verified:** `parent_academics_homework_test` widget tests, analyze clean, parent APK builds, backend `tsc` clean. Live check pending alongside the others.
 
-### Phase 4 — Fees & Payments — *external Razorpay web flow per D3*
-1. **Backend:** parent-scoped fee summary + history; a payment-initiation link into the existing Razorpay flow (respect `RAZORPAY_MODE`, see memory).
-2. **App:** Fees breakdown, history, "Pay Now" → web Razorpay tab; receipt download.
-   → **verify:** a test payment (mock mode) reconciles; receipt PDF opens; live mode guarded.
+### Phase 4 — Fees & Payments — *external Razorpay web flow per D3* ✅ **built 2026-10-24** (live test pending)
+> **Correction to the original assumption:** there was **no existing online student-fee flow** to reuse — `/pay/[token]` is the **SaaS billing** flow (schools paying their own subscription), in the master DB. Student fees are staff-recorded in the tenant DB, and `Payment.recordedById` is a required FK to a staff `User` that parents don't have. So Phase 4 built a **new, migration-free** online student-fee flow modelled on the billing one.
+1. **Backend:** ✅
+   - `GET /parent/children/:id/fees` — summary, each assignment's balance, payment history (reuses `getStudentLedger`, so the numbers match the web).
+   - `POST /parent/children/:id/fees/pay-link` — mints a **stateless signed token** (JWT, 30 min, `typ: "fee_pay"`, carries school uuid + tenant code + student + assignment + amount) and returns `${FRONTEND_URL}/student-pay/<token>`. **No new table, no migration.**
+   - `GET /parent/children/:id/fees/receipts/:paymentId/pdf` — ownership-guarded receipt download (reuses `getReceiptPdf`).
+   - Public, tenant-agnostic router **`/student-pay`** (`modules/parent/feePay.*`): `view`, `checkout` (creates the Razorpay order with `notes.kind = STUDENT_FEE` carrying the tenant/student/assignment for the webhook), `confirm` (verifies the checkout signature, settles), `mock-gateway/pay`. The token in the URL is the whole credential and routes to the right tenant DB.
+   - **Settlement** records a tenant `Payment` via the existing `collectPayment` as `ONLINE_GATEWAY`, attributed to a per-school **auto-provisioned, inactive "Online Payment (Parent App)" `User`** (no schema change; hidden from staff lists because they filter `isActive`). Idempotent across the confirm callback + the Razorpay webhook via the unique `gatewayTransactionId` (and the amount is re-capped to the current balance at settle time).
+   - The **billing Razorpay webhook** (`/webhooks/razorpay`) now branches: an order unknown to the master billing tables whose `notes.kind === STUDENT_FEE` is settled in the tenant DB instead. Same webhook URL, so **no new Razorpay dashboard config**.
+2. **App:** ✅ Fees tab (`ParentFeesScreen`): outstanding-balance summary, per-assignment breakdown with a **Pay** button that opens the external Razorpay page via `url_launcher` (Apple-safe, D3), and payment history with receipt download via the share sheet. Wired as tab index 1 in `ParentShell`.
+   → **verified:** `parent_fees_test` widget test, `flutter analyze` clean, parent APK builds, backend + frontend `tsc` clean.
+   → **pending (staging/prod):** an end-to-end mock-mode payment reconciles and the receipt downloads; confirm + webhook don't double-record; `RAZORPAY_MODE=live` on prod uses the real keys and the shared webhook (see memory [[razorpay-mode-live-in-env]]); a parent cannot pay or read another child's fees (ownership 404).
 
 ### Phase 5 — Calendar, Announcements & Documents
 1. **Backend:** parent-scoped calendar, `PARENTS`-audience announcements feed, student documents + certificates list.

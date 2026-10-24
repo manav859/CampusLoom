@@ -13,6 +13,8 @@ const TENANT_AGNOSTIC_PREFIXES = [
   // Payment links carry their own credential in the URL and are opened by
   // people who are not signed in to any tenant.
   "/pay/",
+  // The student-fee payment page: the token in the URL carries the tenant.
+  "/student-pay/",
   "/super-admin/",
   "/tenant-setup/",
 ];

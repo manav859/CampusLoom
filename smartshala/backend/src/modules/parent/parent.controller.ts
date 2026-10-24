@@ -26,3 +26,23 @@ export const childHomework = asyncHandler(async (req: Request, res: Response) =>
   const result = await parentService.childHomework(req.user!, req.params.id);
   res.json(result);
 });
+
+export const childFees = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.childFees(req.user!, req.params.id);
+  res.json(result);
+});
+
+export const createFeePayLink = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.createFeePayLink(req.user!, req.params.id, req.body.assignmentId);
+  res.json(result);
+});
+
+export const childFeeReceiptPdf = asyncHandler(async (req: Request, res: Response) => {
+  const pdfBuffer = await parentService.childFeeReceiptPdf(req.user!, req.params.id, req.params.paymentId);
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="receipt-${req.params.paymentId}.pdf"`,
+    "Content-Length": pdfBuffer.length.toString()
+  });
+  res.send(pdfBuffer);
+});

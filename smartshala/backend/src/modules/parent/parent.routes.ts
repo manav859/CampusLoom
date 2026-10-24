@@ -3,7 +3,7 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./parent.controller.js";
-import { childAttendanceQuerySchema, childParamsSchema } from "./parent.schemas.js";
+import { childAttendanceQuerySchema, childParamsSchema, childReceiptParamsSchema, feePayLinkSchema } from "./parent.schemas.js";
 
 export const parentRouter = Router();
 
@@ -30,4 +30,19 @@ parentRouter.get(
   "/children/:id/homework",
   validate({ params: childParamsSchema }),
   controller.childHomework
+);
+parentRouter.get(
+  "/children/:id/fees",
+  validate({ params: childParamsSchema }),
+  controller.childFees
+);
+parentRouter.post(
+  "/children/:id/fees/pay-link",
+  validate({ params: childParamsSchema, body: feePayLinkSchema }),
+  controller.createFeePayLink
+);
+parentRouter.get(
+  "/children/:id/fees/receipts/:paymentId/pdf",
+  validate({ params: childReceiptParamsSchema }),
+  controller.childFeeReceiptPdf
 );

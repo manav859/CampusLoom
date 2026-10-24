@@ -1,9 +1,12 @@
 import { HomeworkSubmissionStatus } from "@prisma/client";
+import { env } from "../../config/env.js";
 import { prisma } from "../../core/prisma.js";
-import { notFound } from "../../core/errors.js";
+import { AppError, notFound } from "../../core/errors.js";
 import { gradeForPercentage } from "../../core/grading.js";
 import { parentStudentWhere } from "../../utils/parentPhone.js";
 import { getStudentMonthlyAttendance } from "../attendance/attendance.service.js";
+import { getReceiptPdf, getStudentLedger } from "../fees/fees.service.js";
+import { signFeePayToken } from "./feePay.service.js";
 
 /** Percentage from marks, rounded; 0 when there is no denominator. */
 function pct(marks: unknown, max: unknown) {
@@ -222,4 +225,91 @@ export async function childHomework(user: Express.UserContext, studentId: string
   });
 
   return { items };
+}
+
+/**
+ * One child's fees: the overall summary, each fee assignment with what is still
+ * due, and the payment history (with receipt ids for download). Reuses the same
+ * ledger the web dashboard reads, so the numbers match.
+ */
+export async function childFees(user: Express.UserContext, studentId: string) {
+  await assertOwnChild(user, studentId);
+  const ledger = await getStudentLedger(user.schoolId, studentId);
+
+  return {
+    summary: {
+      total: ledger.total,
+      paid: ledger.paid,
+      balance: ledger.balance,
+      status: ledger.status
+    },
+    assignments: ledger.assignments.map((a) => ({
+      id: a.id,
+      name: a.feeStructure.name,
+      total: a.total,
+      paid: a.paid,
+      pending: a.balance,
+      currentlyDue: a.currentlyDue,
+      status: a.status,
+      payable: a.balance > 0
+    })),
+    payments: ledger.payments.map((p) => ({
+      paymentId: p.id,
+      amount: p.amount,
+      paidAt: p.paidAt,
+      mode: p.mode,
+      receiptId: p.receiptId,
+      receiptNo: p.receiptNo,
+      feeStructureName: p.feeStructureName
+    }))
+  };
+}
+
+/**
+ * Mint an external Razorpay pay link for one of the child's outstanding fee
+ * assignments. The app opens it in a browser tab (no native payment surface —
+ * Apple-safe). The amount is locked to the assignment's current balance.
+ */
+export async function createFeePayLink(user: Express.UserContext, studentId: string, assignmentId: string) {
+  await assertOwnChild(user, studentId);
+
+  const assignment = await prisma.studentFeeAssignment.findFirst({
+    where: { id: assignmentId, schoolId: user.schoolId, studentId },
+    select: { pendingAmount: true }
+  });
+  if (!assignment) throw notFound("Fee assignment");
+
+  const amountMinor = Math.round(Number(assignment.pendingAmount) * 100);
+  if (amountMinor <= 0) throw new AppError(409, "These fees are already paid", "FEE_ALREADY_PAID");
+
+  const tenantSchoolId = user.tenantSchoolId;
+  if (!tenantSchoolId) throw new AppError(409, "Payments are unavailable for this account", "FEE_PAY_UNAVAILABLE");
+
+  const token = signFeePayToken({
+    sid: user.schoolId,
+    tsid: tenantSchoolId,
+    stu: studentId,
+    asg: assignmentId,
+    amt: amountMinor,
+    cur: env.BILLING_CURRENCY
+  });
+
+  return {
+    payUrl: `${env.FRONTEND_URL.replace(/\/$/, "")}/student-pay/${token}`,
+    amountMinor,
+    currency: env.BILLING_CURRENCY
+  };
+}
+
+/** The PDF receipt for one of the child's payments. Ownership-guarded. */
+export async function childFeeReceiptPdf(user: Express.UserContext, studentId: string, paymentId: string) {
+  await assertOwnChild(user, studentId);
+
+  const payment = await prisma.payment.findFirst({
+    where: { id: paymentId, schoolId: user.schoolId, studentId },
+    select: { receipt: { select: { id: true } } }
+  });
+  if (!payment?.receipt) throw notFound("Receipt");
+
+  return getReceiptPdf(user.schoolId, payment.receipt.id);
 }

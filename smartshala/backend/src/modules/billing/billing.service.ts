@@ -808,6 +808,23 @@ export async function handleRazorpayWebhook(rawBody: string, signature: string |
 
   try {
     if (eventType === "payment.captured" && entity?.order_id && entity.id) {
+      // Student-fee orders (Parent app) are not tracked in the master billing
+      // tables, so there is no master Payment row for them. If this order is
+      // unknown here, check whether it is a student fee (its notes say so) and
+      // settle it in the tenant DB instead.
+      const tracked = await masterPrisma.payment.findUnique({
+        where: { providerOrderId: entity.order_id },
+        select: { id: true }
+      });
+      if (!tracked) {
+        const order = await razorpay.fetchOrder(entity.order_id).catch(() => null);
+        if (order?.notes?.kind === "STUDENT_FEE") {
+          const { settleStudentFeeFromWebhook } = await import("../parent/feePay.service.js");
+          await settleStudentFeeFromWebhook(order.notes, entity.id);
+          await masterPrisma.webhookEvent.update({ where: { id: record.id }, data: { processedAt: new Date() } });
+          return { status: "processed" as const, eventId };
+        }
+      }
       await applySuccessfulPayment({
         providerOrderId: entity.order_id,
         providerPaymentId: entity.id,

@@ -207,6 +207,105 @@ class ChildAcademics {
   }
 }
 
+/// One fee assignment for a child — what it is, and what is still due.
+class FeeAssignment {
+  const FeeAssignment({
+    required this.id,
+    required this.name,
+    required this.total,
+    required this.paid,
+    required this.pending,
+    required this.status,
+    required this.payable,
+  });
+
+  final String id;
+  final String name;
+  final double total;
+  final double paid;
+  final double pending;
+  final String status; // PAID / PARTIAL / PENDING
+  final bool payable;
+
+  factory FeeAssignment.fromJson(Map<String, dynamic> json) => FeeAssignment(
+        id: (json['id'] ?? '') as String,
+        name: (json['name'] ?? 'Fee') as String,
+        total: (json['total'] as num?)?.toDouble() ?? 0,
+        paid: (json['paid'] as num?)?.toDouble() ?? 0,
+        pending: (json['pending'] as num?)?.toDouble() ?? 0,
+        status: (json['status'] ?? 'PENDING') as String,
+        payable: json['payable'] as bool? ?? false,
+      );
+}
+
+/// One past payment, with the receipt to download.
+class FeePayment {
+  const FeePayment({
+    required this.paymentId,
+    required this.amount,
+    required this.paidAt,
+    required this.mode,
+    this.receiptId,
+    this.receiptNo,
+    this.feeStructureName,
+  });
+
+  final String paymentId;
+  final double amount;
+  final DateTime? paidAt;
+  final String mode;
+  final String? receiptId;
+  final String? receiptNo;
+  final String? feeStructureName;
+
+  factory FeePayment.fromJson(Map<String, dynamic> json) => FeePayment(
+        paymentId: (json['paymentId'] ?? '') as String,
+        amount: (json['amount'] as num?)?.toDouble() ?? 0,
+        paidAt: json['paidAt'] == null ? null : DateTime.tryParse(json['paidAt'] as String),
+        mode: (json['mode'] ?? '') as String,
+        receiptId: json['receiptId'] as String?,
+        receiptNo: json['receiptNo'] as String?,
+        feeStructureName: json['feeStructureName'] as String?,
+      );
+}
+
+/// GET /parent/children/:id/fees — the summary, assignments and payment history.
+class ChildFees {
+  const ChildFees({
+    required this.total,
+    required this.paid,
+    required this.balance,
+    required this.status,
+    required this.assignments,
+    required this.payments,
+  });
+
+  final double total;
+  final double paid;
+  final double balance;
+  final String status;
+  final List<FeeAssignment> assignments;
+  final List<FeePayment> payments;
+
+  factory ChildFees.fromJson(Map<String, dynamic> json) {
+    final summary = json['summary'] as Map<String, dynamic>? ?? const {};
+    return ChildFees(
+      total: (summary['total'] as num?)?.toDouble() ?? 0,
+      paid: (summary['paid'] as num?)?.toDouble() ?? 0,
+      balance: (summary['balance'] as num?)?.toDouble() ?? 0,
+      status: (summary['status'] ?? 'PENDING') as String,
+      assignments: ((json['assignments'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(FeeAssignment.fromJson)
+          .toList(),
+      payments: ((json['payments'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(FeePayment.fromJson)
+          .toList(),
+    );
+  }
+}
+
 /// One homework assignment with this child's submission state.
 class HomeworkItem {
   const HomeworkItem({
