@@ -19,7 +19,8 @@ const pubspec = join(mobile, "pubspec.yaml");
 
 const FLAVORS = {
   teacher: { packageName: "com.smartshala.teacher", entrypoint: "lib/main_teacher.dart" },
-  principal: { packageName: "com.smartshala.principal", entrypoint: "lib/main_principal.dart" }
+  principal: { packageName: "com.smartshala.principal", entrypoint: "lib/main_principal.dart" },
+  parent: { packageName: "com.smartshala.parents", entrypoint: "lib/main_parent.dart" }
 };
 
 const TRACKS = ["internal", "alpha", "beta", "production"];
@@ -44,7 +45,7 @@ function parseArgs(argv) {
   }
 
   if (args.flavor !== "both" && !FLAVORS[args.flavor]) {
-    fail(`--flavor must be teacher, principal or both (got "${args.flavor}")`);
+    fail(`--flavor must be teacher, principal, parent or both (got "${args.flavor}")`);
   }
   if (!TRACKS.includes(args.track)) fail(`--track must be one of ${TRACKS.join(", ")}`);
   if (!["completed", "draft"].includes(args.status)) fail(`--status must be completed or draft`);
@@ -55,7 +56,7 @@ function usage(code) {
   console.log(`
 Usage: node publish.mjs [options]
 
-  --flavor  teacher | principal | both      (default: both)
+  --flavor  teacher | principal | parent | both   (both = teacher + principal; default: both)
   --track   internal | alpha | beta | production   (default: internal)
   --status  completed | draft               (default: completed)
   --build   build the bundles first
