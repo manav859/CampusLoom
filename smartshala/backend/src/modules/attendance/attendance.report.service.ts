@@ -2,6 +2,7 @@ import { AttendanceStatus, NotificationKind } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { endOfDay, startOfDay } from "./attendance.service.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
+import { notifyAttendanceNudge } from "../push/push.events.js";
 
 type AttendanceReportUser = Pick<Express.UserContext, "schoolId">;
 
@@ -149,6 +150,7 @@ export async function nudgePendingTeachers(user: AttendanceReportUser, dateFrom 
     select: {
       name: true,
       section: true,
+      classTeacherId: true,
       classTeacher: { select: { fullName: true, phone: true } }
     },
     orderBy: [{ name: "asc" }, { section: "asc" }]
@@ -157,10 +159,22 @@ export async function nudgePendingTeachers(user: AttendanceReportUser, dateFrom 
   const dateLabel = reportDateLabel(start, end);
   let sentCount = 0;
 
+  // Collected alongside the WhatsApp loop so each teacher gets a single push
+  // listing every unmarked class of theirs, not one per class.
+  const classesByTeacher = new Map<string, string[]>();
+
   for (const classRecord of pendingClasses) {
+    const className = `${classRecord.name}-${classRecord.section}`;
+
+    if (classRecord.classTeacherId) {
+      classesByTeacher.set(classRecord.classTeacherId, [
+        ...(classesByTeacher.get(classRecord.classTeacherId) ?? []),
+        className
+      ]);
+    }
+
     const phone = classRecord.classTeacher?.phone?.trim();
     if (!phone) continue;
-    const className = `${classRecord.name}-${classRecord.section}`;
     const message = `Reminder: attendance for Class ${className} is still pending for ${dateLabel}. Please mark it in SmartShala.`;
     const result = await sendWhatsAppMessage(phone, message, {
       schoolId: user.schoolId,
@@ -168,6 +182,11 @@ export async function nudgePendingTeachers(user: AttendanceReportUser, dateFrom 
     });
     if (result.success) sentCount += 1;
   }
+
+  notifyAttendanceNudge(
+    user.schoolId,
+    [...classesByTeacher].map(([teacherId, classNames]) => ({ teacherId, classNames }))
+  );
 
   return {
     pendingCount: pendingClasses.length,

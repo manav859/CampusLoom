@@ -4,6 +4,7 @@ import {
   announcementPush,
   announcementRoles,
   approverRoles,
+  attendanceReminderPush,
   calendarEventPush,
   holidayPush,
   leaveDecidedPush,
@@ -117,6 +118,22 @@ export function notifyCalendarEvent(
   dispatch(async () => {
     const recipients = await userIdsWithRoles(user.schoolId, staffRoles, { exclude: user.id });
     await notifyUsers(user.schoolId, recipients, calendarEventPush(event));
+  });
+}
+
+/**
+ * A principal pressing "nudge" on the attendance report. Each pending class
+ * teacher is pushed the same reminder the daily worker would send — one
+ * notification per teacher, listing the classes of theirs still unmarked.
+ */
+export function notifyAttendanceNudge(
+  schoolId: string,
+  teachers: { teacherId: string; classNames: string[] }[]
+) {
+  dispatch(async () => {
+    for (const { teacherId, classNames } of teachers) {
+      await notifyUsers(schoolId, [teacherId], attendanceReminderPush({ classNames }));
+    }
   });
 }
 
