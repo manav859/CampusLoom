@@ -90,6 +90,7 @@ export async function childHome(user: Express.UserContext, studentId: string) {
       rollNumber: true,
       admissionNumber: true,
       profilePhotoUrl: true,
+      parentName: true,
       class: { select: { name: true, section: true } }
     }
   });
@@ -100,6 +101,7 @@ export async function childHome(user: Express.UserContext, studentId: string) {
   const todayStatus = monthly.daily.find((day) => day.date === dayKey(new Date()))?.status ?? null;
 
   return {
+    parentName: student.parentName,
     child: {
       id: student.id,
       fullName: student.fullName,

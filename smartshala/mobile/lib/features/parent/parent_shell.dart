@@ -89,15 +89,23 @@ class _ParentHomeState extends State<_ParentHome> {
         bottom: false,
         child: Column(
           children: [
-            _ChildHeader(
-              child: widget.child,
-              onChange: session.hasMultiple ? session.changeChild : null,
-            ),
+            // Home carries its own brand row, greeting and student card, laid
+            // out as the reference home screen; the other tabs keep the compact
+            // child bar pinned above them for context.
+            if (_index != 0)
+              _ChildHeader(
+                child: widget.child,
+                onChange: session.hasMultiple ? session.changeChild : null,
+              ),
             Expanded(
               child: IndexedStack(
                 index: _index,
                 children: [
-                  ParentHomeScreen(child: widget.child),
+                  ParentHomeScreen(
+                    child: widget.child,
+                    onChangeChild: session.hasMultiple ? session.changeChild : null,
+                    onSelectTab: (next) => setState(() => _index = next),
+                  ),
                   ParentFeesScreen(child: widget.child),
                   const ParentCalendarScreen(),
                   const ParentAnnouncementsScreen(),

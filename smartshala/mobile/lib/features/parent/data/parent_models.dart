@@ -107,11 +107,14 @@ class MonthlyAttendance {
 /// GET /parent/children/:id/home — the child plus this month's attendance.
 class ChildHome {
   const ChildHome({
+    required this.parentName,
     required this.child,
     required this.attendance,
     required this.todayStatus,
   });
 
+  /// The signed-in parent's name, for the home greeting.
+  final String parentName;
   final ParentChild child;
   final AttendanceSummary attendance;
   final AttendanceStatus? todayStatus;
@@ -120,6 +123,7 @@ class ChildHome {
     final a = json['attendance'] as Map<String, dynamic>? ?? const {};
     final today = a['todayStatus'] as String?;
     return ChildHome(
+      parentName: (json['parentName'] ?? '') as String,
       child: ParentChild.fromJson(json['child'] as Map<String, dynamic>),
       attendance: AttendanceSummary.fromJson(a),
       todayStatus: today == null ? null : attendanceStatusFrom(today),
