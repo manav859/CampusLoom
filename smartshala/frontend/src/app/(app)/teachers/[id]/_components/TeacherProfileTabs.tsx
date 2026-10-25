@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { staffAttendanceApi, type LeavePage, type LeaveRequest, type StaffMonthSummary, type TeacherDetail } from "@/lib/api";
+import { staffAttendanceApi, type LeavePage, type LeaveRequest, type StaffMonthDayStatus, type StaffMonthSummary, type TeacherDetail } from "@/lib/api";
 
 type TabKey = "overview" | "timetable" | "attendance" | "leave" | "documents";
 
@@ -129,14 +129,41 @@ function monthLabel(month: string) {
   return new Date(year, m - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 }
 
+const weekdayHeads = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** How each day status paints its cell and reads in the legend / detail line. */
+const dayStatusStyle: Record<StaffMonthDayStatus, { cell: string; dot: string; label: string }> = {
+  PRESENT: { cell: "bg-[#E1F5EA] text-[#0F8A4A]", dot: "bg-[#0F8A4A]", label: "Present" },
+  ABSENT: { cell: "bg-[#FCE3E5] text-[#C8242C]", dot: "bg-[#C8242C]", label: "Absent" },
+  LEAVE: { cell: "bg-[#FFF2DC] text-[#B95A00]", dot: "bg-[#B95A00]", label: "On leave" },
+  HOLIDAY: { cell: "bg-[#EEF3FF] text-[#2456E6]", dot: "bg-[#2456E6]", label: "Holiday" },
+  SUNDAY: { cell: "text-[#C8242C]", dot: "bg-[#C8242C]", label: "Weekly off" },
+  TODAY: { cell: "text-[#2456E6]", dot: "bg-[#2456E6]", label: "Today — not punched in" },
+  FUTURE: { cell: "text-[#C2C9D4]", dot: "", label: "" },
+  NONE: { cell: "text-[#C2C9D4]", dot: "", label: "" }
+};
+
+const legendStatuses: StaffMonthDayStatus[] = ["PRESENT", "ABSENT", "LEAVE", "HOLIDAY"];
+
+function dayNumber(date: string) {
+  return Number(date.slice(8, 10));
+}
+
+function formatDayLabel(date: string) {
+  const [year, m, d] = date.split("-").map(Number);
+  return new Date(year, m - 1, d).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+}
+
 function AttendancePanel({ teacher, initial, initialMonth }: { teacher: TeacherDetail; initial: StaffMonthSummary | null; initialMonth: string }) {
   const [month, setMonth] = useState(initialMonth);
   const [summary, setSummary] = useState<StaffMonthSummary | null>(initial);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function load(nextMonth: string) {
     setMonth(nextMonth);
+    setSelectedDate(null);
     setLoading(true);
     setError("");
     try {
@@ -155,6 +182,11 @@ function AttendancePanel({ teacher, initial, initialMonth }: { teacher: TeacherD
     { label: "Absent", value: summary?.absentDays ?? 0, accent: "text-[#C8242C]" },
     { label: "Working days", value: summary?.workingDays ?? 0, accent: "text-[#1d1d1f]" }
   ];
+
+  const days = summary?.days ?? [];
+  const [year, m] = month.split("-").map(Number);
+  const leadingBlanks = new Date(year, m - 1, 1).getDay();
+  const selected = selectedDate ? days.find((day) => day.date === selectedDate) ?? null : null;
 
   return (
     <section className={panelClass}>
@@ -177,9 +209,53 @@ function AttendancePanel({ teacher, initial, initialMonth }: { teacher: TeacherD
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[13px] font-medium text-[#5A6573]">
-        Attendance rate: <span className="font-semibold text-[#1d1d1f]">{summary?.percentage == null ? "No data" : `${summary.percentage}%`}</span>
-      </p>
+
+      {/* Interactive month grid: tap a day to read its status. */}
+      <div className={`mt-5 rounded-[6px] border border-[#E7EBF0] p-3 ${loading ? "opacity-40" : ""}`}>
+        <div className="grid grid-cols-7 gap-1">
+          {weekdayHeads.map((head, index) => (
+            <div className={`py-1 text-center text-[11px] font-bold ${index === 0 ? "text-[#C8242C]" : "text-[#86868b]"}`} key={head}>{head}</div>
+          ))}
+          {Array.from({ length: leadingBlanks }).map((_, index) => <div key={`blank-${index}`} />)}
+          {days.map((day) => {
+            const style = dayStatusStyle[day.status];
+            const isSelected = day.date === selectedDate;
+            const selectable = day.status !== "FUTURE" && day.status !== "NONE";
+            return (
+              <button
+                aria-label={`${formatDayLabel(day.date)}${style.label ? `: ${style.label}` : ""}`}
+                aria-pressed={isSelected}
+                className={`flex min-h-10 items-center justify-center rounded-[6px] text-[12px] font-semibold transition-colors ${style.cell} ${day.status === "TODAY" ? "ring-1 ring-[#2456E6]" : ""} ${isSelected ? "ring-2 ring-[#2456E6]" : ""} ${selectable ? "cursor-pointer" : "cursor-default"}`}
+                disabled={!selectable}
+                key={day.date}
+                onClick={() => setSelectedDate(isSelected ? null : day.date)}
+                type="button"
+              >
+                {dayNumber(day.date)}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-[#E7EBF0] pt-3">
+          {legendStatuses.map((status) => (
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#5A6573]" key={status}>
+              <span className={`h-2.5 w-2.5 rounded-full ${dayStatusStyle[status].dot}`} />
+              {dayStatusStyle[status].label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {selected ? (
+        <p className="mt-3 text-[13px] font-medium text-[#5A6573]">
+          {formatDayLabel(selected.date)}: <span className="font-semibold text-[#1d1d1f]">{dayStatusStyle[selected.status].label || "No record"}</span>
+        </p>
+      ) : (
+        <p className="mt-3 text-[13px] font-medium text-[#5A6573]">
+          Attendance rate: <span className="font-semibold text-[#1d1d1f]">{summary?.percentage == null ? "No data" : `${summary.percentage}%`}</span>
+        </p>
+      )}
     </section>
   );
 }

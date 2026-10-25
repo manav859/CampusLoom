@@ -345,6 +345,25 @@ export async function getStaffMonthSummary(schoolId: string, userId: string, mon
     else if (day.getTime() !== today.getTime()) absentDays++;
   }
 
+  // A status for every calendar day of the month, so the profile can draw an
+  // interactive grid. Weekends, holidays and days outside employment are named
+  // rather than left blank, and today is its own status until it is punched.
+  const days: { date: string; status: StaffMonthDayStatus }[] = [];
+  for (const day = new Date(from); day < to; day.setDate(day.getDate() + 1)) {
+    const current = new Date(day);
+    const key = localDayKey(current);
+    let status: StaffMonthDayStatus;
+    if (current > today) status = "FUTURE";
+    else if (current < joined) status = "NONE";
+    else if (current.getDay() === 0) status = "SUNDAY";
+    else if (holidayKeys.has(key)) status = "HOLIDAY";
+    else if (punched.has(key)) status = "PRESENT";
+    else if (leaveKeys.has(key)) status = "LEAVE";
+    else if (current.getTime() === today.getTime()) status = "TODAY";
+    else status = "ABSENT";
+    days.push({ date: key, status });
+  }
+
   const workingDays = presentDays + leaveDays + absentDays;
   return {
     month,
@@ -352,9 +371,20 @@ export async function getStaffMonthSummary(schoolId: string, userId: string, mon
     presentDays,
     leaveDays,
     absentDays,
-    percentage: workingDays === 0 ? null : Math.round((presentDays / workingDays) * 100)
+    percentage: workingDays === 0 ? null : Math.round((presentDays / workingDays) * 100),
+    days
   };
 }
+
+type StaffMonthDayStatus =
+  | "PRESENT"
+  | "ABSENT"
+  | "LEAVE"
+  | "HOLIDAY"
+  | "SUNDAY"
+  | "TODAY"
+  | "FUTURE"
+  | "NONE";
 
 type DayStatus = "NOT_PUNCHED_IN" | "ON_LEAVE" | "PRESENT";
 const dayStatusOrder: Record<DayStatus, number> = { NOT_PUNCHED_IN: 0, ON_LEAVE: 1, PRESENT: 2 };

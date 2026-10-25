@@ -1949,6 +1949,16 @@ export type StaffDay = {
 };
 
 /** One staff member's month of working days — the app's Teacher Profile tiles. */
+export type StaffMonthDayStatus =
+  | "PRESENT"
+  | "ABSENT"
+  | "LEAVE"
+  | "HOLIDAY"
+  | "SUNDAY"
+  | "TODAY"
+  | "FUTURE"
+  | "NONE";
+
 export type StaffMonthSummary = {
   month: string;
   workingDays: number;
@@ -1957,6 +1967,8 @@ export type StaffMonthSummary = {
   absentDays: number;
   /** Null when the month has no working days yet, so there is nothing to divide by. */
   percentage: number | null;
+  /** One entry per calendar day of the month, for the profile's calendar grid. */
+  days: { date: string; status: StaffMonthDayStatus }[];
 };
 
 export const staffAttendanceApi = {
