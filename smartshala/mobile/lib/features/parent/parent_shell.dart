@@ -151,7 +151,7 @@ class _ParentHomeState extends State<_ParentHome> {
                   ),
                   ParentFeesScreen(child: widget.child),
                   const ParentCalendarScreen(),
-                  const ParentAnnouncementsScreen(),
+                  ParentAnnouncementsScreen(child: widget.child),
                   ParentMoreScreen(child: widget.child),
                 ],
               ),

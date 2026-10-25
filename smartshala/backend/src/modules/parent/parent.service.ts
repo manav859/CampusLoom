@@ -1,4 +1,4 @@
-import { AnnouncementAudience, HomeworkSubmissionStatus } from "@prisma/client";
+import { AnnouncementAudience, CommunicationType, HomeworkSubmissionStatus } from "@prisma/client";
 import { env } from "../../config/env.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
@@ -371,6 +371,36 @@ export async function parentAnnouncements(
     total,
     unreadCount: 0,
     hasMore: query.offset + rows.length < total
+  };
+}
+
+/**
+ * The messages a teacher or principal sent to this child's parents from the
+ * Communication screen, newest first. These sit alongside the school's
+ * announcements in the app's Messages tab.
+ */
+export async function childMessages(user: Express.UserContext, studentId: string) {
+  await assertOwnChild(user, studentId);
+
+  const logs = await prisma.communicationLog.findMany({
+    where: {
+      schoolId: user.schoolId,
+      studentId,
+      type: CommunicationType.WHATSAPP,
+      messageType: { not: null }
+    },
+    orderBy: [{ timestamp: "desc" }, { createdAt: "desc" }],
+    take: 50,
+    select: { id: true, summary: true, messageType: true, timestamp: true, createdAt: true }
+  });
+
+  return {
+    items: logs.map((log) => ({
+      id: log.id,
+      message: log.summary,
+      type: log.messageType,
+      sentAt: log.timestamp ?? log.createdAt
+    }))
   };
 }
 

@@ -64,6 +64,11 @@ export const childDocuments = asyncHandler(async (req: Request, res: Response) =
   res.json(result);
 });
 
+export const childMessages = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.childMessages(req.user!, req.params.id);
+  res.json(result);
+});
+
 export const childDocumentDownload = asyncHandler(async (req: Request, res: Response) => {
   const { downloadUrl, fileName } = await parentService.childDocumentDownload(
     req.user!,

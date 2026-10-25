@@ -363,6 +363,42 @@ class AnnouncementPage {
       );
 }
 
+/// A message a teacher or principal sent to this parent from the web dashboard
+/// Communication screen. It shows in the Messages tab beside announcements, and
+/// arrives whether or not the WhatsApp copy was delivered.
+class ParentMessage {
+  const ParentMessage({
+    required this.id,
+    required this.body,
+    required this.type,
+    required this.sentAt,
+  });
+
+  final String id;
+  final String body;
+  final String type;
+  final DateTime sentAt;
+
+  /// The heading the card carries, by message type — mirrors the push title.
+  String get title => switch (type) {
+        'ATTENDANCE_ALERT' => 'Attendance alert',
+        'ABSENCE_NOTIFICATION' => 'Absence notice',
+        'FEE_REMINDER' => 'Fee reminder',
+        'EXAM_ANNOUNCEMENT' => 'Exam notice',
+        'PTM_INVITE' => 'Parent meeting',
+        'HOLIDAY_NOTICE' => 'Holiday notice',
+        'HOMEWORK_REMINDER' => 'Homework reminder',
+        _ => 'Message from school',
+      };
+
+  factory ParentMessage.fromJson(Map<String, dynamic> json) => ParentMessage(
+        id: json['id'] as String,
+        body: json['message'] as String? ?? '',
+        type: json['type'] as String? ?? 'CUSTOM',
+        sentAt: _parseLocal(json['sentAt']) ?? DateTime.now(),
+      );
+}
+
 DateTime? _parseLocal(Object? value) =>
     value is String ? DateTime.tryParse(value)?.toLocal() : null;
 

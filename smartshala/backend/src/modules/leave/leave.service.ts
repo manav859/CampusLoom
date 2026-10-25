@@ -182,11 +182,12 @@ export async function listMyLeave(
 /** Every request in the school — the principal Leave Approval screen. */
 export async function listSchoolLeave(
   user: Express.UserContext,
-  query: { status?: LeaveStatus; search?: string; limit: number; offset: number }
+  query: { status?: LeaveStatus; search?: string; userId?: string; limit: number; offset: number }
 ) {
   const where: Prisma.LeaveRequestWhereInput = {
     schoolId: user.schoolId,
     ...(query.status ? { status: query.status } : {}),
+    ...(query.userId ? { userId: query.userId } : {}),
     ...(query.search
       ? { user: { fullName: { contains: query.search, mode: "insensitive" } } }
       : {})
@@ -204,7 +205,7 @@ export async function listSchoolLeave(
     prisma.leaveRequest.count({ where }),
     prisma.leaveRequest.groupBy({
       by: ["status"],
-      where: { schoolId: user.schoolId },
+      where: { schoolId: user.schoolId, ...(query.userId ? { userId: query.userId } : {}) },
       _count: { _all: true }
     })
   ]);

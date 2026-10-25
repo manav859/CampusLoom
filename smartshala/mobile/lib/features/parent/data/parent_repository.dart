@@ -88,6 +88,15 @@ class ParentRepository {
     return AnnouncementPage.fromJson(data);
   }
 
+  /// The teacher/principal messages sent to one child's parents, newest first.
+  Future<List<ParentMessage>> childMessages(String childId) async {
+    final data = await api.get('/parent/children/$childId/messages') as Map<String, dynamic>;
+    return ((data['items'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(ParentMessage.fromJson)
+        .toList();
+  }
+
   /// One child's documents — report cards, certificates and the like.
   Future<List<ParentDocument>> documents(String childId) async {
     final data = await api.get('/parent/children/$childId/documents') as Map<String, dynamic>;

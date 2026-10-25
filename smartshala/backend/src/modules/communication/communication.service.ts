@@ -11,6 +11,7 @@ import {
 import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { WhatsAppCloudProvider } from "../notifications/whatsapp.service.js";
+import { notifyParentMessage } from "../push/push.events.js";
 import { sortClassRecords } from "../../utils/sortClasses.js";
 
 type CommunicationUser = Pick<Express.UserContext, "id" | "schoolId" | "role">;
@@ -281,6 +282,14 @@ export async function sendTeacherMessage(user: Express.UserContext, input: SendT
           })
         )
       );
+    });
+
+    // Whatever the WhatsApp copy does, the message reaches the parent app's
+    // Messages tab as a push and as a feed row read from these same logs.
+    notifyParentMessage(user, {
+      studentIds: recipients.map((recipient) => recipient.id),
+      type: input.type,
+      message: input.message
     });
 
     return {

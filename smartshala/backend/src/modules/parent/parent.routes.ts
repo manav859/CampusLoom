@@ -66,6 +66,11 @@ parentRouter.get(
   controller.announcements
 );
 parentRouter.get(
+  "/children/:id/messages",
+  validate({ params: childParamsSchema }),
+  controller.childMessages
+);
+parentRouter.get(
   "/children/:id/leave",
   validate({ params: childParamsSchema }),
   controller.childLeave

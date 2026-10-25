@@ -228,7 +228,7 @@ export default function SettingsPage() {
     setError("");
     try {
       window.localStorage.setItem(templateStorageKey, JSON.stringify(templateDrafts));
-      setNotice("WhatsApp templates saved.");
+      setNotice("Message templates saved.");
       setEditingTemplate(null);
     } catch {
       setError("Unable to save templates in this browser.");
@@ -242,7 +242,7 @@ export default function SettingsPage() {
     setTemplateDrafts(defaults);
     window.localStorage.removeItem(templateStorageKey);
     setEditingTemplate(null);
-    setNotice("WhatsApp templates reset.");
+    setNotice("Message templates reset.");
   }
 
   return (
@@ -332,7 +332,7 @@ export default function SettingsPage() {
         <section className="rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-[17px] font-semibold text-[#031526]">WhatsApp Templates</h2>
+              <h2 className="text-[17px] font-semibold text-[#031526]">Message Template</h2>
               <p className="mt-1 text-[13px] font-medium text-[#5A6573]">Edit English and Hindi variants, then save below.</p>
             </div>
             <span className="w-fit rounded-full bg-[#F7F8FB] px-3 py-1 text-[12px] font-semibold text-[#5A6573]">{editedCount} edited</span>

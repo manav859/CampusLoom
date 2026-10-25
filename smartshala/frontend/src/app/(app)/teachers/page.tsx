@@ -450,7 +450,7 @@ export default function TeachersPage() {
                   <div className="flex min-w-0 items-center gap-3">
                     <InitialsAvatar name={teacher.fullName} size="sm" />
                     <div className="min-w-0">
-                      <h2 className="truncate text-[15px] font-semibold text-[#1d1d1f]">{teacher.fullName}</h2>
+                      <Link href={`/teachers/${teacher.id}`} className="block truncate text-[15px] font-semibold text-[#1d1d1f] hover:text-[#2456E6]">{teacher.fullName}</Link>
                       <p className="mt-0.5 truncate text-[12px] font-medium text-[#52687D]">{teacher.email || teacher.phone || "-"}</p>
                     </div>
                   </div>
@@ -529,7 +529,7 @@ export default function TeachersPage() {
                     <div className="flex items-center gap-3">
                       <InitialsAvatar name={teacher.fullName} size="sm" />
                       <div>
-                        <p className="font-semibold text-[#1d1d1f]">{teacher.fullName}</p>
+                        <Link href={`/teachers/${teacher.id}`} className="font-semibold text-[#1d1d1f] hover:text-[#2456E6]">{teacher.fullName}</Link>
                         <p className="mt-0.5 text-[11px] font-medium text-[#86868b]">
                           {assignedPeriodCount(teacher)}/{totalTimetableSlots(teacher.timetablePeriodCount ?? 8)} weekly periods assigned
                         </p>

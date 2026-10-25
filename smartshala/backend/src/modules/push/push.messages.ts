@@ -23,6 +23,7 @@ export type PushKind =
   | "child_absent"
   | "homework_assigned"
   | "marks_published"
+  | "parent_message"
   | "student_leave_submitted"
   | "student_leave_decided";
 
@@ -206,6 +207,37 @@ export function marksPublishedPush(input: { examName: string; subject: string })
     `${input.examName} result out`,
     `${input.subject} marks have been published.`
   );
+}
+
+/** The heading a staff-sent parent message carries, by its message type. */
+function parentMessageTitle(type: string): string {
+  switch (type) {
+    case "ATTENDANCE_ALERT":
+      return "Attendance alert";
+    case "ABSENCE_NOTIFICATION":
+      return "Absence notice";
+    case "FEE_REMINDER":
+      return "Fee reminder";
+    case "EXAM_ANNOUNCEMENT":
+      return "Exam notice";
+    case "PTM_INVITE":
+      return "Parent meeting";
+    case "HOLIDAY_NOTICE":
+      return "Holiday notice";
+    case "HOMEWORK_REMINDER":
+      return "Homework reminder";
+    default:
+      return "Message from school";
+  }
+}
+
+/**
+ * A message a teacher or principal sent to a parent from the Communication
+ * screen. It lands in the parent app's Messages tab regardless of whether the
+ * WhatsApp copy went out, so the parent always has it in-app.
+ */
+export function parentMessagePush(input: { type: string; message: string }): PushPayload {
+  return payload("parent_message", "messages", parentMessageTitle(input.type), input.message);
 }
 
 function firstName(fullName: string) {

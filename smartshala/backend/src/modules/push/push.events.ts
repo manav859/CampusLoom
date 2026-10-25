@@ -14,6 +14,7 @@ import {
   leaveSubmittedPush,
   marksPublishedPush,
   marksRecordedPush,
+  parentMessagePush,
   staffRoles,
   studentLeaveDecidedPush,
   studentLeaveSubmittedPush
@@ -183,6 +184,31 @@ export function notifyChildrenAbsent(
         childAbsentPush({ studentName: student.fullName, date: input.date })
       );
     }
+  });
+}
+
+/**
+ * A message a teacher or principal sent to a child's parents from the
+ * Communication screen. Every guardian device across the addressed children is
+ * pushed the one text; `notifyParentPhones` collapses a parent reached for two
+ * children into a single push.
+ */
+export function notifyParentMessage(
+  user: Pick<Express.UserContext, "schoolId">,
+  input: { studentIds: string[]; type: string; message: string }
+) {
+  if (input.studentIds.length === 0) return;
+  dispatch(async () => {
+    const students = await prisma.student.findMany({
+      where: { schoolId: user.schoolId, id: { in: input.studentIds } },
+      select: GUARDIAN_PHONE_SELECT
+    });
+    const phones = students.flatMap(guardianPhones);
+    await notifyParentPhones(
+      user.schoolId,
+      phones,
+      parentMessagePush({ type: input.type, message: input.message })
+    );
   });
 }
 

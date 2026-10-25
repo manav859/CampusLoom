@@ -20,6 +20,7 @@ export const applyLeaveSchema = z
 export const leaveListQuerySchema = z.object({
   status: z.enum(leaveStatuses).optional(),
   search: z.string().trim().max(100).optional(),
+  userId: z.string().uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0)
 });

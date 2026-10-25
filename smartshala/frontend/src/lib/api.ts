@@ -1508,9 +1508,35 @@ export const studentsApi = {
   }
 };
 
+/** One weekly period in a teacher's timetable, as the profile renders it. */
+export type TeacherPeriodAssignment = {
+  id: string;
+  dayOfWeek: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY";
+  periodNumber: number;
+  classId: string | null;
+  subjectId: string | null;
+  className: string;
+  subjectName: string;
+};
+
+/** The full teacher record behind the Teacher Profile page. */
+export type TeacherDetail = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string;
+  status: string;
+  academicBackground: string | null;
+  createdAt: string;
+  timetablePeriodCount: number;
+  periodAssignments: TeacherPeriodAssignment[];
+  classTeacherFor: { id: string; name: string; section: string }[];
+};
+
 export const teachersApi = {
   search: (term: string) =>
-    apiFetch<{ items: TeacherSearchItem[] }>(`/users/teachers?search=${encodeURIComponent(term)}&limit=5`)
+    apiFetch<{ items: TeacherSearchItem[] }>(`/users/teachers?search=${encodeURIComponent(term)}&limit=5`),
+  get: (id: string) => apiFetch<TeacherDetail>(`/users/teachers/${id}`)
 };
 
 // --- Billing -----------------------------------------------------------------
@@ -1999,14 +2025,16 @@ export type LeavePage = {
 export type LeaveListQuery = {
   status?: LeaveStatus;
   search?: string;
+  userId?: string;
   limit?: number;
   offset?: number;
 };
 
-function leaveQuery({ status, search, limit = 20, offset = 0 }: LeaveListQuery) {
+function leaveQuery({ status, search, userId, limit = 20, offset = 0 }: LeaveListQuery) {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (status) params.set("status", status);
   if (search) params.set("search", search);
+  if (userId) params.set("userId", userId);
   return params.toString();
 }
 
