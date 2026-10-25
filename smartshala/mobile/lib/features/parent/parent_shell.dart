@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/push/push_message.dart';
+import '../../core/push/push_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/state_views.dart';
 import 'data/parent_models.dart';
@@ -70,6 +72,46 @@ class _ParentHome extends StatefulWidget {
 
 class _ParentHomeState extends State<_ParentHome> {
   int _index = 0;
+  PushService? _push;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Nullable: the shell is pumped on its own in widget tests, where nothing
+    // provides push. SmartShalaApp always does in the real app.
+    final push = context.read<PushService?>();
+    if (push == _push) return;
+    _push?.removeListener(_onPushTarget);
+    _push = push?..addListener(_onPushTarget);
+    // A notification tapped from a cold start is already waiting by the time
+    // this shell exists, so the pending target is read here too, not only on
+    // later changes.
+    _onPushTarget();
+  }
+
+  /// Where a tapped parent notification lands. Announcements open Messages;
+  /// absences, homework and results all hang off the child's dashboard, so they
+  /// open Home. A target this app has no tab for (e.g. leave approval) falls
+  /// back to Messages, as on the staff apps.
+  void _onPushTarget() {
+    final target = _push?.takePendingTarget();
+    if (target == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _index = switch (target) {
+            PushTarget.home => 0,
+            PushTarget.calendar => 2,
+            PushTarget.messages || PushTarget.leaveApproval => 3,
+          });
+    });
+  }
+
+  @override
+  void dispose() {
+    _push?.removeListener(_onPushTarget);
+    super.dispose();
+  }
 
   static const _tabs = [
     (icon: Icons.home_rounded, label: 'Home'),
@@ -93,7 +135,8 @@ class _ParentHomeState extends State<_ParentHome> {
             // out as the reference home screen; the other tabs keep the compact
             // child bar pinned above them for context.
             if (_index != 0)
-              _ChildHeader(
+              _TabHeader(
+                title: _tabs[_index].label,
                 child: widget.child,
                 onChange: session.hasMultiple ? session.changeChild : null,
               ),
@@ -124,56 +167,80 @@ class _ParentHomeState extends State<_ParentHome> {
   }
 }
 
-/// The selected child's identity, pinned above the tabs, with a way back to the
-/// picker when there is more than one child.
-class _ChildHeader extends StatelessWidget {
-  const _ChildHeader({required this.child, this.onChange});
+/// The header pinned above the non-Home tabs: the tab's name on the left, and a
+/// compact chip for the child in view on the right — tappable to switch when the
+/// parent has more than one child. Home carries its own brand row instead, so
+/// the child's name is no longer stranded in a plain bar.
+class _TabHeader extends StatelessWidget {
+  const _TabHeader({required this.title, required this.child, this.onChange});
+
+  final String title;
+  final ParentChild child;
+  final VoidCallback? onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // No bar behind it — the title and the child chip sit straight on the
+      // page so the tab reads as its content, not a stacked app bar.
+      padding: const EdgeInsets.fromLTRB(16, 14, 12, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.3,
+              ),
+            ),
+          ),
+          _ChildChip(child: child, onChange: onChange),
+        ],
+      ),
+    );
+  }
+}
+
+/// Avatar and first name on a soft blue pill, with a swap glyph when the child
+/// can be switched.
+class _ChildChip extends StatelessWidget {
+  const _ChildChip({required this.child, this.onChange});
 
   final ParentChild child;
   final VoidCallback? onChange;
 
   @override
   Widget build(BuildContext context) {
-    final subtitleParts = [
-      if (child.className != null) child.className!,
-      if (child.rollNumber != null) 'Roll No. ${child.rollNumber}',
-    ];
+    final firstName = child.fullName.trim().split(RegExp(r'\s+')).first;
+    final shape = BorderRadius.circular(22);
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
-      ),
-      child: Row(
-        children: [
-          ChildAvatar(child: child, size: 42),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  child.fullName,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                ),
-                if (subtitleParts.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitleParts.join('  ·  '),
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
-                  ),
-                ],
+    return Material(
+      color: AppColors.primarySoft,
+      borderRadius: shape,
+      child: InkWell(
+        onTap: onChange,
+        borderRadius: shape,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(6, 5, onChange != null ? 10 : 12, 5),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ChildAvatar(child: child, size: 26),
+              const SizedBox(width: 8),
+              Text(
+                firstName,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+              ),
+              if (onChange != null) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.primary),
               ],
-            ),
+            ],
           ),
-          if (onChange != null)
-            TextButton.icon(
-              onPressed: onChange,
-              icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-              label: const Text('Change'),
-            ),
-        ],
+        ),
       ),
     );
   }

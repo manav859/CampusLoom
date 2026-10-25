@@ -18,7 +18,13 @@ export type PushKind =
   | "calendar_event"
   | "holiday"
   | "attendance_reminder"
-  | "leave_pending_reminder";
+  | "leave_pending_reminder"
+  // Parent app
+  | "child_absent"
+  | "homework_assigned"
+  | "marks_published"
+  | "student_leave_submitted"
+  | "student_leave_decided";
 
 /** A notification body is one line in a shade; anything longer is cut anyway. */
 const MAX_BODY = 140;
@@ -161,6 +167,85 @@ export function attendanceReminderPush(input: { classNames: string[] }): PushPay
     input.classNames.length === 1
       ? `${classes} has no attendance for today yet.`
       : `${classes} have no attendance for today yet.`
+  );
+}
+
+// --- Parent app ------------------------------------------------------------
+// Parents reach only the screens their five-tab app has: `messages` for the
+// announcement feed and `home` for everything that hangs off the child's
+// dashboard. The parent app has no `calendar` or `leave_approval` route it is
+// ever sent to here, so these all use the two it does.
+
+export function childAbsentPush(input: { studentName: string; date: Date }): PushPayload {
+  const first = input.studentName.trim().split(/\s+/)[0] || "Your child";
+  return payload(
+    "child_absent",
+    "home",
+    "Marked absent today",
+    `${first} was marked absent on ${formatDay(input.date)}.`
+  );
+}
+
+export function homeworkAssignedPush(input: {
+  subject: string;
+  title: string;
+  dueDate: Date;
+}): PushPayload {
+  return payload(
+    "homework_assigned",
+    "home",
+    `New ${input.subject} homework`,
+    `${input.title} — due ${formatDay(input.dueDate)}.`
+  );
+}
+
+export function marksPublishedPush(input: { examName: string; subject: string }): PushPayload {
+  return payload(
+    "marks_published",
+    "home",
+    `${input.examName} result out`,
+    `${input.subject} marks have been published.`
+  );
+}
+
+function firstName(fullName: string) {
+  return fullName.trim().split(/\s+/)[0] || "a student";
+}
+
+function dayWord(days: number) {
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+/** A child-leave request landing in the office — staff open the web review list. */
+export function studentLeaveSubmittedPush(input: {
+  studentName: string;
+  fromDate: Date;
+  toDate: Date;
+  days: number;
+}): PushPayload {
+  return payload(
+    "student_leave_submitted",
+    "messages",
+    `Leave request for ${firstName(input.studentName)}`,
+    `${formatDayRange(input.fromDate, input.toDate)} (${dayWord(input.days)}) — awaiting review.`
+  );
+}
+
+/** The parent, told their child's leave was approved or declined. */
+export function studentLeaveDecidedPush(input: {
+  studentName: string;
+  approved: boolean;
+  fromDate: Date;
+  toDate: Date;
+  note?: string | null;
+}): PushPayload {
+  const range = formatDayRange(input.fromDate, input.toDate);
+  const who = firstName(input.studentName);
+  return payload(
+    "student_leave_decided",
+    "home",
+    input.approved ? "Leave approved" : "Leave not approved",
+    input.note ? `${who}'s leave for ${range} — ${input.note}` : `${who}'s leave for ${range}.`
   );
 }
 

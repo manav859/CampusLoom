@@ -5,7 +5,7 @@ import { AppError, notFound } from "../../core/errors.js";
 import { recordAuditLog } from "../../core/auditLog.js";
 import { buildAttendanceAbsentMessage } from "../whatsapp/templates.js";
 import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service.js";
-import { notifyHoliday } from "../push/push.events.js";
+import { notifyChildrenAbsent, notifyHoliday } from "../push/push.events.js";
 
 type AttendanceUser = Pick<Express.UserContext, "id" | "schoolId" | "role">;
 
@@ -269,12 +269,26 @@ export async function markAttendance({ classId, date, notes, records, user }: Ma
     after: { className, date: formatDate(normalizedDate), records: namedRecords(records) }
   }).catch(() => undefined);
 
+  const absentStudentIds = records
+    .filter((record) => record.status === AttendanceStatus.ABSENT)
+    .map((record) => record.studentId);
+
   queueAbsentAttendanceNotifications({
     schoolId: user.schoolId,
     classId,
     className: `${classRecord.name}-${classRecord.section}`,
     date: normalizedDate,
-    absentStudentIds: records.filter((record) => record.status === AttendanceStatus.ABSENT).map((record) => record.studentId)
+    absentStudentIds
+  });
+
+  // Only the children newly marked absent get a parent push — re-saving a
+  // session already carrying today's absences must not re-notify.
+  const wasAbsent = new Set(
+    previousRecords.filter((record) => record.status === AttendanceStatus.ABSENT).map((record) => record.studentId)
+  );
+  notifyChildrenAbsent(user, {
+    studentIds: absentStudentIds.filter((studentId) => !wasAbsent.has(studentId)),
+    date: normalizedDate
   });
 
   return createdSession;

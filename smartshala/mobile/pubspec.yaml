@@ -2,7 +2,7 @@ name: smartshala_mobile
 description: "SmartShala V2 mobile apps — Principal Portal and Teacher Portal."
 publish_to: 'none'
 
-version: 1.0.0+6
+version: 1.0.0+8
 environment:
   sdk: ^3.12.2
 
@@ -39,6 +39,8 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   # Stand in for the app-support directory when the whole app is pumped in a test.

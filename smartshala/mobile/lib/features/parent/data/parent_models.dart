@@ -381,3 +381,43 @@ class HomeworkItem {
         status: json['status'] as String?,
       );
 }
+
+/// A leave/absence request a parent has raised for their child.
+class ParentLeaveRequest {
+  const ParentLeaveRequest({
+    required this.id,
+    required this.fromDate,
+    required this.toDate,
+    required this.days,
+    required this.reason,
+    required this.status,
+    this.appliedOn,
+    this.decisionNote,
+    this.decidedByName,
+  });
+
+  final String id;
+  final DateTime fromDate;
+  final DateTime toDate;
+  final int days;
+  final String reason;
+  final String status; // PENDING | APPROVED | REJECTED | CANCELLED
+  final DateTime? appliedOn;
+  final String? decisionNote;
+  final String? decidedByName;
+
+  bool get isPending => status == 'PENDING';
+  bool get isApproved => status == 'APPROVED';
+
+  factory ParentLeaveRequest.fromJson(Map<String, dynamic> json) => ParentLeaveRequest(
+        id: (json['id'] ?? '') as String,
+        fromDate: DateTime.parse(json['fromDate'] as String),
+        toDate: DateTime.parse(json['toDate'] as String),
+        days: (json['days'] as num?)?.toInt() ?? 1,
+        reason: (json['reason'] ?? '') as String,
+        status: (json['status'] ?? 'PENDING') as String,
+        appliedOn: json['appliedOn'] == null ? null : DateTime.tryParse(json['appliedOn'] as String),
+        decisionNote: json['decisionNote'] as String?,
+        decidedByName: (json['decidedBy'] as Map<String, dynamic>?)?['fullName'] as String?,
+      );
+}

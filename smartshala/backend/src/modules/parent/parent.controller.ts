@@ -90,3 +90,11 @@ export const childDocumentDownload = asyncHandler(async (req: Request, res: Resp
     });
   });
 });
+
+export const childLeave = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await parentService.childLeaveRequests(req.user!, req.params.id));
+});
+
+export const submitChildLeave = asyncHandler(async (req: Request, res: Response) => {
+  res.status(201).json(await parentService.submitChildLeave(req.user!, req.params.id, req.body));
+});

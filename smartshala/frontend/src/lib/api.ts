@@ -2062,3 +2062,50 @@ export const leaveApi = {
     URL.revokeObjectURL(url);
   }
 };
+
+/** A child-leave request raised by a parent from the Parent app. */
+export type StudentLeaveRequest = {
+  id: string;
+  fromDate: string;
+  toDate: string;
+  /** Inclusive, so a single-day leave is 1. */
+  days: number;
+  reason: string;
+  status: LeaveStatus;
+  appliedOn: string;
+  requestedByName: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  decidedBy: { id: string; fullName: string } | null;
+  student: {
+    id: string;
+    fullName: string;
+    rollNumber: string | null;
+    admissionNumber: string;
+    className: string | null;
+  };
+};
+
+export type StudentLeavePage = {
+  items: StudentLeaveRequest[];
+  total: number;
+  hasMore: boolean;
+  summary: Record<LeaveStatus, number>;
+};
+
+export const studentLeaveApi = {
+  /** The office queue of parent-raised child-leave requests. */
+  requests: (query: { status?: LeaveStatus; limit?: number; offset?: number } = {}) => {
+    const params = new URLSearchParams({
+      limit: String(query.limit ?? 20),
+      offset: String(query.offset ?? 0)
+    });
+    if (query.status) params.set("status", query.status);
+    return apiFetch<StudentLeavePage>(`/student-leave/requests?${params.toString()}`);
+  },
+  decide: (id: string, payload: { status: "APPROVED" | "REJECTED"; note?: string }) =>
+    apiFetch<StudentLeaveRequest>(`/student-leave/requests/${id}/decision`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    })
+};

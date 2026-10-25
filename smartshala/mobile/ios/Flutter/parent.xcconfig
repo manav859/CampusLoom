@@ -2,7 +2,7 @@
 // counterpart of the `parent` productFlavor in android/app/build.gradle.kts.
 // Included by Debug/Profile/Release-parent.xcconfig; the Runner target reads
 // these through $(...) so no flavor literal ever lands in project.pbxproj.
-FLAVOR_BUNDLE_ID = com.smartshala.parent
+FLAVOR_BUNDLE_ID = com.smartshala.parents
 FLAVOR_APP_ICON = AppIcon-parent
 
 // The home-screen label. CFBundleName is the short form iOS falls back to in

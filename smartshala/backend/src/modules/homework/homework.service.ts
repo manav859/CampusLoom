@@ -2,6 +2,7 @@ import { HomeworkSubmissionStatus, Prisma, UserRole } from "@prisma/client";
 import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { sortClassRecords } from "../../utils/sortClasses.js";
+import { notifyHomeworkAssigned } from "../push/push.events.js";
 
 type HomeworkUser = Pick<Express.UserContext, "id" | "schoolId" | "role">;
 const defaultClassSubjects = ["English", "Hindi", "Mathematics", "Science", "Social Studies"];
@@ -354,6 +355,13 @@ export async function createAssignment(user: Express.UserContext, input: CreateH
         submissions: { select: { status: true } },
         _count: { select: { submissions: true } }
       }
+    });
+
+    notifyHomeworkAssigned(user, {
+      classId: input.classId,
+      subject: subject.subject,
+      title: input.title,
+      dueDate
     });
 
     return mapAssignment(assignment, students.length);

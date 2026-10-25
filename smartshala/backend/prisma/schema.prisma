@@ -46,6 +46,7 @@ model School {
   academicYears            AcademicYear[]
   staffAttendance          StaffAttendance[]
   leaveRequests            LeaveRequest[]
+  studentLeaveRequests     StudentLeaveRequest[]
   announcements            Announcement[]
   calendarEvents           CalendarEvent[]
   periodTimes              PeriodTime[]
@@ -106,6 +107,7 @@ model User {
   staffAttendance          StaffAttendance[]         @relation("StaffAttendanceUser")
   leaveRequests            LeaveRequest[]            @relation("LeaveRequestUser")
   leaveDecisions           LeaveRequest[]            @relation("LeaveRequestDecidedBy")
+  studentLeaveDecisions    StudentLeaveRequest[]     @relation("StudentLeaveDecidedBy")
   announcementsPosted      Announcement[]            @relation("AnnouncementPostedBy")
   announcementReads        AnnouncementRead[]        @relation("AnnouncementReadUser")
   calendarEventsCreated    CalendarEvent[]           @relation("CalendarEventCreatedBy")
@@ -215,6 +217,7 @@ model Student {
   feeAdjustments      FeeAdjustment[]
   documents           StudentDocument[]
   feeAssignments      StudentFeeAssignment[]
+  leaveRequests       StudentLeaveRequest[]
   class               Class                  @relation(fields: [classId], references: [id])
   school              School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   transportRoute      TransportRoute?        @relation(fields: [transportRouteId], references: [id], onDelete: SetNull)
@@ -946,6 +949,36 @@ model LeaveRequest {
   @@map("leave_requests")
 }
 
+// A leave/absence request a parent raises for their child from the Parent app.
+// Distinct from LeaveRequest (staff leave, keyed to a User): the applicant is a
+// parent who has no User row, so the submitter is recorded by phone and name
+// instead, and the subject is a Student. Staff (Principal/Admin) decide it.
+model StudentLeaveRequest {
+  id               String      @id @default(uuid()) @db.Uuid
+  schoolId         String      @db.Uuid
+  studentId        String      @db.Uuid
+  fromDate         DateTime
+  toDate           DateTime
+  reason           String
+  status           LeaveStatus @default(PENDING)
+  // The guardian who raised it — last ten digits of the login mobile, plus a
+  // name snapshot for display. There is no parent User to point at.
+  requestedByPhone String      @db.VarChar(10)
+  requestedByName  String?
+  decidedById      String?     @db.Uuid
+  decidedAt        DateTime?
+  decisionNote     String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  school           School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student          Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  decidedBy        User?       @relation("StudentLeaveDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status, createdAt])
+  @@index([schoolId, studentId, createdAt])
+  @@map("student_leave_requests")
+}
+
 model Announcement {
   id          String               @id @default(uuid()) @db.Uuid
   schoolId    String               @db.Uuid
@@ -1166,16 +1199,21 @@ enum DevicePlatform {
 /// second account signs in on the same device, or the previous user would keep
 /// receiving that device's notifications.
 model DeviceRegistration {
-  id         String         @id @default(uuid()) @db.Uuid
-  schoolId   String         @db.Uuid
-  userId     String         @db.Uuid
-  fid        String         @unique
-  platform   DevicePlatform
-  lastSeenAt DateTime       @default(now())
-  createdAt  DateTime       @default(now())
-  school     School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user       User           @relation("DeviceRegistrationUser", fields: [userId], references: [id], onDelete: Cascade)
+  id          String         @id @default(uuid()) @db.Uuid
+  schoolId    String         @db.Uuid
+  // A staff device has a userId; a parent device has neither a User row nor a
+  // userId, and is keyed by parentPhone (the guardian's last-ten-digit mobile)
+  // instead. Exactly one of the two is set.
+  userId      String?        @db.Uuid
+  parentPhone String?        @db.VarChar(10)
+  fid         String         @unique
+  platform    DevicePlatform
+  lastSeenAt  DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user        User?          @relation("DeviceRegistrationUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, userId])
+  @@index([schoolId, parentPhone])
   @@map("device_registrations")
 }

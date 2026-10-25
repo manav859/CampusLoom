@@ -53,7 +53,7 @@ class AttendanceRing extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${clamped % 1 == 0 ? clamped.toStringAsFixed(0) : clamped.toStringAsFixed(1)}%',
+                '${clamped.floor()}%',
                 style: TextStyle(
                   fontSize: size * 0.22,
                   fontWeight: FontWeight.w800,

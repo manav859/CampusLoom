@@ -7,6 +7,7 @@ import '../../core/widgets/home_blocks.dart';
 import 'data/parent_models.dart';
 import 'data/parent_session.dart';
 import 'parent_documents_screen.dart';
+import 'parent_leave_screen.dart';
 import 'widgets/child_avatar.dart';
 
 /// The More tab: the selected child's identity, a link to their documents, a
@@ -60,6 +61,16 @@ class ParentMoreScreen extends StatelessWidget {
           subtitle: 'Report cards and certificates',
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => ParentDocumentsScreen(childId: child.id, childName: child.fullName),
+          )),
+        ),
+        const SizedBox(height: 10),
+        _Row(
+          icon: Icons.event_busy_rounded,
+          color: AppColors.warning,
+          title: 'Leave Requests',
+          subtitle: 'Request and track leave',
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => ParentLeaveScreen(childId: child.id, childName: child.fullName),
           )),
         ),
         if (session.hasMultiple) ...[

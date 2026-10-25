@@ -226,7 +226,29 @@ class _StudentCard extends StatelessWidget {
               ],
             ),
           ),
-          if (onTap != null) const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+          if (onTap != null) const _ChangePill(),
+        ],
+      ),
+    );
+  }
+}
+
+/// The switch-child affordance on the student card — shown only when the parent
+/// has more than one child.
+class _ChangePill extends StatelessWidget {
+  const _ChangePill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 6, 12, 6),
+      decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(20)),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.swap_horiz_rounded, size: 16, color: AppColors.primary),
+          SizedBox(width: 5),
+          Text('Change', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
         ],
       ),
     );
@@ -318,7 +340,7 @@ class _AttendanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = summary.percentage.clamp(0, 100).toDouble();
-    final pctLabel = pct % 1 == 0 ? pct.toStringAsFixed(0) : pct.toStringAsFixed(1);
+    final pctLabel = pct.floor().toString();
 
     return HomeSurface(
       padding: const EdgeInsets.all(16),

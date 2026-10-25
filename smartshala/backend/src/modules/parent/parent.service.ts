@@ -8,6 +8,7 @@ import { getDownloadUrl } from "../../services/storageService.js";
 import { getStudentMonthlyAttendance } from "../attendance/attendance.service.js";
 import { listMonth } from "../calendar/calendar.service.js";
 import { getReceiptPdf, getStudentLedger } from "../fees/fees.service.js";
+import { createStudentLeave, listStudentLeaveForStudent } from "../studentLeave/studentLeave.service.js";
 import { signFeePayToken } from "./feePay.service.js";
 
 /** Percentage from marks, rounded; 0 when there is no denominator. */
@@ -411,4 +412,29 @@ export async function childDocumentDownload(user: Express.UserContext, studentId
 
   const downloadUrl = await getDownloadUrl(document.storageKey);
   return { downloadUrl, fileName: document.originalName };
+}
+
+/** The leave requests this parent has raised for one of their children. */
+export async function childLeaveRequests(user: Express.UserContext, studentId: string) {
+  await assertOwnChild(user, studentId);
+  return { requests: await listStudentLeaveForStudent(user.schoolId, studentId) };
+}
+
+/** A parent raising a new leave/absence request for their child. */
+export async function submitChildLeave(
+  user: Express.UserContext,
+  studentId: string,
+  input: { fromDate: string; toDate: string; reason: string }
+) {
+  await assertOwnChild(user, studentId);
+  return createStudentLeave({
+    schoolId: user.schoolId,
+    studentId,
+    requestedByPhone: user.phone ?? "",
+    requestedByName: user.fullName ?? null,
+    // Local midnight, the same day boundary attendance uses.
+    fromDate: new Date(`${input.fromDate}T00:00:00`),
+    toDate: new Date(`${input.toDate}T00:00:00`),
+    reason: input.reason
+  });
 }

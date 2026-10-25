@@ -5,12 +5,17 @@ import {
   announcementRoles,
   attendanceReminderPush,
   calendarEventPush,
+  childAbsentPush,
   formatDayRange,
   holidayPush,
+  homeworkAssignedPush,
   leaveDecidedPush,
   leavePendingReminderPush,
   leaveSubmittedPush,
-  marksRecordedPush
+  marksPublishedPush,
+  marksRecordedPush,
+  studentLeaveDecidedPush,
+  studentLeaveSubmittedPush
 } from "../src/modules/push/push.messages.js";
 
 /**
@@ -182,5 +187,63 @@ assert.equal(
   leavePendingReminderPush({ count: 4, oldest: day("2026-10-18") }).data.target,
   "leave_approval"
 );
+
+// ----------------------------------------------------------------- parent app
+
+// An absence names only the child's first name and the day; the detail is in
+// the app, and the tap opens the child's dashboard (Home).
+const absent = childAbsentPush({ studentName: "Aarav Sharma", date: day("2026-10-21") });
+assert.equal(absent.title, "Marked absent today");
+assert.equal(absent.body, "Aarav was marked absent on 21 Oct.");
+assert.equal(absent.data.kind, "child_absent");
+assert.equal(absent.data.target, "home");
+
+const homework = homeworkAssignedPush({
+  subject: "Science",
+  title: "Chapter 4 questions",
+  dueDate: day("2026-10-24")
+});
+assert.equal(homework.title, "New Science homework");
+assert.equal(homework.body, "Chapter 4 questions — due 24 Oct.");
+assert.equal(homework.data.target, "home");
+
+// A result push never carries the marks — the parent opens them in the app.
+const result = marksPublishedPush({ examName: "Unit Test 2", subject: "Hindi" });
+assert.equal(result.title, "Unit Test 2 result out");
+assert.equal(result.body, "Hindi marks have been published.");
+assert.equal(result.data.kind, "marks_published");
+assert.equal(result.data.target, "home");
+
+// A parent-raised child leave reaching the office — staff review it on the web.
+const leaveIn = studentLeaveSubmittedPush({
+  studentName: "Aarav Sharma",
+  fromDate: day("2026-10-21"),
+  toDate: day("2026-10-22"),
+  days: 2
+});
+assert.equal(leaveIn.title, "Leave request for Aarav");
+assert.equal(leaveIn.body, "21 Oct – 22 Oct (2 days) — awaiting review.");
+assert.equal(leaveIn.data.kind, "student_leave_submitted");
+
+// The parent, told the outcome; a note is appended when the office left one.
+const leaveYes = studentLeaveDecidedPush({
+  studentName: "Aarav Sharma",
+  approved: true,
+  fromDate: day("2026-10-21"),
+  toDate: day("2026-10-21")
+});
+assert.equal(leaveYes.title, "Leave approved");
+assert.equal(leaveYes.body, "Aarav's leave for 21 Oct.");
+assert.equal(leaveYes.data.target, "home");
+
+const leaveNo = studentLeaveDecidedPush({
+  studentName: "Aarav Sharma",
+  approved: false,
+  fromDate: day("2026-10-21"),
+  toDate: day("2026-10-22"),
+  note: "Exams that week"
+});
+assert.equal(leaveNo.title, "Leave not approved");
+assert.equal(leaveNo.body, "Aarav's leave for 21 Oct – 22 Oct — Exams that week");
 
 console.log("push notification message tests passed");

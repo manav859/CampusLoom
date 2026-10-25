@@ -56,7 +56,7 @@ android {
         }
         create("parent") {
             dimension = "portal"
-            applicationId = "com.smartshala.parent"
+            applicationId = "com.smartshala.parents"
             resValue("string", "app_name", "SmartShala Parent")
         }
     }

@@ -104,4 +104,27 @@ class ParentRepository {
     ) as Map<String, dynamic>;
     return data['downloadUrl'] as String;
   }
+
+  /// The leave requests this parent has raised for one child, newest first.
+  Future<List<ParentLeaveRequest>> leaveRequests(String childId) async {
+    final data = await api.get('/parent/children/$childId/leave') as Map<String, dynamic>;
+    return ((data['requests'] as List?) ?? const [])
+        .cast<Map<String, dynamic>>()
+        .map(ParentLeaveRequest.fromJson)
+        .toList();
+  }
+
+  /// Raise a new leave request for one child. Dates are YYYY-MM-DD.
+  Future<ParentLeaveRequest> submitLeave(
+    String childId, {
+    required String fromDate,
+    required String toDate,
+    required String reason,
+  }) async {
+    final data = await api.post(
+      '/parent/children/$childId/leave',
+      body: {'fromDate': fromDate, 'toDate': toDate, 'reason': reason},
+    ) as Map<String, dynamic>;
+    return ParentLeaveRequest.fromJson(data);
+  }
 }

@@ -53,7 +53,7 @@ abstract final class PushConfig {
   static String bundleIdFor(AppFlavor flavor) => switch (flavor) {
         AppFlavor.principal => 'com.smartshala.principal',
         AppFlavor.teacher => 'com.smartshala.teacher',
-        AppFlavor.parent => 'com.smartshala.parent',
+        AppFlavor.parent => 'com.smartshala.parents',
       };
 
   /// False on every platform but Android and iOS: the apps ship nowhere else,

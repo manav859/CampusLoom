@@ -50,6 +50,7 @@ const adminLinks: NavItem[] = [
       { label: "Teacher", href: "/teachers", icon: "teachers" },
       { label: "Teacher Attendance", href: "/teachers/attendance", icon: "attendance" },
       { label: "Leave Approval", href: "/leave", icon: "leave" },
+      { label: "Student Leave", href: "/student-leave", icon: "leave" },
       { label: "Classes", href: "/classes", icon: "classes" },
       { label: "Attendance", href: "/attendance", icon: "attendance" },
       { label: "Homework", href: "/teacher/homework", icon: "homework" }

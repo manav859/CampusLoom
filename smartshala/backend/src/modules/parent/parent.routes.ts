@@ -12,6 +12,7 @@ import {
   childReceiptParamsSchema,
   feePayLinkSchema
 } from "./parent.schemas.js";
+import { submitChildLeaveSchema } from "../studentLeave/studentLeave.schemas.js";
 
 export const parentRouter = Router();
 
@@ -63,6 +64,16 @@ parentRouter.get(
   "/announcements",
   validate({ query: announcementsQuerySchema }),
   controller.announcements
+);
+parentRouter.get(
+  "/children/:id/leave",
+  validate({ params: childParamsSchema }),
+  controller.childLeave
+);
+parentRouter.post(
+  "/children/:id/leave",
+  validate({ params: childParamsSchema, body: submitChildLeaveSchema }),
+  controller.submitChildLeave
 );
 parentRouter.get(
   "/children/:id/documents",
