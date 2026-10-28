@@ -5,7 +5,7 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { Modal } from "@/components/ui/Modal";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { formatDateShort, formatDateTimeShort, formatINR } from "@/lib/formatters";
+import { formatINR } from "@/lib/formatters";
 import {
   inventoryApi,
   type InventoryCategory,
@@ -32,6 +32,28 @@ function errorText(err: unknown, fallback: string) {
 }
 
 const money = (value: number | null | undefined) => (value === null || value === undefined ? "—" : formatINR(value));
+
+/** Dates on this page read as DD-MM-YYYY. */
+function formatDate(value: string | Date | null | undefined) {
+  if (!value) return "-";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}-${month}-${year}`;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}-${month}-${date.getFullYear()}`;
+}
+
+function formatDateTime(value: string | Date | null | undefined) {
+  if (!value) return "-";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  const time = new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit" }).format(date);
+  return `${formatDate(date)}, ${time}`;
+}
 
 const txnTone: Record<InventoryTxnType, "good" | "danger" | "warn"> = {
   PURCHASE: "good",
@@ -503,7 +525,7 @@ function HistoryTab({ onError }: { onError: (message: string) => void }) {
               <tbody className="divide-y divide-[#EEF1F5]">
                 {rows.map((row) => (
                   <tr key={row.id}>
-                    <td className="whitespace-nowrap px-4 py-3 text-[12px] text-[#5A6573]">{formatDateShort(row.occurredAt)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-[12px] text-[#5A6573]">{formatDate(row.occurredAt)}</td>
                     <td className="px-4 py-3 text-[13px] font-semibold text-[#0F1419]">{row.item.name}</td>
                     <td className="px-4 py-3"><StatusPill label={txnLabel[row.type]} tone={txnTone[row.type]} /></td>
                     <td className={`px-4 py-3 text-right text-[13px] font-semibold [font-variant-numeric:tabular-nums] ${row.quantityDelta >= 0 ? "text-[#0F8A4A]" : "text-[#C8242C]"}`}>
@@ -1379,7 +1401,7 @@ function LedgerModal({ isOpen, itemId, onClose }: { isOpen: boolean; itemId: str
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <StatusPill label={txnLabel[txn.type]} tone={txnTone[txn.type]} />
-                        <span className="text-[12px] text-[#5A6573]">{formatDateTimeShort(txn.occurredAt)}</span>
+                        <span className="text-[12px] text-[#5A6573]">{formatDateTime(txn.occurredAt)}</span>
                       </div>
                       <p className="mt-1 text-[12px] text-[#5A6573]">
                         {[
