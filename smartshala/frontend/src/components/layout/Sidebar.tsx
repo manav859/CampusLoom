@@ -26,7 +26,8 @@ type NavIconName =
   | "billing"
   | "payroll"
   | "leave"
-  | "transport";
+  | "transport"
+  | "inventory";
 
 type NavLink = {
   label: string;
@@ -86,9 +87,12 @@ const adminLinks: NavItem[] = [
 ];
 
 // Billing is the principal's commercial relationship with SmartShala, so
-// it is deliberately not shown to school ADMINs.
+// it is deliberately not shown to school ADMINs. Inventory Management is for
+// the principal and the accountant only, so it sits here rather than in the
+// shared admin links.
 const principalLinks: NavItem[] = [
   ...adminLinks,
+  { label: "Inventory Management", href: "/inventory", icon: "inventory" },
   { label: "Billing", href: "/billing", icon: "billing" }
 ];
 
@@ -106,6 +110,7 @@ const teacherLinks: NavItem[] = [
 
 const accountantLinks: NavItem[] = [
   { label: "Fees", href: "/fees", icon: "fees" },
+  { label: "Inventory Management", href: "/inventory", icon: "inventory" },
   { label: "Student", href: "/students", icon: "students" }
 ];
 
@@ -316,6 +321,18 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
         <circle cx="7" cy="18" r="2" />
         <path d="M9 18h5" />
         <circle cx="16" cy="18" r="2" />
+      </svg>
+    );
+  }
+
+  if (icon === "inventory") {
+    return (
+      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 8V5a1 1 0 0 0-.55-.89l-8-4a1 1 0 0 0-.9 0l-8 4A1 1 0 0 0 3 5v3" />
+        <path d="M3 8v11a1 1 0 0 0 .55.89l8 4a1 1 0 0 0 .9 0l8-4A1 1 0 0 0 21 19V8" />
+        <path d="m3 8 9 4 9-4" />
+        <path d="M12 12v12" />
+        <path d="m7.5 6 9 4" />
       </svg>
     );
   }

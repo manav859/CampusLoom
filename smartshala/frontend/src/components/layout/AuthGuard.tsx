@@ -17,7 +17,7 @@ function tutorialSeenKey(userId: string) {
 }
 
 const teacherAllowedPrefixes = ["/teacher", "/classes", "/attendance", "/students"];
-const accountantAllowedPrefixes = ["/fees", "/students"];
+const accountantAllowedPrefixes = ["/fees", "/students", "/inventory"];
 const parentAllowedPrefixes = ["/students"];
 
 function isAdminRole(role: Role) {

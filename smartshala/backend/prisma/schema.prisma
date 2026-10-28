@@ -56,6 +56,10 @@ model School {
   transportVehicles        TransportVehicle[]
   transportRoutes          TransportRoute[]
   deviceRegistrations      DeviceRegistration[]
+  inventoryCategories      InventoryCategory[]
+  inventoryVendors         InventoryVendor[]
+  inventoryItems           InventoryItem[]
+  inventoryTransactions    InventoryTransaction[]
 
   @@map("schools")
 }
@@ -115,6 +119,7 @@ model User {
   salarySlipsRecorded      SalarySlip[]              @relation("SalarySlipRecordedBy")
   payProfile               StaffPayProfile?          @relation("StaffPayProfileUser")
   deviceRegistrations      DeviceRegistration[]      @relation("DeviceRegistrationUser")
+  inventoryTransactions    InventoryTransaction[]    @relation("InventoryTxnRecordedBy")
   school                   School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, email])
@@ -1216,4 +1221,114 @@ model DeviceRegistration {
   @@index([schoolId, userId])
   @@index([schoolId, parentPhone])
   @@map("device_registrations")
+}
+
+/// School inventory: consumables that get restocked and consumed, and durable
+/// assets counted as units. The two differ only by `type` — both live in one
+/// register so a single stock count, value and movement history covers them.
+enum InventoryItemType {
+  CONSUMABLE
+  ASSET
+}
+
+/// Every change to an item's quantity is one of three movements. PURCHASE adds
+/// stock (optionally against a vendor and bill), ISSUE takes it out (to a
+/// department or person), and ADJUSTMENT is a signed manual correction with a
+/// reason (stock-take, damage, write-off).
+enum InventoryTxnType {
+  PURCHASE
+  ISSUE
+  ADJUSTMENT
+}
+
+model InventoryCategory {
+  id        String          @id @default(uuid()) @db.Uuid
+  schoolId  String          @db.Uuid
+  name      String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  school    School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  items     InventoryItem[]
+
+  @@unique([schoolId, name])
+  @@map("inventory_categories")
+}
+
+model InventoryVendor {
+  id           String                 @id @default(uuid()) @db.Uuid
+  schoolId     String                 @db.Uuid
+  name         String
+  phone        String?
+  email        String?
+  gstin        String?
+  address      String?
+  notes        String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  school       School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  transactions InventoryTransaction[]
+
+  @@unique([schoolId, name])
+  @@map("inventory_vendors")
+}
+
+model InventoryItem {
+  id           String                 @id @default(uuid()) @db.Uuid
+  schoolId     String                 @db.Uuid
+  categoryId   String?                @db.Uuid
+  name         String
+  sku          String?
+  type         InventoryItemType      @default(CONSUMABLE)
+  unit         String                 @default("unit")
+  // The live stock count. Maintained only by InventoryTransaction so the
+  // quantity and its movement history can never disagree.
+  quantity     Int                    @default(0)
+  reorderLevel Int                    @default(0)
+  // Snapshot of the most recent purchase price, used to value stock on hand.
+  lastUnitCost Decimal?               @db.Decimal(12, 2)
+  location     String?
+  notes        String?
+  isActive     Boolean                @default(true)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  school       School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  category     InventoryCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transactions InventoryTransaction[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, categoryId])
+  @@index([schoolId, isActive])
+  @@map("inventory_items")
+}
+
+model InventoryTransaction {
+  id            String           @id @default(uuid()) @db.Uuid
+  schoolId      String           @db.Uuid
+  itemId        String           @db.Uuid
+  type          InventoryTxnType
+  // Signed: positive adds stock (PURCHASE / positive ADJUSTMENT), negative
+  // removes it (ISSUE / negative ADJUSTMENT). Never zero.
+  quantityDelta Int
+  // The item's quantity immediately after this movement, so the ledger reads
+  // like a bank statement without recomputing running totals.
+  balanceAfter  Int
+  unitCost      Decimal?         @db.Decimal(12, 2)
+  totalCost     Decimal?         @db.Decimal(12, 2)
+  vendorId      String?          @db.Uuid
+  invoiceNumber String?
+  issuedTo      String?
+  reason        String?
+  note          String?
+  occurredAt    DateTime         @default(now())
+  recordedById  String?          @db.Uuid
+  createdAt     DateTime         @default(now())
+  school        School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  item          InventoryItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  vendor        InventoryVendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  recordedBy    User?            @relation("InventoryTxnRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, itemId, occurredAt])
+  @@index([schoolId, occurredAt])
+  @@index([schoolId, vendorId])
+  @@map("inventory_transactions")
 }

@@ -2149,3 +2149,201 @@ export const studentLeaveApi = {
       body: JSON.stringify(payload)
     })
 };
+
+// --- Inventory ---------------------------------------------------------------
+
+export type InventoryItemType = "CONSUMABLE" | "ASSET";
+export type InventoryTxnType = "PURCHASE" | "ISSUE" | "ADJUSTMENT";
+
+export type InventoryCategory = { id: string; name: string; itemCount: number };
+
+export type InventoryVendor = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  gstin: string | null;
+  address: string | null;
+  notes: string | null;
+  purchaseCount: number;
+};
+
+export type InventoryItem = {
+  id: string;
+  name: string;
+  sku: string | null;
+  type: InventoryItemType;
+  unit: string;
+  quantity: number;
+  reorderLevel: number;
+  lastUnitCost: number | null;
+  stockValue: number | null;
+  lowStock: boolean;
+  location: string | null;
+  notes: string | null;
+  isActive: boolean;
+  category: { id: string; name: string } | null;
+};
+
+export type InventoryTransaction = {
+  id: string;
+  type: InventoryTxnType;
+  quantityDelta: number;
+  balanceAfter: number;
+  unitCost: number | null;
+  totalCost: number | null;
+  invoiceNumber: string | null;
+  issuedTo: string | null;
+  reason: string | null;
+  note: string | null;
+  occurredAt: string;
+  vendor: { id: string; name: string } | null;
+  recordedBy: { id: string; fullName: string; role: Role } | null;
+  item: { id: string; name: string; unit: string };
+};
+
+export type InventoryItemDetail = InventoryItem & { transactions: InventoryTransaction[] };
+
+export type InventoryOverview = {
+  summary: {
+    items: number;
+    consumables: number;
+    assets: number;
+    lowStock: number;
+    outOfStock: number;
+    stockValue: number;
+    vendors: number;
+  };
+  lowStockItems: InventoryItem[];
+  recentTransactions: InventoryTransaction[];
+};
+
+export type InventoryReport = {
+  range: { from: string | null; to: string | null };
+  summary: {
+    items: number;
+    stockValue: number;
+    lowStock: number;
+    purchaseCount: number;
+    purchaseSpend: number;
+    issueCount: number;
+    issuedUnits: number;
+  };
+  stockByCategory: { categoryId: string | null; name: string; items: number; quantity: number; stockValue: number }[];
+  purchasesByVendor: { vendorId: string | null; name: string; purchases: number; spend: number }[];
+  topIssuedItems: { itemId: string; name: string; unit: string; quantity: number }[];
+  lowStockItems: InventoryItem[];
+};
+
+export type InventoryItemPayload = {
+  name: string;
+  categoryId: string | null;
+  sku: string | null;
+  type: InventoryItemType;
+  unit: string;
+  reorderLevel: number;
+  location: string | null;
+  notes: string | null;
+  isActive?: boolean;
+  openingQuantity?: number;
+  openingUnitCost?: number | null;
+};
+
+export type InventoryVendorPayload = {
+  name: string;
+  phone: string | null;
+  email: string | null;
+  gstin: string | null;
+  address: string | null;
+  notes: string | null;
+};
+
+export type InventoryTransactionPayload = {
+  type: InventoryTxnType;
+  quantity?: number;
+  quantityDelta?: number;
+  unitCost?: number | null;
+  totalCost?: number | null;
+  vendorId?: string | null;
+  invoiceNumber?: string | null;
+  issuedTo?: string | null;
+  reason?: string | null;
+  note?: string | null;
+  occurredAt?: string;
+};
+
+export type InventoryItemFilters = {
+  search?: string;
+  categoryId?: string;
+  type?: InventoryItemType;
+  lowStock?: boolean;
+  includeInactive?: boolean;
+};
+
+export type InventoryTransactionFilters = {
+  type?: InventoryTxnType;
+  itemId?: string;
+  vendorId?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+};
+
+export const inventoryApi = {
+  overview: () => apiFetch<InventoryOverview>("/inventory"),
+  report: (range?: { from?: string; to?: string }) => {
+    const params = new URLSearchParams();
+    if (range?.from) params.set("from", range.from);
+    if (range?.to) params.set("to", range.to);
+    const query = params.toString();
+    return apiFetch<InventoryReport>(`/inventory/report${query ? `?${query}` : ""}`);
+  },
+
+  categories: () => apiFetch<InventoryCategory[]>("/inventory/categories"),
+  createCategory: (payload: { name: string }) =>
+    apiFetch<{ id: string; name: string }>("/inventory/categories", { method: "POST", body: JSON.stringify(payload) }),
+  updateCategory: (id: string, payload: { name: string }) =>
+    apiFetch<{ id: string; name: string }>(`/inventory/categories/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  removeCategory: (id: string) => apiFetch<void>(`/inventory/categories/${id}`, { method: "DELETE" }),
+
+  vendors: () => apiFetch<InventoryVendor[]>("/inventory/vendors"),
+  createVendor: (payload: InventoryVendorPayload) =>
+    apiFetch<InventoryVendor>("/inventory/vendors", { method: "POST", body: JSON.stringify(payload) }),
+  updateVendor: (id: string, payload: InventoryVendorPayload) =>
+    apiFetch<InventoryVendor>(`/inventory/vendors/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  removeVendor: (id: string) => apiFetch<void>(`/inventory/vendors/${id}`, { method: "DELETE" }),
+
+  items: (filters: InventoryItemFilters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.search) params.set("search", filters.search);
+    if (filters.categoryId) params.set("categoryId", filters.categoryId);
+    if (filters.type) params.set("type", filters.type);
+    if (filters.lowStock) params.set("lowStock", "true");
+    if (filters.includeInactive) params.set("includeInactive", "true");
+    const query = params.toString();
+    return apiFetch<InventoryItem[]>(`/inventory/items${query ? `?${query}` : ""}`);
+  },
+  item: (id: string) => apiFetch<InventoryItemDetail>(`/inventory/items/${id}`),
+  createItem: (payload: InventoryItemPayload) =>
+    apiFetch<InventoryItem>("/inventory/items", { method: "POST", body: JSON.stringify(payload) }),
+  updateItem: (id: string, payload: InventoryItemPayload) =>
+    apiFetch<InventoryItem>(`/inventory/items/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  removeItem: (id: string) => apiFetch<void>(`/inventory/items/${id}`, { method: "DELETE" }),
+  recordTransaction: (itemId: string, payload: InventoryTransactionPayload) =>
+    apiFetch<{ item: InventoryItem; transaction: InventoryTransaction }>(`/inventory/items/${itemId}/transactions`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+
+  transactions: (filters: InventoryTransactionFilters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.type) params.set("type", filters.type);
+    if (filters.itemId) params.set("itemId", filters.itemId);
+    if (filters.vendorId) params.set("vendorId", filters.vendorId);
+    if (filters.from) params.set("from", filters.from);
+    if (filters.to) params.set("to", filters.to);
+    if (filters.limit) params.set("limit", String(filters.limit));
+    const query = params.toString();
+    return apiFetch<InventoryTransaction[]>(`/inventory/transactions${query ? `?${query}` : ""}`);
+  }
+};
