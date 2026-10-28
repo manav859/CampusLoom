@@ -79,11 +79,9 @@ export function LoginShell() {
         <div aria-hidden className="ls-float pointer-events-none absolute -right-20 top-16 h-72 w-72 rounded-full bg-[#5ac8fa]/20 blur-3xl" />
 
         <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
-          <div className="ls-rise flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-lg shadow-black/20">
-              <img alt="" className="h-7 w-7 object-contain mix-blend-multiply" src="/logo-latest.png" />
-            </div>
-            <span className="text-[17px] font-semibold tracking-tight text-white">SmartShala</span>
+          <div className="ls-rise flex items-center gap-4">
+            <img alt="" className="h-16 w-16 rounded-2xl object-contain shadow-lg shadow-black/25" src="/logo-latest.png" />
+            <span className="text-[26px] font-semibold tracking-tight text-white">SmartShala</span>
           </div>
 
           <div className="max-w-[30ch]">
@@ -116,11 +114,9 @@ export function LoginShell() {
       <section className="relative flex items-center justify-center overflow-y-auto bg-white px-5 py-10 sm:px-10">
         <div className="ls-rise w-full max-w-[416px]" style={{ animationDelay: "0.1s" }}>
           {/* Compact brand lockup — shown on small screens where the left panel is hidden */}
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2456E6] to-[#5ac8fa] shadow-lg shadow-blue-500/25">
-              <img alt="" className="h-7 w-7 object-contain brightness-0 invert" src="/logo-latest.png" />
-            </div>
-            <span className="text-[17px] font-semibold tracking-tight text-[#1d1d1f]">SmartShala</span>
+          <div className="mb-8 flex items-center gap-4 lg:hidden">
+            <img alt="" className="h-14 w-14 rounded-2xl object-contain shadow-lg shadow-blue-500/25" src="/logo-latest.png" />
+            <span className="text-[24px] font-semibold tracking-tight text-[#1d1d1f]">SmartShala</span>
           </div>
 
           <div>
