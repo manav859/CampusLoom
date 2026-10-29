@@ -53,6 +53,8 @@ export default function SettingsPage() {
   const [logoSaving, setLogoSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // Settings open to a list; a section is shown only once its row is picked.
+  const [activeSection, setActiveSection] = useState<"profile" | "academic" | "templates" | "bell" | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -245,16 +247,71 @@ export default function SettingsPage() {
     setNotice("Message templates reset.");
   }
 
+  const settingsSections = [
+    { key: "profile" as const, title: "School Profile", description: "Logo, name, city, board and periods per day" },
+    { key: "academic" as const, title: "Academic Year", description: "Manage academic years and run year-end rollover" },
+    { key: "templates" as const, title: "Message Templates", description: "Edit the English and Hindi notification message text" },
+    { key: "bell" as const, title: "Bell Timings", description: "Start and end time for each period of the day" }
+  ];
+
+  function openSection(key: (typeof settingsSections)[number]["key"]) {
+    setError("");
+    setNotice("");
+    setActiveSection(key);
+  }
+
+  function backToList() {
+    setError("");
+    setNotice("");
+    setActiveSection(null);
+  }
+
+  if (activeSection === null) {
+    return (
+      <div className="space-y-6">
+        <PageHeader hideBreadcrumbs title="School and Notification Settings" />
+        <div className="overflow-hidden rounded-[6px] border border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
+          {settingsSections.map((section, index) => (
+            <button
+              className={`flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-[#F7F8FB] sm:px-6 ${index > 0 ? "border-t border-[#E6EBF1]" : ""}`}
+              key={section.key}
+              onClick={() => openSection(section.key)}
+              type="button"
+            >
+              <span>
+                <span className="block text-[15px] font-semibold text-[#031526]">{section.title}</span>
+                <span className="mt-0.5 block text-[13px] font-medium text-[#5A6573]">{section.description}</span>
+              </span>
+              <svg className="h-5 w-5 shrink-0 text-[#8A96A3]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path d="m9 6 6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader hideBreadcrumbs title="School and Notification Settings" />
+      <button
+        className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#2456E6] hover:underline"
+        onClick={backToList}
+        type="button"
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path d="m15 18-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Back to settings
+      </button>
       {error ? <div className="rounded-[6px] border border-[#FCE3E5] bg-[#FCE3E5] p-4 text-[13px] font-semibold text-[#C8242C]">{error}</div> : null}
       {notice ? <div className="rounded-[6px] border border-[#D6F0DF] bg-[#E1F5EA] p-4 text-[13px] font-semibold text-[#0F8A4A]">{notice}</div> : null}
 
-      <AcademicYearSection />
+      {activeSection === "academic" ? <AcademicYearSection /> : null}
 
-      <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
-        <form className="space-y-5 rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6" onSubmit={saveProfile}>
+      {activeSection === "profile" ? (
+        <form className="max-w-2xl space-y-5 rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6" onSubmit={saveProfile}>
           <h2 className="text-[17px] font-semibold text-[#031526]">School Profile</h2>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -328,7 +385,9 @@ export default function SettingsPage() {
             {saving ? "Saving..." : "Save profile"}
           </button>
         </form>
+      ) : null}
 
+      {activeSection === "templates" ? (
         <section className="rounded-[6px] border border-[#C9D3DE] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)] sm:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -393,9 +452,9 @@ export default function SettingsPage() {
             </button>
           </div>
         </section>
-      </div>
+      ) : null}
 
-      {loading ? null : <PeriodTimesSection periodCount={savedPeriodCount} />}
+      {activeSection === "bell" ? (loading ? null : <PeriodTimesSection periodCount={savedPeriodCount} />) : null}
     </div>
   );
 }

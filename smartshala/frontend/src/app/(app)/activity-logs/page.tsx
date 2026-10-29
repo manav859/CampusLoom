@@ -207,12 +207,27 @@ function authAction(log: ActivityLog) {
   return null;
 }
 
+// A staff punch is logged as a generic POST to /staff-attendance; read the path
+// back so it reads "Punch in"/"Punch out" rather than "Create staff attendance".
+function staffAttendanceAction(log: ActivityLog) {
+  if (log.entityType !== "STAFF_ATTENDANCE") return null;
+  const after = (log.afterJson ?? {}) as Record<string, unknown>;
+  const path = typeof after.path === "string" ? after.path : "";
+  if (path.includes("/punch-in")) return "Punch in";
+  if (path.includes("/punch-out")) return "Punch out";
+  if (path.includes("/break")) return "Break";
+  return null;
+}
+
 function description(log: ActivityLog) {
   const attendance = attendanceDetails(log);
   if (attendance) {
     const verb = attendance.isUpdate ? "updated" : "marked";
     return `Attendance ${verb}${attendance.className ? ` for ${attendance.className}` : ""}`;
   }
+
+  const staff = staffAttendanceAction(log);
+  if (staff) return staff;
 
   const auth = authAction(log);
   if (auth) return auth;
