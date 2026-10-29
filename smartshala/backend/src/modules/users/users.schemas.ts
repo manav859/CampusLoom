@@ -1,5 +1,7 @@
-import { UserRole, UserStatus } from "@prisma/client";
+import { Gender, UserRole, UserStatus } from "@prisma/client";
 import { z } from "zod";
+
+const optionalDate = z.union([z.null(), z.coerce.date()]).optional();
 
 export const createTeacherSchema = z.object({
   fullName: z.string().trim().min(2),
@@ -7,11 +9,21 @@ export const createTeacherSchema = z.object({
   phone: z.string().trim().min(10),
   password: z.string().min(6).max(72),
   academicBackground: z.string().trim().optional(),
+  gender: z.nativeEnum(Gender).nullable().optional(),
+  dateOfBirth: optionalDate,
+  joiningDate: optionalDate,
+  designation: z.string().trim().optional(),
+  address: z.string().trim().optional(),
+  emergencyContact: z.string().trim().optional(),
   role: z.literal(UserRole.TEACHER).optional().default(UserRole.TEACHER)
 }).transform((data) => ({
   ...data,
   email: data.email === "" ? undefined : data.email
 }));
+
+export const importTeachersSchema = z.object({
+  teachers: z.array(createTeacherSchema).min(1).max(500)
+});
 
 export const createAccountantSchema = z.object({
   fullName: z.string().trim().min(2),

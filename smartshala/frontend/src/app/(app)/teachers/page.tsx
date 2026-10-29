@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { InitialsAvatar } from "@/components/ui/InitialsAvatar";
@@ -20,6 +20,128 @@ type TeacherPeriod = {
   className: string;
   subjectName: string;
 };
+
+const teacherImportTemplateHeaders = [
+  "fullName",
+  "phone",
+  "email",
+  "password",
+  "gender",
+  "dateOfBirth",
+  "joiningDate",
+  "designation",
+  "address",
+  "emergencyContact",
+  "academicBackground"
+];
+
+type ImportTeacherRow = {
+  rowNumber: number;
+  fullName: string;
+  phone: string;
+  email?: string;
+  password?: string;
+  gender?: "MALE" | "FEMALE" | "OTHER";
+  dateOfBirth?: string;
+  joiningDate?: string;
+  designation?: string;
+  address?: string;
+  emergencyContact?: string;
+  academicBackground?: string;
+};
+
+function splitCsvLine(line: string) {
+  const values: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      current += '"';
+      index += 1;
+      continue;
+    }
+    if (char === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (char === "," && !quoted) {
+      values.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  values.push(current.trim());
+  return values;
+}
+
+function normalizeHeader(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function csvValue(row: Record<string, string>, names: string[]) {
+  for (const name of names) {
+    const value = row[normalizeHeader(name)];
+    if (value) return value.trim();
+  }
+  return "";
+}
+
+function csvCell(value: string | number | null | undefined) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+// Accept yyyy-mm-dd or dd/mm/yyyy and return yyyy-mm-dd for the API.
+function csvDateToIso(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+  if (!match) throw new Error("Dates must be yyyy-mm-dd or dd/mm/yyyy.");
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+function parseTeachersCsv(text: string): ImportTeacherRow[] {
+  const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) throw new Error("CSV needs a header row and at least one teacher.");
+
+  const headers = splitCsvLine(lines[0]).map(normalizeHeader);
+  const rows: ImportTeacherRow[] = [];
+
+  for (let index = 1; index < lines.length; index += 1) {
+    const cells = splitCsvLine(lines[index]);
+    const raw: Record<string, string> = {};
+    headers.forEach((header, cellIndex) => {
+      raw[header] = cells[cellIndex] ?? "";
+    });
+
+    const fullName = csvValue(raw, ["fullName", "name"]);
+    const phone = csvValue(raw, ["phone", "mobile", "contact"]);
+    const genderRaw = csvValue(raw, ["gender"]).toUpperCase();
+
+    if (!fullName) throw new Error(`Row ${index + 1}: fullName is required.`);
+    if (phone.length < 10) throw new Error(`Row ${index + 1}: a 10-digit phone is required.`);
+
+    rows.push({
+      rowNumber: index + 1,
+      fullName,
+      phone,
+      email: csvValue(raw, ["email"]) || undefined,
+      password: csvValue(raw, ["password"]) || undefined,
+      gender: ["MALE", "FEMALE", "OTHER"].includes(genderRaw) ? (genderRaw as ImportTeacherRow["gender"]) : undefined,
+      dateOfBirth: csvDateToIso(csvValue(raw, ["dateOfBirth", "dob"])),
+      joiningDate: csvDateToIso(csvValue(raw, ["joiningDate", "doj"])),
+      designation: csvValue(raw, ["designation", "title"]) || undefined,
+      address: csvValue(raw, ["address"]) || undefined,
+      emergencyContact: csvValue(raw, ["emergencyContact", "emergencyPhone"]) || undefined,
+      academicBackground: csvValue(raw, ["academicBackground", "qualification"]) || undefined
+    });
+  }
+
+  return rows;
+}
 
 type TeacherData = {
   id: string;
@@ -112,6 +234,13 @@ export default function TeachersPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [importDialog, setImportDialog] = useState<{ isOpen: boolean; fileName: string; rows: ImportTeacherRow[]; busy?: boolean; error?: string }>({
+    isOpen: false,
+    fileName: "",
+    rows: []
+  });
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [statusFilter, setStatusFilter] = useState("");
   const [classTeacherFilter, setClassTeacherFilter] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
@@ -162,6 +291,84 @@ export default function TeachersPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [showInactive]);
+
+  function openImportDialog() {
+    setImportDialog({ isOpen: true, fileName: "", rows: [] });
+  }
+
+  function downloadTeacherTemplate() {
+    const csv = `${teacherImportTemplateHeaders.map(csvCell).join(",")}\n`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "teacher-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setImportDialog((prev) => ({ ...prev, isOpen: true, fileName: file.name, rows: [], error: "Use a CSV file exported from Excel." }));
+      return;
+    }
+    try {
+      const rows = parseTeachersCsv(await file.text());
+      setImportDialog({ isOpen: true, fileName: file.name, rows });
+    } catch (error) {
+      setImportDialog((prev) => ({
+        ...prev,
+        isOpen: true,
+        fileName: file.name,
+        rows: [],
+        error: error instanceof Error ? error.message : "Unable to read CSV file."
+      }));
+    }
+  }
+
+  function closeImportDialog() {
+    if (importDialog.busy) return;
+    setImportDialog({ isOpen: false, fileName: "", rows: [] });
+  }
+
+  async function submitImport() {
+    if (importDialog.rows.length === 0) return;
+    const teachers = importDialog.rows.map((row) => ({
+      fullName: row.fullName,
+      phone: row.phone,
+      email: row.email,
+      // Teachers sign in with a password; when the CSV leaves it blank, default
+      // it to the phone number so the account is usable. Admin can reset it.
+      password: row.password && row.password.length >= 6 ? row.password : row.phone,
+      gender: row.gender,
+      dateOfBirth: row.dateOfBirth,
+      joiningDate: row.joiningDate,
+      designation: row.designation,
+      address: row.address,
+      emergencyContact: row.emergencyContact,
+      academicBackground: row.academicBackground
+    }));
+
+    setImportDialog((prev) => ({ ...prev, busy: true, error: undefined }));
+    try {
+      const result = await apiFetch<{ importedCount: number }>("/users/teachers/import", {
+        method: "POST",
+        body: JSON.stringify({ teachers })
+      });
+      invalidateCache("teachers:list");
+      invalidateCache("teachers:list:inactive");
+      setImportDialog({ isOpen: false, fileName: "", rows: [] });
+      setNotice(`Imported ${result.importedCount} teacher${result.importedCount === 1 ? "" : "s"}.`);
+      await refreshTeachers();
+    } catch (error) {
+      setImportDialog((prev) => ({ ...prev, busy: false, error: error instanceof Error ? error.message : "Import failed" }));
+    }
+  }
 
   useEffect(() => {
     if (!openActionMenu) return;
@@ -385,10 +592,18 @@ export default function TeachersPage() {
         action={isAdmin ? (
           <div className="flex flex-wrap gap-2">
             <Link href="/teachers/attendance" className="btn-secondary text-[#1d1d1f]">Teacher Attendance</Link>
+            <button onClick={openImportDialog} className="btn-secondary text-[#1d1d1f]" type="button">Import CSV</button>
             <button onClick={() => setShowCreateModal(true)} className="btn-primary" type="button">Add Teacher</button>
           </div>
         ) : null}
       />
+
+      {notice ? (
+        <div className="flex items-center justify-between gap-3 rounded-[6px] border border-[#BEE7CD] bg-[#F1FFF6] px-4 py-3 text-[13px] font-semibold text-[#0F8A4A]">
+          <span>{notice}</span>
+          <button className="text-[12px] font-bold text-[#0F8A4A] hover:underline" onClick={() => setNotice("")} type="button">Dismiss</button>
+        </div>
+      ) : null}
 
       <div className="rounded-[6px] border border-[#DCE1E8] bg-white p-4 shadow-[0_1px_2px_rgba(15,20,25,0.04)]">
         <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-[1fr_1fr_1fr_auto]">
@@ -838,6 +1053,99 @@ export default function TeachersPage() {
                   {resetPassword.saving ? "Saving..." : "Reset Password"}
                 </button>
               )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      <input ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportFile} />
+
+      {importDialog.isOpen && typeof window !== "undefined" && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" style={{ zIndex: 9999 }}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-[#DCE1E8] px-6 py-4">
+              <h3 className="text-[18px] font-semibold text-[#0F1419]">Import Teachers</h3>
+              <p className="mt-1 text-[13px] font-medium text-[#5A6573]">{importDialog.fileName || "Download the CSV template, fill in the teachers, then upload it here."}</p>
+            </div>
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-xl border border-[#DCE1E8] bg-[#F7F8FB] px-4 py-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[14px] font-semibold text-[#0F1419]">Download Empty CSV Template</p>
+                    <p className="mt-1 text-[12px] font-medium leading-5 text-[#5A6573]">Prebuilt with every teacher column. <span className="font-semibold">fullName</span> and <span className="font-semibold">phone</span> are required; leave <span className="font-semibold">password</span> blank to default it to the phone number.</p>
+                  </div>
+                  <button
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-[#2456E6] bg-white px-4 py-2 text-[13px] font-semibold text-[#2456E6] hover:bg-[#EEF3FF]"
+                    onClick={downloadTeacherTemplate}
+                    type="button"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+                    </svg>
+                    Download CSV
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 rounded-xl border border-[#DCE1E8] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[13px] font-semibold text-[#0F1419]">{importDialog.fileName || "No file selected"}</p>
+                  <p className="mt-1 text-[12px] font-medium text-[#5A6573]">Upload the completed template file.</p>
+                </div>
+                <button
+                  className="rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD] disabled:bg-[#C2C9D4]"
+                  disabled={importDialog.busy}
+                  onClick={() => importInputRef.current?.click()}
+                  type="button"
+                >
+                  Choose CSV File
+                </button>
+              </div>
+              {importDialog.error ? <div className="rounded-xl border border-[#FCE3E5] bg-[#FCE3E5] px-4 py-3 text-[13px] font-semibold text-[#C8242C]">{importDialog.error}</div> : null}
+              {importDialog.rows.length > 0 ? (
+                <div className="overflow-hidden rounded-xl border border-[#DCE1E8]">
+                  <div className="border-b border-[#DCE1E8] bg-[#F7F8FB] px-4 py-2 text-[12px] font-semibold text-[#5A6573]">
+                    Previewing {importDialog.rows.length} teacher{importDialog.rows.length === 1 ? "" : "s"}
+                  </div>
+                  <div className="max-h-72 overflow-auto">
+                    <table className="w-full min-w-[560px] text-left text-[13px]">
+                      <thead className="table-head sticky top-0">
+                        <tr className="border-b border-[#DCE1E8] text-[11px] uppercase tracking-[0.06em] text-[#5A6573]">
+                          <th className="px-4 py-2">Row</th>
+                          <th className="px-4 py-2">Name</th>
+                          <th className="px-4 py-2">Phone</th>
+                          <th className="px-4 py-2">Email</th>
+                          <th className="px-4 py-2">Designation</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importDialog.rows.slice(0, 20).map((row) => (
+                          <tr className="border-b border-[#F0F2F5] last:border-0" key={`${row.rowNumber}-${row.fullName}`}>
+                            <td className="px-4 py-2 text-[#5A6573]">{row.rowNumber}</td>
+                            <td className="px-4 py-2 font-semibold text-[#0F1419]">{row.fullName}</td>
+                            <td className="px-4 py-2">{row.phone}</td>
+                            <td className="px-4 py-2 text-[#5A6573]">{row.email || <span className="italic text-[#86868b]">—</span>}</td>
+                            <td className="px-4 py-2 text-[#5A6573]">{row.designation || <span className="italic text-[#86868b]">—</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {importDialog.rows.length > 20 ? <p className="border-t border-[#DCE1E8] bg-[#F7F8FB] px-4 py-2 text-[12px] font-medium text-[#5A6573]">Showing first 20 rows only.</p> : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[#DCE1E8] bg-[#F7F8FB] px-6 py-4">
+              <button className="rounded-lg border border-[#C2C9D4] bg-white px-4 py-2 text-[13px] font-semibold text-[#2A3340] hover:bg-[#F7F8FB]" disabled={importDialog.busy} onClick={closeImportDialog} type="button">Cancel</button>
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2456E6] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1B45BD] disabled:bg-[#C2C9D4] disabled:text-[#7A8390]"
+                disabled={importDialog.busy || importDialog.rows.length === 0}
+                onClick={submitImport}
+                type="button"
+              >
+                {importDialog.busy ? <span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white animate-spin" aria-hidden="true" /> : null}
+                {importDialog.busy ? "Importing..." : `Save ${importDialog.rows.length} Teacher${importDialog.rows.length === 1 ? "" : "s"}`}
+              </button>
             </div>
           </div>
         </div>,

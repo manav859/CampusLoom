@@ -3,7 +3,7 @@ import { UserRole } from "@prisma/client";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { validate } from "../../middleware/validate.js";
 import * as controller from "./users.controller.js";
-import { createAccountantSchema, createTeacherSchema, myScheduleQuerySchema, resetTeacherPasswordSchema, teacherAssignmentParamsSchema, teacherPeriodAssignmentsSchema, updateUserSchema } from "./users.schemas.js";
+import { createAccountantSchema, createTeacherSchema, importTeachersSchema, myScheduleQuerySchema, resetTeacherPasswordSchema, teacherAssignmentParamsSchema, teacherPeriodAssignmentsSchema, updateUserSchema } from "./users.schemas.js";
 
 export const usersRouter = Router();
 const adminRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
@@ -19,6 +19,7 @@ usersRouter.get(
 usersRouter.get("/me/schedule/week", controller.getMyWeekSchedule);
 usersRouter.get("/teachers", requireRole(adminRoles), controller.listTeachers);
 usersRouter.post("/teachers", requireRole(adminRoles), validate({ body: createTeacherSchema }), controller.createTeacher);
+usersRouter.post("/teachers/import", requireRole(adminRoles), validate({ body: importTeachersSchema }), controller.importTeachers);
 usersRouter.post("/accountants", requireRole(adminRoles), validate({ body: createAccountantSchema }), controller.createAccountant);
 usersRouter.get("/teachers/:id", requireRole(adminRoles), validate({ params: teacherAssignmentParamsSchema }), controller.getTeacher);
 usersRouter.get("/teachers/:id/assignments", requireRole(adminRoles), validate({ params: teacherAssignmentParamsSchema }), controller.getTeacherAssignments);

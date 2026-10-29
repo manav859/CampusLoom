@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
-import { UserRole } from "@prisma/client";
+import { Gender, UserRole } from "@prisma/client";
 import { prisma } from "../../core/prisma.js";
 import { getPagination } from "../../core/pagination.js";
 import { AppError, notFound } from "../../core/errors.js";
@@ -175,13 +175,56 @@ export async function listUsers(schoolId: string, query: unknown, role?: UserRol
   };
 }
 
-export async function createUser(schoolId: string, data: { fullName: string; email?: string; phone?: string; password: string; role: UserRole; academicBackground?: string }) {
+export async function createUser(
+  schoolId: string,
+  data: {
+    fullName: string;
+    email?: string;
+    phone?: string;
+    password: string;
+    role: UserRole;
+    academicBackground?: string;
+    gender?: Gender | null;
+    dateOfBirth?: Date | null;
+    joiningDate?: Date | null;
+    designation?: string;
+    address?: string;
+    emergencyContact?: string;
+  }
+) {
   const passwordHash = await bcrypt.hash(data.password, 10);
   const phone = data.phone?.trim() || `acct-${randomUUID()}`;
   return prisma.user.create({
-    data: { schoolId, fullName: data.fullName, email: data.email, phone, passwordHash, role: data.role, academicBackground: data.academicBackground },
+    data: {
+      schoolId,
+      fullName: data.fullName,
+      email: data.email,
+      phone,
+      passwordHash,
+      role: data.role,
+      academicBackground: data.academicBackground,
+      gender: data.gender ?? undefined,
+      dateOfBirth: data.dateOfBirth ?? undefined,
+      joiningDate: data.joiningDate ?? undefined,
+      designation: data.designation,
+      address: data.address,
+      emergencyContact: data.emergencyContact
+    },
     select: { id: true, fullName: true, email: true, phone: true, role: true, status: true }
   });
+}
+
+export async function importTeachers(schoolId: string, rows: Parameters<typeof createUser>[1][]) {
+  const teachers = [];
+  for (let index = 0; index < rows.length; index += 1) {
+    try {
+      teachers.push(await createUser(schoolId, { ...rows[index], role: UserRole.TEACHER }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to import teacher";
+      throw new AppError(400, `Row ${index + 2}: ${message}`, "TEACHER_IMPORT_ROW_FAILED");
+    }
+  }
+  return { importedCount: teachers.length, teachers };
 }
 
 export async function getTeacher(schoolId: string, id: string) {
@@ -194,6 +237,12 @@ export async function getTeacher(schoolId: string, id: string) {
       phone: true,
       status: true,
       academicBackground: true,
+      gender: true,
+      dateOfBirth: true,
+      joiningDate: true,
+      designation: true,
+      address: true,
+      emergencyContact: true,
       createdAt: true,
       periodAssignments: {
         orderBy: [{ dayOfWeek: "asc" }, { periodNumber: "asc" }],

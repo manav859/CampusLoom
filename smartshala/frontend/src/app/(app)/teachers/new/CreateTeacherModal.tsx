@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { apiFetch } from "@/lib/api";
 
 type CreateTeacherModalProps = {
@@ -10,15 +11,28 @@ type CreateTeacherModalProps = {
   onCreated: () => void;
 };
 
+const genderOptions = [
+  { label: "Select", value: "" },
+  { label: "Male", value: "MALE" },
+  { label: "Female", value: "FEMALE" },
+  { label: "Other", value: "OTHER" }
+];
+
 export function CreateTeacherModal({ onClose, onCreated }: CreateTeacherModalProps) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [formData, setFormData] = useState({
     fullName: "",
+    gender: "",
+    dateOfBirth: "",
     email: "",
     phone: "",
-    password: "",
+    emergencyContact: "",
+    address: "",
+    designation: "",
+    joiningDate: "",
     academicBackground: "",
+    password: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,11 +41,19 @@ export function CreateTeacherModal({ onClose, onCreated }: CreateTeacherModalPro
     setErrorMsg("");
     try {
       const payload = {
-        ...formData,
+        fullName: formData.fullName,
+        phone: formData.phone,
+        password: formData.password,
         email: formData.email || undefined,
+        gender: formData.gender || undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        joiningDate: formData.joiningDate || undefined,
+        designation: formData.designation || undefined,
+        address: formData.address || undefined,
+        emergencyContact: formData.emergencyContact || undefined,
         academicBackground: formData.academicBackground || undefined,
       };
-      
+
       await apiFetch("/users/teachers", {
         method: "POST",
         body: JSON.stringify(payload),
@@ -69,6 +91,29 @@ export function CreateTeacherModal({ onClose, onCreated }: CreateTeacherModalPro
                 onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               />
             </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Gender <span className="font-normal text-[#86868b]">(optional)</span></label>
+                <CustomSelect
+                  ariaLabel="Gender"
+                  className="h-[42px] w-full text-[14px] font-medium"
+                  onChange={(value) => setFormData({ ...formData, gender: value })}
+                  options={genderOptions}
+                  value={formData.gender}
+                  wrapperClassName="block w-full"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Date of Birth <span className="font-normal text-[#86868b]">(optional)</span></label>
+                <input
+                  type="date"
+                  className="glass-input w-full"
+                  max={new Date().toISOString().slice(0, 10)}
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                />
+              </div>
+            </div>
             <div className="space-y-1.5">
               <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Academic Background <span className="font-normal text-[#86868b]">(optional)</span></label>
               <textarea
@@ -80,29 +125,70 @@ export function CreateTeacherModal({ onClose, onCreated }: CreateTeacherModalPro
             </div>
           </FormSection>
 
+          <FormSection title="Employment Details">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Designation <span className="font-normal text-[#86868b]">(optional)</span></label>
+                <input
+                  className="glass-input w-full"
+                  placeholder="e.g. Senior Mathematics Teacher"
+                  value={formData.designation}
+                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Joining Date <span className="font-normal text-[#86868b]">(optional)</span></label>
+                <input
+                  type="date"
+                  className="glass-input w-full"
+                  value={formData.joiningDate}
+                  onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
+                />
+              </div>
+            </div>
+          </FormSection>
+
           <FormSection title="Contact Details">
             <div className="grid gap-5 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Email Address</label>
-            <input
-              type="email"
-              className="glass-input w-full"
-              placeholder="e.g. teacher@school.com"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Phone Number</label>
-            <input
-              required
-              minLength={10}
-              className="glass-input w-full"
-              placeholder="e.g. 9876543210"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            />
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Email Address <span className="font-normal text-[#86868b]">(optional)</span></label>
+                <input
+                  type="email"
+                  className="glass-input w-full"
+                  placeholder="e.g. teacher@school.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Phone Number</label>
+                <input
+                  required
+                  minLength={10}
+                  className="glass-input w-full"
+                  placeholder="e.g. 9876543210"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Emergency Contact <span className="font-normal text-[#86868b]">(optional)</span></label>
+                <input
+                  className="glass-input w-full"
+                  placeholder="e.g. 9876500000"
+                  value={formData.emergencyContact}
+                  onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-[13px] font-semibold text-[#1d1d1f] ml-1">Address <span className="font-normal text-[#86868b]">(optional)</span></label>
+                <textarea
+                  className="glass-input w-full min-h-[70px] resize-y"
+                  placeholder="Residential address"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
+              </div>
             </div>
           </FormSection>
 
