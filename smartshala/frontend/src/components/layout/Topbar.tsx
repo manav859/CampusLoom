@@ -11,6 +11,7 @@ import { withSchoolPath } from "@/lib/tenant";
 import { AcademicYearSwitcher } from "./AcademicYearSwitcher";
 import { LanguageToggle } from "./PlatformLanguage";
 import { NotificationPanel, isPrincipalNotification } from "./NotificationPanel";
+import { publishNotificationKinds } from "@/lib/notificationDots";
 
 /* ── Live Clock ── */
 function LiveClock() {
@@ -481,6 +482,13 @@ export function Topbar({ user, onMenuClick }: { user: SessionUser; onMenuClick?:
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const notifCount = notifLogs.filter((log) => isPrincipalNotification(log) && new Date(log.createdAt).getTime() >= today.getTime()).length;
+
+  // Share which notification kinds are live so the sidebar can dot the matching
+  // menu item. Mirrors the bell/panel set (isPrincipalNotification).
+  useEffect(() => {
+    const kinds = Array.from(new Set(notifLogs.filter(isPrincipalNotification).map((log) => log.kind)));
+    publishNotificationKinds(kinds);
+  }, [notifLogs]);
 
   return (
     <>

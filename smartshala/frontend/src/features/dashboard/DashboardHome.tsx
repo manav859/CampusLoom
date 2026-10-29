@@ -109,17 +109,18 @@ function activityDescription(log: ActivityLog) {
 }
 
 function buildActivityEvents(logs: ActivityLog[]): ActivityEvent[] {
-  return logs.slice(0, 12).map((log) => ({
-    id: log.id,
-    text: activityDescription(log),
-    time: relativeTime(log.createdAt),
-    type: activityType(log),
-    details: [
-      `Module: ${moduleLabel(log.entityType)}`,
-      `Action: ${actionLabel(log.action)}`,
-      `By: ${log.actor?.fullName ?? "System"}`
-    ]
-  }));
+  return logs
+    // The principal already sees everything they do; their own actions only
+    // add noise here. They still appear in the full Activity Logs center.
+    .filter((log) => log.actor?.role !== "PRINCIPAL")
+    .slice(0, 12)
+    .map((log) => ({
+      id: log.id,
+      text: activityDescription(log),
+      time: relativeTime(log.createdAt),
+      type: activityType(log),
+      actor: log.actor?.fullName ?? "System"
+    }));
 }
 
 const dashboardKpiStyles = [

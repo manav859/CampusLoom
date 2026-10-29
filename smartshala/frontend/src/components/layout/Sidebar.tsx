@@ -2,10 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import type { Role } from "@/types";
+import type { NotificationLog } from "@/lib/api";
 import { isHiddenPath } from "@/lib/hiddenFeatures";
+import { getNotificationKinds, subscribeNotificationKinds } from "@/lib/notificationDots";
 import { schoolIdFromPath, withSchoolPath } from "@/lib/tenant";
+
+// Which menu item a notification kind belongs to. A dot shows on that item (and
+// on its parent group when the href sits inside one). Unmapped kinds fall back
+// to Message Logs. Kept here because it is a property of the menu, not the data.
+const KIND_MENU_HREF: Record<NotificationLog["kind"], string> = {
+  FEE_REMINDER: "/fees",
+  OVERDUE_FEE: "/fees",
+  PAYMENT_RECEIPT: "/fees",
+  LOW_ATTENDANCE: "/analytics",
+  ABSENCE: "/attendance",
+  MONTHLY_REPORT: "/reports",
+  SCHOOL_ALERT: "/notifications"
+};
+
+/** A notification href A flags a menu href H when either contains the other. */
+function hrefMatches(menuHref: string, activeHref: string) {
+  return menuHref === activeHref || activeHref.startsWith(`${menuHref}/`) || menuHref.startsWith(`${activeHref}/`);
+}
 
 type NavIconName =
   | "dashboard"
@@ -377,6 +397,18 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
   );
 }
 
+/** The nav icon with a small red notification dot overlaid when `dot` is set. */
+function NavIconDot({ icon, active, dot }: { icon: NavIconName; active: boolean; dot: boolean }) {
+  return (
+    <span className="relative flex shrink-0">
+      <NavIcon active={active} icon={icon} />
+      {dot ? (
+        <span aria-hidden className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#ff3b30]" />
+      ) : null}
+    </span>
+  );
+}
+
 export function Sidebar({
   role,
   fullName,
@@ -398,6 +430,15 @@ export function Sidebar({
   // Memoised because it is an effect dependency below: a fresh array on every
   // render re-ran that effect on every render.
   const links = useMemo(() => linksForRole(role), [role]);
+
+  // Notification kinds published by the Topbar → the menu hrefs they flag.
+  const notificationKinds = useSyncExternalStore(subscribeNotificationKinds, getNotificationKinds, getNotificationKinds);
+  const activeHrefs = useMemo(
+    () => new Set(notificationKinds.map((kind) => KIND_MENU_HREF[kind] ?? "/notifications")),
+    [notificationKinds]
+  );
+  const linkHasDot = (href: string) => Array.from(activeHrefs).some((active) => hrefMatches(href, active));
+  const groupHasDot = (children: NavLink[]) => children.some((child) => linkHasDot(child.href));
   const initials = fullName
     .split(" ")
     .map((part) => part[0])
@@ -523,7 +564,7 @@ export function Sidebar({
                     onClick={() => setOpenGroups((current) => ({ ...current, [item.label]: !(current[item.label] ?? active) }))}
                     type="button"
                   >
-                    <NavIcon active={active} icon={item.icon} />
+                    <NavIconDot active={active} dot={groupHasDot(item.children)} icon={item.icon} />
                     <SidebarLabel expanded={isExpanded} label={item.label} />
                     <svg className={`ml-auto h-3.5 w-3.5 transition-transform duration-300 ${isExpanded ? "block" : "hidden"} ${groupOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 16 16">
                       <path d="m4 6 4 4 4-4" stroke={active ? "#ffffff" : "#000000"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
@@ -572,7 +613,7 @@ export function Sidebar({
                     : "border-transparent text-[#424245] hover:border-[#0071e3] hover:text-[#1d1d1f]"
                 }`}
               >
-                <NavIcon active={active} icon={item.icon} />
+                <NavIconDot active={active} dot={linkHasDot(item.href)} icon={item.icon} />
                 <SidebarLabel expanded={isExpanded} label={item.label} />
               </Link>
             );

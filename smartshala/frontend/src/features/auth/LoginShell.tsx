@@ -54,7 +54,7 @@ export function LoginShell() {
       <section
         ref={heroRef}
         onMouseMove={trackPointer}
-        className="relative hidden overflow-hidden bg-[#141a5c] lg:block"
+        className="relative hidden overflow-hidden bg-[#14318C] lg:block"
         style={{ "--mx": "70%", "--my": "25%" } as React.CSSProperties}
       >
         {/* Looping brand video behind everything */}
@@ -68,7 +68,7 @@ export function LoginShell() {
           aria-hidden
         />
         {/* Blue shade keeps white text and the mockup readable over any frame */}
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-[#1b1f6b]/90 via-[#242a86]/80 to-[#2456E6]/65" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-[#14318C]/90 via-[#1B45BD]/80 to-[#2456E6]/65" />
         {/* Soft decorative circles */}
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-28 h-[420px] w-[420px] rounded-full bg-white/[0.06]" />
         <div aria-hidden className="pointer-events-none absolute -left-28 bottom-[-140px] h-[380px] w-[380px] rounded-full bg-white/[0.05]" />
