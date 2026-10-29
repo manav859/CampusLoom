@@ -1,8 +1,47 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
-import { activityApi, type ActivityLog, type ActivityLogResponse } from "@/lib/api";
+import { activityApi, marksApi, type ActivityLog, type ActivityLogResponse } from "@/lib/api";
 import { formatDateShort, humanizeConstant } from "@/lib/formatters";
+
+/** Resolves opaque IDs stored in a log to the names worth reading. */
+type NameResolver = {
+  className: (id: string) => string | undefined;
+  subjectName: (id: string) => string | undefined;
+};
+
+const emptyResolver: NameResolver = { className: () => undefined, subjectName: () => undefined };
+
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+// Turn the raw IDs a log stores into the names a person can read: classId and
+// subjectId become the class/subject name, and any other opaque UUID id (examId,
+// feeStructureId, ...) is dropped because the raw value means nothing on screen.
+function humanizeDetailIds(value: unknown, resolve: NameResolver): unknown {
+  if (!value || typeof value !== "object" || value instanceof Date || Array.isArray(value)) return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "classId") {
+      const name = resolve.className(String(item));
+      if (name) out.class = name;
+      continue;
+    }
+    if (key === "subjectId") {
+      const name = resolve.subjectName(String(item));
+      if (name) out.subject = name;
+      continue;
+    }
+    if (/Id$/.test(key) && isUuid(item)) continue;
+    if (item && typeof item === "object" && !Array.isArray(item) && !(item instanceof Date)) {
+      out[key] = humanizeDetailIds(item, resolve);
+      continue;
+    }
+    out[key] = item;
+  }
+  return out;
+}
 
 function dateInputValue(date: Date) {
   const year = date.getFullYear();
@@ -231,7 +270,7 @@ function chatbotMessages(log: ActivityLog): string[] | null {
   return lines.length > 0 ? lines : ["No messages recorded."];
 }
 
-function diffLines(log: ActivityLog) {
+function diffLines(log: ActivityLog, resolve: NameResolver = emptyResolver) {
   const chat = chatbotMessages(log);
   if (chat) return chat;
 
@@ -266,9 +305,9 @@ function diffLines(log: ActivityLog) {
   if (auth === "Signed in") return ["Signed in to the account."];
   if (auth === "Requested password reset") return ["A password reset link was requested."];
 
-  const before = (log.beforeJson ?? {}) as Record<string, unknown>;
-  const rawAfter = (log.afterJson ?? {}) as Record<string, unknown>;
-  const body = bodyOf(log);
+  const before = humanizeDetailIds(log.beforeJson ?? {}, resolve) as Record<string, unknown>;
+  const rawAfter = humanizeDetailIds(log.afterJson ?? {}, resolve) as Record<string, unknown>;
+  const body = humanizeDetailIds(bodyOf(log), resolve) as Record<string, unknown>;
   const after = Object.keys(body).length > 0 ? body : rawAfter;
   const beforeFlat = new Map(flattenDetails(before));
 
@@ -321,6 +360,10 @@ export default function ActivityLogsPage() {
   const [domRowCount, setDomRowCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [nameMaps, setNameMaps] = useState<{ classes: Map<string, string>; subjects: Map<string, string> }>({
+    classes: new Map(),
+    subjects: new Map()
+  });
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const headerCountRef = useRef<HTMLSpanElement>(null);
   const footerStartRef = useRef<HTMLSpanElement>(null);
@@ -330,6 +373,39 @@ export default function ActivityLogsPage() {
   function showTooltip(event: MouseEvent<HTMLElement>, desc: string, lines: string[]) {
     setTooltip({ desc, lines, x: event.clientX, y: event.clientY });
   }
+
+  // One-time lookup so log details can show class and subject names instead of
+  // raw IDs. The marks context already carries every class with its subjects.
+  useEffect(() => {
+    let active = true;
+    marksApi
+      .context()
+      .then((context) => {
+        if (!active) return;
+        const classes = new Map<string, string>();
+        const subjects = new Map<string, string>();
+        for (const cls of context.classes) {
+          classes.set(cls.id, `${cls.name}${cls.section}`);
+          for (const subject of cls.subjects) subjects.set(subject.id, subject.name);
+        }
+        setNameMaps({ classes, subjects });
+      })
+      .catch(() => {
+        // Names are a nicety; if the lookup fails, details fall back to hiding
+        // the opaque IDs rather than blocking the page.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const resolve = useMemo<NameResolver>(
+    () => ({
+      className: (id) => nameMaps.classes.get(id),
+      subjectName: (id) => nameMaps.subjects.get(id)
+    }),
+    [nameMaps]
+  );
 
   useEffect(() => {
     let active = true;
@@ -634,7 +710,7 @@ export default function ActivityLogsPage() {
           ) : (
             rows.map((log) => {
               const desc = description(log);
-              const lines = diffLines(log).slice(0, 4);
+              const lines = diffLines(log, resolve).slice(0, 4);
               return (
                 <article className="rounded-xl border border-[#DCE1E8] bg-white p-4 shadow-[0_8px_22px_-18px_rgba(15,20,25,0.35)]" key={`activity-mobile-${log.id}`}>
                   <div className="flex items-start justify-between gap-3">
@@ -723,7 +799,7 @@ export default function ActivityLogsPage() {
                 ) : (
                   rows.map((log) => {
                     const desc = description(log);
-                    const lines = diffLines(log);
+                    const lines = diffLines(log, resolve);
                     const tooltipTitle = isUpdateAction(log.action) ? "What changed:" : desc;
                     return (
                       <tr className="transition-colors hover:bg-[#F8FBFD]" data-activity-log-row key={log.id}>

@@ -113,6 +113,9 @@ function buildActivityEvents(logs: ActivityLog[]): ActivityEvent[] {
     // The principal already sees everything they do; their own actions only
     // add noise here. They still appear in the full Activity Logs center.
     .filter((log) => log.actor?.role !== "PRINCIPAL")
+    // Teachers marking attendance is routine and floods the feed; keep it out
+    // of the dashboard. It is still in the full Activity Logs center.
+    .filter((log) => !(log.entityType === "ATTENDANCE" && log.actor?.role === "TEACHER"))
     .slice(0, 12)
     .map((log) => ({
       id: log.id,

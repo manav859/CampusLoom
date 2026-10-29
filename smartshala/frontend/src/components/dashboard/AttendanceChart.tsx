@@ -29,7 +29,7 @@ export function AttendanceChart({ data, title = "Attendance Trend", classes = []
   const [on, setOn] = useState(false);
   const [tooltip, setTooltip] = useState<{ point: ChartPoint; x: number; y: number } | null>(null);
   const [pastWeekOpen, setPastWeekOpen] = useState(false);
-  const [pastWeekRows, setPastWeekRows] = useState<ClassesTodayReportRow[]>([]);
+  const [pastWeekDays, setPastWeekDays] = useState<PastWeekDay[]>([]);
   const [pastWeekLoading, setPastWeekLoading] = useState(false);
   const [pastWeekError, setPastWeekError] = useState("");
   
@@ -62,8 +62,13 @@ export function AttendanceChart({ data, title = "Attendance Trend", classes = []
     setPastWeekLoading(true);
     setPastWeekError("");
     try {
-      const rows = await attendanceApi.classesTodayReport({ dateFrom: isoDate(-6), dateTo: isoDate() });
-      setPastWeekRows(rows);
+      // One request per day (today → 6 days ago) so each class shows its own
+      // numbers for each day, instead of a single whole-week total per class.
+      const dates = Array.from({ length: 7 }, (_, index) => isoDate(-index));
+      const days = await Promise.all(
+        dates.map(async (date) => ({ date, rows: await attendanceApi.classesTodayReport({ dateFrom: date, dateTo: date }) }))
+      );
+      setPastWeekDays(days);
     } catch (err) {
       setPastWeekError(err instanceof Error ? err.message : "Unable to load past week attendance");
     } finally {
@@ -88,11 +93,11 @@ export function AttendanceChart({ data, title = "Attendance Trend", classes = []
           <p className="mt-1 text-[12px] font-medium text-[#86868b]">Past records are available from the weekly view.</p>
         </div>
         <PastWeekModal
+          days={pastWeekDays}
           error={pastWeekError}
           loading={pastWeekLoading}
           onClose={() => setPastWeekOpen(false)}
           open={pastWeekOpen}
-          rows={pastWeekRows}
         />
       </div>
     );
@@ -204,35 +209,63 @@ export function AttendanceChart({ data, title = "Attendance Trend", classes = []
         );
       })() : null}
       <PastWeekModal
+        days={pastWeekDays}
         error={pastWeekError}
         loading={pastWeekLoading}
         onClose={() => setPastWeekOpen(false)}
         open={pastWeekOpen}
-        rows={pastWeekRows}
       />
     </div>
   );
 }
 
+type PastWeekDay = { date: string; rows: ClassesTodayReportRow[] };
+
+/** "2026-10-30" → "Thu, 30 Oct". Parsed as a local date so it never shifts a day. */
+function formatDayLabel(iso: string) {
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  const weekday = date.toLocaleDateString("en-GB", { weekday: "short" });
+  const dayMonth = date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  return `${weekday}, ${dayMonth}`;
+}
+
+function relativeDayLabel(iso: string) {
+  if (iso === isoDate()) return "Today";
+  if (iso === isoDate(-1)) return "Yesterday";
+  return null;
+}
+
+function percentageBarColor(value: number) {
+  if (value >= 90) return "bg-[#0F8A4A]";
+  if (value >= 75) return "bg-[#F6C343]";
+  if (value >= 60) return "bg-[#B95A00]";
+  return "bg-[#C8242C]";
+}
+
+function percentageTextColor(value: number) {
+  if (value >= 90) return "text-[#0F8A4A]";
+  if (value >= 75) return "text-[#B98900]";
+  if (value >= 60) return "text-[#B95A00]";
+  return "text-[#C8242C]";
+}
+
 function PastWeekModal({
+  days,
   error,
   loading,
   onClose,
-  open,
-  rows
+  open
 }: {
+  days: PastWeekDay[];
   error: string;
   loading: boolean;
   onClose: () => void;
   open: boolean;
-  rows: ClassesTodayReportRow[];
 }) {
   if (!open) return null;
 
-  const markedRows = rows.filter((row) => row.marked);
-  const attended = markedRows.reduce((sum, row) => sum + row.attended, 0);
-  const total = markedRows.reduce((sum, row) => sum + row.total, 0);
-  const average = total ? Math.round((attended / total) * 1000) / 10 : 0;
+  const anyMarked = days.some((day) => day.rows.some((row) => row.marked));
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm" role="dialog" aria-modal="true">
@@ -241,7 +274,7 @@ function PastWeekModal({
         <div className="flex items-start justify-between gap-4 border-b border-[#e5e5ea] px-6 py-5">
           <div>
             <h2 className="text-[20px] font-semibold text-[#1d1d1f]">Past Week Attendance</h2>
-            <p className="mt-1 text-[13px] font-medium text-[#86868b]">{isoDate(-6)} to {isoDate()}</p>
+            <p className="mt-1 text-[13px] font-medium text-[#86868b]">Per class, day by day · {isoDate(-6)} to {isoDate()}</p>
           </div>
           <button className="rounded-full bg-[#f5f5f7] px-3 py-1 text-[12px] font-bold text-[#424245] hover:bg-[#e8e8ed]" onClick={onClose} type="button">
             Close
@@ -252,35 +285,53 @@ function PastWeekModal({
             <p className="text-[13px] font-medium text-[#86868b]">Loading weekly attendance...</p>
           ) : error ? (
             <p className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-semibold text-[#d70015]">{error}</p>
-          ) : markedRows.length === 0 ? (
+          ) : !anyMarked ? (
             <p className="rounded-xl bg-[#f5f5f7] px-4 py-5 text-center text-[13px] font-semibold text-[#5A6573]">No attendance was submitted in the past week.</p>
           ) : (
-            <div className="space-y-4">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-[#DCE1E8] px-4 py-3">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Average</p>
-                  <p className="mt-1 text-[24px] font-bold text-[#1d1d1f]">{average}%</p>
-                </div>
-                <div className="rounded-xl border border-[#DCE1E8] px-4 py-3">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Marked Classes</p>
-                  <p className="mt-1 text-[24px] font-bold text-[#1d1d1f]">{markedRows.length}</p>
-                </div>
-                <div className="rounded-xl border border-[#DCE1E8] px-4 py-3">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#86868b]">Absent</p>
-                  <p className="mt-1 text-[24px] font-bold text-[#d70015]">{markedRows.reduce((sum, row) => sum + row.absent, 0)}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {markedRows.map((row) => (
-                  <div key={row.classId} className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl border border-[#E5E8EF] px-4 py-3">
-                    <div>
-                      <p className="text-[13px] font-semibold text-[#1d1d1f]">{row.className}</p>
-                      <p className="mt-0.5 text-[12px] font-medium text-[#86868b]">Present {row.present}, absent {row.absent}, on leave {row.leave}</p>
+            <div className="space-y-6">
+              {days.map((day) => {
+                const marked = day.rows.filter((row) => row.marked);
+                const attended = marked.reduce((sum, row) => sum + row.attended, 0);
+                const total = marked.reduce((sum, row) => sum + row.total, 0);
+                const average = total ? Math.round((attended / total) * 1000) / 10 : 0;
+                const relative = relativeDayLabel(day.date);
+
+                return (
+                  <section key={day.date}>
+                    <div className="mb-2.5 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-[14px] font-semibold text-[#1d1d1f]">{formatDayLabel(day.date)}</h3>
+                        {relative ? (
+                          <span className="rounded-full bg-[#2456E6]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-[#2456E6]">{relative}</span>
+                        ) : null}
+                      </div>
+                      {marked.length ? (
+                        <span className="text-[12px] font-semibold text-[#86868b]">
+                          {marked.length} {marked.length === 1 ? "class" : "classes"} · <span className={percentageTextColor(average)}>{average}% avg</span>
+                        </span>
+                      ) : null}
                     </div>
-                    <span className="text-[16px] font-bold text-[#0071e3]">{row.percentage}%</span>
-                  </div>
-                ))}
-              </div>
+                    {marked.length === 0 ? (
+                      <p className="rounded-xl bg-[#f5f5f7] px-4 py-3 text-[12px] font-medium text-[#86868b]">No attendance submitted.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {marked.map((row) => (
+                          <div key={row.classId} className="rounded-xl border border-[#E5E8EF] px-4 py-2.5">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-[13px] font-semibold text-[#1d1d1f]">{row.className}</p>
+                              <span className={`text-[14px] font-bold ${percentageTextColor(row.percentage)}`}>{row.percentage}%</span>
+                            </div>
+                            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[#eef1f6]">
+                              <div className={`h-full rounded-full ${percentageBarColor(row.percentage)}`} style={{ width: `${Math.min(100, row.percentage)}%` }} />
+                            </div>
+                            <p className="mt-1.5 text-[11px] font-medium text-[#86868b]">Present {row.present} · Absent {row.absent} · Leave {row.leave}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
             </div>
           )}
         </div>
