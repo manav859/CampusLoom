@@ -1185,6 +1185,11 @@ export const homeworkApi = {
     apiFetch<HomeworkAssignmentDetail["submissions"][number]>(`/homework/assignments/${assignmentId}/submissions`, {
       method: "PATCH",
       body: JSON.stringify(payload)
+    }),
+  nudge: (assignmentId: string, studentId?: string) =>
+    apiFetch<{ pending: number; sent: number }>(`/homework/assignments/${assignmentId}/nudge`, {
+      method: "POST",
+      body: JSON.stringify(studentId ? { studentId } : {})
     })
 };
 

@@ -1,8 +1,10 @@
-import { HomeworkSubmissionStatus, Prisma, UserRole } from "@prisma/client";
+import { CommunicationMessageType, HomeworkSubmissionStatus, Prisma, UserRole } from "@prisma/client";
 import { prisma, withRetry } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
 import { sortClassRecords } from "../../utils/sortClasses.js";
 import { notifyHomeworkAssigned } from "../push/push.events.js";
+import { formatDay } from "../push/push.messages.js";
+import { sendParentMessageToStudents } from "../communication/communication.service.js";
 
 type HomeworkUser = Pick<Express.UserContext, "id" | "schoolId" | "role">;
 const defaultClassSubjects = ["English", "Hindi", "Mathematics", "Science", "Social Studies"];
@@ -438,6 +440,64 @@ export async function getAssignment(user: Express.UserContext, assignmentId: str
       submissions: complete.submissions.map(mapSubmission)
     };
   }, { label: "getHomeworkAssignment" });
+}
+
+// Remind the parents of everyone who has not turned in this homework. A
+// submission counts as done only when it is ON_TIME or LATE, so students with
+// NOT_SUBMITTED/MISSING rows — and those with no row yet — are all nudged.
+export async function nudgeNonSubmitters(
+  user: Express.UserContext,
+  assignmentId: string,
+  options: { studentId?: string } = {}
+) {
+  return withRetry(async () => {
+    if (!canManageHomework(user)) {
+      throw new AppError(403, "You do not have permission to manage homework", "FORBIDDEN");
+    }
+
+    const assignment = await prisma.homeworkAssignment.findFirst({
+      where: {
+        id: assignmentId,
+        schoolId: user.schoolId,
+        ...teacherOwnershipFilter(user)
+      },
+      include: {
+        class: {
+          select: {
+            students: { where: { isActive: true }, select: { id: true } }
+          }
+        },
+        subjectRef: { select: { name: true } },
+        submissions: { select: { studentId: true, status: true } }
+      }
+    });
+    if (!assignment) throw notFound("Homework assignment");
+
+    const submitted = new Set(
+      assignment.submissions
+        .filter((submission) => submission.status === HomeworkSubmissionStatus.ON_TIME || submission.status === HomeworkSubmissionStatus.LATE)
+        .map((submission) => submission.studentId)
+    );
+    const pendingStudentIds = assignment.class.students
+      .map((student) => student.id)
+      .filter((id) => !submitted.has(id))
+      .filter((id) => !options.studentId || id === options.studentId);
+
+    if (pendingStudentIds.length === 0) {
+      return { pending: 0, sent: 0 };
+    }
+
+    const subjectName = assignment.subjectRef?.name ?? assignment.subject ?? "General";
+    const message = `Reminder: "${assignment.title}" (${subjectName}) homework is still pending. Please help complete it by ${formatDay(assignment.dueDate)}.`;
+
+    const sent = await sendParentMessageToStudents(user, {
+      studentIds: pendingStudentIds,
+      type: CommunicationMessageType.HOMEWORK_REMINDER,
+      message
+    });
+
+    return { pending: pendingStudentIds.length, sent };
+  }, { label: "nudgeHomeworkNonSubmitters" });
 }
 
 export async function updateSubmission(user: Express.UserContext, assignmentId: string, input: UpdateHomeworkSubmissionInput) {

@@ -7,7 +7,6 @@ import { Modal } from "@/components/ui/Modal";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
-  communicationApi,
   homeworkApi,
   type HomeworkAssignment,
   type HomeworkAssignmentDetail,
@@ -298,23 +297,17 @@ export default function TeacherHomeworkPage() {
   async function nudgeNonSubmitters(assignment: HomeworkAssignment) {
     setError("");
     setNotice("");
-    showFlash("Sending WhatsApp nudges...", "info");
+    showFlash("Sending homework reminders...", "info");
     try {
-      const detail = selectedAssignment?.id === assignment.id ? selectedAssignment : await homeworkApi.assignment(assignment.id);
-      const pending = detail.submissions.filter((submission) => submission.status !== "ON_TIME" && submission.status !== "LATE");
-      if (pending.length === 0) {
+      const { sent } = await homeworkApi.nudge(assignment.id);
+      if (sent === 0) {
         setNotice("No non-submitters to nudge.");
         showFlash("No non-submitters to nudge.", "warning");
         return;
       }
-      await Promise.all(pending.map((submission) => communicationApi.sendMessage({
-        targetType: "STUDENT",
-        studentId: submission.studentId,
-        type: "HOMEWORK_REMINDER",
-        message: `Dear parent, ${submission.studentName} has not submitted "${assignment.title}" yet. Please help complete it by ${formatDateShort(assignment.dueDate)}.`
-      })));
-      setNotice(`Queued WhatsApp nudges for ${pending.length} non-submitters.`);
-      showFlash(`Queued WhatsApp nudges for ${pending.length} non-submitters.`, "success");
+      const summary = `Reminded ${sent} ${sent === 1 ? "parent" : "parents"} of pending homework.`;
+      setNotice(summary);
+      showFlash(summary, "success");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to nudge non-submitters";
       setError(message);

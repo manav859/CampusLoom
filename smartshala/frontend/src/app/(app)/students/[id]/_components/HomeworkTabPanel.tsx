@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { communicationApi, type StudentDetail } from "@/lib/api";
+import { homeworkApi, type StudentDetail } from "@/lib/api";
 import { formatDateShort } from "@/lib/formatters";
 
 export type HomeworkTabPanelProps = {
@@ -47,13 +47,8 @@ export default function HomeworkTabPanel({ student }: HomeworkTabPanelProps) {
     setError(null);
 
     try {
-      await communicationApi.sendMessage({
-        targetType: "STUDENT",
-        studentId: student.id,
-        type: "HOMEWORK_REMINDER",
-        message: `Dear parent, ${student.fullName} has not submitted "${assignment.title}" for ${assignment.subject}. Due date: ${formatDateShort(assignment.dueDate)}. Please help them complete it.`
-      });
-      setNotice(`Nudge sent for ${assignment.title}.`);
+      const { sent } = await homeworkApi.nudge(assignment.id, student.id);
+      setNotice(sent > 0 ? `Nudge sent for ${assignment.title}.` : `${student.fullName} has nothing pending for ${assignment.title}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send nudge");
     } finally {

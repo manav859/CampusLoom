@@ -7,6 +7,7 @@ import {
   createHomeworkAssignmentSchema,
   homeworkAssignmentParamsSchema,
   homeworkAssignmentQuerySchema,
+  nudgeHomeworkSchema,
   updateHomeworkSubmissionSchema
 } from "./homework.schemas.js";
 
@@ -28,4 +29,10 @@ homeworkRouter.patch(
   requireRole(homeworkRoles),
   validate({ params: homeworkAssignmentParamsSchema, body: updateHomeworkSubmissionSchema }),
   controller.updateSubmission
+);
+homeworkRouter.post(
+  "/assignments/:assignmentId/nudge",
+  requireRole(homeworkRoles),
+  validate({ params: homeworkAssignmentParamsSchema, body: nudgeHomeworkSchema }),
+  controller.nudgeNonSubmitters
 );

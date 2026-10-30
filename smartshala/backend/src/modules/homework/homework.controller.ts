@@ -21,3 +21,7 @@ export const getAssignment = asyncHandler(async (req: Request, res: Response) =>
 export const updateSubmission = asyncHandler(async (req: Request, res: Response) => {
   res.json(await homeworkService.updateSubmission(req.user!, req.params.assignmentId, req.body));
 });
+
+export const nudgeNonSubmitters = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await homeworkService.nudgeNonSubmitters(req.user!, req.params.assignmentId, { studentId: req.body?.studentId }));
+});

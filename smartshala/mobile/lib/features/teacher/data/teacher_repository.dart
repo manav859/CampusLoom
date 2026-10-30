@@ -163,6 +163,19 @@ class TeacherRepository {
     );
   }
 
+  /// Remind the parents of everyone who has not turned in this homework.
+  /// Returns how many were still pending and how many reminders went out.
+  Future<({int pending, int sent})> nudgeHomework(String assignmentId) async {
+    final data = await api.post(
+      '/homework/assignments/$assignmentId/nudge',
+      body: const <String, dynamic>{},
+    ) as Map<String, dynamic>;
+    return (
+      pending: (data['pending'] as num?)?.toInt() ?? 0,
+      sent: (data['sent'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   // ----------------------------------------------------------------- marks
 
   Future<List<TeachingClass>> marksContext() => _teachingClasses('/marks/context');

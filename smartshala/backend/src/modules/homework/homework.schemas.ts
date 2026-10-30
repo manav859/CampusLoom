@@ -22,6 +22,10 @@ export const homeworkAssignmentParamsSchema = z.object({
   assignmentId: z.string().uuid()
 });
 
+export const nudgeHomeworkSchema = z.object({
+  studentId: z.string().uuid().optional()
+});
+
 export const updateHomeworkSubmissionSchema = z.object({
   studentId: z.string().uuid(),
   status: z.nativeEnum(HomeworkSubmissionStatus),

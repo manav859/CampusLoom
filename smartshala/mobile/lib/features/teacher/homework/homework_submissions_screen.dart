@@ -23,6 +23,7 @@ class _HomeworkSubmissionsScreenState extends State<HomeworkSubmissionsScreen> {
   HomeworkDetail? _detail;
   String? _error;
   bool _loading = true;
+  bool _nudging = false;
   final _saving = <String>{};
 
   @override
@@ -80,12 +81,53 @@ class _HomeworkSubmissionsScreenState extends State<HomeworkSubmissionsScreen> {
     }
   }
 
+  Future<void> _nudge() async {
+    setState(() => _nudging = true);
+    try {
+      final result = await context.read<TeacherRepository>().nudgeHomework(widget.assignmentId);
+      if (!mounted) return;
+      final message = result.sent == 0
+          ? 'No pending submissions to nudge.'
+          : 'Reminded ${result.sent} ${result.sent == 1 ? 'parent' : 'parents'} of pending homework.';
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(backgroundColor: AppColors.danger, content: Text(error.message)),
+        );
+    } finally {
+      if (mounted) setState(() => _nudging = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final detail = _detail;
+    final canNudge = detail != null && detail.assignment.notSubmittedCount > 0;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Submissions')),
+      appBar: AppBar(
+        title: const Text('Submissions'),
+        actions: [
+          if (canNudge)
+            _nudging
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 18),
+                    child: Center(
+                      child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.2)),
+                    ),
+                  )
+                : TextButton.icon(
+                    onPressed: _nudge,
+                    icon: const Icon(Icons.notifications_active_rounded, size: 18),
+                    label: const Text('Nudge'),
+                  ),
+        ],
+      ),
       body: _loading
           ? const LoadingView()
           : _error != null

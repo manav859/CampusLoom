@@ -215,6 +215,83 @@ async function updateDeliveryStatus(input: { notificationId: string; logId: stri
   }
 }
 
+// Persist a parent message for each recipient and fan it out. Whatever the
+// WhatsApp copy does, the message reaches the parent app's Messages tab as a
+// push and as a feed row read from these same logs. The caller is responsible
+// for authorizing the recipients.
+async function deliverParentMessages(
+  user: CommunicationUser,
+  recipients: Recipient[],
+  type: CommunicationMessageType,
+  message: string
+) {
+  const created = await prisma.$transaction(async (tx) => {
+    const rows = [];
+
+    for (const recipient of recipients) {
+      const log = await tx.communicationLog.create({
+        data: {
+          schoolId: user.schoolId,
+          studentId: recipient.id,
+          type: CommunicationType.WHATSAPP,
+          messageType: type,
+          channel: CommunicationChannel.WHATSAPP,
+          summary: message,
+          status: CommunicationStatus.QUEUED
+        },
+        include: {
+          student: {
+            select: {
+              id: true,
+              fullName: true,
+              admissionNumber: true,
+              rollNumber: true,
+              class: { select: { id: true, name: true, section: true } }
+            }
+          }
+        }
+      });
+
+      const notification = await tx.notification.create({
+        data: {
+          schoolId: user.schoolId,
+          studentId: recipient.id,
+          sentById: user.id,
+          kind: notificationKindFor(type),
+          recipientPhone: recipient.parentPhone,
+          message,
+          status: NotificationStatus.QUEUED
+        }
+      });
+
+      rows.push({ log, notificationId: notification.id, recipientPhone: recipient.parentPhone });
+    }
+
+    return rows;
+  });
+
+  setImmediate(() => {
+    void Promise.allSettled(
+      created.map((row) =>
+        updateDeliveryStatus({
+          notificationId: row.notificationId,
+          logId: row.log.id,
+          recipientPhone: row.recipientPhone,
+          message
+        })
+      )
+    );
+  });
+
+  notifyParentMessage(user, {
+    studentIds: recipients.map((recipient) => recipient.id),
+    type,
+    message
+  });
+
+  return created;
+}
+
 export async function sendTeacherMessage(user: Express.UserContext, input: SendTeacherMessageInput) {
   return withRetry(async () => {
     if (!canManageCommunication(user)) {
@@ -226,71 +303,7 @@ export async function sendTeacherMessage(user: Express.UserContext, input: SendT
       throw new AppError(400, "No active students found for this message target", "NO_MESSAGE_RECIPIENTS");
     }
 
-    const created = await prisma.$transaction(async (tx) => {
-      const rows = [];
-
-      for (const recipient of recipients) {
-        const log = await tx.communicationLog.create({
-          data: {
-            schoolId: user.schoolId,
-            studentId: recipient.id,
-            type: CommunicationType.WHATSAPP,
-            messageType: input.type,
-            channel: CommunicationChannel.WHATSAPP,
-            summary: input.message,
-            status: CommunicationStatus.QUEUED
-          },
-          include: {
-            student: {
-              select: {
-                id: true,
-                fullName: true,
-                admissionNumber: true,
-                rollNumber: true,
-                class: { select: { id: true, name: true, section: true } }
-              }
-            }
-          }
-        });
-
-        const notification = await tx.notification.create({
-          data: {
-            schoolId: user.schoolId,
-            studentId: recipient.id,
-            sentById: user.id,
-            kind: notificationKindFor(input.type),
-            recipientPhone: recipient.parentPhone,
-            message: input.message,
-            status: NotificationStatus.QUEUED
-          }
-        });
-
-        rows.push({ log, notificationId: notification.id, recipientPhone: recipient.parentPhone });
-      }
-
-      return rows;
-    });
-
-    setImmediate(() => {
-      void Promise.allSettled(
-        created.map((row) =>
-          updateDeliveryStatus({
-            notificationId: row.notificationId,
-            logId: row.log.id,
-            recipientPhone: row.recipientPhone,
-            message: input.message
-          })
-        )
-      );
-    });
-
-    // Whatever the WhatsApp copy does, the message reaches the parent app's
-    // Messages tab as a push and as a feed row read from these same logs.
-    notifyParentMessage(user, {
-      studentIds: recipients.map((recipient) => recipient.id),
-      type: input.type,
-      message: input.message
-    });
+    const created = await deliverParentMessages(user, recipients, input.type, input.message);
 
     return {
       targetType: input.targetType,
@@ -298,4 +311,30 @@ export async function sendTeacherMessage(user: Express.UserContext, input: SendT
       logs: created.map((row) => mapLog(row.log))
     };
   }, { label: "sendTeacherCommunicationMessage" });
+}
+
+// Send a parent message to an explicit, already-authorized set of students.
+// Used by the homework nudge, which decides access by homework ownership
+// rather than the class-teacher rule the Communication screen applies.
+export async function sendParentMessageToStudents(
+  user: CommunicationUser,
+  input: { studentIds: string[]; type: CommunicationMessageType; message: string }
+) {
+  if (input.studentIds.length === 0) return 0;
+
+  const students = await prisma.student.findMany({
+    where: { schoolId: user.schoolId, id: { in: input.studentIds }, isActive: true },
+    select: {
+      id: true,
+      fullName: true,
+      admissionNumber: true,
+      rollNumber: true,
+      parentPhone: true,
+      class: { select: { id: true, name: true, section: true } }
+    }
+  });
+  if (students.length === 0) return 0;
+
+  const created = await deliverParentMessages(user, students as Recipient[], input.type, input.message);
+  return created.length;
 }
