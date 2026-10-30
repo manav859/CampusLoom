@@ -49,9 +49,9 @@ class SchoolProfile {
         timetablePeriodCount: _intOrNull(json['timetablePeriodCount']) ?? 8,
       );
 
-  /// PATCH /settings/school-profile replaces the whole profile: a logo or
-  /// period count left out would be cleared or reset to 8, so both always
-  /// travel back as they were.
+  /// PATCH /settings/school-profile replaces the whole profile, so every field
+  /// travels back together. The edit screen now passes the logo and period
+  /// count explicitly (an empty logo clears it).
   Map<String, dynamic> updateJson({
     required String name,
     required String? city,
@@ -59,6 +59,8 @@ class SchoolProfile {
     required String? phone,
     required String? udiseNumber,
     required String? affiliationBoard,
+    required int timetablePeriodCount,
+    required String? logoUrl,
   }) =>
       {
         'name': name.trim(),
@@ -67,7 +69,7 @@ class SchoolProfile {
         'phone': _text(phone),
         'udiseNumber': _text(udiseNumber),
         'affiliationBoard': _text(affiliationBoard),
-        'logoUrl': logoUrl,
+        'logoUrl': _text(logoUrl),
         'timetablePeriodCount': timetablePeriodCount,
       };
 }

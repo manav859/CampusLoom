@@ -10,11 +10,15 @@ import '../data/teacher_models.dart';
 import '../data/teacher_repository.dart';
 
 class MarkAttendanceScreen extends StatefulWidget {
-  const MarkAttendanceScreen({super.key, this.initialClassId});
+  const MarkAttendanceScreen({super.key, this.initialClassId, this.classTeacherOnly = true});
 
   /// Opens on this class instead of the first one — Today's Classes sends the
   /// class whose row was tapped. Ignored when the teacher does not have it.
   final String? initialClassId;
+
+  /// Teachers only mark their own classes; a principal picks any class, so the
+  /// principal app passes false to list every class.
+  final bool classTeacherOnly;
 
   @override
   State<MarkAttendanceScreen> createState() => _MarkAttendanceScreenState();
@@ -48,7 +52,7 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
     });
 
     try {
-      final classes = await _repository.myClasses(classTeacherOnly: true);
+      final classes = await _repository.myClasses(classTeacherOnly: widget.classTeacherOnly);
       if (!mounted) return;
       setState(() {
         _classes = classes;
@@ -170,12 +174,14 @@ class _MarkAttendanceScreenState extends State<MarkAttendanceScreen> {
           : _error != null && roster == null
               ? ErrorView(message: _error!, onRetry: _loadClasses)
               : _classes.isEmpty
-                  ? const EmptyView(
+                  ? EmptyView(
                       icon: Icons.class_outlined,
                       title: 'No classes to mark',
-                      message: 'Attendance is marked by the class teacher, and '
-                          'you are not class teacher of any class. Taking '
-                          'periods in a class does not include its attendance.',
+                      message: widget.classTeacherOnly
+                          ? 'Attendance is marked by the class teacher, and '
+                              'you are not class teacher of any class. Taking '
+                              'periods in a class does not include its attendance.'
+                          : 'No classes have been set up yet.',
                     )
                   : Column(
                       children: [

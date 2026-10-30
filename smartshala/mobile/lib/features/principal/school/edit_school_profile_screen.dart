@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api/api_exception.dart';
@@ -6,9 +9,9 @@ import '../../../core/theme/app_colors.dart';
 import '../data/principal_repository.dart';
 import '../data/school_models.dart';
 
-/// Edit School Profile: the web Settings form's text fields. The logo and the
-/// periods per day are sent back unchanged. Pops `true` once saved; the web
-/// dashboard shows the change on its next load.
+/// Edit School Profile: the web Settings form — text fields, the school logo,
+/// and periods per day. Pops `true` once saved; the web dashboard shows the
+/// change on its next load.
 class EditSchoolProfileScreen extends StatefulWidget {
   const EditSchoolProfileScreen({super.key, required this.profile});
 
@@ -26,6 +29,8 @@ class _EditSchoolProfileScreenState extends State<EditSchoolProfileScreen> {
   late final _phone = TextEditingController(text: widget.profile.phone ?? '');
   late final _udise = TextEditingController(text: widget.profile.udiseNumber ?? '');
   late String _board = widget.profile.affiliationBoard ?? 'CBSE';
+  late int _periodCount = widget.profile.timetablePeriodCount;
+  late String? _logoUrl = widget.profile.logoUrl;
   bool _saving = false;
   String? _error;
 
@@ -35,6 +40,25 @@ class _EditSchoolProfileScreenState extends State<EditSchoolProfileScreen> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _pickLogo() async {
+    try {
+      // Downscale and compress on pick, mirroring the web's 256px JPEG so the
+      // data URL stays small enough for the profile PATCH.
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 256,
+        maxHeight: 256,
+        imageQuality: 80,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      final mime = file.mimeType ?? 'image/jpeg';
+      setState(() => _logoUrl = 'data:$mime;base64,${base64Encode(bytes)}');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Unable to read that image.');
+    }
   }
 
   Future<void> _save() async {
@@ -51,6 +75,8 @@ class _EditSchoolProfileScreenState extends State<EditSchoolProfileScreen> {
               phone: _phone.text,
               udiseNumber: _udise.text,
               affiliationBoard: _board,
+              timetablePeriodCount: _periodCount,
+              logoUrl: _logoUrl,
             ),
           );
       if (mounted) Navigator.of(context).pop(true);
@@ -74,6 +100,8 @@ class _EditSchoolProfileScreenState extends State<EditSchoolProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
+            _LogoField(logoUrl: _logoUrl, onChange: _pickLogo, onRemove: () => setState(() => _logoUrl = null)),
+            const SizedBox(height: 18),
             TextFormField(
               controller: _name,
               textCapitalization: TextCapitalization.words,
@@ -128,6 +156,17 @@ class _EditSchoolProfileScreenState extends State<EditSchoolProfileScreen> {
               items: [for (final board in boards) DropdownMenuItem(value: board, child: Text(board))],
               onChanged: (value) => setState(() => _board = value ?? _board),
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _periodCount,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Periods per day',
+                helperText: 'Number of timetable periods and bell slots',
+              ),
+              items: [for (var n = 1; n <= 12; n++) DropdownMenuItem(value: n, child: Text('$n'))],
+              onChanged: (value) => setState(() => _periodCount = value ?? _periodCount),
+            ),
             if (_error != null) ...[
               const SizedBox(height: 14),
               Container(
@@ -142,5 +181,74 @@ class _EditSchoolProfileScreenState extends State<EditSchoolProfileScreen> {
         ),
       ),
     );
+  }
+}
+
+/// The logo preview with Change / Remove actions. Shows a data-URL or network
+/// logo, falling back to a placeholder when none is set.
+class _LogoField extends StatelessWidget {
+  const _LogoField({required this.logoUrl, required this.onChange, required this.onRemove});
+
+  final String? logoUrl;
+  final VoidCallback onChange;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasLogo = logoUrl != null && logoUrl!.isNotEmpty;
+    return Row(
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: AppColors.primarySoft,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.border),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: hasLogo
+              ? _logoImage(logoUrl!)
+              : const Icon(Icons.apartment_rounded, color: AppColors.primary, size: 30),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('School logo', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onChange,
+                    icon: const Icon(Icons.upload_rounded, size: 16),
+                    label: Text(hasLogo ? 'Change' : 'Upload'),
+                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
+                  ),
+                  if (hasLogo) ...[
+                    const SizedBox(width: 8),
+                    TextButton(onPressed: onRemove, child: const Text('Remove', style: TextStyle(color: AppColors.danger))),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _logoImage(String url) {
+    if (url.startsWith('data:')) {
+      final comma = url.indexOf(',');
+      if (comma == -1) return const SizedBox.shrink();
+      try {
+        return Image.memory(base64Decode(url.substring(comma + 1)), fit: BoxFit.cover);
+      } catch (_) {
+        return const Icon(Icons.broken_image_rounded, color: AppColors.textMuted);
+      }
+    }
+    return Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image_rounded, color: AppColors.textMuted));
   }
 }

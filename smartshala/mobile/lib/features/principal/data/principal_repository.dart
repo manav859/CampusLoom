@@ -2,6 +2,13 @@ import 'package:intl/intl.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/data/calendar_models.dart';
+import '../../../core/data/messages_models.dart' show LeaveStatus, LeaveStatusX;
+import 'academic_year_models.dart';
+import 'billing_models.dart';
+import 'inventory_models.dart';
+import 'message_log_models.dart';
+import 'settings_models.dart';
+import 'student_leave_models.dart';
 import '../../../core/data/dashboard_models.dart';
 import '../../../core/data/exam_models.dart';
 import '../../../core/data/timetable_models.dart';
@@ -47,6 +54,23 @@ class PrincipalRepository {
         .whereType<ActivityEntry>()
         .take(5)
         .toList();
+  }
+
+  /// One page of the full audit log for the Activity Logs screen — every change
+  /// (not only the key events Home shows), newest first, humanised per row.
+  Future<({List<ActivityEntry> items, bool hasMore})> activityLog({int page = 1, int limit = 20}) async {
+    final data = await api.get(
+      '/activity-logs',
+      query: {'excludeEntityType': 'CHATBOT', 'page': page, 'limit': limit},
+    ) as Map<String, dynamic>;
+
+    final items = ((data['items'] as List?) ?? const [])
+        .map((item) => ActivityEntry.fromJson((item as Map).cast<String, dynamic>()))
+        .toList();
+    final meta = (data['meta'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final pageNum = (meta['page'] as num?)?.toInt() ?? page;
+    final totalPages = (meta['totalPages'] as num?)?.toInt() ?? pageNum;
+    return (items: items, hasMore: pageNum < totalPages);
   }
 
   // -------------------------------------------------------------- students
@@ -367,6 +391,117 @@ class PrincipalRepository {
   /// A principal may enter or amend any student's marks.
   Future<void> saveExamResult({required String examId, required String studentId, required double marks, bool isAbsent = false}) =>
       api.patch('/marks/exams/$examId/results', body: {'studentId': studentId, 'marks': marks, 'isAbsent': isAbsent});
+
+  // ------------------------------------------------------------- inventory
+
+  /// Inventory items with current stock. Optionally filter by search text or to
+  /// only low-stock items.
+  Future<List<InventoryItem>> inventoryItems({String? search, bool lowStock = false}) async {
+    final query = <String, dynamic>{};
+    if (search != null && search.trim().isNotEmpty) query['search'] = search.trim();
+    if (lowStock) query['lowStock'] = 'true';
+    final data = await api.get('/inventory/items', query: query.isEmpty ? null : query);
+    return ((data as List?) ?? const [])
+        .map((item) => InventoryItem.fromJson((item as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// Record a stock movement — PURCHASE (in) or ISSUE (out) — and return the
+  /// item with its new quantity.
+  Future<InventoryItem> recordInventoryTransaction({
+    required String itemId,
+    required String type,
+    required int quantity,
+    double? unitCost,
+    String? issuedTo,
+    String? invoiceNumber,
+    String? note,
+  }) async {
+    final data = await api.post('/inventory/items/$itemId/transactions', body: {
+      'type': type,
+      'quantity': quantity,
+      if (unitCost != null) 'unitCost': unitCost,
+      if (issuedTo != null && issuedTo.trim().isNotEmpty) 'issuedTo': issuedTo.trim(),
+      if (invoiceNumber != null && invoiceNumber.trim().isNotEmpty) 'invoiceNumber': invoiceNumber.trim(),
+      if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+    }) as Map<String, dynamic>;
+    return InventoryItem.fromJson((data['item'] as Map).cast<String, dynamic>());
+  }
+
+  // --------------------------------------------------------------- billing
+
+  /// The school's SmartShala subscription overview — read-only in the app.
+  Future<BillingOverview> billingOverview() async {
+    final data = await api.get('/billing/overview') as Map<String, dynamic>;
+    return BillingOverview.fromJson(data);
+  }
+
+  // -------------------------------------------------------- academic years
+
+  Future<List<AcademicYear>> academicYears() async {
+    final data = await api.get('/academic-years');
+    return ((data as List?) ?? const [])
+        .map((item) => AcademicYear.fromJson((item as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// Creates an academic year. [name] is "YYYY-YY" (e.g. "2026-27"); dates as
+  /// yyyy-MM-dd. Rollover stays web-only.
+  Future<void> createAcademicYear({required String name, required DateTime startDate, required DateTime endDate}) {
+    final dateFormat = DateFormat('yyyy-MM-dd');
+    return api.post('/academic-years', body: {
+      'name': name,
+      'startDate': dateFormat.format(startDate),
+      'endDate': dateFormat.format(endDate),
+    });
+  }
+
+  // -------------------------------------------------------------- settings
+
+  /// The school bell schedule — a start/end time per period of the day.
+  Future<PeriodTimes> periodTimes() async {
+    final data = await api.get('/settings/period-times') as Map<String, dynamic>;
+    return PeriodTimes.fromJson(data);
+  }
+
+  Future<PeriodTimes> updatePeriodTimes(List<PeriodTime> periods) async {
+    final data = await api.put(
+      '/settings/period-times',
+      body: {'periods': periods.map((period) => period.toJson()).toList()},
+    ) as Map<String, dynamic>;
+    return PeriodTimes.fromJson(data);
+  }
+
+  // ----------------------------------------------------------- message logs
+
+  /// The 100 newest parent notifications for the Message Logs screen.
+  Future<List<MessageLog>> messageLogs() async {
+    final data = await api.get('/wa/logs');
+    return ((data as List?) ?? const [])
+        .map((item) => MessageLog.fromJson((item as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  // --------------------------------------------------------- student leave
+
+  /// One page of parent-raised child-leave requests for the office queue.
+  Future<StudentLeavePage> studentLeave({required LeaveStatus status, int limit = 20, int offset = 0}) async {
+    final data = await api.get(
+      '/student-leave/requests',
+      query: {'status': status.apiValue, 'limit': limit, 'offset': offset},
+    ) as Map<String, dynamic>;
+    return StudentLeavePage.fromJson(data);
+  }
+
+  /// Approve or reject a child-leave request, with an optional note to the parent.
+  Future<void> decideStudentLeave({required String id, required bool approve, String? note}) =>
+      api.patch(
+        '/student-leave/requests/$id/decision',
+        body: {
+          'status': approve ? 'APPROVED' : 'REJECTED',
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        },
+      );
 
   // ------------------------------------------------------------- transport
 

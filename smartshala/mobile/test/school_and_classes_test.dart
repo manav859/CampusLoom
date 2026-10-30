@@ -131,7 +131,16 @@ void main() {
     test('a profile save sends the logo and periods back unchanged', () {
       final profile = SchoolProfile.fromJson({'name': 'Old', 'code': 'X', 'logoUrl': _logo, 'timetablePeriodCount': 7});
       expect(
-        profile.updateJson(name: ' New Name ', city: ' ', state: 'Rajasthan', phone: null, udiseNumber: '', affiliationBoard: 'ICSE'),
+        profile.updateJson(
+          name: ' New Name ',
+          city: ' ',
+          state: 'Rajasthan',
+          phone: null,
+          udiseNumber: '',
+          affiliationBoard: 'ICSE',
+          timetablePeriodCount: profile.timetablePeriodCount,
+          logoUrl: profile.logoUrl,
+        ),
         {
           'name': 'New Name',
           'city': null,
