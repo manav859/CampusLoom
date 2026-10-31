@@ -15,18 +15,24 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Relative to the mobile/ project, where the command is run.
+/// Relative to the mobile/ project, where the command is run. The default mark
+/// for any flavor without its own entry in [_sources].
 const _source = '../frontend/public/logo-latest.png';
 
 /// Each app wears the web's logo. The label under the icon and the background
 /// colour tell them apart.
 const _flavors = ['principal', 'teacher', 'parent'];
 
+/// Per-flavor mark source, overriding [_source]. The teacher app carries its
+/// own refreshed "SS", so its mark is lifted from its own file rather than the
+/// shared web logo.
+const _sources = <String, String>{'teacher': '../frontend/public/logo-teacher.png'};
+
 /// Per-flavor launcher background, overriding the source logo's blue so the
 /// apps are told apart on the home screen. A flavor absent here keeps the blue.
 const _grounds = <String, Color>{
   'parent': Color(0xFF2E7D32), // leaf green
-  'teacher': Color(0xFF0F766E), // teal
+  'teacher': Color(0xFF5B3CFC), // indigo
 };
 
 /// Android density buckets, as a multiple of mdpi.
@@ -90,14 +96,21 @@ void main() {
     // runAsync never comes back.
     await tester.runAsync(() async {
       final root = Directory.current.path;
-      final logo = await _decode(await File('$root/$_source').readAsBytes());
-      final source = (await logo.toByteData(format: ui.ImageByteFormat.rawRgba))!;
-      final sourceGround = _pixel(source, logo.width, 4, 4);
-      final mark = await _liftMark(source, logo.width, logo.height, sourceGround);
+
+      // Lift each distinct source once: the shared web logo for most flavors,
+      // the teacher app's own file for teacher.
+      final lifted = <String, _Lifted>{};
+      Future<_Lifted> load(String source) async =>
+          lifted[source] ??= await _loadSource('$root/$source');
+
+      final shared = await load(_source);
 
       for (final flavor in _flavors) {
         final res = '$root/android/app/src/$flavor/res';
-        final ground = _grounds[flavor] ?? sourceGround;
+        final src = await load(_sources[flavor] ?? _source);
+        final logo = src.logo;
+        final mark = src.mark;
+        final ground = _grounds[flavor] ?? src.ground;
 
         for (final density in _densities.entries) {
           final scale = density.value;
@@ -154,14 +167,26 @@ void main() {
       for (final scale in _iosLaunchScales.entries) {
         await _write(
           '$root/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage${scale.key}.png',
-          await _paint((_splashDp * scale.value).round(), mark: mark, ground: sourceGround, ink: _legacyInkFraction),
+          await _paint((_splashDp * scale.value).round(), mark: shared.mark, ground: shared.ground, ink: _legacyInkFraction),
         );
       }
 
       // The app bar and sign-in screen mark: the web logo itself.
-      await _write('$root/assets/brand/logo.png', await _scaled(logo, _inAppSize));
+      await _write('$root/assets/brand/logo.png', await _scaled(shared.logo, _inAppSize));
     });
   });
+}
+
+/// A decoded mark source: the whole logo, its white mark lifted onto
+/// transparency, and the ground colour it was lifted off.
+typedef _Lifted = ({ui.Image logo, ({ui.Image image, Rect bounds}) mark, Color ground});
+
+Future<_Lifted> _loadSource(String path) async {
+  final logo = await _decode(await File(path).readAsBytes());
+  final pixels = (await logo.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+  final ground = _pixel(pixels, logo.width, 4, 4);
+  final mark = await _liftMark(pixels, logo.width, logo.height, ground);
+  return (logo: logo, mark: mark, ground: ground);
 }
 
 const _adaptiveIconXml = '''<?xml version="1.0" encoding="utf-8"?>
