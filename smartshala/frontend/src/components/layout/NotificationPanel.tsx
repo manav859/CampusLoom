@@ -54,8 +54,15 @@ function mapLog(log: NotificationLog): PanelNotification {
 
 export function isPrincipalNotification(log: NotificationLog) {
   if (log.kind === "ABSENCE" || log.kind === "PAYMENT_RECEIPT") return false;
+  // Fee reminders are messages sent out to parents, not alerts back for the
+  // principal, so keep them out of the bell.
+  if (log.kind === "FEE_REMINDER" || log.kind === "OVERDUE_FEE") return false;
+  // Attendance nudges are reminders the principal sends out to teachers, not
+  // alerts back for the principal, so keep them out of the bell. The message is
+  // built in backend attendance.report.service.ts (nudgePendingTeachers).
+  if (log.message.startsWith("Reminder: attendance for Class")) return false;
   if (log.status === "FAILED") return true;
-  return ["LOW_ATTENDANCE", "FEE_REMINDER", "OVERDUE_FEE", "SCHOOL_ALERT", "MONTHLY_REPORT"].includes(log.kind);
+  return ["LOW_ATTENDANCE", "SCHOOL_ALERT", "MONTHLY_REPORT"].includes(log.kind);
 }
 
 const typeStyles: Record<PanelNotification["type"], { bg: string; text: string }> = {

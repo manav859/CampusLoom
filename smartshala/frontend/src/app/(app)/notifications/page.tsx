@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { StatCardSkeleton, TableRowSkeleton } from "@/components/ui/Skeleton";
-import { type NotificationLog, type NotificationStats, whatsappApi } from "@/lib/api";
+import { TableRowSkeleton } from "@/components/ui/Skeleton";
+import { type NotificationLog, whatsappApi } from "@/lib/api";
 import { formatDateTimeShort, humanizeConstant, maskPhoneNumber, truncateText } from "@/lib/formatters";
 import { cachedFetch, invalidateCache } from "@/lib/prefetchCache";
 
@@ -65,21 +65,6 @@ function senderRole(log: NotificationLog) {
   return log.sentBy?.role ? humanizeConstant(log.sentBy.role) : "System";
 }
 
-function isToday(value: string | null) {
-  if (!value) return false;
-  const date = new Date(value);
-  const now = new Date();
-  return date.toDateString() === now.toDateString();
-}
-
-function todayRange() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
-}
-
 function timeMatches(value: string | null, filter: TimeFilter) {
   if (filter === "all") return true;
   if (!value) return false;
@@ -96,7 +81,6 @@ function timeMatches(value: string | null, filter: TimeFilter) {
 export default function NotificationsPage() {
   const router = useRouter();
   const [logs, setLogs] = useState<NotificationLog[]>([]);
-  const [stats, setStats] = useState<NotificationStats | null>(null);
   const [type, setType] = useState<TypeFilter>("all");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [time, setTime] = useState<TimeFilter>("all");
@@ -115,16 +99,9 @@ export default function NotificationsPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    const range = todayRange();
-    Promise.all([
-      cachedFetch("notifications:logs", () => whatsappApi.logs()),
-      cachedFetch(`notifications:stats:${range.dateFrom}:${range.dateTo}`, () => whatsappApi.stats(range))
-    ])
-      .then(([data, nextStats]) => {
-        if (active) {
-          setLogs(data);
-          setStats(nextStats);
-        }
+    cachedFetch("notifications:logs", () => whatsappApi.logs())
+      .then((data) => {
+        if (active) setLogs(data);
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Unable to load WhatsApp logs");
@@ -145,17 +122,10 @@ export default function NotificationsPage() {
     return typeMatches && statusMatches && timeFilterMatches;
   }), [logs, status, time, type]);
 
-  const sentToday = stats?.sentToday ?? logs.filter((log) => log.status === "SENT" && isToday(log.sentAt ?? log.createdAt)).length;
-  const failedCount = stats?.failedCount ?? logs.filter((log) => log.status === "FAILED").length;
-  const creditsRemaining = stats?.creditsRemaining ?? Math.max(0, 5000 - logs.filter((log) => isToday(log.createdAt)).length);
-
   async function refreshLogsAndStats() {
-    const range = todayRange();
-    const [nextLogs, nextStats] = await Promise.all([whatsappApi.logs(), whatsappApi.stats(range)]);
+    const nextLogs = await whatsappApi.logs();
     invalidateCache("notifications:logs");
-    invalidateCache(`notifications:stats:${range.dateFrom}:${range.dateTo}`);
     setLogs(nextLogs);
-    setStats(nextStats);
   }
 
   async function retryLog(log: NotificationLog) {
@@ -251,7 +221,6 @@ export default function NotificationsPage() {
       const result = await whatsappApi.clear();
       invalidateCache("notifications:logs");
       setLogs([]);
-      setStats({ sentToday: 0, failedCount: 0, todaysUsage: 0, creditsRemaining: 5000 });
       setNotice(`Cleared ${result.count} notification${result.count === 1 ? "" : "s"}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to clear notifications");
@@ -274,31 +243,6 @@ export default function NotificationsPage() {
           </div>
         )}
       />
-
-      <section className="grid gap-4 sm:grid-cols-3">
-        {loading ? (
-          <>
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-            <StatCardSkeleton />
-          </>
-        ) : (
-          <>
-            <div className="kpi-metric-card kpi-metric-card-good p-6">
-              <p className="kpi-metric-label">Total Sent Today</p>
-              <p className="kpi-metric-value">{sentToday}</p>
-            </div>
-            <div className="kpi-metric-card kpi-metric-card-danger p-6">
-              <p className="kpi-metric-label">Failed Count</p>
-              <p className="kpi-metric-value">{failedCount}</p>
-            </div>
-            <div className="kpi-metric-card p-6">
-              <p className="kpi-metric-label">Credits Remaining</p>
-              <p className="kpi-metric-value">{creditsRemaining.toLocaleString("en-IN")}</p>
-            </div>
-          </>
-        )}
-      </section>
 
       {error ? <div className="rounded-xl bg-[#ff3b30]/10 px-4 py-3 text-[13px] font-medium text-[#d70015]">{error}</div> : null}
       {notice ? <div className="rounded-xl bg-[#34c759]/10 px-4 py-3 text-[13px] font-medium text-[#248a3d]">{notice}</div> : null}

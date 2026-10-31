@@ -63,12 +63,6 @@ function dateInputValue(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function actionLabel(action: string) {
-  if (action === "CREATE_OR_RUN") return "Create";
-  if (action === "REPLACE") return "Update";
-  return humanizeConstant(action);
-}
-
 function moduleLabel(entityType: string) {
   const label = humanizeConstant(entityType);
   if (label.toLowerCase() === "students") return "Student";
@@ -97,15 +91,49 @@ function targetName(log: ActivityLog) {
   return typeof value === "string" ? value : "";
 }
 
-function activityDescription(log: ActivityLog) {
-  if (!log.summary.includes(" /") && !log.summary.includes(" PATCH ") && !log.summary.includes(" POST ") && !log.summary.includes(" PUT ") && !log.summary.includes(" DELETE ")) {
-    return log.summary;
+function isRawHttpSummary(summary: string) {
+  return summary.includes(" /") || summary.includes(" PATCH ") || summary.includes(" POST ") || summary.includes(" PUT ") || summary.includes(" DELETE ");
+}
+
+// Plain-language verb for each audited HTTP action, so the feed reads like a
+// sentence someone non-technical can follow, not "Create leave".
+const actionVerb: Record<string, { lead: string; past: string }> = {
+  CREATE_OR_RUN: { lead: "Added", past: "added" },
+  CREATE: { lead: "Added", past: "added" },
+  REPLACE: { lead: "Updated", past: "updated" },
+  UPDATE: { lead: "Updated", past: "updated" },
+  DELETE: { lead: "Removed", past: "removed" }
+};
+
+// A short label for the row and a fuller sentence for the hover tooltip. Raw
+// request-line summaries ("Name POST /api/...") are turned into readable words;
+// summaries already written for people are left as they are.
+function friendlyEvent(log: ActivityLog): { text: string; detail: string } {
+  if (!isRawHttpSummary(log.summary)) {
+    return { text: log.summary, detail: log.summary };
   }
 
+  const actor = log.actor?.fullName && log.actor.fullName !== "System" ? log.actor.fullName : "";
   const target = targetName(log);
-  const module = moduleLabel(log.entityType).toLowerCase();
-  const action = actionLabel(log.action).toLowerCase();
-  return `${action.charAt(0).toUpperCase() + action.slice(1)} ${module}${target ? ` ${target}` : ""}`;
+
+  // Leave is the thing people name directly, so give it its own wording.
+  if (log.entityType === "LEAVE" || log.entityType === "STUDENT_LEAVE") {
+    const forWhom = target ? ` for ${target}` : "";
+    if (log.action === "DELETE") {
+      return { text: "Leave cancelled", detail: `${actor || "Someone"} cancelled a leave request${forWhom}.` };
+    }
+    if (log.action === "CREATE_OR_RUN" || log.action === "CREATE") {
+      return { text: "Leave request", detail: `${actor || "A staff member"} raised a leave request${forWhom}.` };
+    }
+    return { text: "Leave updated", detail: `${actor || "Someone"} updated a leave request${forWhom}.` };
+  }
+
+  const verb = actionVerb[log.action] ?? { lead: humanizeConstant(log.action), past: humanizeConstant(log.action).toLowerCase() };
+  const thing = `${moduleLabel(log.entityType).toLowerCase()}${target ? ` ${target}` : ""}`;
+  return {
+    text: `${verb.lead} ${thing}`,
+    detail: `${actor ? `${actor} ` : ""}${verb.past} ${thing}.`
+  };
 }
 
 function buildActivityEvents(logs: ActivityLog[]): ActivityEvent[] {
@@ -117,13 +145,17 @@ function buildActivityEvents(logs: ActivityLog[]): ActivityEvent[] {
     // of the dashboard. It is still in the full Activity Logs center.
     .filter((log) => !(log.entityType === "ATTENDANCE" && log.actor?.role === "TEACHER"))
     .slice(0, 12)
-    .map((log) => ({
-      id: log.id,
-      text: activityDescription(log),
-      time: relativeTime(log.createdAt),
-      type: activityType(log),
-      actor: log.actor?.fullName ?? "System"
-    }));
+    .map((log) => {
+      const { text, detail } = friendlyEvent(log);
+      return {
+        id: log.id,
+        text,
+        detail,
+        time: relativeTime(log.createdAt),
+        type: activityType(log),
+        actor: log.actor?.fullName ?? "System"
+      };
+    });
 }
 
 const dashboardKpiStyles = [
@@ -429,6 +461,27 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
     }
   }
 
+  async function sendStudentReminder(alert: { studentId?: string; studentName?: string; flags?: string[] }) {
+    if (!alert.studentId) return;
+    setSendingReminderId(alert.studentId);
+    setNotice("");
+    setError("");
+    try {
+      const student = await studentsApi.get(alert.studentId);
+      const name = alert.studentName ?? student.fullName;
+      const concerns = alert.flags?.map((flag) => humanizeConstant(flag).toLowerCase()).join(", ");
+      await whatsappApi.send({
+        phone: student.parentPhone,
+        message: `Dear Parent, this is a reminder regarding ${name}${concerns ? `: ${concerns}` : ""}. Please get in touch with the school.`
+      });
+      setNotice(`WhatsApp reminder queued for ${name}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send reminder");
+    } finally {
+      setSendingReminderId("");
+    }
+  }
+
   const actionAlerts = data ? [
     ...defaulters.slice(0, 2).map((item) => ({
       actionLabel: sendingReminderId === item.studentId ? "Sending..." : "Send Reminder",
@@ -445,9 +498,16 @@ export function DashboardHome({ mode }: { mode: "ADMIN" | "TEACHER" }) {
         alert.type === "BEHAVIOUR_INCIDENT" && alert.studentName && alert.message
           ? `${alert.studentName}: ${alert.message}`
           : alert.studentName ?? alert.message ?? "Attendance action needed",
-      detail: alert.flags?.join(", ") ?? alert.severity ?? undefined,
+      detail: alert.flags?.map((flag) => humanizeConstant(flag)).join(", ") ?? (alert.severity ? humanizeConstant(alert.severity) : undefined),
       severity: alert.severity === "HIGH" ? "critical" as const : alert.severity === "MEDIUM" ? "high" as const : "medium" as const,
       tone: alert.severity === "HIGH" ? "danger" as const : "warn" as const,
+      ...(alert.studentId
+        ? {
+            actionLabel: sendingReminderId === alert.studentId ? "Sending..." : "Send Reminder",
+            disabled: sendingReminderId === alert.studentId,
+            onAction: () => sendStudentReminder(alert)
+          }
+        : {}),
       href: alert.studentId ? `/students/${alert.studentId}` : undefined
     })),
     ...(data.attendance ?? [])

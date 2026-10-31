@@ -80,10 +80,10 @@ export function LoginShell() {
         />
 
         <div className="relative flex h-full flex-col items-center justify-center p-8 xl:p-10">
-          <h2 className="ls-rise text-center text-[28px] font-semibold leading-[1.1] tracking-tight text-white xl:text-[32px]" style={{ animationDelay: "0.08s" }}>
+          <h2 className="ls-rise text-center text-[32px] font-semibold leading-[1.1] tracking-tight text-white xl:text-[36px]" style={{ animationDelay: "0.08s" }}>
             {copy.heroTitle}
           </h2>
-          <p className="ls-rise mt-3 max-w-[42ch] text-center text-[14px] leading-relaxed text-white/75" style={{ animationDelay: "0.16s" }}>
+          <p className="ls-rise mt-3 max-w-[42ch] text-center text-[16px] leading-relaxed text-white/75" style={{ animationDelay: "0.16s" }}>
             {copy.heroIntro}
           </p>
 

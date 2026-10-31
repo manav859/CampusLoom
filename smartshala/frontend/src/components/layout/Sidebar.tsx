@@ -31,7 +31,6 @@ type NavIconName =
   | "dashboard"
   | "students"
   | "teachers"
-  | "classManagement"
   | "classes"
   | "attendance"
   | "homework"
@@ -63,20 +62,26 @@ type NavItem = NavLink | {
 
 const adminLinks: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "dashboard" },
-  { label: "Student", href: "/students", icon: "students" },
   {
-    label: "Class Management",
-    icon: "classManagement",
+    label: "Student Management",
+    icon: "students",
     children: [
-      { label: "Teacher", href: "/teachers", icon: "teachers" },
-      { label: "Teacher Attendance", href: "/teachers/attendance", icon: "attendance" },
-      { label: "Leave Approval", href: "/leave", icon: "leave" },
-      { label: "Student Leave", href: "/student-leave", icon: "leave" },
-      { label: "Classes", href: "/classes", icon: "classes" },
+      { label: "Students", href: "/students", icon: "students" },
       { label: "Attendance", href: "/attendance", icon: "attendance" },
+      { label: "Student Leave", href: "/student-leave", icon: "leave" },
       { label: "Homework", href: "/teacher/homework", icon: "homework" }
     ]
   },
+  {
+    label: "Teacher Management",
+    icon: "teachers",
+    children: [
+      { label: "Teachers", href: "/teachers", icon: "teachers" },
+      { label: "Teacher Attendance", href: "/teachers/attendance", icon: "attendance" },
+      { label: "Leave Approval", href: "/leave", icon: "leave" }
+    ]
+  },
+  { label: "Classes", href: "/classes", icon: "classes" },
   { label: "Communication", href: "/teacher/communication", icon: "communication" },
   {
     label: "Reports",
@@ -203,17 +208,6 @@ function NavIcon({ icon, active }: { icon: NavIconName; active: boolean }) {
         <circle cx="9" cy="7" r="4" />
         <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    );
-  }
-
-  if (icon === "classManagement") {
-    return (
-      <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="8" cy="8" r="3" />
-        <path d="M3 18v-1a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v1" />
-        <path d="M16 9h5M21 9l-2-2M21 9l-2 2" />
-        <path d="M20 15h-5M15 15l2-2M15 15l2 2" />
       </svg>
     );
   }
@@ -563,7 +557,7 @@ export function Sidebar({
                     onClick={() => setOpenGroups((current) => ({ ...current, [item.label]: !(current[item.label] ?? active) }))}
                     type="button"
                   >
-                    <NavIconDot active={active} dot={groupHasDot(item.children)} icon={item.icon} />
+                    <NavIconDot active={active} dot={groupHasDot(item.children) && !groupOpen} icon={item.icon} />
                     <SidebarLabel expanded={isExpanded} label={item.label} />
                     <svg className={`ml-auto h-3.5 w-3.5 transition-transform duration-300 ${isExpanded ? "block" : "hidden"} ${groupOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 16 16">
                       <path d="m4 6 4 4 4-4" stroke={active ? "#ffffff" : "#000000"} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
@@ -579,14 +573,17 @@ export function Sidebar({
                           );
                           return (
                             <Link
-                              className={`flex min-h-11 items-center rounded-[8px] px-3 text-[13px] font-semibold transition-colors ${
+                              className={`flex min-h-11 items-center gap-2 rounded-[8px] px-3 text-[13px] font-semibold transition-colors ${
                                 childActive ? "bg-[#0071e3] text-white shadow-sm shadow-blue-500/20" : "text-[#2F3136] hover:bg-[#E2F0FB] hover:text-[#0071e3]"
                               }`}
                               href={withSchoolPath(child.href, pathname)}
                               key={child.href}
                               onClick={onClose}
                             >
-                              <SidebarLabel expanded label={child.label} withMargin={false} />
+                              <span className="min-w-0 flex-1 truncate" title={child.label}>{child.label}</span>
+                              {linkHasDot(child.href) ? (
+                                <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${childActive ? "bg-white" : "bg-[#ff3b30]"}`} />
+                              ) : null}
                             </Link>
                           );
                         })}
