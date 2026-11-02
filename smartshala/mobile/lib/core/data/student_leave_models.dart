@@ -1,4 +1,4 @@
-import '../../../core/data/messages_models.dart';
+import 'messages_models.dart';
 
 /// A parent-raised child-leave request as the office reviews it. Status styling
 /// (label, colour) is shared with staff leave through [LeaveStatus].

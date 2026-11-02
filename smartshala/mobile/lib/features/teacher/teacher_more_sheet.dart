@@ -5,6 +5,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/config/feature_flags.dart';
 import '../../core/theme/app_colors.dart';
 import '../auth/change_password_screen.dart';
+import 'leave/teacher_student_leave_screen.dart';
 import 'messages/teacher_messages_screen.dart';
 import 'salary/salary_screen.dart';
 import 'timetable/my_timetable_screen.dart';
@@ -43,6 +44,13 @@ class TeacherMoreSheet extends StatelessWidget {
         color: AppColors.success,
         screen: SalaryScreen.new,
       ),
+    (
+      icon: Icons.escalator_warning_rounded,
+      title: 'Student Leave',
+      subtitle: 'Approve leave for your class',
+      color: AppColors.teal,
+      screen: TeacherStudentLeaveScreen.new,
+    ),
     (
       icon: Icons.forum_rounded,
       title: 'Messages',

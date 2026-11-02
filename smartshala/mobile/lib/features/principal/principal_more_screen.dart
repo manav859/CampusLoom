@@ -17,7 +17,7 @@ import 'fees/defaulters_screen.dart';
 import 'fees/fee_management_screen.dart';
 import 'inventory/inventory_screen.dart';
 import 'leave/leave_approval_screen.dart';
-import 'leave/student_leave_approval_screen.dart';
+import 'leave/principal_student_leave_screen.dart';
 import 'messages/principal_messages_screen.dart';
 import 'messages/message_logs_screen.dart';
 import 'activity/activity_logs_screen.dart';
@@ -145,7 +145,7 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
             screen: LeaveApprovalScreen.new),
         _MoreEntry('Student Leave', 'Review and approve student leave requests',
             Icons.escalator_warning_rounded, AppColors.teal,
-            screen: StudentLeaveApprovalScreen.new),
+            screen: PrincipalStudentLeaveScreen.new),
       ],
     ),
     _MoreGroup(

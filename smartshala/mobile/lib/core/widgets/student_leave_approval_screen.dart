@@ -1,21 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
-import '../../../core/api/api_exception.dart';
-import '../../../core/data/messages_models.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/app_cards.dart';
-import '../../../core/widgets/app_chips.dart';
-import '../../../core/widgets/state_views.dart';
-import '../data/principal_repository.dart';
+import '../api/api_exception.dart';
+import '../data/messages_models.dart';
 import '../data/student_leave_models.dart';
+import '../theme/app_colors.dart';
+import 'app_cards.dart';
+import 'app_chips.dart';
+import 'state_views.dart';
 
-/// Student Leave — the office side of the child-leave requests parents raise in
-/// their app. Pending / Approved / Rejected tabs, with an Approve / Reject pair
-/// on every pending card. Mirrors staff Leave Approval, keyed to the student.
+/// Student Leave — the school's side of the child-leave requests parents raise
+/// in their app. Pending / Approved / Rejected tabs, with an Approve / Reject
+/// pair on every pending card. Mirrors staff Leave Approval, keyed to the
+/// student.
+///
+/// Shared by the principal and teacher apps: the screen is the same queue
+/// either way, so each passes its own repository's two calls rather than this
+/// knowing which app it is in. What each role may see and decide is the
+/// server's business — a teacher's queue holds only their own class, because
+/// the API scopes it to the class they are class teacher of.
 class StudentLeaveApprovalScreen extends StatefulWidget {
-  const StudentLeaveApprovalScreen({super.key});
+  const StudentLeaveApprovalScreen({super.key, required this.load, required this.decide});
+
+  /// One page of requests, for the tab on screen.
+  final Future<StudentLeavePage> Function({
+    required LeaveStatus status,
+    required int limit,
+    required int offset,
+  }) load;
+
+  /// Approve or reject one, with an optional note back to the parent.
+  final Future<void> Function({required String id, required bool approve, String? note}) decide;
 
   @override
   State<StudentLeaveApprovalScreen> createState() => _StudentLeaveApprovalScreenState();
@@ -50,7 +65,7 @@ class _StudentLeaveApprovalScreenState extends State<StudentLeaveApprovalScreen>
     });
 
     try {
-      final page = await context.read<PrincipalRepository>().studentLeave(status: _status, limit: _pageSize);
+      final page = await widget.load(status: _status, limit: _pageSize, offset: 0);
       if (!mounted) return;
       setState(() {
         _page = page;
@@ -71,11 +86,11 @@ class _StudentLeaveApprovalScreenState extends State<StudentLeaveApprovalScreen>
     setState(() => _loadingMore = true);
 
     try {
-      final next = await context.read<PrincipalRepository>().studentLeave(
-            status: _status,
-            limit: _pageSize,
-            offset: _page.items.length,
-          );
+      final next = await widget.load(
+        status: _status,
+        limit: _pageSize,
+        offset: _page.items.length,
+      );
       if (!mounted) return;
       setState(() {
         _page = _page.appending(next);
@@ -97,7 +112,7 @@ class _StudentLeaveApprovalScreenState extends State<StudentLeaveApprovalScreen>
 
     setState(() => _busyId = request.id);
     try {
-      await context.read<PrincipalRepository>().decideStudentLeave(id: request.id, approve: approve, note: note);
+      await widget.decide(id: request.id, approve: approve, note: note);
       if (!mounted) return;
 
       // Reload: the decided row leaves this tab and every tile count moves.

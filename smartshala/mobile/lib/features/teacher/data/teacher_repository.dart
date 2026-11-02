@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import 'academics_models.dart';
 import '../../../core/data/calendar_models.dart';
+import '../../../core/data/messages_models.dart' show LeaveStatus, LeaveStatusX;
+import '../../../core/data/student_leave_models.dart';
 import '../../../core/data/student_models.dart' show StudentDetail;
 import '../../../core/data/timetable_models.dart';
 import 'salary_models.dart';
@@ -296,6 +298,32 @@ class TeacherRepository {
         .map((item) => DayActivity.fromJson((item as Map).cast<String, dynamic>()))
         .toList();
   }
+
+  // ------------------------------------------------------- student leave
+
+  /// One page of child-leave requests. The server returns only the classes
+  /// this teacher is class teacher of, so there is nothing to filter here.
+  Future<StudentLeavePage> studentLeave({
+    required LeaveStatus status,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final data = await api.get(
+      '/student-leave/requests',
+      query: {'status': status.apiValue, 'limit': limit, 'offset': offset},
+    ) as Map<String, dynamic>;
+    return StudentLeavePage.fromJson(data);
+  }
+
+  /// Approve or reject one of them, with an optional note to the parent.
+  Future<void> decideStudentLeave({required String id, required bool approve, String? note}) =>
+      api.patch(
+        '/student-leave/requests/$id/decision',
+        body: {
+          'status': approve ? 'APPROVED' : 'REJECTED',
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        },
+      );
 
   Future<List<TeachingClass>> _teachingClasses(String path) async {
     final data = await api.get(path) as Map<String, dynamic>;

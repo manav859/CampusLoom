@@ -11,7 +11,18 @@ import { notifyStudentLeaveDecided, notifyStudentLeaveSubmitted } from "../push/
  * `/student-leave`. The row shape is shared so both sides read the same fields.
  */
 
-const approverRoles = new Set<UserRole>([UserRole.PRINCIPAL, UserRole.ADMIN]);
+const schoolWideApprovers = new Set<UserRole>([UserRole.PRINCIPAL, UserRole.ADMIN]);
+
+/**
+ * A teacher only ever sees and decides leave for a class they are the class
+ * teacher of; everyone else works the whole school. Returned as a `where`
+ * fragment so the list, its counts and the decision all scope the same way.
+ */
+function classTeacherScope(user: Express.UserContext): Prisma.StudentLeaveRequestWhereInput {
+  return user.role === UserRole.TEACHER
+    ? { student: { class: { classTeacherId: user.id } } }
+    : {};
+}
 
 const leaveSelect = {
   id: true,
@@ -97,13 +108,21 @@ export async function createStudentLeave(input: {
     select: leaveSelect
   });
 
+  // The class teacher is the one who acts on it, so they are told directly
+  // rather than finding it in a queue they share with the office.
+  const studentClass = await prisma.student.findUnique({
+    where: { id: input.studentId },
+    select: { class: { select: { classTeacherId: true } } }
+  });
+
   notifyStudentLeaveSubmitted(
     { schoolId: input.schoolId },
     {
       studentName: created.student.fullName,
       fromDate: created.fromDate,
       toDate: created.toDate,
-      days: dayCount(created.fromDate, created.toDate)
+      days: dayCount(created.fromDate, created.toDate),
+      classTeacherId: studentClass?.class?.classTeacherId ?? null
     }
   );
 
@@ -125,8 +144,10 @@ export async function listStudentLeave(
   user: Express.UserContext,
   query: { status?: LeaveStatus; limit: number; offset: number }
 ) {
+  const scope = classTeacherScope(user);
   const where: Prisma.StudentLeaveRequestWhereInput = {
     schoolId: user.schoolId,
+    ...scope,
     ...(query.status ? { status: query.status } : {})
   };
 
@@ -142,7 +163,7 @@ export async function listStudentLeave(
     prisma.studentLeaveRequest.count({ where }),
     prisma.studentLeaveRequest.groupBy({
       by: ["status"],
-      where: { schoolId: user.schoolId },
+      where: { schoolId: user.schoolId, ...scope },
       _count: { _all: true }
     })
   ]);
@@ -163,12 +184,15 @@ export async function decideStudentLeave(
   id: string,
   payload: { status: "APPROVED" | "REJECTED"; note?: string }
 ) {
-  if (!approverRoles.has(user.role as UserRole)) {
-    throw new AppError(403, "Only a Principal or Admin can decide leave requests.", "FORBIDDEN");
+  const isSchoolWide = schoolWideApprovers.has(user.role as UserRole);
+  if (!isSchoolWide && user.role !== UserRole.TEACHER) {
+    throw new AppError(403, "You cannot decide leave requests.", "FORBIDDEN");
   }
 
+  // Scoping the lookup rather than checking after it means a teacher cannot
+  // even learn that another class's request exists.
   const request = await prisma.studentLeaveRequest.findFirst({
-    where: { id, schoolId: user.schoolId },
+    where: { id, schoolId: user.schoolId, ...classTeacherScope(user) },
     select: { id: true, status: true, requestedByPhone: true }
   });
   if (!request) throw notFound("Leave request");

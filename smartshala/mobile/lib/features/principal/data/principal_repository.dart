@@ -9,7 +9,7 @@ import 'billing_models.dart';
 import 'inventory_models.dart';
 import 'message_log_models.dart';
 import 'settings_models.dart';
-import 'student_leave_models.dart';
+import '../../../core/data/student_leave_models.dart';
 import '../../../core/data/dashboard_models.dart';
 import '../../../core/data/exam_models.dart';
 import '../../../core/data/timetable_models.dart';

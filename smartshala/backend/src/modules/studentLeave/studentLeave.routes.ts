@@ -7,13 +7,14 @@ import { studentLeaveDecisionSchema, studentLeaveListQuerySchema } from "./stude
 
 /**
  * Staff review of parent-raised child-leave requests. Parents submit and track
- * their own through `/parent/children/:id/leave`; this router is the office
- * side — any staff member can read the queue, Principal/Admin decide it.
+ * their own through `/parent/children/:id/leave`; this router is the school
+ * side. A class teacher sees and decides only their own class's requests —
+ * the service scopes every query — while Principal/Admin work the whole
+ * school.
  */
 export const studentLeaveRouter = Router();
 
 const staffRoles = [UserRole.PRINCIPAL, UserRole.ADMIN, UserRole.TEACHER] as const;
-const approverRoles = [UserRole.PRINCIPAL, UserRole.ADMIN] as const;
 
 studentLeaveRouter.use(requireAuth, requireRole(staffRoles));
 
@@ -25,7 +26,6 @@ studentLeaveRouter.get(
 
 studentLeaveRouter.patch(
   "/requests/:id/decision",
-  requireRole(approverRoles),
   validate({ body: studentLeaveDecisionSchema }),
   controller.decideStudentLeave
 );

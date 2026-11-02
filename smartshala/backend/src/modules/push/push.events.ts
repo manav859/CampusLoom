@@ -212,13 +212,25 @@ export function notifyParentMessage(
   });
 }
 
-/** Approvers, told a parent has raised a leave request for their child. */
+/**
+ * Told a parent has raised a leave request for their child: the child's class
+ * teacher, who is the one expected to act on it, and the office, who can.
+ */
 export function notifyStudentLeaveSubmitted(
   user: Pick<Express.UserContext, "schoolId">,
-  leave: { studentName: string; fromDate: Date; toDate: Date; days: number }
+  leave: {
+    studentName: string;
+    fromDate: Date;
+    toDate: Date;
+    days: number;
+    classTeacherId?: string | null;
+  }
 ) {
   dispatch(async () => {
-    const recipients = await userIdsWithRoles(user.schoolId, approverRoles);
+    const office = await userIdsWithRoles(user.schoolId, approverRoles);
+    const recipients = leave.classTeacherId
+      ? [...new Set([...office, leave.classTeacherId])]
+      : office;
     await notifyUsers(user.schoolId, recipients, studentLeaveSubmittedPush(leave));
   });
 }
