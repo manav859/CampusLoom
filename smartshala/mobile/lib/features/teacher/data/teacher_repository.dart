@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import 'academics_models.dart';
 import '../../../core/data/calendar_models.dart';
+import '../../../core/data/student_models.dart' show StudentDetail;
 import '../../../core/data/timetable_models.dart';
 import 'salary_models.dart';
 import 'teacher_models.dart';
@@ -232,11 +233,15 @@ class TeacherRepository {
         .toList();
   }
 
-  Future<StudentProfile> student(String id) async {
+  /// The full student profile the server tailors to a TEACHER token: the same
+  /// rich record the principal sees, minus documents and fee detail (the server
+  /// strips those and sets `access.allowedTabs` accordingly). The profile screen
+  /// shows only the tabs the student says this role `can` see.
+  Future<StudentDetail> student(String id) async {
     final data = await api.get('/students/$id') as Map<String, dynamic>;
     // The server nests the record for some roles and returns it flat for others.
     final record = (data['student'] as Map?)?.cast<String, dynamic>() ?? data;
-    return StudentProfile.fromJson(record);
+    return StudentDetail.fromJson(record);
   }
 
   /// Send a message to one student's parents. The server fans it out to the

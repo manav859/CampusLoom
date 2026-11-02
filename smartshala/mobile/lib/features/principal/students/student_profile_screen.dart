@@ -8,12 +8,14 @@ import '../../../core/data/dashboard_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/app_chips.dart';
+import '../../../core/widgets/message_parent_screen.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/principal_repository.dart';
 import '../../../core/data/student_models.dart';
 import '../fees/student_fee_ledger_screen.dart';
 import '../widgets/management_widgets.dart';
+import 'edit_student_screen.dart';
 
 /// A wa.me link for an Indian number: the last ten digits with the 91 prefix,
 /// so "+91 98765 00001" and "9876500001" open the same chat.
@@ -28,6 +30,7 @@ enum _Tab {
   academics('Academics', 'academic'),
   attendance('Attendance', 'attendance'),
   fees('Fees', 'fees'),
+  communication('Communication', 'communication'),
   documents('Documents', 'documents');
 
   const _Tab(this.label, this.permission);
@@ -123,6 +126,33 @@ class _PrincipalStudentProfileScreenState extends State<PrincipalStudentProfileS
     }
   }
 
+  Future<void> _composeMessage(StudentDetail student) async {
+    final repository = context.read<PrincipalRepository>();
+    final sent = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => MessageParentScreen(
+          studentName: student.fullName,
+          className: student.className,
+          parentName: student.parentName,
+          onSend: ({required type, required message}) =>
+              repository.sendParentMessage(studentId: student.id, type: type, message: message),
+        ),
+      ),
+    );
+    // Reload so the new message shows up in the audit straight away.
+    if (sent == true) _reload();
+  }
+
+  Future<void> _editStudent(StudentDetail student) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => EditStudentScreen(student: student)),
+    );
+    if (saved == true) {
+      _changed = true;
+      _reload();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope<bool>(
@@ -142,8 +172,15 @@ class _PrincipalStudentProfileScreenState extends State<PrincipalStudentProfileS
                 if (student != null)
                   PopupMenuButton<String>(
                     enabled: !_busy,
-                    onSelected: (_) => _toggleActive(student),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        _editStudent(student);
+                      } else {
+                        _toggleActive(student);
+                      }
+                    },
                     itemBuilder: (_) => [
+                      const PopupMenuItem(value: 'edit', child: Text('Edit details')),
                       PopupMenuItem(
                         value: 'toggle',
                         child: Text(student.isActive ? 'Deactivate student' : 'Reactivate student'),
@@ -220,6 +257,10 @@ class _PrincipalStudentProfileScreenState extends State<PrincipalStudentProfileS
             _Tab.academics => _AcademicsTab(student: student),
             _Tab.attendance => _AttendanceTab(metrics: student.attendance),
             _Tab.fees => _FeesTab(student: student),
+            _Tab.communication => _CommunicationTab(
+                entries: student.communication,
+                onCompose: () => _composeMessage(student),
+              ),
             _Tab.documents => _DocumentsTab(documents: student.documents),
           },
         ],
@@ -614,6 +655,86 @@ class _FeesTab extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+class _CommunicationTab extends StatelessWidget {
+  const _CommunicationTab({required this.entries, required this.onCompose});
+
+  final List<CommunicationEntry> entries;
+  final VoidCallback onCompose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          onPressed: onCompose,
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+          icon: const Icon(Icons.send_rounded, size: 18),
+          label: const Text('Message parent'),
+        ),
+        const SizedBox(height: 14),
+        if (entries.isEmpty)
+          const AppCard(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: EmptyView(
+              icon: Icons.forum_rounded,
+              title: 'No messages yet',
+              message: 'Tap "Message parent" to send a note. It reaches the parent app as a notification and shows up here.',
+            ),
+          )
+        else
+          for (final entry in entries)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            DateFormat('d MMM yyyy, h:mm a').format(entry.timestamp),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ),
+                        StatusChip(
+                          label: humanizeConstant(entry.status),
+                          color: _tone(entry.status).$1,
+                          tint: _tone(entry.status).$2,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(entry.summary,
+                        style: const TextStyle(fontSize: 13.5, color: AppColors.textPrimary, height: 1.4)),
+                  ],
+                ),
+              ),
+            ),
+      ],
+    );
+  }
+
+  (Color, Color) _tone(String status) {
+    switch (status.toUpperCase()) {
+      case 'SENT':
+      case 'DELIVERED':
+      case 'READ':
+      case 'COMPLETED':
+        return (AppColors.success, AppColors.successSoft);
+      case 'QUEUED':
+      case 'PENDING':
+        return (AppColors.warning, AppColors.warningSoft);
+      case 'FAILED':
+      case 'MISSED':
+        return (AppColors.danger, AppColors.dangerSoft);
+      default:
+        return (AppColors.textSecondary, AppColors.background);
+    }
   }
 }
 

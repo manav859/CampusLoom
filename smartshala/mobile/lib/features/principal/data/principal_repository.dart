@@ -141,9 +141,30 @@ class PrincipalRepository {
     return data['id'] as String;
   }
 
+  /// Update an existing student. Sends only the fields the app's form edits as a
+  /// partial PATCH, so transport, fee structures and documents set on the web are
+  /// left untouched.
+  Future<void> updateStudent(String id, Map<String, dynamic> body) =>
+      api.patch('/students/$id', body: body);
+
   Future<void> deactivateStudent(String id) => api.delete('/students/$id');
 
   Future<void> activateStudent(String id) => api.patch('/students/$id/activate');
+
+  /// Send a message to one student's parents. The server pushes it to the parent
+  /// app, sends a WhatsApp copy, and records it in the student's communication
+  /// audit. [type] is a CommunicationMessageType such as GENERIC_NOTICE.
+  Future<void> sendParentMessage({
+    required String studentId,
+    required String type,
+    required String message,
+  }) =>
+      api.post('/communication/messages', body: {
+        'targetType': 'STUDENT',
+        'studentId': studentId,
+        'type': type,
+        'message': message,
+      });
 
   // -------------------------------------------------------------- teachers
 

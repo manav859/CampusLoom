@@ -1,26 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../../../core/api/api_exception.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/app_cards.dart';
-import '../data/academics_models.dart';
-import '../data/teacher_repository.dart';
-import '../widgets/picker_field.dart';
+import '../api/api_exception.dart';
+import '../theme/app_colors.dart';
+import 'app_cards.dart';
 
-/// Compose a message to one student's parents. On send the server pushes it to
-/// the parent app and logs it against the student, so it reappears in the
-/// Communication tab after this screen pops `true`.
-class MessageParentScreen extends StatefulWidget {
-  const MessageParentScreen({super.key, required this.student});
+/// Sends one parent message. Implemented by each role's repository against
+/// POST /communication/messages (targetType STUDENT).
+typedef ParentMessageSender = Future<void> Function({
+  required String type,
+  required String message,
+});
 
-  final StudentProfile student;
-
-  @override
-  State<MessageParentScreen> createState() => _MessageParentScreenState();
-}
-
-/// A CommunicationMessageType the server accepts, with a teacher-friendly label.
+/// A CommunicationMessageType the server accepts, with a friendly label.
 class _MessageType {
   const _MessageType(this.apiValue, this.label);
   final String apiValue;
@@ -36,6 +27,28 @@ const _messageTypes = <_MessageType>[
   _MessageType('PTM_INVITE', 'PTM invite'),
   _MessageType('CUSTOM', 'Custom message'),
 ];
+
+/// Compose a message to one student's parents. On send the server pushes it to
+/// the parent app and logs it against the student, so it reappears in the
+/// Communication tab after this screen pops `true`. Shared by the teacher and
+/// principal apps, which differ only in the [onSend] implementation.
+class MessageParentScreen extends StatefulWidget {
+  const MessageParentScreen({
+    super.key,
+    required this.studentName,
+    required this.className,
+    required this.parentName,
+    required this.onSend,
+  });
+
+  final String studentName;
+  final String className;
+  final String? parentName;
+  final ParentMessageSender onSend;
+
+  @override
+  State<MessageParentScreen> createState() => _MessageParentScreenState();
+}
 
 class _MessageParentScreenState extends State<MessageParentScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -55,11 +68,7 @@ class _MessageParentScreenState extends State<MessageParentScreen> {
 
     setState(() => _sending = true);
     try {
-      await context.read<TeacherRepository>().sendParentMessage(
-            studentId: widget.student.id,
-            type: _type.apiValue,
-            message: _message.text.trim(),
-          );
+      await widget.onSend(type: _type.apiValue, message: _message.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -84,8 +93,7 @@ class _MessageParentScreenState extends State<MessageParentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final student = widget.student;
-    final parent = (student.parentName ?? '').isEmpty ? 'the parents' : student.parentName!;
+    final parent = (widget.parentName ?? '').isEmpty ? 'the parents' : widget.parentName!;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Message parent')),
@@ -106,7 +114,7 @@ class _MessageParentScreenState extends State<MessageParentScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          student.fullName,
+                          widget.studentName,
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
@@ -114,7 +122,7 @@ class _MessageParentScreenState extends State<MessageParentScreen> {
                           ),
                         ),
                         Text(
-                          'To $parent · Class ${student.className}',
+                          'To $parent · Class ${widget.className}',
                           style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                         ),
                       ],
@@ -124,13 +132,15 @@ class _MessageParentScreenState extends State<MessageParentScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            PickerField<_MessageType>(
-              label: 'Message type',
-              value: _type,
-              items: _messageTypes,
-              labelOf: (item) => item.label,
-              idOf: (item) => item.apiValue,
-              onChanged: (item) => setState(() => _type = item),
+            DropdownButtonFormField<_MessageType>(
+              initialValue: _type,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Message type'),
+              items: [
+                for (final item in _messageTypes)
+                  DropdownMenuItem(value: item, child: Text(item.label)),
+              ],
+              onChanged: (item) => setState(() => _type = item ?? _messageTypes.first),
             ),
             const SizedBox(height: 14),
             TextFormField(

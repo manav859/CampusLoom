@@ -391,6 +391,7 @@ class StudentDetail {
     required this.admissionNumber,
     required this.className,
     required this.academicYear,
+    this.classId,
     required this.isActive,
     required this.parentName,
     required this.parentPhone,
@@ -431,6 +432,9 @@ class StudentDetail {
   final String fullName;
   final String admissionNumber;
   final String className;
+
+  /// The class's id, for pre-selecting it when editing the student.
+  final String? classId;
   final String academicYear;
   final bool isActive;
   final int? rollNumber;
@@ -495,6 +499,7 @@ class StudentDetail {
       fullName: json['fullName'] as String? ?? '',
       admissionNumber: json['admissionNumber'] as String? ?? '',
       className: _className(classJson),
+      classId: classJson['id'] as String?,
       academicYear: '${classJson['academicYear'] ?? ''}',
       isActive: json['isActive'] as bool? ?? true,
       rollNumber: _intOrNull(json['rollNumber']),

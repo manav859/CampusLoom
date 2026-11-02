@@ -1,22 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/data/dashboard_models.dart';
+import '../../../core/data/student_models.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_cards.dart';
 import '../../../core/widgets/app_chips.dart';
+import '../../../core/widgets/message_parent_screen.dart';
+import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
-import '../data/academics_models.dart';
 import '../data/teacher_repository.dart';
-import 'message_parent_screen.dart';
 
-/// The teacher's view of a student: academic and attendance information, plus a
-/// Communication tab for the parent-message history and sending a new message.
-///
-/// The blueprint is explicit that fee information never appears in the teacher
-/// portal, and the server enforces it too — a TEACHER token gets no fee fields
-/// from GET /students/:id. This screen therefore has no Fees tab by design.
+/// A wa.me link for an Indian number: the last ten digits with the 91 prefix.
+Uri _whatsAppUri(String phone) {
+  final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+  final local = digits.length > 10 ? digits.substring(digits.length - 10) : digits;
+  return Uri.parse('https://wa.me/91$local');
+}
+
+/// The teacher's view of a student. It shows the same record the principal sees,
+/// limited to the tabs the server allows a TEACHER token (`access.allowedTabs`):
+/// no Documents tab, and fees appear only as a summary badge — never a payment
+/// ledger. A Communication tab lists the parent-message history and sends new
+/// messages to the parent app.
 class StudentProfileScreen extends StatefulWidget {
   const StudentProfileScreen({super.key, required this.studentId});
 
@@ -26,27 +35,57 @@ class StudentProfileScreen extends StatefulWidget {
   State<StudentProfileScreen> createState() => _StudentProfileScreenState();
 }
 
-enum _Tab { profile, communication }
+enum _Tab {
+  overview('Overview', null),
+  academics('Academics', 'academic'),
+  attendance('Attendance', 'attendance'),
+  fees('Fees', 'fees'),
+  behaviour('Behaviour', 'behaviour'),
+  communication('Communication', 'communication');
+
+  const _Tab(this.label, this.permission);
+
+  final String label;
+
+  /// The server's tab key in `access.allowedTabs`; Overview needs none.
+  final String? permission;
+}
 
 class _StudentProfileScreenState extends State<StudentProfileScreen> {
-  late Future<StudentProfile> _future;
-  _Tab _tab = _Tab.profile;
+  late Future<StudentDetail> _future;
+  _Tab _tab = _Tab.overview;
 
   @override
   void initState() {
     super.initState();
-    _future = context.read<TeacherRepository>().student(widget.studentId);
+    _future = _load();
   }
 
-  void _reload() {
-    setState(() {
-      _future = context.read<TeacherRepository>().student(widget.studentId);
-    });
+  Future<StudentDetail> _load() => context.read<TeacherRepository>().student(widget.studentId);
+
+  void _reload() => setState(() => _future = _load());
+
+  Future<void> _launch(Uri uri) async {
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No app on this phone can open that.')),
+      );
+    }
   }
 
-  Future<void> _composeMessage(StudentProfile student) async {
+  Future<void> _composeMessage(StudentDetail student) async {
+    final repository = context.read<TeacherRepository>();
     final sent = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => MessageParentScreen(student: student)),
+      MaterialPageRoute(
+        builder: (_) => MessageParentScreen(
+          studentName: student.fullName,
+          className: student.className,
+          parentName: student.parentName,
+          onSend: ({required type, required message}) =>
+              repository.sendParentMessage(studentId: student.id, type: type, message: message),
+        ),
+      ),
     );
     // Reload so the new message shows up in the audit straight away.
     if (sent == true) _reload();
@@ -56,13 +95,12 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Student')),
-      body: FutureBuilder<StudentProfile>(
+      body: FutureBuilder<StudentDetail>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const LoadingView();
           }
-
           if (snapshot.hasError) {
             return ErrorView(
               message: snapshot.error is ApiException
@@ -71,36 +109,12 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
               onRetry: _reload,
             );
           }
-
-          final student = snapshot.data!;
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _HeaderCard(student: student),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: SegmentedTabs(
-                  labels: const ['Profile', 'Communication'],
-                  counts: [0, student.communication.length],
-                  index: _Tab.values.indexOf(_tab),
-                  onChanged: (next) => setState(() => _tab = _Tab.values[next]),
-                ),
-              ),
-              Expanded(
-                child: switch (_tab) {
-                  _Tab.profile => _ProfileTab(student: student),
-                  _Tab.communication => _CommunicationTab(student: student),
-                },
-              ),
-            ],
-          );
+          return _body(snapshot.data!);
         },
       ),
       floatingActionButton: _tab != _Tab.communication
           ? null
-          : FutureBuilder<StudentProfile>(
+          : FutureBuilder<StudentDetail>(
               future: _future,
               builder: (context, snapshot) {
                 final student = snapshot.data;
@@ -116,51 +130,474 @@ class _StudentProfileScreenState extends State<StudentProfileScreen> {
             ),
     );
   }
+
+  Widget _body(StudentDetail student) {
+    final tabs = _Tab.values
+        .where((tab) => tab.permission == null || student.can(tab.permission!))
+        .toList();
+    final tab = tabs.contains(_tab) ? _tab : _Tab.overview;
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        _reload();
+        await _future.then((_) {}, onError: (Object _) {});
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+        children: [
+          _Header(student: student),
+          const SizedBox(height: 12),
+          _QuickFacts(student: student),
+          const SizedBox(height: 12),
+          ResponsiveGrid(
+            phoneColumns: 3,
+            wideColumns: 3,
+            children: [
+              _Action(
+                icon: Icons.call_rounded,
+                label: 'Call Parent',
+                color: AppColors.success,
+                onTap: student.parentPhone.isEmpty
+                    ? null
+                    : () => _launch(Uri(scheme: 'tel', path: student.parentPhone)),
+              ),
+              _Action(
+                icon: Icons.chat_rounded,
+                label: 'WhatsApp',
+                color: const Color(0xFF25D366),
+                onTap: student.parentPhone.isEmpty ? null : () => _launch(_whatsAppUri(student.parentPhone)),
+              ),
+              _Action(
+                icon: Icons.send_rounded,
+                label: 'Message',
+                color: AppColors.primary,
+                onTap: student.can('communication') ? () => _composeMessage(student) : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SegmentedTabs(
+            labels: [for (final item in tabs) item.label],
+            index: tabs.indexOf(tab),
+            onChanged: (index) => setState(() => _tab = tabs[index]),
+          ),
+          const SizedBox(height: 14),
+          switch (tab) {
+            _Tab.overview => _OverviewTab(student: student),
+            _Tab.academics => _AcademicsTab(student: student),
+            _Tab.attendance => _AttendanceTab(metrics: student.attendance),
+            _Tab.fees => _FeesTab(summary: student.feeSummary),
+            _Tab.behaviour => _BehaviourTab(behaviour: student.behaviour),
+            _Tab.communication => _CommunicationTab(entries: student.communication),
+          },
+        ],
+      ),
+    );
+  }
 }
 
-class _ProfileTab extends StatelessWidget {
-  const _ProfileTab({required this.student});
+final _day = DateFormat('d MMM yyyy');
 
-  final StudentProfile student;
+String _percent(double? value) => value == null ? '—' : '${value.round()}%';
+
+class _Header extends StatelessWidget {
+  const _Header({required this.student});
+
+  final StudentDetail student;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+    return AppCard(
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundColor: AppColors.primarySoft,
+            backgroundImage: student.profilePhotoUrl == null ? null : NetworkImage(student.profilePhotoUrl!),
+            child: student.profilePhotoUrl != null
+                ? null
+                : Text(
+                    student.fullName.isEmpty ? '?' : student.fullName.characters.first.toUpperCase(),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.primary),
+                  ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(student.fullName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, height: 1.25)),
+                const SizedBox(height: 2),
+                Text('ID ${student.admissionNumber}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    StatusChip(label: 'Class ${student.className}', color: AppColors.primary, tint: AppColors.primarySoft),
+                    if (student.rollNumber != null)
+                      StatusChip(label: 'Roll ${student.rollNumber}', color: AppColors.teal, tint: AppColors.tealSoft),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickFacts extends StatelessWidget {
+  const _QuickFacts({required this.student});
+
+  final StudentDetail student;
+
+  @override
+  Widget build(BuildContext context) {
+    final facts = [
+      ('Age', student.age == null ? '—' : '${student.age} yrs'),
+      ('Gender', student.gender == null ? '—' : humanizeConstant(student.gender!)),
+      ('Date of birth', student.dateOfBirth == null ? '—' : _day.format(student.dateOfBirth!)),
+      ('Joined', student.joiningDate == null ? '—' : _day.format(student.joiningDate!)),
+    ];
+
+    return ResponsiveGrid(
+      phoneColumns: 2,
+      wideColumns: 4,
+      spacing: 8,
       children: [
-        const SectionHeader(title: 'Performance'),
-        _PerformanceRow(student: student),
-        const SizedBox(height: 20),
-        const SectionHeader(title: 'Basic Information'),
-        _InfoCard(student: student),
+        for (final (label, value) in facts)
+          AppCard(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary)),
+                const SizedBox(height: 2),
+                Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _OverviewTab extends StatelessWidget {
+  const _OverviewTab({required this.student});
+
+  final StudentDetail student;
+
+  @override
+  Widget build(BuildContext context) {
+    String? withPhone(String? name, String? phone) =>
+        name == null || name.isEmpty ? phone : (phone == null || phone.isEmpty ? name : '$name · $phone');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _InfoSection(title: 'Class Information', lines: [
+          ('Class', student.className),
+          ('Roll number', student.rollNumber?.toString()),
+          ('Academic year', student.academicYear),
+          ('Transport', student.transportRequired ? 'Required' : 'Not required'),
+          ('Previous school', student.previousSchool),
+        ]),
+        _InfoSection(title: 'Parent / Guardian', lines: [
+          ('Primary contact', withPhone(student.parentName, student.parentPhone)),
+          ('Alternate phone', student.alternatePhone),
+          ('Father', withPhone(student.fatherName, student.fatherPhone)),
+          ('Mother', withPhone(student.motherName, student.motherPhone)),
+          ('Guardian', withPhone(student.guardianName, student.guardianPhone)),
+          ('Address', student.address),
+        ]),
+        if (student.can('attendance')) ...[
+          const SectionHeader(title: 'Attendance Summary'),
+          _AttendanceTiles(metrics: student.attendance),
+          const SizedBox(height: 16),
+        ],
+        if (student.siblings.isNotEmpty)
+          _InfoSection(title: 'Siblings', lines: [
+            for (final sibling in student.siblings) (sibling.fullName, 'Class ${sibling.className}'),
+          ]),
+      ],
+    );
+  }
+}
+
+/// The teacher's fee view: a balance summary only. The server never sends a
+/// teacher the payment ledger, so there is nothing to drill into here.
+class _FeesTab extends StatelessWidget {
+  const _FeesTab({required this.summary});
+
+  final FeeSummary summary;
+
+  @override
+  Widget build(BuildContext context) {
+    if (summary.status == 'NONE') {
+      return const AppCard(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: EmptyView(
+          icon: Icons.receipt_long_outlined,
+          title: 'No fees assigned',
+          message: 'Fee structures are assigned on the web dashboard.',
+        ),
+      );
+    }
+
+    final overdue = summary.status == 'OVERDUE';
+    final paid = summary.status == 'PAID';
+    final color = overdue ? AppColors.danger : (paid ? AppColors.success : AppColors.warning);
+    final tint = overdue ? AppColors.dangerSoft : (paid ? AppColors.successSoft : AppColors.warningSoft);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: StatusChip(label: summary.label, color: color, tint: tint),
+        ),
+        const SizedBox(height: 12),
+        ResponsiveGrid(
+          phoneColumns: 3,
+          wideColumns: 3,
+          children: [
+            KpiCard(index: 1, label: 'Total', value: formatInr(summary.totalPayable), icon: Icons.receipt_long_rounded),
+            KpiCard(index: 3, label: 'Paid', value: formatInr(summary.totalPaid), icon: Icons.check_circle_rounded),
+            KpiCard(index: 2, label: 'Balance', value: formatInr(summary.balance), icon: Icons.pending_actions_rounded),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _AttendanceTiles extends StatelessWidget {
+  const _AttendanceTiles({required this.metrics});
+
+  final AttendanceMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return ResponsiveGrid(
+      phoneColumns: 2,
+      wideColumns: 4,
+      children: [
+        KpiCard(index: 3, label: 'Attendance', value: _percent(metrics.percentage), icon: Icons.fact_check_rounded),
+        KpiCard(index: 1, label: 'Days recorded', value: '${metrics.totalDays}', icon: Icons.calendar_month_rounded),
+        KpiCard(index: 2, label: 'Absences', value: '${metrics.absences}', icon: Icons.event_busy_rounded),
+        KpiCard(index: 0, label: 'Class average', value: _percent(metrics.classAverage), icon: Icons.groups_rounded),
+      ],
+    );
+  }
+}
+
+class _AttendanceTab extends StatelessWidget {
+  const _AttendanceTab({required this.metrics});
+
+  final AttendanceMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    if (metrics.totalDays == 0) {
+      return const AppCard(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: EmptyView(
+          icon: Icons.fact_check_outlined,
+          title: 'No attendance yet',
+          message: 'Attendance appears once this student’s class is marked.',
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _AttendanceTiles(metrics: metrics),
+        const SizedBox(height: 16),
+        _InfoSection(title: 'Details', lines: [
+          ('On leave', '${metrics.leaves}'),
+          if (metrics.remainingBefore75 != null)
+            ('Before 75%', '${metrics.remainingBefore75} more absences allowed'),
+        ]),
+      ],
+    );
+  }
+}
+
+class _AcademicsTab extends StatelessWidget {
+  const _AcademicsTab({required this.student});
+
+  final StudentDetail student;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ResponsiveGrid(
+          phoneColumns: 2,
+          wideColumns: 4,
+          children: [
+            KpiCard(index: 0, label: 'Performance', value: _percent(student.performanceRate), icon: Icons.insights_rounded),
+            KpiCard(index: 1, label: 'Exam average', value: _percent(student.examAverage), icon: Icons.assignment_rounded),
+            KpiCard(index: 4, label: 'Homework', value: _percent(student.homeworkCompletion), icon: Icons.menu_book_rounded),
+            KpiCard(index: 3, label: 'Class rank', value: student.currentRank == null ? '—' : '#${student.currentRank}', icon: Icons.emoji_events_rounded),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (student.subjects.isNotEmpty)
+          _InfoSection(title: 'Subjects', lines: [
+            for (final subject in student.subjects)
+              (subject.subject, '${subject.studentAverage}% · class ${subject.classAverage}%'),
+          ]),
+        const SectionHeader(title: 'Exam Results'),
+        if (student.exams.isEmpty)
+          const AppCard(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: EmptyView(icon: Icons.assignment_outlined, title: 'No exam results yet'),
+          )
+        else
+          for (final exam in student.exams)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: AppCard(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(exam.examName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          Text(
+                            [exam.subject, if (exam.examDate != null) _day.format(exam.examDate!)]
+                                .where((part) => part.isNotEmpty)
+                                .join(' · '),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(exam.marks, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                        Text(
+                          [if (exam.grade != null) exam.grade!, _percent(exam.percentage)].join(' · '),
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+      ],
+    );
+  }
+}
+
+class _BehaviourTab extends StatelessWidget {
+  const _BehaviourTab({required this.behaviour});
+
+  final BehaviourAnalytics behaviour;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ResponsiveGrid(
+          phoneColumns: 2,
+          wideColumns: 2,
+          children: [
+            KpiCard(index: 2, label: 'Incidents', value: '${behaviour.incidents}', icon: Icons.report_rounded),
+            KpiCard(index: 3, label: 'Achievements', value: '${behaviour.achievements}', icon: Icons.emoji_events_rounded),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (behaviour.records.isEmpty)
+          const AppCard(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: EmptyView(
+              icon: Icons.emoji_people_rounded,
+              title: 'No behaviour records',
+              message: 'Incidents and achievements logged for this student appear here.',
+            ),
+          )
+        else
+          for (final record in behaviour.records)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: AppCard(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(record.title.isEmpty ? humanizeConstant(record.type) : record.title,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        ),
+                        StatusChip(
+                          label: humanizeConstant(record.type),
+                          color: record.type == 'ACHIEVEMENT' ? AppColors.success : AppColors.warning,
+                          tint: record.type == 'ACHIEVEMENT' ? AppColors.successSoft : AppColors.warningSoft,
+                        ),
+                      ],
+                    ),
+                    if (record.summary.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(record.summary, style: const TextStyle(fontSize: 13, color: AppColors.textPrimary, height: 1.35)),
+                    ],
+                    const SizedBox(height: 6),
+                    Text(
+                      [
+                        _day.format(record.occurredAt),
+                        if (record.createdByName != null) 'by ${record.createdByName}',
+                      ].join(' · '),
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+            ),
       ],
     );
   }
 }
 
 class _CommunicationTab extends StatelessWidget {
-  const _CommunicationTab({required this.student});
+  const _CommunicationTab({required this.entries});
 
-  final StudentProfile student;
+  final List<CommunicationEntry> entries;
 
   @override
   Widget build(BuildContext context) {
-    final entries = student.communication;
-
     if (entries.isEmpty) {
-      return const EmptyView(
-        icon: Icons.forum_rounded,
-        title: 'No messages yet',
-        message:
-            'Tap "Message parent" to send a note. It reaches the parent app as a notification and shows up here.',
+      return const AppCard(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: EmptyView(
+          icon: Icons.forum_rounded,
+          title: 'No messages yet',
+          message: 'Tap "Message parent" to send a note. It reaches the parent app as a notification and shows up here.',
+        ),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-      itemCount: entries.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) => _CommunicationCard(entry: entries[index]),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final entry in entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _CommunicationCard(entry: entry),
+          ),
+      ],
     );
   }
 }
@@ -168,7 +605,7 @@ class _CommunicationTab extends StatelessWidget {
 class _CommunicationCard extends StatelessWidget {
   const _CommunicationCard({required this.entry});
 
-  final TeacherCommunicationEntry entry;
+  final CommunicationEntry entry;
 
   @override
   Widget build(BuildContext context) {
@@ -185,22 +622,11 @@ class _CommunicationCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ),
-              StatusChip(
-                label: _statusLabel(entry.status),
-                color: tone.$1,
-                tint: tone.$2,
-              ),
+              StatusChip(label: _statusLabel(entry.status), color: tone.$1, tint: tone.$2),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            entry.summary,
-            style: const TextStyle(
-              fontSize: 13.5,
-              color: AppColors.textPrimary,
-              height: 1.4,
-            ),
-          ),
+          Text(entry.summary, style: const TextStyle(fontSize: 13.5, color: AppColors.textPrimary, height: 1.4)),
         ],
       ),
     );
@@ -228,202 +654,96 @@ class _CommunicationCard extends StatelessWidget {
   }
 }
 
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({required this.student});
+/// A titled card of label/value rows; a row whose value is null or empty is
+/// skipped, and the whole section disappears if nothing is left.
+class _InfoSection extends StatelessWidget {
+  const _InfoSection({required this.title, required this.lines});
 
-  final StudentProfile student;
+  final String title;
+  final List<(String, String?)> lines;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppColors.primarySoft,
-            backgroundImage: student.profilePhotoUrl == null
-                ? null
-                : NetworkImage(student.profilePhotoUrl!),
-            child: student.profilePhotoUrl != null
-                ? null
-                : Text(
-                    student.fullName.characters.first.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                    ),
-                  ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  student.fullName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  student.admissionNumber,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 6),
+    final rows = [
+      for (final (label, value) in lines)
+        if (value != null && value.trim().isNotEmpty) (label, value),
+    ];
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(title: title),
+        AppCard(
+          child: Column(
+            children: [
+              for (var index = 0; index < rows.length; index++) ...[
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Tag(label: 'Class ${student.className}', color: AppColors.primary),
-                    if (student.rollNumber != null) ...[
-                      const SizedBox(width: 6),
-                      _Tag(label: 'Roll ${student.rollNumber}', color: AppColors.teal),
-                    ],
+                    SizedBox(
+                      width: 128,
+                      child: Text(rows[index].$1,
+                          style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        rows[index].$2,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
+                if (index != rows.length - 1)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 11),
+                    child: Divider(height: 1),
+                  ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Tag extends StatelessWidget {
-  const _Tag({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
-      ),
-    );
-  }
-}
-
-class _PerformanceRow extends StatelessWidget {
-  const _PerformanceRow({required this.student});
-
-  final StudentProfile student;
-
-  @override
-  Widget build(BuildContext context) {
-    String percent(double? value) => value == null ? '—' : '${value.round()}%';
-
-    return Row(
-      children: [
-        Expanded(
-          child: StatTile(
-            value: percent(student.attendancePercentage),
-            label: 'Attendance',
-            icon: Icons.event_available_rounded,
-            color: AppColors.success,
+            ],
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: StatTile(
-            value: percent(student.examAverage),
-            label: 'Exam Average',
-            icon: Icons.school_rounded,
-            color: AppColors.primary,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: StatTile(
-            value: percent(student.homeworkCompletion),
-            label: 'Homework',
-            icon: Icons.menu_book_rounded,
-            color: AppColors.purple,
-          ),
-        ),
+        const SizedBox(height: 16),
       ],
     );
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.student});
+class _Action extends StatelessWidget {
+  const _Action({required this.icon, required this.label, required this.color, this.onTap});
 
-  final StudentProfile student;
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final rows = <(String, String)>[
-      if (student.age != null) ('Age', '${student.age} years'),
-      if (student.gender != null) ('Gender', _titleCase(student.gender!)),
-      if (student.dateOfBirth != null)
-        ('Date of Birth', DateFormat('d MMM yyyy').format(student.dateOfBirth!)),
-      if (student.parentName != null && student.parentName!.isNotEmpty)
-        ('Parent / Guardian', student.parentName!),
-      if (student.parentPhone != null && student.parentPhone!.isNotEmpty)
-        ('Contact', student.parentPhone!),
-      if (student.address != null && student.address!.isNotEmpty) ('Address', student.address!),
-    ];
-
-    if (rows.isEmpty) {
-      return const AppCard(
-        child: Text(
-          'No additional details recorded.',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
-        ),
-      );
-    }
-
+    final enabled = onTap != null;
     return AppCard(
-      child: Column(
-        children: [
-          for (var index = 0; index < rows.length; index++) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        child: Opacity(
+          opacity: enabled ? 1 : 0.4,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Column(
               children: [
-                SizedBox(
-                  width: 128,
-                  child: Text(
-                    rows[index].$1,
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    rows[index].$2,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
+                Icon(icon, color: color, size: 22),
+                const SizedBox(height: 6),
+                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               ],
             ),
-            if (index != rows.length - 1)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 11),
-                child: Divider(height: 1),
-              ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
-
-  String _titleCase(String value) =>
-      value.isEmpty ? value : value[0].toUpperCase() + value.substring(1).toLowerCase();
 }

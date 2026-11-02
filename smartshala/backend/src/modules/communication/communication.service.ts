@@ -173,7 +173,21 @@ async function recipientsForTarget(user: CommunicationUser, input: SendTeacherMe
       id: input.studentId,
       schoolId: user.schoolId,
       isActive: true,
-      ...(user.role === UserRole.TEACHER ? { class: { classTeacherId: user.id } } : {})
+      // A teacher may message any student they can open — the class they are
+      // class teacher of, or any class they teach a period in. This mirrors the
+      // view access in students.service `studentAccessFilter`; without the
+      // period-assignment arm a subject teacher saw the student but got
+      // "Student not found" on send.
+      ...(user.role === UserRole.TEACHER
+        ? {
+            class: {
+              OR: [
+                { classTeacherId: user.id },
+                { teacherPeriodAssignments: { some: { teacherId: user.id } } }
+              ]
+            }
+          }
+        : {})
     },
     select: {
       id: true,
