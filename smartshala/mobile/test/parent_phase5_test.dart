@@ -47,6 +47,11 @@ class _FakeParentRepository extends Fake implements ParentRepository {
         hasMore: false,
       );
 
+  // The Messages tab loads the school's notices and this child's own messages
+  // together; the feed test only asserts on the notices.
+  @override
+  Future<List<ParentMessage>> childMessages(String childId) async => const [];
+
   @override
   Future<List<ParentDocument>> documents(String childId) async => [
         ParentDocument(
@@ -66,10 +71,20 @@ Widget _wrap(Widget child) => Provider<ParentRepository>.value(
       child: MaterialApp(home: Scaffold(body: child)),
     );
 
+/// Tall enough that the month grid and the event list under it both lay out —
+/// at the default 600dp the cards below the calendar never get built.
+Future<void> _pump(WidgetTester tester, Widget screen) async {
+  tester.view.physicalSize = const Size(1200, 4000);
+  tester.view.devicePixelRatio = 2.0;
+  addTearDown(tester.view.reset);
+
+  await tester.pumpWidget(_wrap(screen));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('calendar lists the month\'s events with their type', (tester) async {
-    await tester.pumpWidget(_wrap(const ParentCalendarScreen()));
-    await tester.pumpAndSettle();
+    await _pump(tester, const ParentCalendarScreen());
 
     expect(find.text('Diwali Holiday'), findsOneWidget);
     expect(find.text('Half-Yearly Exam'), findsOneWidget);
@@ -78,7 +93,11 @@ void main() {
   });
 
   testWidgets('announcements feed shows a parent notice', (tester) async {
-    await tester.pumpWidget(_wrap(const ParentAnnouncementsScreen()));
+    await tester.pumpWidget(_wrap(
+      const ParentAnnouncementsScreen(
+        child: ParentChild(id: 'a', fullName: 'Aarav Sharma', className: '5-A'),
+      ),
+    ));
     await tester.pumpAndSettle();
 
     expect(find.text('Parent-Teacher Meeting'), findsOneWidget);
