@@ -239,6 +239,26 @@ class TeacherRepository {
     return StudentProfile.fromJson(record);
   }
 
+  /// Send a message to one student's parents. The server fans it out to the
+  /// parent app (push + Messages feed) and a WhatsApp copy, and records it in
+  /// the student's communication audit. [type] is a CommunicationMessageType
+  /// value such as GENERIC_NOTICE or CUSTOM.
+  Future<void> sendParentMessage({
+    required String studentId,
+    required String type,
+    required String message,
+  }) async {
+    await api.post(
+      '/communication/messages',
+      body: {
+        'targetType': 'STUDENT',
+        'studentId': studentId,
+        'type': type,
+        'message': message,
+      },
+    );
+  }
+
   Future<FocusResult> studentsNeedingFocus({String? classId}) async {
     final data = await api.get(
       '/students/needing-focus',

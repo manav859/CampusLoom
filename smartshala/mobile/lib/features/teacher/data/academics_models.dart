@@ -187,6 +187,35 @@ class StudentListItem {
   }
 }
 
+/// One row of a student's parent-communication history, as returned in the
+/// `communicationAudit` array of GET /students/:id. Covers both the WhatsApp
+/// notifications and the messages a teacher sent from the Communication tab.
+class TeacherCommunicationEntry {
+  const TeacherCommunicationEntry({
+    required this.id,
+    required this.channel,
+    required this.summary,
+    required this.status,
+    required this.timestamp,
+  });
+
+  final String id;
+  final String channel;
+  final String summary;
+  final String status;
+  final DateTime timestamp;
+
+  factory TeacherCommunicationEntry.fromJson(Map<String, dynamic> json) =>
+      TeacherCommunicationEntry(
+        id: json['id'] as String? ?? '',
+        channel: json['channel'] as String? ?? 'WHATSAPP',
+        summary: json['summary'] as String? ?? '',
+        status: json['status'] as String? ?? '',
+        timestamp:
+            DateTime.tryParse(json['timestamp'] as String? ?? '')?.toLocal() ?? DateTime.now(),
+      );
+}
+
 class StudentProfile {
   const StudentProfile({
     required this.id,
@@ -203,6 +232,7 @@ class StudentProfile {
     this.examAverage,
     this.homeworkCompletion,
     this.profilePhotoUrl,
+    this.communication = const [],
   });
 
   final String id;
@@ -219,6 +249,7 @@ class StudentProfile {
   final double? examAverage;
   final double? homeworkCompletion;
   final String? profilePhotoUrl;
+  final List<TeacherCommunicationEntry> communication;
 
   int? get age {
     final dob = dateOfBirth;
@@ -248,6 +279,9 @@ class StudentProfile {
       examAverage: (json['examAverage'] as num?)?.toDouble(),
       homeworkCompletion: (json['homeworkCompletion'] as num?)?.toDouble(),
       profilePhotoUrl: json['profilePhotoUrl'] as String?,
+      communication: ((json['communicationAudit'] as List?) ?? const [])
+          .map((item) => TeacherCommunicationEntry.fromJson((item as Map).cast<String, dynamic>()))
+          .toList(),
     );
   }
 }
