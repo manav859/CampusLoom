@@ -40,11 +40,8 @@ abstract final class PushConfig {
   static const principalIosAppId = '1:937759986920:ios:db7cbe5e2545c43d60255d';
   static const teacherAndroidAppId = '1:937759986920:android:28ed7bb80db4ad9a60255d';
   static const teacherIosAppId = '1:937759986920:ios:209b1af85d2638f760255d';
-  // The Parent app's Firebase apps are not registered yet (Phase 6). Empty
-  // keeps push disabled for this flavor — isConfiguredFor returns false — until
-  // the owner adds the two App IDs here.
-  static const parentAndroidAppId = '';
-  static const parentIosAppId = '';
+  static const parentAndroidAppId = '1:937759986920:android:009c109af68f8b0460255d';
+  static const parentIosAppId = '1:937759986920:ios:584cfc1607feebc060255d';
 
   /// Must match the Android notification channel the app creates in
   /// MainActivity.kt and the `channel_id` the backend sends.
