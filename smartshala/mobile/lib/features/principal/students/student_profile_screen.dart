@@ -11,6 +11,7 @@ import '../../../core/widgets/app_chips.dart';
 import '../../../core/widgets/message_parent_screen.dart';
 import '../../../core/widgets/responsive.dart';
 import '../../../core/widgets/state_views.dart';
+import '../data/fee_models.dart';
 import '../data/principal_repository.dart';
 import '../../../core/data/student_models.dart';
 import '../fees/student_fee_ledger_screen.dart';
@@ -143,6 +144,79 @@ class _PrincipalStudentProfileScreenState extends State<PrincipalStudentProfileS
     if (sent == true) _reload();
   }
 
+  /// Pick a fee structure and assign it to this student alone. Used for a
+  /// structure with no class, or a one-off on top of the class's own.
+  Future<void> _assignFee(StudentDetail student) async {
+    final repository = context.read<PrincipalRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+
+    final List<FeeStructureRow> structures;
+    try {
+      structures = (await repository.feeStructures()).where((row) => row.isActive).toList();
+    } on ApiException catch (error) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(backgroundColor: AppColors.danger, content: Text(error.message)));
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    if (structures.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No active fee structures. Create one in Fee Management.')),
+      );
+      return;
+    }
+
+    final chosen = await showModalBottomSheet<FeeStructureRow>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SectionHeader(title: 'Assign Fee Structure'),
+              for (final structure in structures)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.receipt_long_rounded, color: AppColors.primary),
+                  title: Text(structure.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    '${formatInr(structure.totalAmount, compact: false)} · ${structure.classLabel}',
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  onTap: () => Navigator.of(context).pop(structure),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+
+    try {
+      await repository.assignFeeToStudent(studentId: student.id, feeStructureId: chosen.id);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text('${chosen.name} assigned to ${student.fullName}.'),
+        ),
+      );
+      _reload();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(backgroundColor: AppColors.danger, content: Text(error.message)));
+    }
+  }
+
   Future<void> _editStudent(StudentDetail student) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => EditStudentScreen(student: student)),
@@ -256,7 +330,7 @@ class _PrincipalStudentProfileScreenState extends State<PrincipalStudentProfileS
             _Tab.overview => _OverviewTab(student: student),
             _Tab.academics => _AcademicsTab(student: student),
             _Tab.attendance => _AttendanceTab(metrics: student.attendance),
-            _Tab.fees => _FeesTab(student: student),
+            _Tab.fees => _FeesTab(student: student, onAssign: () => _assignFee(student)),
             _Tab.communication => _CommunicationTab(
                 entries: student.communication,
                 onCompose: () => _composeMessage(student),
@@ -530,9 +604,10 @@ class _AcademicsTab extends StatelessWidget {
 }
 
 class _FeesTab extends StatelessWidget {
-  const _FeesTab({required this.student});
+  const _FeesTab({required this.student, required this.onAssign});
 
   final StudentDetail student;
+  final VoidCallback onAssign;
 
   @override
   Widget build(BuildContext context) {
@@ -545,14 +620,28 @@ class _FeesTab extends StatelessWidget {
       label: const Text('Open Fee Ledger'),
     );
 
+    final assign = FilledButton.icon(
+      onPressed: onAssign,
+      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+      icon: const Icon(Icons.add_rounded, size: 18),
+      label: const Text('Assign Fee Structure'),
+    );
+
     if (student.feeAssignments.isEmpty) {
-      return const AppCard(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: EmptyView(
-          icon: Icons.receipt_long_outlined,
-          title: 'No fees assigned',
-          message: 'Assign a fee structure on the web dashboard.',
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const AppCard(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: EmptyView(
+              icon: Icons.receipt_long_outlined,
+              title: 'No fees assigned',
+              message: 'Assign a fee structure to this student.',
+            ),
+          ),
+          const SizedBox(height: 12),
+          assign,
+        ],
       );
     }
 
@@ -575,6 +664,8 @@ class _FeesTab extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         openLedger,
+        const SizedBox(height: 10),
+        assign,
         const SizedBox(height: 16),
         const SectionHeader(title: 'Fee Structures'),
         for (final assignment in student.feeAssignments)

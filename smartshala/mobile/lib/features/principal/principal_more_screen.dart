@@ -23,7 +23,7 @@ import 'messages/message_logs_screen.dart';
 import 'activity/activity_logs_screen.dart';
 import 'payroll/payroll_screen.dart';
 import 'reports/reports_screen.dart';
-import 'reports/student_report_screen.dart';
+import 'analytics/analytics_screen.dart';
 import 'school/academic_years_screen.dart';
 import 'school/school_profile_screen.dart';
 import 'settings/bell_timings_screen.dart';
@@ -100,10 +100,9 @@ class _PrincipalMoreScreenState extends State<PrincipalMoreScreen> {
         _MoreEntry('Reports', 'View detailed reports',
             Icons.insights_rounded, AppColors.purple,
             screen: ReportsScreen.new),
-        // The web Analytics page is the student risk summary this screen reads.
-        _MoreEntry('Analytics', 'Students whose attendance needs attention',
+        _MoreEntry('Analytics', 'Risk counts, weekly movement and class health',
             Icons.query_stats_rounded, AppColors.danger,
-            screen: StudentReportScreen.new),
+            screen: AnalyticsScreen.new),
         _MoreEntry('Academic Calendar', 'View events, holidays and dates',
             Icons.calendar_month_rounded, AppColors.teal,
             screen: AcademicCalendarScreen.new),

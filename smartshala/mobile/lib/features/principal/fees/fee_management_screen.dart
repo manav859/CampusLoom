@@ -12,6 +12,7 @@ import '../../../core/widgets/state_views.dart';
 import '../data/fee_models.dart';
 import '../data/principal_repository.dart';
 import '../widgets/management_widgets.dart';
+import 'create_fee_structure_screen.dart';
 import 'defaulters_screen.dart';
 import 'fee_widgets.dart';
 import 'record_payment_screen.dart';
@@ -70,6 +71,44 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
   Future<void> _open(Widget screen) async {
     await Navigator.of(context).push<Object?>(MaterialPageRoute(builder: (_) => screen));
     if (mounted) await _reload();
+  }
+
+  /// Assign a structure to every active student in its class. The server skips
+  /// students who already have it, so running this twice is harmless.
+  Future<void> _assignToClass(FeeStructureRow structure) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Assign to class?'),
+        content: Text(
+          '${structure.name} will be assigned to every active student in ${structure.classLabel}. '
+          'Students who already have it are skipped.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Assign')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<PrincipalRepository>().assignFeeStructureToClass(structure.id);
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.success,
+          content: Text('${structure.name} assigned to ${structure.classLabel}.'),
+        ),
+      );
+      await _reload();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(backgroundColor: AppColors.danger, content: Text(error.message)),
+      );
+    }
   }
 
   @override
@@ -154,24 +193,33 @@ class _FeeManagementScreenState extends State<FeeManagementScreen> {
                     const SizedBox(height: 8),
                   ],
                 const SizedBox(height: 14),
-                const SectionHeader(title: 'Fee Structures'),
+                SectionHeader(
+                  title: 'Fee Structures',
+                  action: TextButton(
+                    onPressed: () => _open(const CreateFeeStructureScreen()),
+                    child: const Text('New'),
+                  ),
+                ),
                 if (data.structures.isEmpty)
                   const AppCard(
                     padding: EdgeInsets.symmetric(vertical: 20),
                     child: EmptyView(
                       icon: Icons.account_balance_wallet_outlined,
                       title: 'No fee structures found.',
-                      message: 'Create one on the web dashboard.',
+                      message: 'Tap New to create one.',
                     ),
                   )
                 else
                   for (final structure in data.structures) ...[
-                    _StructureCard(structure: structure),
+                    _StructureCard(
+                      structure: structure,
+                      onAssign: structure.hasClass ? () => _assignToClass(structure) : null,
+                    ),
                     const SizedBox(height: 8),
                   ],
                 const SizedBox(height: 6),
                 const Text(
-                  'Fee structures, concessions and accountants are managed on the web dashboard.',
+                  'Staged installments, concessions and accountants are managed on the web dashboard.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
@@ -321,9 +369,12 @@ class _AccountCard extends StatelessWidget {
 }
 
 class _StructureCard extends StatelessWidget {
-  const _StructureCard({required this.structure});
+  const _StructureCard({required this.structure, this.onAssign});
 
   final FeeStructureRow structure;
+
+  /// Null when the structure has no class, which the server cannot assign.
+  final VoidCallback? onAssign;
 
   @override
   Widget build(BuildContext context) {
@@ -362,6 +413,15 @@ class _StructureCard extends StatelessWidget {
               ),
             ],
           ),
+          if (structure.isActive && onAssign != null) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: onAssign,
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(38)),
+              icon: const Icon(Icons.group_add_rounded, size: 17),
+              label: Text('Assign to ${structure.classLabel}'),
+            ),
+          ],
         ],
       ),
     );

@@ -4,6 +4,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/data/calendar_models.dart';
 import '../../../core/data/messages_models.dart' show LeaveStatus, LeaveStatusX;
 import 'academic_year_models.dart';
+import 'analytics_models.dart';
 import 'billing_models.dart';
 import 'inventory_models.dart';
 import 'message_log_models.dart';
@@ -248,6 +249,20 @@ class PrincipalRepository {
     return data.map((item) => FeeStructureRow.fromJson((item as Map).cast<String, dynamic>())).toList();
   }
 
+  /// Create a fee structure. The server needs a total amount plus either a due
+  /// date or installments; the app always sends a single due date, so staged
+  /// installments stay a web-dashboard job.
+  Future<void> createFeeStructure(Map<String, dynamic> body) =>
+      api.post('/fees/structures', body: body);
+
+  /// Assign a structure to every active student in the class it belongs to.
+  Future<void> assignFeeStructureToClass(String structureId) =>
+      api.post('/fees/structures/$structureId/assign');
+
+  /// Assign a structure to one student.
+  Future<void> assignFeeToStudent({required String studentId, required String feeStructureId}) =>
+      api.post('/fees/assignments', body: {'studentId': studentId, 'feeStructureId': feeStructureId});
+
   Future<FeeLedger> feeLedger(String studentId) async {
     final data = await api.get('/fees/students/$studentId/ledger') as Map<String, dynamic>;
     return FeeLedger.fromJson(data);
@@ -407,6 +422,13 @@ class PrincipalRepository {
   Future<List<StudentRisk>> studentRisks() async {
     final data = await api.get('/analytics/risk-summary') as Map<String, dynamic>;
     return academicRisks(data);
+  }
+
+  /// The same risk endpoint read whole: counts, severity split and week-on-week
+  /// trends, which `studentRisks` discards.
+  Future<RiskSummary> riskSummary() async {
+    final data = await api.get('/analytics/risk-summary') as Map<String, dynamic>;
+    return RiskSummary.fromJson(data);
   }
 
   /// A principal may enter or amend any student's marks.

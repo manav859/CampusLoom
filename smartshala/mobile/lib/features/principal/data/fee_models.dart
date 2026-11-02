@@ -103,6 +103,7 @@ class FeeStructureRow {
     required this.totalAmount,
     required this.isActive,
     required this.classLabel,
+    this.classId,
     this.dueDate,
   });
 
@@ -113,7 +114,13 @@ class FeeStructureRow {
   final double totalAmount;
   final bool isActive;
   final String classLabel;
+
+  /// Null for a structure that is not tied to a class. The server refuses a
+  /// class-wide assignment for those.
+  final String? classId;
   final DateTime? dueDate;
+
+  bool get hasClass => classId != null;
 
   factory FeeStructureRow.fromJson(Map<String, dynamic> json) => FeeStructureRow(
         id: json['id'] as String? ?? '',
@@ -123,6 +130,7 @@ class FeeStructureRow {
         totalAmount: _money(json['totalAmount']),
         isActive: json['isActive'] as bool? ?? true,
         classLabel: json['class'] == null ? 'All classes' : _className(json['class']),
+        classId: (json['class'] as Map?)?['id'] as String?,
         dueDate: _date(json['dueDate']),
       );
 }
