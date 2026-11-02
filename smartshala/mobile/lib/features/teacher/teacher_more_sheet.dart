@@ -17,11 +17,14 @@ class TeacherMoreSheet extends StatelessWidget {
 
   static Future<void> show(BuildContext context) => showModalBottomSheet<void>(
         context: context,
+        // Without these two the sheet is capped at 9/16 of the screen and
+        // cannot scroll, so the last action is clipped with no way to reach it.
+        isScrollControlled: true,
         backgroundColor: AppColors.surface,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        builder: (_) => const TeacherMoreSheet(),
+        builder: (_) => const SingleChildScrollView(child: TeacherMoreSheet()),
       );
 
   static const _actions = [

@@ -5,6 +5,7 @@ import '../../../core/api/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_back_button.dart';
 import '../../../core/widgets/app_cards.dart';
+import '../../../core/widgets/app_chips.dart';
 import '../../../core/widgets/pick_sheet.dart';
 import '../../../core/widgets/state_views.dart';
 import '../data/academics_models.dart';
@@ -148,6 +149,68 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
     if (picked != null) setState(() => _sort = picked.value);
   }
 
+  /// The class to show and the order to show it in, in one sheet — the same
+  /// place the principal app keeps its student filters.
+  Future<void> _openFilters() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.sheet)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> apply(Future<void> Function() pick) async {
+            await pick();
+            setSheetState(() {});
+          }
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Filters',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const _FilterLabel('Class'),
+                    _FilterValue(
+                      label: _selectedClass?.label ?? 'Class',
+                      icon: Icons.groups_rounded,
+                      onTap: () => apply(_pickClass),
+                    ),
+                    const SizedBox(height: 16),
+                    const _FilterLabel('Sort by'),
+                    _FilterValue(
+                      label: _sort.label,
+                      icon: Icons.sort_rounded,
+                      onTap: () => apply(_pickSort),
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      child: const Text('Show results'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   List<StudentListItem> get _visible {
     final query = _search.trim().toLowerCase();
     final matched = query.isEmpty
@@ -182,14 +245,18 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: const Text('My Students'),
-        actions: [
-          IconButton(
-            onPressed: _classes.isEmpty ? null : _pickSort,
-            tooltip: 'Sort',
-            icon: const Icon(Icons.sort_rounded),
-          ),
-        ],
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('My Students'),
+            if (_selectedClass != null)
+              Text(
+                _selectedClass!.label,
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+          ],
+        ),
       ),
       body: _loadingClasses
           ? const LoadingView(message: 'Loading your classes…')
@@ -210,14 +277,14 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
                               Row(
                                 children: [
                                   Expanded(
-                                    flex: 9,
-                                    child: _ClassPill(
-                                      label: _selectedClass?.label ?? 'Class',
-                                      onTap: _pickClass,
-                                    ),
+                                    child: _SearchField(
+                                        onChanged: (value) => setState(() => _search = value)),
                                   ),
                                   const SizedBox(width: 10),
-                                  Expanded(flex: 11, child: _SearchField(onChanged: (value) => setState(() => _search = value))),
+                                  FilterButton(
+                                    activeCount: _sort == StudentSort.rollNumber ? 0 : 1,
+                                    onTap: _openFilters,
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -255,10 +322,13 @@ class _MyStudentsScreenState extends State<MyStudentsScreen> {
   }
 }
 
-class _ClassPill extends StatelessWidget {
-  const _ClassPill({required this.label, required this.onTap});
+/// One pickable value in the filter sheet: what it is set to now, and a tap
+/// to change it.
+class _FilterValue extends StatelessWidget {
+  const _FilterValue({required this.label, required this.icon, required this.onTap});
 
   final String label;
+  final IconData icon;
   final VoidCallback onTap;
 
   @override
@@ -279,7 +349,7 @@ class _ClassPill extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(12, 13, 10, 13),
               child: Row(
                 children: [
-                  const Icon(Icons.groups_rounded, size: 18, color: AppColors.primary),
+                  Icon(icon, size: 18, color: AppColors.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -568,4 +638,26 @@ String initialsOf(String fullName) {
       ? words.first.characters.take(1)
       : [words.first, words.last].map((word) => word.characters.first).join().characters;
   return letters.toString().toUpperCase();
+}
+
+/// The caption over one control in the filter sheet.
+class _FilterLabel extends StatelessWidget {
+  const _FilterLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
 }

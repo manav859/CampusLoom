@@ -229,9 +229,18 @@ void main() {
       expect(repo.queries.last, containsPair('page', 1));
     });
 
+    /// Opens the filter sheet, where the chips and the Active/Inactive tabs
+    /// moved to.
+    Future<void> openFilters(WidgetTester tester) async {
+      await tester.tap(find.byType(FilterButton));
+      await tester.pumpAndSettle();
+    }
+
     testWidgets('class, fee status and inactive filters reach the query', (tester) async {
       final repo = await _pump(tester, const StudentManagementScreen());
 
+      // Every filter now lives behind the button beside the search field.
+      await openFilters(tester);
       await tester.tap(find.text('All Classes'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('7-B'));
@@ -248,14 +257,23 @@ void main() {
       await tester.tap(find.descendant(of: find.byType(SegmentedTabs), matching: find.text('Inactive')));
       await tester.pumpAndSettle();
       expect(repo.queries.last['inactive'], true);
+
+      // The sheet stays open while filters are chosen, and the button badges all three.
+      await tester.tap(find.text('Show results'));
+      await tester.pumpAndSettle();
+      expect(find.byType(FilterButton), findsOneWidget);
+      expect(tester.widget<FilterButton>(find.byType(FilterButton)).activeCount, 3);
     });
 
     testWidgets('a fee filter hides rows whose derived status differs, as the web does', (tester) async {
       final repo = await _pump(tester, const StudentManagementScreen(), repository: _FakePendingMix());
 
+      await openFilters(tester);
       await tester.tap(find.text('All Fee Statuses'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Pending Fees'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Show results'));
       await tester.pumpAndSettle();
 
       // The server's Pending page holds 20 rows; every third is due now, so derived Overdue.

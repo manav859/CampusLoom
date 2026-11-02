@@ -39,6 +39,68 @@ class StatusChip extends StatelessWidget {
   }
 }
 
+/// The filter affordance that sits beside a search field, in place of a row of
+/// chips under it. The badge carries how many filters are set, so a glance
+/// still says whether the list is showing everything.
+class FilterButton extends StatelessWidget {
+  const FilterButton({super.key, required this.activeCount, required this.onTap});
+
+  /// How many filters are away from their default.
+  final int activeCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = activeCount > 0;
+    final color = active ? AppColors.primary : AppColors.textSecondary;
+
+    return Material(
+      color: active ? AppColors.primarySoft : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppRadii.control),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        child: Ink(
+          width: 52,
+          height: 48,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            border: Border.all(color: active ? AppColors.primary : AppColors.border),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(Icons.tune_rounded, size: 20, color: color),
+              if (active)
+                Positioned(
+                  top: 9,
+                  right: 9,
+                  child: Container(
+                    width: 15,
+                    height: 15,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$activeCount',
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Pill tabs that scroll sideways rather than squeezing, so four labels with
 /// counts still fit a narrow phone without wrapping or clipping.
 class SegmentedTabs extends StatelessWidget {

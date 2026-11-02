@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:smartshala_mobile/core/widgets/app_chips.dart';
 import 'package:provider/provider.dart';
 import 'package:smartshala_mobile/features/teacher/data/academics_models.dart';
 import 'package:smartshala_mobile/features/teacher/data/teacher_models.dart';
@@ -89,10 +90,16 @@ List<String> _order(WidgetTester tester) {
   return [for (final entry in placed) entry.name];
 }
 
+/// Sort moved off the app bar and into the filter sheet, beside the class.
 Future<void> _sortBy(WidgetTester tester, String label) async {
-  await tester.tap(find.byTooltip('Sort'));
+  await tester.tap(find.byType(FilterButton));
+  await tester.pumpAndSettle();
+  // Tap the row showing the current order, not the 'Sort by' caption above it.
+  await tester.tap(find.text('Roll number'));
   await tester.pumpAndSettle();
   await tester.tap(find.text(label));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Show results'));
   await tester.pumpAndSettle();
 }
 

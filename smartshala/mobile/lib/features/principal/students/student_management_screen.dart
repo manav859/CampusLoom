@@ -253,6 +253,107 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
     _reload();
   }
 
+  /// How many filters are away from their default, for the button's badge.
+  int get _activeFilters =>
+      (_class != null ? 1 : 0) + (_feeStatus != null ? 1 : 0) + (_inactive ? 1 : 0);
+
+  /// Every filter the list has, in one sheet. Each row applies immediately —
+  /// the list behind the sheet is already reloading as you choose.
+  Future<void> _openFilters() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.sheet)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          Future<void> apply(Future<void> Function() pick) async {
+            await pick();
+            setSheetState(() {});
+          }
+
+          return SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Filters',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (_activeFilters > 0)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _class = null;
+                                _feeStatus = null;
+                                _inactive = false;
+                              });
+                              _reload();
+                              setSheetState(() {});
+                            },
+                            child: const Text('Reset'),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const _FilterLabel('Class'),
+                    FilterChipButton(
+                      label: _class?.label ?? 'All Classes',
+                      active: _class != null,
+                      onTap: () => apply(_pickClass),
+                    ),
+                    const SizedBox(height: 16),
+                    const _FilterLabel('Fee status'),
+                    FilterChipButton(
+                      label: switch (_feeStatus) {
+                        null => 'All Fee Statuses',
+                        final status => '${status.label} Fees',
+                      },
+                      active: _feeStatus != null,
+                      onTap: () => apply(_pickFeeStatus),
+                    ),
+                    const SizedBox(height: 16),
+                    const _FilterLabel('Enrolment'),
+                    SegmentedTabs(
+                      labels: const ['Active', 'Inactive'],
+                      counts: _counts == null ? null : [_counts!.active, _counts!.inactive],
+                      index: _inactive ? 1 : 0,
+                      onChanged: (index) {
+                        if ((index == 1) == _inactive) return;
+                        setState(() => _inactive = index == 1);
+                        _reload();
+                        setSheetState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    FilledButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      child: const Text('Show results'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final counts = _counts;
@@ -296,45 +397,22 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: _searchController,
-                onChanged: _onSearchChanged,
-                textInputAction: TextInputAction.search,
-                decoration: const InputDecoration(
-                  hintText: 'Search by name, admission no or phone',
-                  prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              Row(
                 children: [
-                  FilterChipButton(
-                    label: _class?.label ?? 'All Classes',
-                    active: _class != null,
-                    onTap: _pickClass,
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      textInputAction: TextInputAction.search,
+                      decoration: const InputDecoration(
+                        hintText: 'Search by name, admission no or phone',
+                        prefixIcon: Icon(Icons.search_rounded, color: AppColors.textMuted),
+                      ),
+                    ),
                   ),
-                  FilterChipButton(
-                    label: switch (_feeStatus) {
-                      null => 'All Fee Statuses',
-                      final status => '${status.label} Fees',
-                    },
-                    active: _feeStatus != null,
-                    onTap: _pickFeeStatus,
-                  ),
+                  const SizedBox(width: 8),
+                  FilterButton(activeCount: _activeFilters, onTap: _openFilters),
                 ],
-              ),
-              const SizedBox(height: 12),
-              SegmentedTabs(
-                labels: const ['Active', 'Inactive'],
-                counts: counts == null ? null : [counts.active, counts.inactive],
-                index: _inactive ? 1 : 0,
-                onChanged: (index) {
-                  if ((index == 1) == _inactive) return;
-                  setState(() => _inactive = index == 1);
-                  _reload();
-                },
               ),
               const SizedBox(height: 14),
               if (_loading)
@@ -354,9 +432,13 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
-                    _feeStatus == null
-                        ? 'Showing ${_rows.length} of $_total'
-                        : 'Showing ${_rows.length} with ${_feeStatus!.label.toLowerCase()} fees',
+                    [
+                      _feeStatus == null
+                          ? 'Showing ${_rows.length} of $_total'
+                          : 'Showing ${_rows.length} with ${_feeStatus!.label.toLowerCase()} fees',
+                      if (_inactive) 'inactive students',
+                      if (_class != null) 'in ${_class!.label}',
+                    ].join(' · '),
                     style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ),
@@ -457,6 +539,28 @@ class StudentRowCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The caption over one control in the filter sheet.
+class _FilterLabel extends StatelessWidget {
+  const _FilterLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSecondary,
+        ),
       ),
     );
   }
