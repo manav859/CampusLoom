@@ -62,6 +62,10 @@ export const getStudentLedger = asyncHandler(async (req: Request, res: Response)
   res.json(await feesService.getStudentLedger(req.user!.schoolId, req.params.studentId));
 });
 
+export const notifyDefaulter = asyncHandler(async (req: Request, res: Response) => {
+  res.json(await feesService.notifyFeeDefaulter(req.user!.schoolId, req.params.studentId));
+});
+
 export const defaulters = asyncHandler(async (req: Request, res: Response) => {
   res.json(await feesService.defaulters(req.user!.schoolId));
 });

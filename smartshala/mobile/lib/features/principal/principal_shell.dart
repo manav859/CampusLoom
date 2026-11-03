@@ -49,7 +49,7 @@ class _PrincipalShellState extends State<PrincipalShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() => _index = switch (target) {
-            PushTarget.home => 0,
+            PushTarget.home || PushTarget.fees => 0,
             PushTarget.messages || PushTarget.leaveApproval => 1,
             PushTarget.calendar => 2,
           });

@@ -1316,6 +1316,8 @@ export const attendanceApi = {
 export const feesApi = {
   dashboard: () => apiFetch<FeesDashboard>("/fees/dashboard"),
   defaulters: () => apiFetch<FeeDefaulter[]>("/fees/defaulters"),
+  notifyDefaulter: (studentId: string) =>
+    apiFetch<{ ok: true; amount: number }>(`/fees/defaulters/${studentId}/notify`, { method: "POST" }),
   structures: () => apiFetch<FeeStructure[]>("/fees/structures"),
   updateStructure: (id: string, payload: Partial<Pick<FeeStructure, "name" | "academicYear" | "frequency" | "isActive">> & { totalAmount?: number; classId?: string | null; dueDate?: string }) =>
     apiFetch<FeeStructure>(`/fees/structures/${id}`, {

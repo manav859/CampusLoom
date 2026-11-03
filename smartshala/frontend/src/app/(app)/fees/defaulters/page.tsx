@@ -16,6 +16,7 @@ export default function DefaultersPage() {
   const [rows, setRows] = useState<FeeDefaulter[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingId, setSendingId] = useState("");
+  const [notifyingId, setNotifyingId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
@@ -57,6 +58,20 @@ export default function DefaultersPage() {
       setError(err instanceof Error ? err.message : "Unable to send reminder");
     } finally {
       setSendingId("");
+    }
+  }
+
+  async function sendAppNotification(row: FeeDefaulter) {
+    setNotifyingId(row.studentId);
+    setError("");
+    setNotice("");
+    try {
+      await feesApi.notifyDefaulter(row.studentId);
+      setNotice(`Fee reminder sent to ${row.name}'s parents in the app.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send notification");
+    } finally {
+      setNotifyingId("");
     }
   }
 
@@ -187,14 +202,24 @@ export default function DefaultersPage() {
               </div>
               <div className="mt-4 flex items-center justify-between gap-3">
                 <StatusPill label={`${row.daysOverdue} days`} tone={row.daysOverdue > 0 ? "danger" : "warn"} />
-                <button
-                  className="min-h-10 rounded-[6px] bg-[#2456E6] px-4 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={sendingId === row.studentId}
-                  onClick={() => sendReminder(row)}
-                  type="button"
-                >
-                  {sendingId === row.studentId ? "Sending..." : "Send WhatsApp"}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    className="min-h-10 rounded-[6px] border border-[#2456E6] bg-white px-3 text-[12px] font-semibold text-[#2456E6] disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={notifyingId === row.studentId}
+                    onClick={() => sendAppNotification(row)}
+                    type="button"
+                  >
+                    {notifyingId === row.studentId ? "Sending..." : "Notify in App"}
+                  </button>
+                  <button
+                    className="min-h-10 rounded-[6px] bg-[#2456E6] px-4 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={sendingId === row.studentId}
+                    onClick={() => sendReminder(row)}
+                    type="button"
+                  >
+                    {sendingId === row.studentId ? "Sending..." : "Send WhatsApp"}
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -229,14 +254,24 @@ export default function DefaultersPage() {
                     </td>
                     <td className="px-5 py-4"><StatusPill label={row.status} tone={row.status === "PARTIAL" ? "warn" : "danger"} /></td>
                     <td className="px-5 py-4">
-                      <button
-                        className="btn-primary min-h-[36px] px-4 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={sendingId === row.studentId}
-                        onClick={() => sendReminder(row)}
-                        type="button"
-                      >
-                        {sendingId === row.studentId ? "Sending..." : "Send WhatsApp"}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          className="min-h-[36px] rounded-[8px] border border-[#2456E6] bg-white px-3 text-[12px] font-semibold text-[#2456E6] transition-colors hover:bg-[#F0F4FE] disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={notifyingId === row.studentId}
+                          onClick={() => sendAppNotification(row)}
+                          type="button"
+                        >
+                          {notifyingId === row.studentId ? "Sending..." : "Notify in App"}
+                        </button>
+                        <button
+                          className="btn-primary min-h-[36px] px-4 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={sendingId === row.studentId}
+                          onClick={() => sendReminder(row)}
+                          type="button"
+                        >
+                          {sendingId === row.studentId ? "Sending..." : "Send WhatsApp"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

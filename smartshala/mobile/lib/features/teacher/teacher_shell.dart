@@ -60,7 +60,7 @@ class _TeacherShellState extends State<TeacherShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() => _index = switch (target) {
-            PushTarget.home => 0,
+            PushTarget.home || PushTarget.fees => 0,
             PushTarget.calendar => 1,
             PushTarget.messages || PushTarget.leaveApproval => _messagesIndex,
           });

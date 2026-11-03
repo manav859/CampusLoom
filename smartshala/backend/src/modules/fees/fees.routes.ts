@@ -51,5 +51,6 @@ feesRouter.post("/payments",
 feesRouter.post("/fee-adjustments", requireRole(financeRoles), validate({ body: feeAdjustmentSchema }), controller.applyFeeAdjustment);
 feesRouter.get("/students/:studentId/ledger", requireRole(financeRoles), controller.getStudentLedger);
 feesRouter.get("/defaulters", requireRole(financeRoles), controller.defaulters);
+feesRouter.post("/defaulters/:studentId/notify", requireRole(financeRoles), controller.notifyDefaulter);
 feesRouter.get("/receipts/:receiptId/pdf", requireRole(financeRoles), controller.receiptPdf);
 feesRouter.post("/receipts/:receiptId/send-whatsapp", requireRole(financeRoles), controller.sendReceiptWhatsApp);

@@ -8,7 +8,7 @@ import type { PushPayload } from "./fcm.js";
  */
 
 /** Screens both apps can be sent to. An app ignores a target it has no tab for. */
-export type PushTarget = "home" | "messages" | "calendar" | "leave_approval";
+export type PushTarget = "home" | "messages" | "calendar" | "leave_approval" | "fees";
 
 export type PushKind =
   | "announcement"
@@ -25,7 +25,8 @@ export type PushKind =
   | "marks_published"
   | "parent_message"
   | "student_leave_submitted"
-  | "student_leave_decided";
+  | "student_leave_decided"
+  | "fee_reminder";
 
 /** A notification body is one line in a shade; anything longer is cut anyway. */
 const MAX_BODY = 140;
@@ -278,6 +279,24 @@ export function studentLeaveDecidedPush(input: {
     "home",
     input.approved ? "Leave approved" : "Leave not approved",
     input.note ? `${who}'s leave for ${range} — ${input.note}` : `${who}'s leave for ${range}.`
+  );
+}
+
+/**
+ * A fee reminder a staff member sends from the defaulter queue. Opens the Fees
+ * tab so the parent can pay with the in-app Razorpay flow.
+ */
+export function feeReminderPush(input: { studentName: string; amount: number }): PushPayload {
+  const amount = input.amount.toLocaleString("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
+  });
+  return payload(
+    "fee_reminder",
+    "fees",
+    "Fee payment due",
+    `${amount} is pending for ${firstName(input.studentName)}. Tap to pay.`
   );
 }
 

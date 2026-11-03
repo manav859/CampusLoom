@@ -1,4 +1,4 @@
-import { FeeAdjustmentType, FeeComponent, InstallmentStatus, NotificationKind, PaymentMode, Prisma } from "@prisma/client";
+import { CommunicationChannel, CommunicationMessageType, CommunicationStatus, CommunicationType, FeeAdjustmentType, FeeComponent, InstallmentStatus, NotificationKind, PaymentMode, Prisma } from "@prisma/client";
 import { logger } from "../../config/logger.js";
 import { env } from "../../config/env.js";
 import { prisma, withRetry, isRetryableError } from "../../core/prisma.js";
@@ -9,6 +9,7 @@ import { sendMessage as sendWhatsAppMessage } from "../whatsapp/whatsapp.service
 import { generateReceiptPdf } from "./receipt-pdf.js";
 import { computeCurrentDue } from "./feeSchedule.js";
 import { ensureAcademicYear, getCurrentAcademicYear } from "../academicYears/academicYears.service.js";
+import { notifyFeeReminder } from "../push/push.events.js";
 
 type FeeStructureInput = {
   classId?: string;
@@ -1036,6 +1037,51 @@ export async function getStudentLedger(schoolId: string, studentId: string) {
         .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
     };
   }, { label: "getStudentLedger" });
+}
+
+/**
+ * Push a fee reminder to a defaulter's guardians: a message that lands in the
+ * parent app's feed (a WHATSAPP communication log, as the other parent
+ * messages are) and a notification that opens the Fees tab. The current total
+ * pending across the student's active assignments is the figure sent.
+ */
+export async function notifyFeeDefaulter(schoolId: string, studentId: string) {
+  const student = await prisma.student.findFirst({
+    where: { id: studentId, schoolId },
+    select: { id: true, fullName: true }
+  });
+  if (!student) throw notFound("Student");
+
+  const pending = await prisma.studentFeeAssignment.aggregate({
+    where: { schoolId, studentId, pendingAmount: { gt: new Prisma.Decimal(0) }, feeStructure: { isActive: true } },
+    _sum: { pendingAmount: true }
+  });
+  const amount = toNumber(pending._sum.pendingAmount ?? new Prisma.Decimal(0));
+  if (amount <= 0) {
+    throw new AppError(400, "This student has no pending fees.", "NO_PENDING_FEES");
+  }
+
+  const summary = `A fee payment of ${amount.toLocaleString("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
+  })} is pending for ${student.fullName}. You can pay it in the app under Fees.`;
+
+  await prisma.communicationLog.create({
+    data: {
+      schoolId,
+      studentId,
+      type: CommunicationType.WHATSAPP,
+      channel: CommunicationChannel.WHATSAPP,
+      messageType: CommunicationMessageType.FEE_REMINDER,
+      summary,
+      status: CommunicationStatus.SENT
+    }
+  });
+
+  notifyFeeReminder(schoolId, studentId, { studentName: student.fullName, amount });
+
+  return { ok: true as const, amount };
 }
 
 export async function defaulters(schoolId: string) {

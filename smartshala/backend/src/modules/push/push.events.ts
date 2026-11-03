@@ -8,6 +8,7 @@ import {
   attendanceReminderPush,
   calendarEventPush,
   childAbsentPush,
+  feeReminderPush,
   holidayPush,
   homeworkAssignedPush,
   leaveDecidedPush,
@@ -243,6 +244,22 @@ export function notifyStudentLeaveDecided(
 ) {
   dispatch(async () => {
     await notifyParentPhones(schoolId, [parentPhone], studentLeaveDecidedPush(decision));
+  });
+}
+
+/** The guardians of one student, told a fee payment is due. */
+export function notifyFeeReminder(
+  schoolId: string,
+  studentId: string,
+  fee: { studentName: string; amount: number }
+) {
+  dispatch(async () => {
+    const student = await prisma.student.findFirst({
+      where: { schoolId, id: studentId },
+      select: GUARDIAN_PHONE_SELECT
+    });
+    if (!student) return;
+    await notifyParentPhones(schoolId, guardianPhones(student), feeReminderPush(fee));
   });
 }
 

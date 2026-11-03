@@ -16,9 +16,12 @@ import 'data/parent_repository.dart';
 /// principal sent for this child, newest first in one feed. Read-only — there
 /// is no parent account to track read state against, so every item just shows.
 class ParentAnnouncementsScreen extends StatefulWidget {
-  const ParentAnnouncementsScreen({super.key, required this.child});
+  const ParentAnnouncementsScreen({super.key, required this.child, this.onOpenFees});
 
   final ParentChild child;
+
+  /// Opens the Fees tab — a fee-reminder message carries a button that uses it.
+  final VoidCallback? onOpenFees;
 
   @override
   State<ParentAnnouncementsScreen> createState() => _ParentAnnouncementsScreenState();
@@ -107,7 +110,7 @@ class _ParentAnnouncementsScreenState extends State<ParentAnnouncementsScreen> {
           if (announcement != null) {
             return AnnouncementCard(announcement: announcement, onTap: () => _open(announcement));
           }
-          return _MessageCard(message: entry.message!);
+          return _MessageCard(message: entry.message!, onOpenFees: widget.onOpenFees);
         },
       ),
     );
@@ -125,9 +128,10 @@ class _FeedEntry {
 }
 
 class _MessageCard extends StatelessWidget {
-  const _MessageCard({required this.message});
+  const _MessageCard({required this.message, this.onOpenFees});
 
   final ParentMessage message;
+  final VoidCallback? onOpenFees;
 
   static final _dateFormat = DateFormat('d MMM yyyy, h:mm a');
 
@@ -180,12 +184,22 @@ class _MessageCard extends StatelessWidget {
             style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.45),
           ),
           const SizedBox(height: 12),
-          StatusChip(
-            label: 'From school',
-            color: AppColors.textSecondary,
-            tint: AppColors.background,
-            icon: Icons.school_rounded,
-          ),
+          if (message.type == 'FEE_REMINDER' && onOpenFees != null)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onOpenFees,
+                icon: const Icon(Icons.account_balance_wallet_rounded, size: 18),
+                label: const Text('Pay fees'),
+              ),
+            )
+          else
+            StatusChip(
+              label: 'From school',
+              color: AppColors.textSecondary,
+              tint: AppColors.background,
+              icon: Icons.school_rounded,
+            ),
         ],
       ),
     );

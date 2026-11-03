@@ -7,13 +7,17 @@ enum PushTarget {
   calendar,
   /// The principal's Leave Approval screen. The teacher app has no such screen
   /// and is never sent this, but falls back to Messages if it ever is.
-  leaveApproval;
+  leaveApproval,
+
+  /// The parent app's Fees tab — where a fee reminder is paid.
+  fees;
 
   static PushTarget? parse(String? value) => switch (value) {
         'home' => PushTarget.home,
         'messages' => PushTarget.messages,
         'calendar' => PushTarget.calendar,
         'leave_approval' => PushTarget.leaveApproval,
+        'fees' => PushTarget.fees,
         _ => null,
       };
 }

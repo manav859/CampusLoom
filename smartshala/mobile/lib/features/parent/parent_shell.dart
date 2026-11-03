@@ -101,6 +101,7 @@ class _ParentHomeState extends State<_ParentHome> {
       if (!mounted) return;
       setState(() => _index = switch (target) {
             PushTarget.home => 0,
+            PushTarget.fees => 1,
             PushTarget.calendar => 2,
             PushTarget.messages || PushTarget.leaveApproval => 3,
           });
@@ -151,7 +152,10 @@ class _ParentHomeState extends State<_ParentHome> {
                   ),
                   ParentFeesScreen(child: widget.child),
                   const ParentCalendarScreen(),
-                  ParentAnnouncementsScreen(child: widget.child),
+                  ParentAnnouncementsScreen(
+                    child: widget.child,
+                    onOpenFees: () => setState(() => _index = 1),
+                  ),
                   ParentMoreScreen(child: widget.child),
                 ],
               ),
