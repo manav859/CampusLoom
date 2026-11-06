@@ -43,6 +43,7 @@ function intervalLabel(plan: Plan) {
 
 export default function BillingPage() {
   const [overview, setOverview] = useState<BillingOverview | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -53,7 +54,10 @@ export default function BillingPage() {
   const load = useCallback(async () => {
     setError("");
     try {
-      setOverview(await billingApi.overview());
+      const [next, catalogue] = await Promise.all([billingApi.overview(), billingApi.plans()]);
+      setOverview(next);
+      // Trial is the plan every school starts on, not something on sale.
+      setPlans(catalogue.filter((plan) => plan.priceMinor > 0));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load your subscription");
     } finally {
@@ -87,6 +91,20 @@ export default function BillingPage() {
       setSession(await billingApi.checkout(planCode, null));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start checkout");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  /** Buys the gap to a bigger student tier; the renewal date is unaffected. */
+  async function startUpgrade(planCode: string) {
+    setBusy(`upgrade-${planCode}`);
+    setError("");
+    setNotice("");
+    try {
+      setSession(await billingApi.upgrade(planCode));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to start the upgrade");
     } finally {
       setBusy("");
     }
@@ -189,6 +207,23 @@ export default function BillingPage() {
                   {overview.subscription.daysRemaining}
                 </dd>
               </div>
+              <div>
+                <dt className="text-[12px] font-semibold text-[#5A6573]">Students</dt>
+                <dd
+                  className={`mt-0.5 text-[14px] font-semibold ${overview.usage.studentsRemaining === 0 ? "text-[#C8242C]" : "text-[#031526]"}`}
+                >
+                  {overview.usage.students.toLocaleString("en-IN")}
+                  {overview.usage.maxStudents === null
+                    ? " (no limit)"
+                    : ` of ${overview.usage.maxStudents.toLocaleString("en-IN")}`}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[12px] font-semibold text-[#5A6573]">Staff</dt>
+                <dd className="mt-0.5 text-[14px] font-semibold text-[#031526]">
+                  {overview.usage.staff.toLocaleString("en-IN")}
+                </dd>
+              </div>
             </dl>
 
             <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-[#EDF0F4] pt-4">
@@ -205,6 +240,103 @@ export default function BillingPage() {
               </span>
             </div>
           </section>
+
+          {/* Room to grow ---------------------------------------------------- */}
+          {overview.upgrade ? (
+            <section
+              className={`rounded-[6px] border p-4 sm:p-6 ${
+                overview.usage.studentsRemaining === 0
+                  ? "border-[#FDE3B8] bg-[#FFF8EC]"
+                  : "border-[#C9D3DE] bg-white shadow-[0_1px_2px_rgba(15,20,25,0.04)]"
+              }`}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#5A6573]">
+                    {overview.usage.studentsRemaining === 0 ? "Plan full" : "Need more students?"}
+                  </p>
+                  <h2 className="mt-1 text-[17px] font-semibold text-[#031526]">
+                    {overview.usage.studentsRemaining === 0
+                      ? `You have filled your ${overview.plan.name} plan`
+                      : `${overview.usage.studentsRemaining?.toLocaleString("en-IN")} more students fit on ${overview.plan.name}`}
+                  </h2>
+                  <p className="mt-1 text-[13px] font-medium text-[#5A6573]">
+                    Move to {overview.upgrade.planName} for{" "}
+                    {overview.upgrade.maxStudents === null
+                      ? "no student limit"
+                      : `up to ${overview.upgrade.maxStudents.toLocaleString("en-IN")} students`}
+                    {overview.upgrade.selfServe && overview.upgrade.chargesDifferenceOnly
+                      ? ` — you pay only the difference, and your renewal date stays ${formatDate(overview.upgrade.periodEnd)}.`
+                      : "."}
+                  </p>
+                  {overview.upgrade.selfServe ? null : (
+                    <p className="mt-2 text-[13px] font-semibold text-[#8A5300]">{overview.upgrade.note}</p>
+                  )}
+                </div>
+
+                {overview.upgrade.selfServe ? (
+                  <div className="text-right">
+                    <p className="text-[20px] font-bold text-[#031526]">
+                      {formatMinor(overview.upgrade.totalMinor, overview.upgrade.currency)}
+                    </p>
+                    <p className="text-[12px] font-medium text-[#5A6573]">
+                      {formatMinor(overview.upgrade.subtotalMinor, overview.upgrade.currency)} + {overview.upgrade.taxPercent}% GST
+                    </p>
+                    <button
+                      className="mt-3 min-h-11 rounded-[6px] bg-[#2456E6] px-5 text-[14px] font-semibold text-white hover:bg-[#1B45BD] disabled:opacity-50"
+                      disabled={busy === `upgrade-${overview.upgrade.planCode}`}
+                      onClick={() => startUpgrade(overview.upgrade!.planCode)}
+                      type="button"
+                    >
+                      {busy === `upgrade-${overview.upgrade.planCode}` ? "Starting…" : `Upgrade to ${overview.upgrade.planName}`}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {/* Price list ------------------------------------------------------ */}
+          {plans.length ? (
+            <section className={cardClass}>
+              <h2 className="text-[17px] font-semibold text-[#031526]">Plans</h2>
+              <p className="mt-1 text-[13px] font-medium text-[#5A6573]">
+                Every plan includes the whole product. What changes is how many students it covers.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {plans.map((plan) => {
+                  const isCurrent = plan.code === overview.plan.code;
+                  const quoted = plan.features?.customPricing === true;
+                  return (
+                    <div
+                      className={`rounded-[6px] border p-4 ${
+                        isCurrent ? "border-[#2456E6] bg-[#EEF3FF]" : "border-[#DCE1E8] bg-white"
+                      }`}
+                      key={plan.code}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[15px] font-semibold text-[#031526]">{plan.name}</p>
+                        {isCurrent ? (
+                          <span className="rounded-full bg-[#2456E6] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Current
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 text-[18px] font-bold text-[#031526]">
+                        {quoted ? "On quote" : formatMinor(plan.priceMinor, plan.currency)}
+                      </p>
+                      <p className="text-[12px] font-medium text-[#5A6573]">{quoted ? "Contact us" : intervalLabel(plan)}</p>
+                      <p className="mt-2 border-t border-[#EDF0F4] pt-2 text-[12px] font-semibold text-[#2A3340]">
+                        {plan.maxStudents === null
+                          ? "No student limit"
+                          : `Up to ${plan.maxStudents.toLocaleString("en-IN")} students`}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
           {/* Open invoice --------------------------------------------------- */}
           {overview.openInvoice ? (

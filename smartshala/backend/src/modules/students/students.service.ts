@@ -18,6 +18,7 @@ import { gradeForPercentage } from "../../core/grading.js";
 import { calculateStudentAttendanceSummary } from "../../core/studentAttendance.js";
 import { recordAuditLog } from "../../core/auditLog.js";
 import { assignFee } from "../fees/fees.service.js";
+import { assertStudentCapacity } from "../billing/billing.upgrade.js";
 import { parentStudentWhere } from "../../utils/parentPhone.js";
 import { computeCurrentDue } from "../fees/feeSchedule.js";
 import { env } from "../../config/env.js";
@@ -1594,10 +1595,19 @@ export async function generateAdmissionNumber(schoolId: string) {
   return `${prefix}${String(nextSequence).padStart(3, "0")}`;
 }
 
-export async function createStudent(user: Express.UserContext, data: Record<string, unknown>) {
+export async function createStudent(
+  user: Express.UserContext,
+  data: Record<string, unknown>,
+  options: { enforcePlanLimit?: boolean } = {}
+) {
   const { feeStructureId, ...studentData } = data as { feeStructureId?: string } & Record<string, unknown>;
   const schoolId = user.schoolId;
-  
+
+  // Admitting past the plan's student tier is refused with the upgrade quote
+  // attached. An import checks headroom for the whole batch up front, so it
+  // opts out of the per-row check rather than hitting the master DB once a row.
+  if (options.enforcePlanLimit !== false) await assertStudentCapacity(user);
+
   const providedAdmissionNumber = Boolean(studentData.admissionNumber);
   if (!studentData.admissionNumber) {
     studentData.admissionNumber = await generateAdmissionNumber(schoolId);
@@ -1659,10 +1669,13 @@ export async function createStudent(user: Express.UserContext, data: Record<stri
 
 export async function importStudents(user: Express.UserContext, rows: Record<string, unknown>[]) {
   const students = [];
+  // Checked for the whole batch before the first row, so a 400-row import that
+  // does not fit is refused outright instead of stopping half way through.
+  await assertStudentCapacity(user, rows.length);
 
   for (let index = 0; index < rows.length; index += 1) {
     try {
-      students.push(await createStudent(user, rows[index]));
+      students.push(await createStudent(user, rows[index], { enforcePlanLimit: false }));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to import student";
       throw new AppError(400, `Row ${index + 2}: ${message}`, "STUDENT_IMPORT_ROW_FAILED");
@@ -1779,6 +1792,8 @@ export async function activateStudent(user: Express.UserContext, id: string) {
   const schoolId = user.schoolId;
   const existing = await prisma.student.findFirst({ where: { id, schoolId } });
   if (!existing) throw notFound("Student");
+  // Bringing a student back counts against the tier exactly like a new admission.
+  if (!existing.isActive) await assertStudentCapacity(user);
   const updated = await prisma.student.update({ where: { id }, data: { isActive: true } });
   await recordAuditLog({
     schoolId,

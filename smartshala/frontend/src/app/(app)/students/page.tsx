@@ -7,7 +7,8 @@ import { CustomSelect } from "@/components/ui/CustomSelect";
 import { MarqueeText } from "@/components/ui/KpiCard";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusPill } from "@/components/ui/StatusPill";
-import { apiFetch, communicationApi, studentsApi } from "@/lib/api";
+import { apiFetch, ApiError, communicationApi, studentsApi, type PlanLimitDetails } from "@/lib/api";
+import { PlanLimitModal } from "@/components/PlanLimitModal";
 import { formatDateShort, formatINR } from "@/lib/formatters";
 import { cachedFetch, invalidateCachePrefix } from "@/lib/prefetchCache";
 import { CreateStudentModal } from "./new/CreateStudentModal";
@@ -500,6 +501,8 @@ function resolveStudentList(items: ApiStudentItem[] | undefined, total: unknown,
 /* ── Component ── */
 export default function StudentsPage() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [planLimit, setPlanLimit] = useState<PlanLimitDetails | null>(null);
+  const [isPrincipal, setIsPrincipal] = useState(false);
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [classes, setClasses] = useState<{ id: string; name: string; section: string }[]>([]);
   const [total, setTotal] = useState(0);
@@ -538,6 +541,7 @@ export default function StudentsPage() {
       try {
         const u = JSON.parse(storedUser);
         setIsAdmin(u.role === "ADMIN" || u.role === "PRINCIPAL");
+        setIsPrincipal(u.role === "PRINCIPAL");
         setIsTeacher(u.role === "TEACHER");
         setCanViewFees(roleCanViewFees(u.role));
       } catch (e) {
@@ -965,7 +969,14 @@ export default function StudentsPage() {
       setStudents(toStudentRows(items));
       setTotal(data?.total ?? 0);
     } catch (error) {
-      setImportDialog((prev) => ({ ...prev, busy: false, error: error instanceof Error ? error.message : "Import failed" }));
+      // The batch does not fit the school's plan tier: close the import and
+      // show what the next plan costs instead of an error inside the dialog.
+      if (error instanceof ApiError && error.code === "PLAN_STUDENT_LIMIT_REACHED") {
+        setImportDialog({ isOpen: false, fileName: "", rows: [] });
+        setPlanLimit(error.details as PlanLimitDetails);
+      } else {
+        setImportDialog((prev) => ({ ...prev, busy: false, error: error instanceof Error ? error.message : "Import failed" }));
+      }
     } finally {
       setLoadingList(false);
     }
@@ -1653,6 +1664,10 @@ export default function StudentsPage() {
               .finally(() => setLoadingList(false));
           }}
         />
+      ) : null}
+
+      {planLimit ? (
+        <PlanLimitModal details={planLimit} isPrincipal={isPrincipal} onClose={() => setPlanLimit(null)} />
       ) : null}
     </div>
   );

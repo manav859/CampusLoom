@@ -16,7 +16,14 @@ import { AppError } from "../../core/errors.js";
 import { isMasterDbConfigured, masterPrisma } from "../../master-db/masterPrisma.js";
 import { razorpay, signCheckout, markMockOrderPaid, isMockGateway } from "../../services/razorpay/index.js";
 import type { CheckoutSignature } from "../../services/razorpay/index.js";
-import { addDays, effectivePriceMinor, periodEndFrom, quotePlan, rupeesFromMinor } from "./billing.pricing.js";
+import {
+  addDays,
+  effectivePriceMinor,
+  periodEndFrom,
+  quotePlan,
+  rupeesFromMinor,
+  upgradeForStudents
+} from "./billing.pricing.js";
 import { generateInvoicePdf } from "./invoice-pdf.js";
 import {
   notifyGraceEnding,
@@ -918,8 +925,16 @@ export async function getBillingOverview(schoolId: string, usage: { students: nu
       maxStudents: subscription.plan.maxStudents,
       maxStaff: subscription.plan.maxStaff,
       studentsOverLimit: subscription.plan.maxStudents !== null && usage.students > subscription.plan.maxStudents,
-      staffOverLimit: subscription.plan.maxStaff !== null && usage.staff > subscription.plan.maxStaff
+      staffOverLimit: subscription.plan.maxStaff !== null && usage.staff > subscription.plan.maxStaff,
+      studentsRemaining:
+        subscription.plan.maxStudents === null ? null : Math.max(0, subscription.plan.maxStudents - usage.students)
     },
+    // The tier that would take the school past its current student cap, priced
+    // for today. Null while the cap still has room, or has no next tier.
+    upgrade:
+      subscription.plan.maxStudents === null
+        ? null
+        : await upgradeForStudents(subscription, subscription.plan.maxStudents + 1),
     openInvoice,
     invoices,
     totals: { paidMinor: paidTotalMinor, currency: subscription.plan.currency },

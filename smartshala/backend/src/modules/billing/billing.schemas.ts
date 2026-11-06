@@ -15,6 +15,8 @@ export const checkoutSchema = z.object({
   couponCode
 });
 
+export const upgradeSchema = z.object({ planCode });
+
 export const confirmCheckoutSchema = z.object({
   razorpay_order_id: z.string().trim().min(4).max(80),
   razorpay_payment_id: z.string().trim().min(4).max(80),

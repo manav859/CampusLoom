@@ -31,6 +31,26 @@ export async function refreshAccessToken(): Promise<string | null> {
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
 /**
+ * A failed request, with the server's own error code and payload kept. Still an
+ * Error, so the many `err instanceof Error ? err.message` call sites are
+ * unaffected; the handful that need to act on a specific failure — a plan limit
+ * reached, say — can read `code` and `details`.
+ */
+export class ApiError extends Error {
+  status: number;
+  code: string;
+  details?: unknown;
+
+  constructor(status: number, message: string, code = "REQUEST_FAILED", details?: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
+
+/**
  * A tenant whose subscription lapsed gets 402 on everything except auth and
  * billing. Send the principal to the page where they can actually fix it, and
  * everyone else to the lockout notice.
@@ -171,7 +191,12 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
       const firstError = Object.entries(details).map(([field, msgs]) => `${field}: ${(msgs as any)[0]}`).join(", ");
       throw new Error(`Validation failed: ${firstError}`);
     }
-    throw new Error(payload?.error?.message ?? "Request failed");
+    throw new ApiError(
+      response.status,
+      payload?.error?.message ?? "Request failed",
+      payload?.error?.code,
+      payload?.error?.details
+    );
   }
 
   if (response.status === 204) return undefined as T;
@@ -222,7 +247,12 @@ export async function apiFormFetch<T>(path: string, body: FormData, options: Api
       const firstError = Object.entries(details).map(([field, msgs]) => `${field}: ${(msgs as any)[0]}`).join(", ");
       throw new Error(`Validation failed: ${firstError}`);
     }
-    throw new Error(payload?.error?.message ?? "Request failed");
+    throw new ApiError(
+      response.status,
+      payload?.error?.message ?? "Request failed",
+      payload?.error?.code,
+      payload?.error?.details
+    );
   }
 
   if (response.status === 204) return undefined as T;
@@ -1610,6 +1640,38 @@ export type Invoice = {
   payments: PaymentRow[];
 };
 
+/**
+ * The next student tier up, priced for today. Mid-term on a paid plan that is
+ * the difference between the two plans and the renewal date is unchanged
+ * (`chargesDifferenceOnly`); off one it is the new plan's full price for a
+ * fresh term. `selfServe` false means `note` says who to talk to instead.
+ */
+export type UpgradeOption = {
+  planCode: string;
+  planName: string;
+  currency: string;
+  maxStudents: number | null;
+  listPriceMinor: number;
+  subtotalMinor: number;
+  taxMinor: number;
+  totalMinor: number;
+  taxPercent: number;
+  chargesDifferenceOnly: boolean;
+  periodStart: string;
+  periodEnd: string;
+  selfServe: boolean;
+  note: string | null;
+};
+
+/** `details` on the 409 refusing an admission past the plan's student tier. */
+export type PlanLimitDetails = {
+  students: number;
+  adding: number;
+  maxStudents: number;
+  plan: { code: string; name: string };
+  upgrade: UpgradeOption | null;
+};
+
 export type BillingOverview = {
   school: { schoolId: string; schoolName: string; email: string; phone: string };
   subscription: {
@@ -1636,7 +1698,9 @@ export type BillingOverview = {
     maxStaff: number | null;
     studentsOverLimit: boolean;
     staffOverLimit: boolean;
+    studentsRemaining: number | null;
   };
+  upgrade: UpgradeOption | null;
   openInvoice: Invoice | null;
   invoices: Invoice[];
   totals: { paidMinor: number; currency: string };
@@ -1717,6 +1781,12 @@ export const billingApi = {
     apiFetch<CheckoutSession>("/billing/checkout", {
       method: "POST",
       body: JSON.stringify({ planCode, couponCode: couponCode || null })
+    }),
+  /** Buys the gap to a bigger student tier, keeping the current renewal date. */
+  upgrade: (planCode: string) =>
+    apiFetch<CheckoutSession>("/billing/upgrade", {
+      method: "POST",
+      body: JSON.stringify({ planCode })
     }),
   confirm: (payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
     apiFetch<{ status: "PAID"; alreadyCaptured: boolean; invoice: Invoice }>("/billing/checkout/confirm", {

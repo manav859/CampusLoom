@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { FormSection, openInvalidFormSection } from "@/components/ui/FormSection";
 import { SideModal } from "@/components/ui/SideModal";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError, type PlanLimitDetails } from "@/lib/api";
+import { PlanLimitModal } from "@/components/PlanLimitModal";
 import { formatINR } from "@/lib/formatters";
 import { cachedFetch } from "@/lib/prefetchCache";
 
@@ -69,6 +70,8 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
+  const [planLimit, setPlanLimit] = useState<PlanLimitDetails | null>(null);
+  const [isPrincipal, setIsPrincipal] = useState(false);
   const [studentPhotoUrl, setStudentPhotoUrl] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
@@ -99,6 +102,17 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
     previousSchool: "",
     siblingDiscount: false,
   });
+
+  // Only a principal can buy an upgrade, so the plan-limit prompt points an
+  // admin at them instead of at a checkout they cannot reach.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("smartshala.user");
+      if (stored) setIsPrincipal(JSON.parse(stored)?.role === "PRINCIPAL");
+    } catch {
+      // Leave it false: the prompt still explains the limit.
+    }
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -193,7 +207,13 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
 
       onCreated();
     } catch (error: any) {
-      setErrorMsg(error?.message || "Failed to register student. Please ensure all required fields are filled correctly.");
+      // The school has filled its plan's student tier: show what the next one
+      // costs rather than a bare error line.
+      if (error instanceof ApiError && error.code === "PLAN_STUDENT_LIMIT_REACHED") {
+        setPlanLimit(error.details as PlanLimitDetails);
+      } else {
+        setErrorMsg(error?.message || "Failed to register student. Please ensure all required fields are filled correctly.");
+      }
     } finally {
       setLoading(false);
     }
@@ -568,6 +588,10 @@ export function CreateStudentModal({ onClose, onCreated }: CreateStudentModalPro
           </button>
         </div>
       </form>
+
+      {planLimit ? (
+        <PlanLimitModal details={planLimit} isPrincipal={isPrincipal} onClose={() => setPlanLimit(null)} />
+      ) : null}
     </SideModal>
   );
 }

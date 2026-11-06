@@ -28,6 +28,8 @@
     "test:rollover": "tsx tests/academicYearRollover.test.ts",
     "backup:master": "node scripts/backup-master-db.mjs",
     "test:billing": "tsx tests/billing.test.ts",
+    "test:plan-tiers": "tsx tests/planTiers.test.ts",
+    "test:plan-upgrade": "tsx tests/planUpgrade.test.ts",
     "test:crm": "tsx tests/crm.test.ts",
     "test:crm-meta": "tsx tests/crmMeta.test.ts",
     "test:crm-import": "tsx tests/crmImport.test.ts",

@@ -5,6 +5,7 @@ import { AppError } from "../../core/errors.js";
 import { prisma } from "../../core/prisma.js";
 import { assertMockGateway, razorpay } from "../../services/razorpay/index.js";
 import { quotePlan } from "./billing.pricing.js";
+import { createUpgradeCheckout } from "./billing.upgrade.js";
 import {
   confirmCheckout,
   ensureSubscription,
@@ -114,4 +115,16 @@ export const payViaMockGateway = asyncHandler(async (req: Request, res: Response
     return;
   }
   res.json({ ...result, schoolId, gateway: razorpay.mode });
+});
+
+// --- Student tier headroom and upgrades --------------------------------------
+
+export const startUpgradeCheckout = asyncHandler(async (req: Request, res: Response) => {
+  res.status(201).json(
+    await createUpgradeCheckout({
+      schoolId: tenantSchoolId(req),
+      planCode: req.body.planCode,
+      actor: actorFrom(req)
+    })
+  );
 });

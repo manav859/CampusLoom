@@ -10,7 +10,8 @@ import {
   confirmCheckoutSchema,
   invoiceParamSchema,
   mockPaySchema,
-  quoteQuerySchema
+  quoteQuerySchema,
+  upgradeSchema
 } from "./billing.schemas.js";
 
 export const billingRouter = Router();
@@ -40,6 +41,13 @@ billingRouter.post(
   rateLimit({ windowMs: 10 * 60 * 1000, max: 30, keyPrefix: "billing-confirm" }),
   validate({ body: confirmCheckoutSchema }),
   controller.completeCheckout
+);
+
+billingRouter.post(
+  "/upgrade",
+  rateLimit({ windowMs: 10 * 60 * 1000, max: 20, keyPrefix: "billing-upgrade" }),
+  validate({ body: upgradeSchema }),
+  controller.startUpgradeCheckout
 );
 
 billingRouter.patch("/auto-renew", validate({ body: autoRenewSchema }), controller.setAutoRenew);
