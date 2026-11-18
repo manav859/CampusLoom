@@ -41,6 +41,11 @@ parentRouter.get(
   controller.childHomework
 );
 parentRouter.get(
+  "/children/:id/timetable",
+  validate({ params: childParamsSchema }),
+  controller.childTimetable
+);
+parentRouter.get(
   "/children/:id/fees",
   validate({ params: childParamsSchema }),
   controller.childFees
@@ -60,6 +65,7 @@ parentRouter.get(
   validate({ query: calendarQuerySchema }),
   controller.schoolCalendar
 );
+parentRouter.get("/exams", controller.examSchedule);
 parentRouter.get(
   "/announcements",
   validate({ query: announcementsQuerySchema }),

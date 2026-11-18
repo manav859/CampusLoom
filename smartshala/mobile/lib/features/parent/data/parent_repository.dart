@@ -3,10 +3,14 @@ import 'package:intl/intl.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/data/calendar_models.dart';
 import '../../../core/data/messages_models.dart';
+import '../../../core/data/timetable_models.dart';
 import 'parent_models.dart';
 
 /// Reads the parent-facing API. Each phase adds the calls it needs — home,
 /// attendance, fees — the same way [TeacherRepository] grew.
+/// The exam datesheet: what is still to come, and what is over.
+typedef ExamSchedule = ({List<CalendarEvent> upcoming, List<CalendarEvent> past});
+
 class ParentRepository {
   ParentRepository(this.api);
 
@@ -49,6 +53,12 @@ class ParentRepository {
         .toList();
   }
 
+  /// One child's class timetable for the week.
+  Future<WeekTimetable> timetable(String childId) async {
+    final data = await api.get('/parent/children/$childId/timetable') as Map<String, dynamic>;
+    return WeekTimetable.forClass(data);
+  }
+
   /// One child's fees — summary, assignments and payment history.
   Future<ChildFees> fees(String childId) async {
     final data = await api.get('/parent/children/$childId/fees') as Map<String, dynamic>;
@@ -77,6 +87,15 @@ class ParentRepository {
     return ((data['items'] as List?) ?? const [])
         .map((item) => CalendarEvent.fromJson((item as Map).cast<String, dynamic>()))
         .toList();
+  }
+
+  /// The school's exam datesheet, newest first within each half.
+  Future<ExamSchedule> examSchedule() async {
+    final data = await api.get('/parent/exams') as Map<String, dynamic>;
+    List<CalendarEvent> events(Object? raw) => ((raw as List?) ?? const [])
+        .map((item) => CalendarEvent.fromJson((item as Map).cast<String, dynamic>()))
+        .toList();
+    return (upcoming: events(data['upcoming']), past: events(data['past']));
   }
 
   /// The school's parent-facing announcements, newest first.

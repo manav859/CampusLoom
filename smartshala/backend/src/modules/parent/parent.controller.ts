@@ -28,6 +28,11 @@ export const childHomework = asyncHandler(async (req: Request, res: Response) =>
   res.json(result);
 });
 
+export const childTimetable = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.childTimetable(req.user!, req.params.id);
+  res.json(result);
+});
+
 export const childFees = asyncHandler(async (req: Request, res: Response) => {
   const result = await parentService.childFees(req.user!, req.params.id);
   res.json(result);
@@ -50,6 +55,11 @@ export const childFeeReceiptPdf = asyncHandler(async (req: Request, res: Respons
 
 export const schoolCalendar = asyncHandler(async (req: Request, res: Response) => {
   const result = await parentService.schoolCalendar(req.user!, req.query.month as string | undefined);
+  res.json(result);
+});
+
+export const examSchedule = asyncHandler(async (req: Request, res: Response) => {
+  const result = await parentService.parentExamSchedule(req.user!);
   res.json(result);
 });
 

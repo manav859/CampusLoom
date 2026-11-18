@@ -7,10 +7,15 @@ import '../../core/data/messages_models.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/announcement_detail_screen.dart';
 import '../../core/widgets/home_blocks.dart';
+import '../../core/widgets/responsive.dart';
 import '../../core/widgets/state_views.dart';
 import 'data/parent_models.dart';
 import 'data/parent_repository.dart';
+import 'parent_academics_screen.dart';
 import 'parent_attendance_screen.dart';
+import 'parent_exam_schedule_screen.dart';
+import 'parent_homework_screen.dart';
+import 'parent_timetable_screen.dart';
 import 'widgets/child_avatar.dart';
 
 /// Amounts show as "₹ 2,500" — grouped Indian digits, no paise.
@@ -136,6 +141,8 @@ class _ParentHomeScreenState extends State<ParentHomeScreen> {
           ),
           const SizedBox(height: 16),
           _StudentCard(child: widget.child, onTap: widget.onChangeChild),
+          const SizedBox(height: 14),
+          _QuickLinks(child: widget.child),
           if (_loading)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 48),
@@ -251,6 +258,58 @@ class _ChangePill extends StatelessWidget {
           Text('Change', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
         ],
       ),
+    );
+  }
+}
+
+/// The four detail screens that are not tabs of their own: academics,
+/// homework, the class timetable and the exam datesheet. Without this row
+/// Academics and Homework had no way in at all once Home was redesigned.
+class _QuickLinks extends StatelessWidget {
+  const _QuickLinks({required this.child});
+
+  final ParentChild child;
+
+  @override
+  Widget build(BuildContext context) {
+    void open(Widget screen) {
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+    }
+
+    return ResponsiveGrid(
+      phoneColumns: 4,
+      wideColumns: 8,
+      spacing: 10,
+      children: [
+        HomeQuickAction(
+          icon: Icons.school_rounded,
+          title: 'Academics',
+          chip: AppColors.primarySoft,
+          accent: AppColors.primary,
+          onTap: () => open(ParentAcademicsScreen(childId: child.id, childName: child.fullName)),
+        ),
+        HomeQuickAction(
+          icon: Icons.menu_book_rounded,
+          title: 'Homework',
+          chip: AppColors.warningSoft,
+          accent: AppColors.warning,
+          onTap: () => open(ParentHomeworkScreen(childId: child.id, childName: child.fullName)),
+        ),
+        HomeQuickAction(
+          icon: Icons.schedule_rounded,
+          title: 'Timetable',
+          chip: AppColors.tealSoft,
+          accent: AppColors.teal,
+          onTap: () => open(ParentTimetableScreen(childId: child.id, childName: child.fullName)),
+        ),
+        HomeQuickAction(
+          icon: Icons.edit_calendar_rounded,
+          title: 'Exams',
+          chip: AppColors.purpleSoft,
+          accent: AppColors.purple,
+          onTap: () => open(ParentExamScheduleScreen(childName: child.fullName)),
+        ),
+      ],
     );
   }
 }

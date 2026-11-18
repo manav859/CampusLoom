@@ -1,7 +1,7 @@
 # SmartShala — Parent App Implementation Plan
 
 **Created:** 2026-10-23
-**Status:** **Phases 0–5 complete in code (Phase 5 on 2026-10-24).** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home + Attendance. Phase 3: Academics (exam performance) + Homework. Phase 4: Fees & online payment (external Razorpay web flow). Phase 5: Calendar, Announcements (read-only) + Documents — the five-tab shell is now fully built. The backend is **live on production** — the VPS now auto-deploys from `main` (GitHub Actions → `deploy.sh`). Phase 6 (push notifications) is next.
+**Status:** **Phases 0–7a complete in code, plus Phase 9 (Timetable + Exam Schedule) on 2026-11-19.** Phase 0: the `parent` flavor builds on Android and is wired on iOS. Phase 1: parent login + Select Student. Phase 2: Home + Attendance. Phase 3: Academics (exam performance) + Homework. Phase 4: Fees & online payment (external Razorpay web flow). Phase 5: Calendar, Announcements (read-only) + Documents — the five-tab shell is now fully built. The backend is **live on production** — the VPS now auto-deploys from `main` (GitHub Actions → `deploy.sh`). Phase 6 (push) and Phase 7a (parent-raised leave) shipped on 2026-10-25 (`0dd3b6c`); Phase 9 added the class timetable and the exam datesheet on 2026-11-19. **Phase 8 (store release) and two-way messaging are what remain.**
 **Design reference:** the 10-screen parent-dashboard mockup shared on 2026-10-23 — **reference only, not to be replicated pixel-for-pixel**. The parent app uses the **same design tokens, Inter font, `CustomSelect`, `BrandHeader`, pastel KPI cards and 6/8px radii** already shared across the Principal and Teacher apps (`mobile/lib/core/`), not the mockup's own icons, colours or avatars.
 **Scope:** a third Flutter binary — **SmartShala Parent** — for **Android and iOS**, built phase-wise.
 
@@ -68,6 +68,8 @@ Parent-initiated student leave is **not** in v1. Documents/Certificates are **re
 | **Messages & Announcements** | Partially exists | Announcements with `PARENTS` audience already modelled (`announcements.schemas.ts`). Direct teacher↔parent messaging is **new** if wanted (decide later). |
 | **Academic Performance** | Data exists (`marks.service.ts`, report cards) | Exams, progress, subject-wise; report-card PDF already generated. |
 | **Homework & Assignments** | Data exists (`homework` module) | Read-only list, pending/completed. |
+| **Class Timetable** | Data exists (`classes.service` `getClassTimetable`) | The child's class week, read-only; built in Phase 9. |
+| **Exam Schedule** | Data exists (`calendar_events` of type `EXAM`) | The published datesheet, not the `Exam` table — an `Exam` row is only created together with its marks. Built in Phase 9. |
 | **Leave Requests** | **New** (see D4) | **Deferred — not in v1** (read-only app for v1). |
 | **Documents & Certificates** | Data exists (`StudentDocument`) | Report card, fee receipts (PDF exists), circulars — read + download. |
 | **More / Profile** | New endpoint | Parent profile + child switcher + links to the above. |
@@ -131,13 +133,24 @@ Each phase lists **backend → app**, and a **verify** check so we can loop to d
    → **verified:** `parent_phase5_test` widget tests (calendar/announcements/documents), `flutter analyze` clean, parent APK builds, backend `tsc` clean.
    → **pending (staging):** a `PARENTS` announcement posted on the web appears in the feed; a report-card PDF opens/downloads; a parent cannot read another child's documents (ownership 404).
 
-### Phase 6 — Push notifications
-1. New application ID registered in the existing Firebase project (`smartshala-a9822`, see memory); parent token registration reusing `PushService`.
-2. Parent-relevant triggers (fee due, attendance absent, new announcement, new homework) — decide the set.
-   → **verify:** a real device receives a push and deep-links to the right screen.
+### Phase 6 — Push notifications ✅ **built 2026-10-25** (`0dd3b6c`)
+1. ✅ Parent application IDs registered in the existing Firebase project (`smartshala-a9822`) for **both platforms** (`push_config.dart` `parentAndroidAppId` / `parentIosAppId`, filled in `2ae993e`); token registration reuses `PushService`.
+2. ✅ Triggers: fee reminder, absence, new homework, new announcement, marks recorded. `ParentShell` routes a tapped notification to the matching tab.
+   → **verify (pending):** a real device receives a push and deep-links to the right screen.
 
-### Phase 7 — (Deferred candidates) Leave Requests, direct messaging
-Only if D4 / messaging are later approved. Read-only v1 ships without them.
+### Phase 7 — Leave Requests ✅ **7a built 2026-10-25**; direct messaging still open
+1. ✅ **7a — parent-raised student leave** (D4 reversed): `GET`/`POST /parent/children/:id/leave`, `ParentLeaveScreen`, routed to the class teacher (`db5ec5a`).
+2. ⬜ **7b — two-way messaging.** Today's Messages tab is one-way: it reads announcements plus the `CommunicationLog` rows staff write. A parent reply needs a new table (so a production migration) and an inbox for staff to answer from, on the web and in the Teacher app.
+
+### Phase 9 — Timetable & Exam Schedule ✅ **built 2026-11-19** (Android + iOS)
+1. **Backend:** ✅
+   - `GET /parent/children/:id/timetable` — ownership-guarded; reuses the staff `classes.service` `getClassTimetable` for the child's class, so the grid matches the web. The staff-only `contestedBy` ("double-booked") flag is stripped: a clash is the office's to fix, not something a parent can act on.
+   - `GET /parent/exams` — the school's `EXAM`-type calendar entries split into `upcoming` (ending today or later, soonest first) and `past` (last 20, newest first), shaped by the calendar module's own `toItem` so the app's `CalendarEvent` parses them unchanged. School-wide, like `/parent/calendar`.
+   - **Why the calendar and not the `Exam` table:** an `Exam` row is only ever created together with its marks (`createExamWithMarks`), so that table holds exams already sat — which is what the Academics screen shows. The *schedule* only exists on the calendar.
+2. **App:** ✅ `ParentTimetableScreen` (reuses the shared `TimetableWeekView`, teacher opposite the subject) and `ParentExamScheduleScreen` (Upcoming/Completed segments, date block, span and time). Both reached from a new **quick-link row on Home** — which also restores **Academics** and **Homework**: the 2026-10-24 Home redesign (`3ba5330`) dropped their tiles and left both screens unreachable.
+   → **verified:** `backend/tests/parentTimetableExams.test.ts` (`npm run test:parent-screens`) against a real DB — the week's subjects/teachers/bell times, free periods as nulls, `contestedBy` absent, another family's child 404s, and the exam split (an exam ending today is still upcoming, a non-exam event never appears); `mobile/test/parent_timetable_exams_test.dart` (both screens, the quick links, and a 320dp/1.3x-text layout check); `flutter analyze` clean, 324 Flutter tests green, parent APK builds, backend `tsc` clean, neighbouring `test:timetable` / `test:calendar` / `test:parent-phone` still green.
+   → **pending:** an iOS build (needs the Mac) and a device run on both platforms.
+   → **noticed, not changed:** the parent Home already overflows at 320dp with 1.3x text (`_CardHeader` and the attendance card's present/absent row) — pre-existing, and left alone.
 
 ### Phase 8 — Store release
 1. Reuse the Play + App Store release runbooks (see `PLAY_STORE_RELEASE.md`, `APP_STORE_RELEASE.md` and memory). New listings, screenshots, privacy policy entry for a parent app, demo parent account for review.
@@ -163,4 +176,4 @@ Only if D4 / messaging are later approved. Read-only v1 ships without them.
 
 ---
 
-**Next action:** all decisions are settled. Start **Phase 0** (flavor + shell scaffolding), then **Phase 1** (parent login + Select Student).
+**Next action:** **Phase 8 (store release)** — the parent icon and splash are still copies of the teacher assets, and the listings, screenshots and a demo parent login are needed for Play internal + TestFlight. The only feature work left on the board is **7b, two-way messaging**, which needs a migration and a staff-side inbox.

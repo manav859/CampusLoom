@@ -68,7 +68,7 @@ function toData(input: CalendarEventInput) {
   };
 }
 
-function toItem(row: CalendarEvent) {
+export function toItem(row: CalendarEvent) {
   return {
     id: row.id,
     source: "EVENT" as const,

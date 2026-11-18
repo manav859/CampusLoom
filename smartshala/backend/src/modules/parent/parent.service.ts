@@ -1,4 +1,9 @@
-import { AnnouncementAudience, CommunicationType, HomeworkSubmissionStatus } from "@prisma/client";
+import {
+  AnnouncementAudience,
+  CalendarEventType,
+  CommunicationType,
+  HomeworkSubmissionStatus
+} from "@prisma/client";
 import { env } from "../../config/env.js";
 import { prisma } from "../../core/prisma.js";
 import { AppError, notFound } from "../../core/errors.js";
@@ -6,7 +11,8 @@ import { gradeForPercentage } from "../../core/grading.js";
 import { parentStudentWhere } from "../../utils/parentPhone.js";
 import { getDownloadUrl } from "../../services/storageService.js";
 import { getStudentMonthlyAttendance } from "../attendance/attendance.service.js";
-import { listMonth } from "../calendar/calendar.service.js";
+import { listMonth, toItem as toCalendarItem } from "../calendar/calendar.service.js";
+import { getClassTimetable } from "../classes/classes.service.js";
 import { getReceiptPdf, getStudentLedger } from "../fees/fees.service.js";
 import { createStudentLeave, listStudentLeaveForStudent } from "../studentLeave/studentLeave.service.js";
 import { signFeePayToken } from "./feePay.service.js";
@@ -233,6 +239,40 @@ export async function childHomework(user: Express.UserContext, studentId: string
 }
 
 /**
+ * One child's class timetable for the week: every period on every weekday,
+ * with the subject and the teacher taking it. Reuses the staff class
+ * timetable so the grid matches the web for the same class, minus the
+ * double-booking flag — a clash is the office's to sort out, not something a
+ * parent can act on.
+ */
+export async function childTimetable(user: Express.UserContext, studentId: string) {
+  await assertOwnChild(user, studentId);
+
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    select: { classId: true }
+  });
+  if (!student) throw notFound("Student");
+
+  const week = await getClassTimetable(user, student.classId);
+  return {
+    class: week.class,
+    periodCount: week.periodCount,
+    days: week.days.map((day) => ({
+      dayOfWeek: day.dayOfWeek,
+      label: day.label,
+      periods: day.periods.map((period) => ({
+        periodNumber: period.periodNumber,
+        startTime: period.startTime,
+        endTime: period.endTime,
+        subjectName: period.subjectName,
+        teacherName: period.teacherName
+      }))
+    }))
+  };
+}
+
+/**
  * One child's fees: the overall summary, each fee assignment with what is still
  * due, and the payment history (with receipt ids for download). Reuses the same
  * ledger the web dashboard reads, so the numbers match.
@@ -326,6 +366,39 @@ export async function childFeeReceiptPdf(user: Express.UserContext, studentId: s
  */
 export async function schoolCalendar(user: Express.UserContext, month?: string) {
   return listMonth(user, month ?? monthKey(new Date()));
+}
+
+/**
+ * The exam datesheet: the EXAM entries the office publishes on the school
+ * calendar, split into what is still to come and what is over. The schedule
+ * has to come from the calendar rather than the `Exam` table, because an exam
+ * row is only ever created together with its marks (`createExamWithMarks`) —
+ * so the table holds exams that have already been sat, which is what the
+ * Academics screen shows. Like the calendar, it is school-wide.
+ */
+export async function parentExamSchedule(user: Express.UserContext) {
+  const now = new Date();
+  // Calendar days are stored at midnight UTC, so today has to be built the
+  // same way to compare against them.
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const where = { schoolId: user.schoolId, type: CalendarEventType.EXAM };
+
+  const [upcoming, past] = await Promise.all([
+    prisma.calendarEvent.findMany({
+      where: { ...where, endDate: { gte: today } },
+      orderBy: [{ startDate: "asc" }, { createdAt: "asc" }]
+    }),
+    prisma.calendarEvent.findMany({
+      where: { ...where, endDate: { lt: today } },
+      orderBy: [{ startDate: "desc" }, { createdAt: "desc" }],
+      take: 20
+    })
+  ]);
+
+  return {
+    upcoming: upcoming.map(toCalendarItem),
+    past: past.map(toCalendarItem)
+  };
 }
 
 /**
